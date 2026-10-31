@@ -1,0 +1,40 @@
+# dependencies
+node_modules
+.pnp
+.pnp.js
+
+# testing
+coverage
+
+# build
+dist
+.next/
+out/
+.source
+
+# misc
+.DS_Store
+.eslintcache
+*.pem
+*.tgz
+
+# debug
+npm-debug.log*
+.pnpm-debug.log*
+
+# env files
+.env*
+!.env.example
+
+# turbo
+.turbo
+*.tsbuildinfo
+next-env.d.ts
+
+# local agent instructions
+CLAUDE.local.md
+
+# ide
+.idea
+.fleet
+.vscode

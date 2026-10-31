@@ -1,0 +1,46 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 2
+    commit-message:
+      prefix: "build(repo)"
+    # Packages that must move together share a group, including on majors.
+    groups:
+      framework:
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+          - "@types/react*"
+          - "eslint-config-next"
+          - "fumadocs*"
+      tailwindcss:
+        patterns: ["tailwindcss", "@tailwindcss/*"]
+      eslint:
+        patterns: ["eslint", "@eslint/*", "typescript-eslint"]
+      commitlint:
+        patterns: ["@commitlint/*"]
+      size-limit:
+        patterns: ["size-limit", "@size-limit/*"]
+      deps:
+        applies-to: "version-updates"
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "@types/node"
+        update-types:
+          ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "typescript"
+        update-types:
+          ["version-update:semver-major", "version-update:semver-minor"]
+  - package-ecosystem: "github-actions"
+    directories: ["/", "/.github/actions/*"]
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 2
+    commit-message:
+      prefix: "build(ci)"

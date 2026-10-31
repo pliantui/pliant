@@ -1,0 +1,27 @@
+name: Pull request title
+
+# Pull requests are squash-merged, so the title becomes the commit on main.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    name: commitlint
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: printf '%s\n' "$PR_TITLE" | pnpm exec commitlint --verbose
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}

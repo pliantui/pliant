@@ -1,0 +1,64 @@
+{
+  "name": "@pliantui/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Headless overlay engine for Pliant: resolution, validation and the function library.",
+  "homepage": "https://github.com/pliantui/pliant#readme",
+  "bugs": "https://github.com/pliantui/pliant/issues",
+  "license": "MIT",
+  "author": {
+    "name": "Hitesh Shivkumar",
+    "url": "https://github.com/TFM-HITESH"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pliantui/pliant.git",
+    "directory": "packages/core"
+  },
+  "keywords": [
+    "pliant",
+    "overlay",
+    "shadcn",
+    "headless"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --max-warnings 0 .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run --passWithNoTests",
+    "check:package": "publint --strict && attw --pack . --profile esm-only",
+    "size": "size-limit"
+  },
+  "size-limit": [
+    {
+      "path": "dist/index.js",
+      "limit": "25 kB"
+    }
+  ],
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@size-limit/preset-small-lib": "^14.3.0",
+    "eslint": "^9.39.5",
+    "publint": "^0.3.25",
+    "size-limit": "^14.3.0",
+    "tsup": "^9.0.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.5"
+  }
+}

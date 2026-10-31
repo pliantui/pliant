@@ -1,0 +1,37 @@
+name: "Feature request"
+description: Request a feature for Pliant
+title: "[feat]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Thanks for taking the time to request a feature. Please search open and closed issues before submitting.
+
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Feature description
+      description: What should Pliant do, and what problem does it solve?
+      placeholder: I think this feature would be great because...
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Any other context, such as screenshots or links.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Before submitting
+      description: By submitting this issue, you agree to follow our [Contributing Guidelines](https://github.com/pliantui/pliant/blob/main/CONTRIBUTING.md).
+      options:
+        - label: I've searched the documentation
+          required: true
+        - label: I've searched for existing issues and PRs
+          required: true

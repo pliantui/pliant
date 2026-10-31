@@ -1,0 +1,75 @@
+name: "Bug report"
+description: Report an issue
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Thanks for taking the time to create a bug report. Please search open and closed issues before submitting.
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: Bug description
+    validations:
+      required: true
+
+  - type: input
+    id: packages-affected
+    attributes:
+      label: Affected packages
+      description: Which Pliant packages or components are affected?
+      placeholder: ex. pliantui, @pliantui/core...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How to reproduce
+      description: A step-by-step description of how to reproduce the bug.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: input
+    id: reproduction-link
+    attributes:
+      label: Reproduction link
+      description: A link to a CodeSandbox, StackBlitz or minimal GitHub repository that reproduces the problem. Reports without a reproduction may be closed.
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Browser console and server logs around the time the bug occurred. Paste text, not screenshots.
+      render: bash
+
+  - type: textarea
+    id: system-info
+    attributes:
+      label: System Info
+      description: Versions of Node.js, React, Next.js, browsers and Pliant packages.
+      render: bash
+      placeholder: System, Binaries, Browsers
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Before submitting
+      description: By submitting this issue, you agree to follow our [Contributing Guidelines](https://github.com/pliantui/pliant/blob/main/CONTRIBUTING.md).
+      options:
+        - label: I've searched the documentation
+          required: true
+        - label: I've searched for existing issues
+          required: true

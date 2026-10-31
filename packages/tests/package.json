@@ -1,0 +1,23 @@
+{
+  "name": "tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Integration tests for the pliantui CLI.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --max-warnings 0 .",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "pliantui": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "~22.12.0",
+    "eslint": "^9.39.5",
+    "execa": "^10.2.1",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.5"
+  }
+}
