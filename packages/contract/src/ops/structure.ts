@@ -41,10 +41,15 @@ export const structureOpSchemas = {
         z.strictObject({ into: nodeAddressSchema({ template: false }) }),
       ]),
     })
-    .refine(
-      (move) => !("into" in move.to && move.target.includes("[]")),
-      "Can't move an item out of a template"
-    ),
+    .superRefine((move, ctx) => {
+      if ("into" in move.to && !/^[^[\]]*\/slots\/[^/]+$/.test(move.target)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["target"],
+          message: "Only a slot outside a template can move into another node",
+        })
+      }
+    }),
   collapse: z.strictObject({
     op: z.literal("collapse"),
     target: nodeAddressSchema(),

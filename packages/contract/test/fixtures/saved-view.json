@@ -600,6 +600,224 @@
         "v": 1
       },
       "message": "Must be unique within the view"
+    },
+    {
+      "value": {
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TG",
+        "name": "My orders",
+        "surface": "/orders/[id]",
+        "layer": "org",
+        "overlays": [
+          {
+            "v": 1,
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TK",
+            "surface": "/orders/[id]",
+            "layer": "org",
+            "ops": [
+              {
+                "op": "hide",
+                "target": "orders-table/columns/notes"
+              },
+              {
+                "op": "setSort",
+                "target": "orders-table",
+                "sort": [
+                  {
+                    "field": "value",
+                    "dir": "desc"
+                  }
+                ]
+              }
+            ],
+            "basis": {
+              "contract": 1,
+              "core": "0.1.0",
+              "manifests": {
+                "data-table": 1
+              },
+              "datasets": {
+                "orders": 2
+              },
+              "layers": {
+                "team": {
+                  "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+                  "version": 3
+                }
+              }
+            },
+            "source": "ai",
+            "explain": [
+              "Hid the notes column.",
+              "Sorted by value, highest first."
+            ],
+            "createdBy": "user_123",
+            "createdAt": "2026-11-01T09:30:00.000Z",
+            "scope": {
+              "org": "a"
+            }
+          },
+          {
+            "v": 1,
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TM",
+            "surface": "/orders/[id]",
+            "layer": "org",
+            "ops": [
+              {
+                "op": "hide",
+                "target": "orders-table/columns/notes"
+              },
+              {
+                "op": "setSort",
+                "target": "orders-table",
+                "sort": [
+                  {
+                    "field": "value",
+                    "dir": "desc"
+                  }
+                ]
+              }
+            ],
+            "basis": {
+              "contract": 1,
+              "core": "0.1.0",
+              "manifests": {
+                "data-table": 1
+              },
+              "datasets": {
+                "orders": 2
+              },
+              "layers": {
+                "team": {
+                  "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+                  "version": 3
+                }
+              }
+            },
+            "source": "ai",
+            "explain": [
+              "Hid the notes column.",
+              "Sorted by value, highest first."
+            ],
+            "createdBy": "user_123",
+            "createdAt": "2026-11-01T09:30:00.000Z",
+            "scope": {
+              "org": "b"
+            }
+          }
+        ],
+        "v": 1
+      },
+      "message": "Must have the same scope as the view's other overlays"
+    },
+    {
+      "value": {
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TG",
+        "name": "My orders",
+        "surface": "/orders/[id]",
+        "layer": "team",
+        "overlays": [
+          {
+            "v": 1,
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TN",
+            "surface": "/orders/[id]",
+            "layer": "team",
+            "ops": [
+              {
+                "op": "hide",
+                "target": "orders-table/columns/notes"
+              },
+              {
+                "op": "setSort",
+                "target": "orders-table",
+                "sort": [
+                  {
+                    "field": "value",
+                    "dir": "desc"
+                  }
+                ]
+              }
+            ],
+            "basis": {
+              "contract": 1,
+              "core": "0.1.0",
+              "manifests": {
+                "data-table": 1
+              },
+              "datasets": {
+                "orders": 2
+              },
+              "layers": {
+                "team": {
+                  "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+                  "version": 3
+                }
+              }
+            },
+            "source": "ai",
+            "explain": [
+              "Hid the notes column.",
+              "Sorted by value, highest first."
+            ],
+            "createdBy": "user_123",
+            "createdAt": "2026-11-01T09:30:00.000Z",
+            "scope": {
+              "team": "t",
+              "org": "a"
+            }
+          },
+          {
+            "v": 1,
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TP",
+            "surface": "/orders/[id]",
+            "layer": "team",
+            "ops": [
+              {
+                "op": "hide",
+                "target": "orders-table/columns/notes"
+              },
+              {
+                "op": "setSort",
+                "target": "orders-table",
+                "sort": [
+                  {
+                    "field": "value",
+                    "dir": "desc"
+                  }
+                ]
+              }
+            ],
+            "basis": {
+              "contract": 1,
+              "core": "0.1.0",
+              "manifests": {
+                "data-table": 1
+              },
+              "datasets": {
+                "orders": 2
+              },
+              "layers": {
+                "team": {
+                  "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+                  "version": 3
+                }
+              }
+            },
+            "source": "ai",
+            "explain": [
+              "Hid the notes column.",
+              "Sorted by value, highest first."
+            ],
+            "createdBy": "user_123",
+            "createdAt": "2026-11-01T09:30:00.000Z",
+            "scope": {
+              "team": "t",
+              "org": "b"
+            }
+          }
+        ],
+        "v": 1
+      },
+      "message": "Must have the same scope as the view's other overlays"
     }
   ]
 }

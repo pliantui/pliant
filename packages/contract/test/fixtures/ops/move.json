@@ -27,6 +27,13 @@
       "to": {
         "after": "title"
       }
+    },
+    {
+      "op": "move",
+      "target": "dashboard/slots/revenue",
+      "to": {
+        "into": "sidebar/slots/top"
+      }
     }
   ],
   "invalid": [
@@ -76,7 +83,27 @@
           "into": "dashboard"
         }
       },
-      "message": "Can't move an item out of a template"
+      "message": "Only a slot outside a template can move into another node"
+    },
+    {
+      "value": {
+        "op": "move",
+        "target": "orders-table/columns/notes",
+        "to": {
+          "into": "dashboard"
+        }
+      },
+      "message": "Only a slot outside a template can move into another node"
+    },
+    {
+      "value": {
+        "op": "move",
+        "target": "orders-toolbar/actions/export",
+        "to": {
+          "into": "nav/slots/x"
+        }
+      },
+      "message": "Only a slot outside a template can move into another node"
     }
   ]
 }
