@@ -3,16 +3,15 @@ import type { Layer } from "./layer"
 import type { OpName } from "./op"
 
 export interface OpDefinition {
-  capability: Capability | null
-  appliesTo: "target" | "parent" | "surface" | "app"
-  layers: readonly Layer[]
+  readonly capability: Capability | null
+  readonly appliesTo: "target" | "parent" | "surface" | "app"
+  readonly layers: readonly Layer[]
   /**
-   * The op's argument keys, without `op` and `target`: one list per shape,
-   * in no particular order. An op with keys outside every list comes from a
-   * newer version when it is valid without them, using the shape that leaves
-   * the fewest extra keys.
+   * The op's argument keys, without `op` and `target`: one list per shape, in
+   * schema order. An op that fails its schema comes from a newer version when
+   * it passes after removing the keys that appear in no list.
    */
-  args: readonly (readonly string[])[]
+  readonly args: readonly (readonly string[])[]
 }
 
 const anyLayer = ["org", "team", "personal", "session"] as const

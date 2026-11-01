@@ -36,7 +36,7 @@ const overlayShape = {
   surface: surfaceSchema,
   ops: z.array(z.unknown()).min(1).max(500).meta({
     description:
-      "Each op is validated on its own against op.json. An invalid, unknown or newer op is skipped, not the overlay.",
+      "When an overlay is loaded, each op is checked on its own (op.json, the layers its catalog entry allows, and @app only on the @app surface); an invalid, unknown or newer op is skipped, not the overlay.",
   }),
   basis: z.looseObject({
     contract: z.literal(1),

@@ -19,14 +19,12 @@ function argsOf(schema: z.core.$ZodType): string[][] {
 }
 
 describe("opCatalog", () => {
-  it.each(Object.entries(opCatalog))(
+  it.each(Object.entries(opSchemas))(
     "lists the arguments of %s, one list per shape",
-    (name, { args }) => {
-      const schema = Object.hasOwn(opSchemas, name)
-        ? Object.entries(opSchemas).find(([key]) => key === name)?.[1]
-        : undefined
-      expect(schema).toBeDefined()
-      expect(args).toEqual(schema ? argsOf(schema) : [])
+    (name, schema) => {
+      expect(
+        Object.entries(opCatalog).find(([key]) => key === name)?.[1].args
+      ).toEqual(argsOf(schema))
     }
   )
 })
