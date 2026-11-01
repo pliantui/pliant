@@ -61,11 +61,35 @@ describe("validateOverlay", () => {
     ])
   })
 
-  it("doesn't copy op input into issues", () => {
+  it("doesn't copy op values into issues", () => {
     const result = validateOverlay(
-      overlay([{ op: "setTheme", target: "orders-table", secret: "x" }])
+      overlay([
+        { op: "setTheme", target: "orders-table", secret: "s3cr3t" },
+        {
+          op: "rename",
+          target: "orders-table/columns/notes",
+          label: "",
+          secret: "s3cr3t",
+        },
+        { op: "hide", target: "orders-table/columns/notes", secret: "s3cr3t" },
+      ])
     )
-    expect(result.error?.issues[0]).not.toHaveProperty("input")
+    expect(result.success).toBe(false)
+    expect(JSON.stringify(result.error?.issues)).not.toContain("s3cr3t")
+  })
+
+  it("reports op issues along with envelope issues", () => {
+    const result = validateOverlay({
+      ...overlay([
+        { op: "hide", target: "orders-table/columns/notes" },
+        { op: "rename", target: "orders-table/columns/notes", label: "" },
+      ]),
+      basis: { contract: 1, core: "0.1.0", manifests: { "Bad Key": 1 } },
+    })
+    expect(result.error?.issues.map(({ path }) => path)).toEqual([
+      ["basis", "manifests", "Bad Key"],
+      ["ops", 1, "label"],
+    ])
   })
 
   it("fails when the envelope is invalid", () => {

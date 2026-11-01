@@ -1,5 +1,4 @@
 export { type OpCheck } from "./check-op"
 export { formatError, type FormatErrorOptions } from "./format-error"
 export { loadOverlay, type LoadedOverlay } from "./load-overlay"
-export { type Result } from "./result"
 export { validateOverlay, type ValidatedOverlay } from "./validate-overlay"

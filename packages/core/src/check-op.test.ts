@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest"
 
 import type { OverlayOp } from "@pliantui/contract"
+import { opCatalog } from "@pliantui/contract"
 
-import { checkOp } from "./check-op"
+import { checkOp, opBranches } from "./check-op"
 
 function check(op: OverlayOp) {
   return checkOp(op, 0)
@@ -35,6 +36,30 @@ describe("checkOp", () => {
     [
       { op: "setLayout", target: "dashboard", mode: "row", gap: 2, wrap: true },
       ["gap", "wrap"],
+    ],
+    [
+      {
+        op: "setPresentation",
+        target: "edit-order",
+        as: "dialog",
+        side: "left",
+      },
+      ["side"],
+    ],
+    [
+      { op: "setLayout", target: "dashboard", mode: "row", columns: 2 },
+      ["columns"],
+    ],
+    [
+      {
+        op: "wrap",
+        target: "dashboard",
+        id: "row",
+        items: ["a", "b"],
+        mode: "stack",
+        columns: 2,
+      },
+      ["columns"],
     ],
   ])("treats unknown top-level arguments as newer: %j", (op, keys) => {
     expect(check(op)).toEqual({ index: 0, status: "newer", op, keys })
@@ -69,5 +94,17 @@ describe("checkOp", () => {
   it("keeps the original op for ops it can't apply", () => {
     const op = { op: "hide", target: "orders-table/columns/notes", at: "sm" }
     expect(check(op).op).toBe(op)
+  })
+
+  it("knows the arguments of every op in the catalog", () => {
+    expect([...opBranches.keys()].sort()).toEqual(Object.keys(opCatalog).sort())
+    for (const [name, branches] of opBranches) {
+      expect(branches.length, name).toBeGreaterThan(0)
+      for (const { keys } of branches) {
+        expect([...keys], name).toEqual(
+          expect.arrayContaining(["op", "target"])
+        )
+      }
+    }
   })
 })

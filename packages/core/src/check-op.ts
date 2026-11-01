@@ -1,4 +1,4 @@
-import type * as z from "zod"
+import * as z from "zod"
 
 import {
   opCatalog,
@@ -15,36 +15,54 @@ export type OpCheck =
   | { index: number; status: "newer"; op: OverlayOp; keys: string[] }
   | { index: number; status: "invalid"; op: OverlayOp; error: z.ZodError }
 
+interface Branch {
+  schema: z.core.$ZodType
+  keys: ReadonlySet<string>
+}
+
+function branchesOf(schema: z.core.$ZodType): Branch[] {
+  if (schema instanceof z.core.$ZodObject) {
+    return [{ schema, keys: new Set(Object.keys(schema._zod.def.shape)) }]
+  }
+  if (schema instanceof z.core.$ZodUnion) {
+    return schema._zod.def.options.flatMap(branchesOf)
+  }
+  throw new TypeError(`Unsupported op schema type: ${schema._zod.def.type}`)
+}
+
 function isOpName(name: string): name is OpName {
   return Object.hasOwn(opCatalog, name)
 }
 
-function argumentKeys(schema: z.ZodType): string[] {
-  if ("shape" in schema && typeof schema.shape === "object" && schema.shape) {
-    return Object.keys(schema.shape)
-  }
-  if ("options" in schema && Array.isArray(schema.options)) {
-    return schema.options.flatMap((option: z.ZodType) => argumentKeys(option))
-  }
-  return []
+export const opBranches: ReadonlyMap<OpName, Branch[]> = new Map(
+  Object.keys(opSchemas)
+    .filter(isOpName)
+    .map((name) => [name, branchesOf(opSchemas[name])])
+)
+
+function extraKeys(op: OverlayOp, keys: ReadonlySet<string>) {
+  return Object.keys(op).filter((key) => !keys.has(key))
 }
 
 export function checkOp(op: OverlayOp, index: number): OpCheck {
   if (!isOpName(op.op)) {
     return { index, status: "unknown", op }
   }
-  const known = new Set(argumentKeys(opSchemas[op.op]))
-  const keys = Object.keys(op).filter((key) => !known.has(key))
-  const result = opSchema.safeParse(
-    keys.length > 0
-      ? Object.fromEntries(Object.entries(op).filter(([key]) => known.has(key)))
-      : op
-  )
-  if (!result.success) {
-    return { index, status: "invalid", op, error: result.error }
+  const result = opSchema.safeParse(op)
+  if (result.success) {
+    return { index, status: "valid", op: result.data }
   }
-  if (keys.length > 0) {
-    return { index, status: "newer", op, keys }
+  for (const { schema, keys } of opBranches.get(op.op) ?? []) {
+    const extra = extraKeys(op, keys)
+    if (
+      extra.length > 0 &&
+      z.safeParse(
+        schema,
+        Object.fromEntries(Object.entries(op).filter(([key]) => keys.has(key)))
+      ).success
+    ) {
+      return { index, status: "newer", op, keys: extra }
+    }
   }
-  return { index, status: "valid", op: result.data }
+  return { index, status: "invalid", op, error: result.error }
 }

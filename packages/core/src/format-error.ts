@@ -67,10 +67,11 @@ export function formatError(
   const shown = error.issues.slice(0, maxIssues)
   let budget = maxIssues - shown.length
   const lines: string[] = []
+  const nested = new Set<string>()
 
-  function write(issue: Issue, path: readonly PropertyKey[], depth: number) {
+  function line(issue: Issue, path: readonly PropertyKey[], depth: number) {
     const at = formatPath(path)
-    lines.push(`${"  ".repeat(depth)}${at ? `${at}: ` : ""}${issue.message}`)
+    return `${"  ".repeat(depth)}${at ? `${at}: ` : ""}${issue.message}`
   }
 
   function expand(issue: Issue, path: readonly PropertyKey[], depth: number) {
@@ -82,16 +83,20 @@ export function formatError(
         if (budget === 0) {
           return
         }
-        budget--
         const childPath = [...path, ...child.path]
-        write(child, childPath, depth + 1)
+        const text = line(child, childPath, depth + 1)
+        if (!nested.has(text)) {
+          nested.add(text)
+          budget--
+          lines.push(text)
+        }
         expand(child, childPath, depth + 1)
       }
     }
   }
 
   for (const issue of shown) {
-    write(issue, issue.path, 0)
+    lines.push(line(issue, issue.path, 0))
     expand(issue, issue.path, 0)
   }
   const omitted = error.issues.length - shown.length

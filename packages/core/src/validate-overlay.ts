@@ -1,53 +1,80 @@
 import * as z from "zod"
 
-import { overlaySchema, type Op } from "@pliantui/contract"
+import {
+  overlayOpSchema,
+  overlaySchema,
+  type Op,
+  type OverlayOp,
+} from "@pliantui/contract"
 
-import { checkOp } from "./check-op"
+import { checkOp, type OpCheck } from "./check-op"
 import type { Result } from "./result"
 import type { WithOps } from "./with-ops"
 
 export type ValidatedOverlay = WithOps<Op>
 
-export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
-  const result = overlaySchema.safeParse(input)
-  if (!result.success) {
-    return { success: false, error: result.error }
+function opsOf(input: unknown): [OverlayOp, number][] {
+  if (
+    typeof input !== "object" ||
+    input === null ||
+    !("ops" in input) ||
+    !Array.isArray(input.ops)
+  ) {
+    return []
   }
-  const ops: Op[] = []
-  const issues: z.core.$ZodIssue[] = []
-  for (const check of result.data.ops.map(checkOp)) {
-    const path = ["ops", check.index]
-    switch (check.status) {
-      case "valid":
-        ops.push(check.op)
-        break
-      case "invalid":
-        issues.push(
-          ...check.error.issues.map((issue) => ({
-            ...issue,
-            path: [...path, ...issue.path],
-          }))
-        )
-        break
-      case "newer":
-        issues.push({
+  const ops: unknown[] = input.ops
+  return ops.flatMap((op, index): [OverlayOp, number][] => {
+    const result = overlayOpSchema.safeParse(op)
+    return result.success ? [[result.data, index]] : []
+  })
+}
+
+function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
+  const path = ["ops", check.index]
+  switch (check.status) {
+    case "valid":
+      return []
+    case "invalid":
+      return check.error.issues.map((issue) => ({
+        ...issue,
+        path: [...path, ...issue.path],
+      }))
+    case "newer":
+      return [
+        {
           code: "unrecognized_keys",
           keys: check.keys,
           path,
           message: `Unrecognized ${check.keys.length === 1 ? "key" : "keys"}: ${check.keys.map((key) => `"${key}"`).join(", ")}`,
-        })
-        break
-      case "unknown":
-        issues.push({
+        },
+      ]
+    case "unknown":
+      return [
+        {
           code: "custom",
           path: [...path, "op"],
           message: `Unknown op ${check.op.op}`,
-        })
-        break
-    }
+        },
+      ]
   }
-  if (issues.length > 0) {
+}
+
+export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
+  const result = overlaySchema.safeParse(input)
+  const checks = (
+    result.success
+      ? result.data.ops.map((op, index): [OverlayOp, number] => [op, index])
+      : opsOf(input)
+  ).map(([op, index]) => checkOp(op, index))
+  const issues = [
+    ...(result.success ? [] : result.error.issues),
+    ...checks.flatMap(issuesOf),
+  ]
+  if (!result.success || issues.length > 0) {
     return { success: false, error: new z.ZodError(issues) }
   }
+  const ops = checks.flatMap((check) =>
+    check.status === "valid" ? [check.op] : []
+  )
   return { success: true, data: { ...result.data, ops } }
 }

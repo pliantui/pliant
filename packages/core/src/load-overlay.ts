@@ -13,6 +13,9 @@ export function loadOverlay(input: unknown): Result<LoadedOverlay> {
   }
   return {
     success: true,
-    data: { ...result.data, ops: result.data.ops.map(checkOp) },
+    data: {
+      ...result.data,
+      ops: result.data.ops.map((op, index) => checkOp(op, index)),
+    },
   }
 }
