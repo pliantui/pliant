@@ -50,7 +50,8 @@
                 "minItems": 1,
                 "maxItems": 500,
                 "type": "array",
-                "items": {}
+                "items": {},
+                "description": "Each op is validated on its own against op.json. An invalid, unknown or newer op is skipped, not the overlay."
               },
               "basis": {
                 "type": "object",
@@ -227,7 +228,8 @@
                 "minItems": 1,
                 "maxItems": 500,
                 "type": "array",
-                "items": {}
+                "items": {},
+                "description": "Each op is validated on its own against op.json. An invalid, unknown or newer op is skipped, not the overlay."
               },
               "basis": {
                 "type": "object",
@@ -409,7 +411,8 @@
                 "minItems": 1,
                 "maxItems": 500,
                 "type": "array",
-                "items": {}
+                "items": {},
+                "description": "Each op is validated on its own against op.json. An invalid, unknown or newer op is skipped, not the overlay."
               },
               "basis": {
                 "type": "object",

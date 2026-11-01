@@ -34,7 +34,10 @@ const overlayShape = {
   v: z.literal(1),
   id: ulidSchema,
   surface: surfaceSchema,
-  ops: z.array(z.unknown()).min(1).max(500),
+  ops: z.array(z.unknown()).min(1).max(500).meta({
+    description:
+      "Each op is validated on its own against op.json. An invalid, unknown or newer op is skipped, not the overlay.",
+  }),
   basis: z.looseObject({
     contract: z.literal(1),
     core: z.string().max(64).regex(semverPattern, "Must be a semver version"),
