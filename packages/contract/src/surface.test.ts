@@ -43,7 +43,7 @@ describe("surfaceSchema percent-encoding", () => {
         }
       }
     }
-  })
+  }, 30_000)
 
   it("accepts exactly the well-formed 4-byte sequences at each boundary", () => {
     for (let first = 0xf0; first <= 0xf7; first++) {

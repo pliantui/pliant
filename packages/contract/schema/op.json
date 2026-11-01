@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pliantui.dev/schema/op.json",
   "oneOf": [
     {
       "type": "object",
@@ -1839,7 +1840,7 @@
               "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
             },
             "args": {
-              "maxItems": 4,
+              "maxItems": 16,
               "type": "array",
               "items": {
                 "anyOf": [
@@ -1902,7 +1903,7 @@
                         "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
                       },
                       "args": {
-                        "maxItems": 4,
+                        "maxItems": 16,
                         "type": "array",
                         "items": {
                           "anyOf": [
@@ -1965,7 +1966,7 @@
                                   "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
                                 },
                                 "args": {
-                                  "maxItems": 4,
+                                  "maxItems": 16,
                                   "type": "array",
                                   "items": {
                                     "anyOf": [
@@ -2028,7 +2029,7 @@
                                             "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
                                           },
                                           "args": {
-                                            "maxItems": 4,
+                                            "maxItems": 16,
                                             "type": "array",
                                             "items": {
                                               "anyOf": [
@@ -2079,6 +2080,298 @@
                                                   },
                                                   "required": [
                                                     "ref"
+                                                  ],
+                                                  "additionalProperties": false
+                                                },
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "fn": {
+                                                      "type": "string",
+                                                      "maxLength": 64,
+                                                      "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
+                                                    },
+                                                    "args": {
+                                                      "maxItems": 16,
+                                                      "type": "array",
+                                                      "items": {
+                                                        "anyOf": [
+                                                          {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "field": {
+                                                                "$ref": "#/$defs/itemId"
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "field"
+                                                            ],
+                                                            "additionalProperties": false
+                                                          },
+                                                          {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "value": {
+                                                                "anyOf": [
+                                                                  {
+                                                                    "type": "string",
+                                                                    "maxLength": 200
+                                                                  },
+                                                                  {
+                                                                    "type": "number"
+                                                                  },
+                                                                  {
+                                                                    "type": "boolean"
+                                                                  },
+                                                                  {
+                                                                    "type": "null"
+                                                                  }
+                                                                ]
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "value"
+                                                            ],
+                                                            "additionalProperties": false
+                                                          },
+                                                          {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "ref": {
+                                                                "$ref": "#/$defs/itemId"
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "ref"
+                                                            ],
+                                                            "additionalProperties": false
+                                                          },
+                                                          {
+                                                            "type": "object",
+                                                            "properties": {
+                                                              "fn": {
+                                                                "type": "string",
+                                                                "maxLength": 64,
+                                                                "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
+                                                              },
+                                                              "args": {
+                                                                "maxItems": 16,
+                                                                "type": "array",
+                                                                "items": {
+                                                                  "anyOf": [
+                                                                    {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "field": {
+                                                                          "$ref": "#/$defs/itemId"
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "field"
+                                                                      ],
+                                                                      "additionalProperties": false
+                                                                    },
+                                                                    {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "value": {
+                                                                          "anyOf": [
+                                                                            {
+                                                                              "type": "string",
+                                                                              "maxLength": 200
+                                                                            },
+                                                                            {
+                                                                              "type": "number"
+                                                                            },
+                                                                            {
+                                                                              "type": "boolean"
+                                                                            },
+                                                                            {
+                                                                              "type": "null"
+                                                                            }
+                                                                          ]
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "value"
+                                                                      ],
+                                                                      "additionalProperties": false
+                                                                    },
+                                                                    {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "ref": {
+                                                                          "$ref": "#/$defs/itemId"
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "ref"
+                                                                      ],
+                                                                      "additionalProperties": false
+                                                                    },
+                                                                    {
+                                                                      "type": "object",
+                                                                      "properties": {
+                                                                        "fn": {
+                                                                          "type": "string",
+                                                                          "maxLength": 64,
+                                                                          "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
+                                                                        },
+                                                                        "args": {
+                                                                          "maxItems": 16,
+                                                                          "type": "array",
+                                                                          "items": {
+                                                                            "anyOf": [
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "field": {
+                                                                                    "$ref": "#/$defs/itemId"
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "field"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              },
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "value": {
+                                                                                    "anyOf": [
+                                                                                      {
+                                                                                        "type": "string",
+                                                                                        "maxLength": 200
+                                                                                      },
+                                                                                      {
+                                                                                        "type": "number"
+                                                                                      },
+                                                                                      {
+                                                                                        "type": "boolean"
+                                                                                      },
+                                                                                      {
+                                                                                        "type": "null"
+                                                                                      }
+                                                                                    ]
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "value"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              },
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "ref": {
+                                                                                    "$ref": "#/$defs/itemId"
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "ref"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              },
+                                                                              {
+                                                                                "type": "object",
+                                                                                "properties": {
+                                                                                  "fn": {
+                                                                                    "type": "string",
+                                                                                    "maxLength": 64,
+                                                                                    "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
+                                                                                  },
+                                                                                  "args": {
+                                                                                    "maxItems": 16,
+                                                                                    "type": "array",
+                                                                                    "items": {
+                                                                                      "anyOf": [
+                                                                                        {
+                                                                                          "type": "object",
+                                                                                          "properties": {
+                                                                                            "field": {
+                                                                                              "$ref": "#/$defs/itemId"
+                                                                                            }
+                                                                                          },
+                                                                                          "required": [
+                                                                                            "field"
+                                                                                          ],
+                                                                                          "additionalProperties": false
+                                                                                        },
+                                                                                        {
+                                                                                          "type": "object",
+                                                                                          "properties": {
+                                                                                            "value": {
+                                                                                              "anyOf": [
+                                                                                                {
+                                                                                                  "type": "string",
+                                                                                                  "maxLength": 200
+                                                                                                },
+                                                                                                {
+                                                                                                  "type": "number"
+                                                                                                },
+                                                                                                {
+                                                                                                  "type": "boolean"
+                                                                                                },
+                                                                                                {
+                                                                                                  "type": "null"
+                                                                                                }
+                                                                                              ]
+                                                                                            }
+                                                                                          },
+                                                                                          "required": [
+                                                                                            "value"
+                                                                                          ],
+                                                                                          "additionalProperties": false
+                                                                                        },
+                                                                                        {
+                                                                                          "type": "object",
+                                                                                          "properties": {
+                                                                                            "ref": {
+                                                                                              "$ref": "#/$defs/itemId"
+                                                                                            }
+                                                                                          },
+                                                                                          "required": [
+                                                                                            "ref"
+                                                                                          ],
+                                                                                          "additionalProperties": false
+                                                                                        }
+                                                                                      ]
+                                                                                    }
+                                                                                  }
+                                                                                },
+                                                                                "required": [
+                                                                                  "fn",
+                                                                                  "args"
+                                                                                ],
+                                                                                "additionalProperties": false
+                                                                              }
+                                                                            ]
+                                                                          }
+                                                                        }
+                                                                      },
+                                                                      "required": [
+                                                                        "fn",
+                                                                        "args"
+                                                                      ],
+                                                                      "additionalProperties": false
+                                                                    }
+                                                                  ]
+                                                                }
+                                                              }
+                                                            },
+                                                            "required": [
+                                                              "fn",
+                                                              "args"
+                                                            ],
+                                                            "additionalProperties": false
+                                                          }
+                                                        ]
+                                                      }
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "fn",
+                                                    "args"
                                                   ],
                                                   "additionalProperties": false
                                                 }

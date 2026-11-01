@@ -105,5 +105,22 @@
         "index": 0
       }
     }
+  ],
+  "crossField": [
+    {
+      "value": {
+        "op": "insert",
+        "target": "dashboard",
+        "node": {
+          "id": "rating",
+          "kind": "pliant:rating"
+        },
+        "at": {
+          "index": 0
+        }
+      },
+      "message": "The pliant: namespace is reserved for built-ins",
+      "path": ["node", "kind"]
+    }
   ]
 }

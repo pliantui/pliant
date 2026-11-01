@@ -1,20 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pliantui.dev/schema/manifest.json",
   "type": "object",
   "properties": {
     "kind": {
-      "anyOf": [
-        {
-          "type": "string",
-          "maxLength": 64,
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
-        },
-        {
-          "type": "string",
-          "maxLength": 64,
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
-        }
-      ]
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
     },
     "version": {
       "type": "integer",

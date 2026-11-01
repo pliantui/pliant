@@ -57,13 +57,500 @@
                     "fn": "abs",
                     "args": [
                       {
-                        "field": "value"
+                        "fn": "abs",
+                        "args": [
+                          {
+                            "fn": "abs",
+                            "args": [
+                              {
+                                "fn": "abs",
+                                "args": [
+                                  {
+                                    "fn": "abs",
+                                    "args": [
+                                      {
+                                        "field": "value"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
                       }
                     ]
                   }
                 ]
               }
             ]
+          }
+        ]
+      }
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "wide",
+      "label": "Wide",
+      "expr": {
+        "fn": "coalesce",
+        "args": [
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          }
+        ]
+      }
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "limit",
+      "label": "Limit",
+      "expr": {
+        "fn": "sum",
+        "args": [
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
           }
         ]
       }
@@ -117,7 +604,27 @@
                         "fn": "abs",
                         "args": [
                           {
-                            "field": "value"
+                            "fn": "abs",
+                            "args": [
+                              {
+                                "fn": "abs",
+                                "args": [
+                                  {
+                                    "fn": "abs",
+                                    "args": [
+                                      {
+                                        "fn": "abs",
+                                        "args": [
+                                          {
+                                            "field": "value"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
                           }
                         ]
                       }
@@ -136,8 +643,44 @@
       "id": "wide",
       "label": "Wide",
       "expr": {
-        "fn": "sum",
+        "fn": "coalesce",
         "args": [
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
           {
             "field": "a"
           },
@@ -171,72 +714,52 @@
               "fn": "sum",
               "args": [
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
                 },
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
                 },
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
                 },
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
                 }
               ]
             },
@@ -244,72 +767,52 @@
               "fn": "sum",
               "args": [
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
                 },
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
                 },
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
                 },
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
                 }
               ]
             },
@@ -317,72 +820,52 @@
               "fn": "sum",
               "args": [
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
                 },
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
                 },
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
                 },
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
                 }
               ]
             },
@@ -390,79 +873,271 @@
               "fn": "sum",
               "args": [
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
                 },
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
                 },
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
                 },
                 {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
                 }
               ]
             }
           ]
         }
       },
-      "message": "Must have at most 64 nodes",
+      "message": "Must have at most 128 nodes",
       "path": ["expr"]
     }
   ]

@@ -23,6 +23,8 @@ export const propNameSchema = z
   .max(64)
   .regex(/^[a-z][A-Za-z0-9]*$/, "Must be camelCase")
 
+const reservedNamespace = "The pliant: namespace is reserved for built-ins"
+
 export const registeredNameSchema = z
   .string()
   .max(64)
@@ -30,8 +32,16 @@ export const registeredNameSchema = z
     new RegExp(`^${kebab}:${kebab}$`),
     "Must be namespace:name, for example acme:rating"
   )
+  .refine((name) => !name.startsWith("pliant:"), reservedNamespace)
 
-export const kindSchema = z.union([kebabIdSchema, registeredNameSchema])
+export const kindSchema = z
+  .string()
+  .max(64)
+  .regex(
+    new RegExp(`^(?:${kebab}:)?${kebab}$`),
+    "Must be kebab-case, optionally namespaced, for example acme:rating"
+  )
+  .refine((name) => !name.startsWith("pliant:"), reservedNamespace)
 
 export const functionNameSchema = z
   .string()
@@ -40,3 +50,4 @@ export const functionNameSchema = z
     new RegExp(`^(?:${kebab}:)?[a-z][A-Za-z0-9]*$`),
     "Must be a built-in function name or namespace:name"
   )
+  .refine((name) => !name.startsWith("pliant:"), reservedNamespace)

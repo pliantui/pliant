@@ -22,7 +22,7 @@ export const overlayOpSchema = z.looseObject({
     .string()
     .max(256)
     .regex(
-      /^(?:[a-z][A-Za-z0-9_\-[\]/]*|@[a-z]+)$/,
+      /^(?:[a-z][A-Za-z0-9_\-[\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$/,
       "Must be an address or a reserved target such as @app"
     ),
 })

@@ -22,7 +22,7 @@ describe("manifestSchema", () => {
     expect(manifestSchema.safeParse(manifest).success).toBe(false)
   })
 
-  it.each(fixture.crossField)("rejects $value with $message", (entry) => {
+  it.each(fixture.crossField)("reports $message for $value", (entry) => {
     expectCrossFieldIssue(manifestSchema, entry)
   })
 })

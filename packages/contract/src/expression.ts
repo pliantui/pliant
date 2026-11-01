@@ -8,9 +8,9 @@ export type Expression =
   | { ref: string }
   | { fn: string; args: Expression[] }
 
-const maxDepth = 4
-const maxArgs = 4
-const maxNodes = 64
+const maxDepth = 8
+const maxArgs = 16
+const maxNodes = 128
 
 const leafSchemas = [
   z.strictObject({ field: itemIdSchema }),

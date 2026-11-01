@@ -15,7 +15,7 @@ describe("overlaySchema", () => {
     expect(overlaySchema.safeParse(overlay).success).toBe(false)
   })
 
-  it.each(fixture.crossField)("rejects $value with $message", (entry) => {
+  it.each(fixture.crossField)("reports $message for $value", (entry) => {
     expectCrossFieldIssue(overlaySchema, entry)
   })
 

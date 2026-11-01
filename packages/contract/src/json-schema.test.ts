@@ -61,7 +61,12 @@ const ajv = new Ajv({ strict: true, strictTypes: false })
 addFormats(ajv)
 
 describe.each(schemas)("$name JSON Schema", ({ name, schema, fixtures }) => {
-  const jsonSchema = z.toJSONSchema(schema, { io: "input" })
+  const { $schema, ...rest } = z.toJSONSchema(schema, { io: "input" })
+  const jsonSchema = {
+    $schema,
+    $id: `https://pliantui.dev/schema/${name}.json`,
+    ...rest,
+  }
   const validate = ajv.compile(jsonSchema)
 
   it("matches the published file", async () => {
