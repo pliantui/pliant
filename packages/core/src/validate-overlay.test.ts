@@ -174,33 +174,73 @@ describe("validateOverlay", () => {
     ).toBe(1)
   })
 
-  it.each([
-    ["without a layer", { layer: undefined }, ["large", "small"]],
-    ["without a layer, small first", { layer: undefined }, ["small", "large"]],
-    ["with another envelope issue", { v: 2 }, ["valid", "large", "small"]],
+  const lists = {
+    valid: [{ op: "hide", target: "orders-table/columns/notes" }],
+    small: [{ op: 5 }],
+    large: overLimit(),
+  }
+
+  it.each<[string, object, (keyof typeof lists)[], string[]]>([
+    [
+      "without a layer",
+      { layer: undefined },
+      ["large", "small"],
+      ["layer", "ops"],
+    ],
+    [
+      "without a layer, small first",
+      { layer: undefined },
+      ["small", "large"],
+      ["layer", "ops.0.op", "ops.0.target"],
+    ],
+    [
+      "with another envelope issue",
+      { v: 2 },
+      ["valid", "large", "small"],
+      ["v", "ops"],
+    ],
   ])(
     "checks the same ops it read, when a getter changes them, %s",
-    (_, change, sequence) => {
-      const lists = {
-        valid: [{ op: "hide", target: "orders-table/columns/notes" }],
-        small: [{ op: 5 }],
-        large: overLimit(),
-      }
+    (_, change, sequence, paths) => {
       let reads = 0
       const result = validateOverlay({
         ...overlay([]),
         ...change,
         get ops() {
-          const list = sequence[Math.min(reads, sequence.length - 1)]
+          const name = sequence[Math.min(reads, sequence.length - 1)] ?? "valid"
           reads++
-          return list === "valid" || list === "small" || list === "large"
-            ? lists[list]
-            : []
+          return lists[name]
         },
       })
-      expect(result.error?.issues.length).toBeLessThan(5)
+      expect(result.error?.issues.map(({ path }) => path.join("."))).toEqual(
+        paths
+      )
     }
   )
+
+  it.each([
+    ["missing", {}],
+    ["undefined", { ops: undefined }],
+  ])("reports %s ops along with the layer issue", (_, change) => {
+    const withoutOps = Object.fromEntries(
+      Object.entries(overlay([])).filter(([key]) => key !== "ops")
+    )
+    const result = validateOverlay({
+      ...withoutOps,
+      layer: "global",
+      ...change,
+    })
+    expect(result.error?.issues.map(({ path }) => path)).toEqual([
+      ["layer"],
+      ["ops"],
+    ])
+  })
+
+  it("reports an over-limit list of malformed ops once", () => {
+    const ops = Array.from({ length: 501 }, () => ({ op: 5 }))
+    const result = validateOverlay(overlay(ops))
+    expect(result.error?.issues.map(({ path }) => path)).toEqual([["ops"]])
+  })
 
   it("fails when the envelope is invalid", () => {
     expect(validateOverlay({ ...overlay([]), v: 2 }).success).toBe(false)

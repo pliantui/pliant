@@ -22,10 +22,10 @@ interface OpsOf {
 }
 
 function opsOf(input: unknown): OpsOf {
-  if (typeof input !== "object" || input === null || !("ops" in input)) {
+  if (typeof input !== "object" || input === null) {
     return { ops: [], issues: [] }
   }
-  const { ops } = input
+  const ops = "ops" in input ? input.ops : undefined
   const list = opsListSchema.safeParse(ops)
   if (list.success) {
     return { ops: list.data.map((op, index) => [op, index]), issues: [] }
@@ -87,11 +87,14 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
 
 export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
   const result = overlaySchema.safeParse(input)
-  const envelopeIssues = result.error?.issues ?? []
-  const reportedOps = envelopeIssues.some(({ path }) => path[0] === "ops")
-  const listFailed = envelopeIssues.some(
-    ({ path }) => path.length === 1 && path[0] === "ops"
+  const listFailed =
+    result.error?.issues.some(
+      ({ path }) => path.length === 1 && path[0] === "ops"
+    ) ?? false
+  const envelopeIssues = (result.error?.issues ?? []).filter(
+    ({ path }) => !listFailed || path[0] !== "ops" || path.length === 1
   )
+  const reportedOps = envelopeIssues.some(({ path }) => path[0] === "ops")
   const fallback =
     result.success || listFailed ? { ops: [], issues: [] } : opsOf(input)
   const ops = result.success
