@@ -57,7 +57,7 @@ Every later version is published by the release workflow.
 ## Repository settings
 
 - **General → Pull Requests:** allow squash merging only, with the default commit message set to **Pull request title**, and enable **Automatically delete head branches**.
-- **Rules → Rulesets:** a ruleset for the default branch that blocks deletion and force pushes, requires linear history, and requires a pull request merged by squash with these status checks passing: `commitlint`, `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm build`, `pnpm check:packages`, `actionlint`, `pnpm test (Node.js 22.12.0)`, `pnpm test (Node.js 24)` and `pnpm test (zod 4.0.0)`.
+- **Rules → Rulesets:** a ruleset for the default branch that blocks deletion and force pushes, requires linear history, and requires a pull request merged by squash with these status checks passing: `commitlint`, `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm build`, `pnpm check:packages`, `actionlint`, `pnpm test (Node.js 22.12.0)`, `pnpm test (Node.js 24)` and `pnpm test (zod 4.1.0)`.
 - **Actions → General:** enable **Allow GitHub Actions to create and approve pull requests**, so the release workflow can open the version pull request.
 - **Features:** enable **Discussions** with a **General** category. The issue templates link there for help.
 - **Security:** enable **Private vulnerability reporting**. `SECURITY.md` links to it.

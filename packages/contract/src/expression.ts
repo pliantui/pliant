@@ -45,7 +45,7 @@ function argsOf(value: unknown): unknown[] {
   return []
 }
 
-function isWithinNodeLimit(expression: unknown) {
+function isWithinSizeLimits(expression: unknown) {
   let count = 0
   const pending = [expression]
   while (pending.length > 0) {
@@ -59,19 +59,18 @@ function isWithinNodeLimit(expression: unknown) {
   return true
 }
 
-export const expressionSchema = z.preprocess<
-  unknown,
-  z.ZodType<Expression, Expression>,
-  Expression
->((expression, ctx) => {
-  if (!isWithinNodeLimit(expression)) {
-    ctx.addIssue({
-      code: "custom",
-      input: expression,
-      continue: false,
-      message: `Must have at most ${String(maxNodes)} nodes and ${String(maxArgs)} arguments per function`,
-    })
-    return z.NEVER
-  }
-  return expression
-}, expressionAtDepth(maxDepth))
+export const expressionSchema: z.ZodType<Expression, Expression> = z.preprocess(
+  (expression, ctx) => {
+    if (!isWithinSizeLimits(expression)) {
+      ctx.addIssue({
+        code: "custom",
+        input: expression,
+        continue: false,
+        message: `Must have at most ${String(maxNodes)} nodes and ${String(maxArgs)} arguments per function`,
+      })
+      return z.NEVER
+    }
+    return expression
+  },
+  expressionAtDepth(maxDepth)
+)

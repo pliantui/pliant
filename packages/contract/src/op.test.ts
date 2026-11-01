@@ -42,19 +42,49 @@ describe("opSchema", () => {
     ).toBe(false)
   })
 
-  it("rejects an oversized expression with one issue, before parsing it", () => {
-    function tree(depth: number): unknown {
-      return depth === 0
-        ? { field: "1bad" }
-        : { fn: "sum", args: Array.from({ length: 16 }, () => tree(depth - 1)) }
-    }
-    const result = opSchema.safeParse({
+  const sizeIssue = {
+    code: "custom",
+    message: "Must have at most 128 nodes and 16 arguments per function",
+    path: ["expr"],
+  }
+
+  function addDerived(expr: unknown) {
+    return {
       op: "addDerived",
       target: "orders-table",
       id: "big",
       label: "Big",
-      expr: tree(4),
-    })
-    expect(result.error?.issues).toHaveLength(1)
+      expr,
+    }
+  }
+
+  function tree(depth: number): unknown {
+    return depth === 0
+      ? { field: "1bad" }
+      : { fn: "sum", args: Array.from({ length: 16 }, () => tree(depth - 1)) }
+  }
+
+  it.each([
+    ["a wide tree", tree(4)],
+    [
+      "a function with 17 arguments",
+      { fn: "sum", args: Array.from({ length: 17 }, () => ({ field: "a" })) },
+    ],
+    [
+      "a very long argument list",
+      {
+        fn: "sum",
+        args: Array.from({ length: 100_000 }, () => ({ field: "a" })),
+      },
+    ],
+  ])("rejects %s with one issue, before parsing it", (_, expr) => {
+    const result = opSchema.safeParse(addDerived(expr))
+    expect(
+      result.error?.issues.map(({ code, message, path }) => ({
+        code,
+        message,
+        path,
+      }))
+    ).toEqual([sizeIssue])
   })
 })

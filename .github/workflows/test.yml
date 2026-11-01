@@ -38,16 +38,21 @@ jobs:
 
   zod:
     runs-on: ubuntu-latest
-    name: pnpm test (zod 4.0.0)
+    name: pnpm test (zod 4.1.0)
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
-      - run: pnpm --filter @pliantui/contract add --save-dev zod@4.0.0
+      - run: pnpm --filter @pliantui/contract build
+      - run: pnpm --filter @pliantui/contract add --save-dev zod@4.1.0
       # The published JSON Schemas are generated with the development Zod
       # version, so only the check that regenerates them is skipped.
       - run: >-
           pnpm --filter @pliantui/contract exec vitest run
           --testNamePattern '^(?!.*matches the published file)'
+      - run: >-
+          pnpm --filter @pliantui/contract exec tsc --ignoreConfig --noEmit --strict
+          --skipLibCheck false --module preserve --moduleResolution bundler
+          dist/index.d.ts
