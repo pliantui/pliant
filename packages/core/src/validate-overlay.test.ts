@@ -119,20 +119,29 @@ describe("validateOverlay", () => {
   }
 
   it.each([
-    ["on its own", {}, false],
-    ["with another envelope issue", { v: 2 }, false],
+    ["on its own", {}, [["ops"]]],
+    ["with another envelope issue", { v: 2 }, [["v"], ["ops"]]],
+    [
+      "with a nested envelope issue",
+      { basis: { contract: 1, core: "0.1.0", manifests: { "Bad Key": 1 } } },
+      [["ops"], ["basis", "manifests", "Bad Key"]],
+    ],
   ])(
     "reports an over-limit list without checking ops one by one, %s",
-    (_, change, malformedFirst) => {
-      const result = validateOverlay({
-        ...overlay(overLimit(malformedFirst)),
-        ...change,
-      })
-      const paths = result.error?.issues.map(({ path }) => path) ?? []
-      expect(paths).toContainEqual(["ops"])
-      expect(paths.some((path) => path.length > 2)).toBe(false)
+    (_, change, paths) => {
+      const result = validateOverlay({ ...overlay(overLimit()), ...change })
+      expect(result.error?.issues.map(({ path }) => path)).toEqual(paths)
     }
   )
+
+  it("keeps the contract's op issues when the list is within the limit", () => {
+    const result = validateOverlay(
+      overlay([{ op: "setTextScale", target: "@app", scale: 1.25 }])
+    )
+    expect(
+      result.error?.issues.map(({ code, path }) => ({ code, path }))
+    ).toContainEqual({ code: "custom", path: ["ops", 0, "target"] })
+  })
 
   it.each([
     ["without a layer", { layer: undefined }, false],
@@ -230,9 +239,11 @@ describe("validateOverlay", () => {
       layer: "global",
       ...change,
     })
-    expect(result.error?.issues.map(({ path }) => path)).toEqual([
-      ["layer"],
-      ["ops"],
+    expect(
+      result.error?.issues.map(({ code, path }) => ({ code, path }))
+    ).toEqual([
+      { code: "invalid_union", path: ["layer"] },
+      { code: "invalid_type", path: ["ops"] },
     ])
   })
 
