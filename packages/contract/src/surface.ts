@@ -23,7 +23,7 @@ export const surfaceSchema = z
     new RegExp(
       `^(?:@app|/(?:${segment}(?:/${segment})*)?|${idPatterns.kebab})$`
     ),
-    "Must be a route pattern (ASCII, other characters as uppercase UTF-8 percent-encoding), a kebab-case surface id, or @app"
+    "Must be a route pattern (ASCII or uppercase UTF-8 percent-encoding), a kebab-case surface id, or @app"
   )
 
 export type Surface = z.infer<typeof surfaceSchema>

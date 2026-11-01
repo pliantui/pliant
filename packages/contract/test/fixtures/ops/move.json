@@ -34,6 +34,13 @@
       "to": {
         "into": "sidebar/slots/top"
       }
+    },
+    {
+      "op": "move",
+      "target": "nav/slots/x",
+      "to": {
+        "into": "nav/slots/x-2"
+      }
     }
   ],
   "invalid": [
