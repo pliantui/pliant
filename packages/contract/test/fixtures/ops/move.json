@@ -107,6 +107,28 @@
       },
       "message": "Only a slot outside a template can move into another node",
       "path": ["target"]
+    },
+    {
+      "value": {
+        "op": "move",
+        "target": "nav/slots/x",
+        "to": {
+          "into": "nav/slots/x"
+        }
+      },
+      "message": "Can't move a node into itself",
+      "path": ["to", "into"]
+    },
+    {
+      "value": {
+        "op": "move",
+        "target": "nav/slots/x",
+        "to": {
+          "into": "nav/slots/x/slots/y"
+        }
+      },
+      "message": "Can't move a node into itself",
+      "path": ["to", "into"]
     }
   ]
 }

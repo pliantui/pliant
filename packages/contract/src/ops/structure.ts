@@ -54,6 +54,17 @@ export const structureOpSchemas = {
           message: "Only a slot outside a template can move into another node",
         })
       }
+      if (
+        "into" in move.to &&
+        (move.to.into === move.target ||
+          move.to.into.startsWith(`${move.target}/`))
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["to", "into"],
+          message: "Can't move a node into itself",
+        })
+      }
     }),
   collapse: z.strictObject({
     op: z.literal("collapse"),
