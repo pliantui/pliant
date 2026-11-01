@@ -13,12 +13,20 @@ import type { WithOps } from "./with-ops"
 
 export type ValidatedOverlay = WithOps<Op>
 
+const [overlayVariant] = overlaySchema.options
+const opsListSchema = overlayVariant.shape.ops
+
 function opsOf(input: unknown): [OverlayOp, number][] {
+  if (typeof input !== "object" || input === null || !("ops" in input)) {
+    return []
+  }
+  const list = opsListSchema.safeParse(input.ops)
+  if (list.success) {
+    return list.data.map((op, index) => [op, index])
+  }
   if (
-    typeof input !== "object" ||
-    input === null ||
-    !("ops" in input) ||
-    !Array.isArray(input.ops)
+    !Array.isArray(input.ops) ||
+    list.error.issues.some(({ path }) => path.length === 0)
   ) {
     return []
   }
@@ -61,15 +69,9 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
 
 export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
   const result = overlaySchema.safeParse(input)
-  const opsListFailed =
-    result.error?.issues.some(
-      ({ path }) => path.length === 1 && path[0] === "ops"
-    ) ?? false
   const ops = result.success
     ? result.data.ops.map((op, index): [OverlayOp, number] => [op, index])
-    : opsListFailed
-      ? []
-      : opsOf(input)
+    : opsOf(input)
   const checks = ops.map(([op, index]) => checkOp(op, index))
   const issues = [
     ...(result.success ? [] : result.error.issues),

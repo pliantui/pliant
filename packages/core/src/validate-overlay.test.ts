@@ -108,15 +108,25 @@ describe("validateOverlay", () => {
     ])
   })
 
-  it("doesn't check ops one by one when the list itself is invalid", () => {
-    const ops = Array.from({ length: 501 }, () => ({
-      op: "rename",
-      target: "orders-table/columns/notes",
-      label: "",
-    }))
-    const result = validateOverlay(overlay(ops))
-    expect(result.error?.issues.map(({ path }) => path)).toEqual([["ops"]])
-  })
+  it.each([
+    ["on its own", {}],
+    ["with another envelope issue", { v: 2 }],
+    ["without a layer", { layer: undefined }],
+    ["with an unknown layer", { layer: "global" }],
+  ])(
+    "doesn't check ops one by one when the list is over the limit, %s",
+    (_, change) => {
+      const ops = Array.from({ length: 501 }, () => ({
+        op: "rename",
+        target: "orders-table/columns/notes",
+        label: "",
+      }))
+      const result = validateOverlay({ ...overlay(ops), ...change })
+      expect(result.error?.issues.every(({ path }) => path.length <= 1)).toBe(
+        true
+      )
+    }
+  )
 
   it("fails when the envelope is invalid", () => {
     expect(validateOverlay({ ...overlay([]), v: 2 }).success).toBe(false)
