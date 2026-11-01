@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs"
+import path from "node:path"
 import addFormats from "ajv-formats"
 import Ajv from "ajv/dist/2020"
 import { describe, expect, it } from "vitest"
@@ -60,22 +62,35 @@ for (const [id, definition] of Object.entries(definitions)) {
 const ajv = new Ajv({ strict: true, strictTypes: false })
 addFormats(ajv)
 
-describe.each(schemas)("$name JSON Schema", ({ name, schema, fixtures }) => {
-  const { $schema, ...rest } = z.toJSONSchema(schema, { io: "input" })
-  const jsonSchema = {
-    $schema,
-    $id: `https://pliantui.dev/schema/${name}.json`,
-    ...rest,
+function compilePublished(name: string) {
+  const compiled = ajv.getSchema(`https://pliantui.dev/schema/${name}.json`)
+  if (compiled) {
+    return compiled
   }
-  const validate = ajv.compile(jsonSchema)
+  const published: unknown = JSON.parse(
+    readFileSync(
+      path.join(import.meta.dirname, `../schema/${name}.json`),
+      "utf8"
+    )
+  )
+  return ajv.compile(z.record(z.string(), z.unknown()).parse(published))
+}
 
+describe.each(schemas)("$name JSON Schema", ({ name, schema, fixtures }) => {
   it("matches the published file", async () => {
+    const { $schema, ...rest } = z.toJSONSchema(schema, { io: "input" })
+    const jsonSchema = {
+      $schema,
+      $id: `https://pliantui.dev/schema/${name}.json`,
+      ...rest,
+    }
     await expect(
       `${JSON.stringify(jsonSchema, null, 2)}\n`
     ).toMatchFileSnapshot(`../schema/${name}.json`)
   })
 
   it("agrees with the Zod schema on every fixture", () => {
+    const validate = compilePublished(name)
     for (const { valid, invalid } of fixtures) {
       for (const value of [...valid, ...invalid]) {
         expect(validate(value), JSON.stringify(value)).toBe(
@@ -86,6 +101,7 @@ describe.each(schemas)("$name JSON Schema", ({ name, schema, fixtures }) => {
   })
 
   it("leaves only cross-field rules to Zod", () => {
+    const validate = compilePublished(name)
     for (const { crossField } of fixtures) {
       for (const { value } of crossField) {
         expect(validate(value), JSON.stringify(value)).toBe(true)
