@@ -20,26 +20,7 @@
           "minItems": 1,
           "maxItems": 500,
           "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "op": {
-                "type": "string",
-                "maxLength": 64,
-                "pattern": "^[a-z][A-Za-z0-9]*$"
-              },
-              "target": {
-                "type": "string",
-                "maxLength": 256,
-                "pattern": "^(?:[a-z][A-Za-z0-9_\\-[\\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$"
-              }
-            },
-            "required": [
-              "op",
-              "target"
-            ],
-            "additionalProperties": {}
-          }
+          "items": {}
         },
         "basis": {
           "type": "object",
@@ -216,26 +197,7 @@
           "minItems": 1,
           "maxItems": 500,
           "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "op": {
-                "type": "string",
-                "maxLength": 64,
-                "pattern": "^[a-z][A-Za-z0-9]*$"
-              },
-              "target": {
-                "type": "string",
-                "maxLength": 256,
-                "pattern": "^(?:[a-z][A-Za-z0-9_\\-[\\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$"
-              }
-            },
-            "required": [
-              "op",
-              "target"
-            ],
-            "additionalProperties": {}
-          }
+          "items": {}
         },
         "basis": {
           "type": "object",
@@ -417,26 +379,7 @@
           "minItems": 1,
           "maxItems": 500,
           "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "op": {
-                "type": "string",
-                "maxLength": 64,
-                "pattern": "^[a-z][A-Za-z0-9]*$"
-              },
-              "target": {
-                "type": "string",
-                "maxLength": 256,
-                "pattern": "^(?:[a-z][A-Za-z0-9_\\-[\\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$"
-              }
-            },
-            "required": [
-              "op",
-              "target"
-            ],
-            "additionalProperties": {}
-          }
+          "items": {}
         },
         "basis": {
           "type": "object",

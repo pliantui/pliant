@@ -22,6 +22,7 @@ export {
   type ManifestProp,
 } from "./manifest"
 export { opSchema, opSchemas, type Op, type OpName } from "./op"
+export { opArguments } from "./op-arguments"
 export { opCatalog, type OpDefinition } from "./op-catalog"
 export {
   overlayOpSchema,
