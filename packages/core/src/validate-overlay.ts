@@ -14,28 +14,45 @@ import type { WithOps } from "./with-ops"
 export type ValidatedOverlay = WithOps<Op>
 
 const [overlayVariant] = overlaySchema.options
-export const opsListSchema = overlayVariant.shape.ops
+const opsListSchema = overlayVariant.shape.ops
 
-function opsOf(input: unknown): [OverlayOp, number][] {
+interface OpsOf {
+  ops: [OverlayOp, number][]
+  issues: z.core.$ZodIssue[]
+}
+
+function opsOf(input: unknown): OpsOf {
   if (typeof input !== "object" || input === null || !("ops" in input)) {
-    return []
+    return { ops: [], issues: [] }
   }
   const { ops } = input
   const list = opsListSchema.safeParse(ops)
   if (list.success) {
-    return list.data.map((op, index) => [op, index])
+    return { ops: list.data.map((op, index) => [op, index]), issues: [] }
   }
-  if (
-    !Array.isArray(ops) ||
-    list.error.issues.some(({ path }) => path.length === 0)
-  ) {
-    return []
+  const listIssues = list.error.issues.filter(({ path }) => path.length === 0)
+  if (!Array.isArray(ops) || listIssues.length > 0) {
+    return {
+      ops: [],
+      issues: listIssues.map((issue) => ({ ...issue, path: ["ops"] })),
+    }
   }
   const items: unknown[] = ops
-  return items.flatMap((op, index): [OverlayOp, number][] => {
-    const result = overlayOpSchema.safeParse(op)
-    return result.success ? [[result.data, index]] : []
-  })
+  const result: OpsOf = { ops: [], issues: [] }
+  for (const [index, item] of items.entries()) {
+    const op = overlayOpSchema.safeParse(item)
+    if (op.success) {
+      result.ops.push([op.data, index])
+    } else {
+      result.issues.push(
+        ...op.error.issues.map((issue) => ({
+          ...issue,
+          path: ["ops", index, ...issue.path],
+        }))
+      )
+    }
+  }
+  return result
 }
 
 function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
@@ -70,17 +87,20 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
 
 export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
   const result = overlaySchema.safeParse(input)
-  const listFailed = result.error?.issues.some(
+  const envelopeIssues = result.error?.issues ?? []
+  const reportedOps = envelopeIssues.some(({ path }) => path[0] === "ops")
+  const listFailed = envelopeIssues.some(
     ({ path }) => path.length === 1 && path[0] === "ops"
   )
+  const fallback =
+    result.success || listFailed ? { ops: [], issues: [] } : opsOf(input)
   const ops = result.success
     ? result.data.ops.map((op, index): [OverlayOp, number] => [op, index])
-    : listFailed
-      ? []
-      : opsOf(input)
+    : fallback.ops
   const checks = ops.map(([op, index]) => checkOp(op, index))
   const issues = [
-    ...(result.success ? [] : result.error.issues),
+    ...envelopeIssues,
+    ...(reportedOps ? [] : fallback.issues),
     ...checks.flatMap(issuesOf),
   ]
   if (!result.success || issues.length > 0) {
