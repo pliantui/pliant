@@ -99,6 +99,26 @@ describe("formatError", () => {
     ).toBeGreaterThan(1)
   })
 
+  it("doesn't spend the line budget on duplicate nested lines", () => {
+    const union: z.core.$ZodIssue = {
+      code: "invalid_union",
+      path: ["expr"],
+      message: "Invalid input",
+      errors: [
+        [issue(["field"], "Expected string")],
+        [issue(["field"], "Expected string")],
+        [issue(["ref"], "Expected string")],
+      ],
+    }
+    expect(formatError(new z.ZodError([union]), { maxIssues: 3 })).toBe(
+      [
+        "expr: Invalid input",
+        "  expr.field: Expected string",
+        "  expr.ref: Expected string",
+      ].join("\n")
+    )
+  })
+
   it("counts a single left-out issue", () => {
     const error = new z.ZodError([issue([], "a"), issue([], "b")])
     expect(formatError(error, { maxIssues: 1 })).toBe("a\nand 1 more issue")

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest"
+import * as z from "zod"
 
 import type { OverlayOp } from "@pliantui/contract"
 import { opCatalog } from "@pliantui/contract"
 
-import { checkOp, opBranches } from "./check-op"
+import { branchesOf, checkOp, getOpBranches } from "./check-op"
 
 function check(op: OverlayOp) {
   return checkOp(op, 0)
@@ -97,6 +98,7 @@ describe("checkOp", () => {
   })
 
   it("knows the arguments of every op in the catalog", () => {
+    const opBranches = getOpBranches()
     expect([...opBranches.keys()].sort()).toEqual(Object.keys(opCatalog).sort())
     for (const [name, branches] of opBranches) {
       expect(branches.length, name).toBeGreaterThan(0)
@@ -107,4 +109,11 @@ describe("checkOp", () => {
       }
     }
   })
+
+  it.each([z.string(), z.string().transform((value) => value.length)])(
+    "rejects op schemas it can't read arguments from",
+    (schema) => {
+      expect(() => branchesOf(schema)).toThrow(TypeError)
+    }
+  )
 })

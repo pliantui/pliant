@@ -61,11 +61,16 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
 
 export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
   const result = overlaySchema.safeParse(input)
-  const checks = (
-    result.success
-      ? result.data.ops.map((op, index): [OverlayOp, number] => [op, index])
+  const opsListFailed =
+    result.error?.issues.some(
+      ({ path }) => path.length === 1 && path[0] === "ops"
+    ) ?? false
+  const ops = result.success
+    ? result.data.ops.map((op, index): [OverlayOp, number] => [op, index])
+    : opsListFailed
+      ? []
       : opsOf(input)
-  ).map(([op, index]) => checkOp(op, index))
+  const checks = ops.map(([op, index]) => checkOp(op, index))
   const issues = [
     ...(result.success ? [] : result.error.issues),
     ...checks.flatMap(issuesOf),
@@ -73,8 +78,13 @@ export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
   if (!result.success || issues.length > 0) {
     return { success: false, error: new z.ZodError(issues) }
   }
-  const ops = checks.flatMap((check) =>
-    check.status === "valid" ? [check.op] : []
-  )
-  return { success: true, data: { ...result.data, ops } }
+  return {
+    success: true,
+    data: {
+      ...result.data,
+      ops: checks.flatMap((check) =>
+        check.status === "valid" ? [check.op] : []
+      ),
+    },
+  }
 }

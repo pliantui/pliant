@@ -92,6 +92,32 @@ describe("validateOverlay", () => {
     ])
   })
 
+  it("keeps each op's position when other ops fail the envelope", () => {
+    const result = validateOverlay({
+      ...overlay([
+        { op: 5 },
+        { op: "rename", target: "orders-table/columns/notes", label: "" },
+      ]),
+      v: 2,
+    })
+    expect(result.error?.issues.map(({ path }) => path.join("."))).toEqual([
+      "v",
+      "ops.0.op",
+      "ops.0.target",
+      "ops.1.label",
+    ])
+  })
+
+  it("doesn't check ops one by one when the list itself is invalid", () => {
+    const ops = Array.from({ length: 501 }, () => ({
+      op: "rename",
+      target: "orders-table/columns/notes",
+      label: "",
+    }))
+    const result = validateOverlay(overlay(ops))
+    expect(result.error?.issues.map(({ path }) => path)).toEqual([["ops"]])
+  })
+
   it("fails when the envelope is invalid", () => {
     expect(validateOverlay({ ...overlay([]), v: 2 }).success).toBe(false)
   })

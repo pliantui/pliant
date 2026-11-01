@@ -20,7 +20,7 @@ interface Branch {
   keys: ReadonlySet<string>
 }
 
-function branchesOf(schema: z.core.$ZodType): Branch[] {
+export function branchesOf(schema: z.core.$ZodType): Branch[] {
   if (schema instanceof z.core.$ZodObject) {
     return [{ schema, keys: new Set(Object.keys(schema._zod.def.shape)) }]
   }
@@ -34,11 +34,16 @@ function isOpName(name: string): name is OpName {
   return Object.hasOwn(opCatalog, name)
 }
 
-export const opBranches: ReadonlyMap<OpName, Branch[]> = new Map(
-  Object.keys(opSchemas)
-    .filter(isOpName)
-    .map((name) => [name, branchesOf(opSchemas[name])])
-)
+let opBranches: ReadonlyMap<OpName, Branch[]> | undefined
+
+export function getOpBranches() {
+  opBranches ??= new Map(
+    Object.keys(opSchemas)
+      .filter(isOpName)
+      .map((name) => [name, branchesOf(opSchemas[name])])
+  )
+  return opBranches
+}
 
 function extraKeys(op: OverlayOp, keys: ReadonlySet<string>) {
   return Object.keys(op).filter((key) => !keys.has(key))
@@ -52,7 +57,7 @@ export function checkOp(op: OverlayOp, index: number): OpCheck {
   if (result.success) {
     return { index, status: "valid", op: result.data }
   }
-  for (const { schema, keys } of opBranches.get(op.op) ?? []) {
+  for (const { schema, keys } of getOpBranches().get(op.op) ?? []) {
     const extra = extraKeys(op, keys)
     if (
       extra.length > 0 &&

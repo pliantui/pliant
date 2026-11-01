@@ -29,7 +29,6 @@ function nestedIssues(issue: Issue): readonly (readonly Issue[])[] {
     case "invalid_union":
       return issue.errors
     case "invalid_key":
-    case "invalid_element":
       return [issue.issues]
     default:
       return []
