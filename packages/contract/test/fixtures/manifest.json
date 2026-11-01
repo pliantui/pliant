@@ -238,7 +238,8 @@
           }
         }
       },
-      "message": "Must be one of values"
+      "message": "Must be one of values",
+      "path": ["capabilities", "props", "variant", "default"]
     },
     {
       "value": {
@@ -254,7 +255,8 @@
           }
         }
       },
-      "message": "Must be one of values"
+      "message": "Must be one of values",
+      "path": ["capabilities", "props", "variant", "semantic", 0]
     }
   ]
 }

@@ -40,7 +40,8 @@
           }
         ]
       },
-      "message": "Must sort by each field at most once"
+      "message": "Must sort by each field at most once",
+      "path": ["sort"]
     }
   ]
 }

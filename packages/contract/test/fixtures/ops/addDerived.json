@@ -462,7 +462,8 @@
           ]
         }
       },
-      "message": "Must have at most 64 nodes"
+      "message": "Must have at most 64 nodes",
+      "path": ["expr"]
     }
   ]
 }

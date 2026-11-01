@@ -83,7 +83,8 @@
           "into": "dashboard"
         }
       },
-      "message": "Only a slot outside a template can move into another node"
+      "message": "Only a slot outside a template can move into another node",
+      "path": ["target"]
     },
     {
       "value": {
@@ -93,7 +94,8 @@
           "into": "dashboard"
         }
       },
-      "message": "Only a slot outside a template can move into another node"
+      "message": "Only a slot outside a template can move into another node",
+      "path": ["target"]
     },
     {
       "value": {
@@ -103,7 +105,8 @@
           "into": "nav/slots/x"
         }
       },
-      "message": "Only a slot outside a template can move into another node"
+      "message": "Only a slot outside a template can move into another node",
+      "path": ["target"]
     }
   ]
 }

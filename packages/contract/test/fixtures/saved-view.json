@@ -332,7 +332,8 @@
         ],
         "v": 1
       },
-      "message": "Must have the view's surface and layer"
+      "message": "Must have the view's surface and layer",
+      "path": ["overlays", 0]
     },
     {
       "value": {
@@ -389,7 +390,8 @@
         ],
         "v": 1
       },
-      "message": "Must have the view's surface and layer"
+      "message": "Must have the view's surface and layer",
+      "path": ["overlays", 0]
     },
     {
       "value": {
@@ -497,7 +499,8 @@
         ],
         "v": 1
       },
-      "message": "Must have the same scope as the view's other overlays"
+      "message": "Must have the same scope as the view's other overlays",
+      "path": ["overlays", 1, "scope"]
     },
     {
       "value": {
@@ -599,7 +602,8 @@
         ],
         "v": 1
       },
-      "message": "Must be unique within the view"
+      "message": "Must be unique within the view",
+      "path": ["overlays", 1, "id"]
     },
     {
       "value": {
@@ -707,7 +711,8 @@
         ],
         "v": 1
       },
-      "message": "Must have the same scope as the view's other overlays"
+      "message": "Must have the same scope as the view's other overlays",
+      "path": ["overlays", 1, "scope"]
     },
     {
       "value": {
@@ -817,7 +822,8 @@
         ],
         "v": 1
       },
-      "message": "Must have the same scope as the view's other overlays"
+      "message": "Must have the same scope as the view's other overlays",
+      "path": ["overlays", 1, "scope"]
     }
   ]
 }

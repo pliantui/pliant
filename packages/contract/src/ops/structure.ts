@@ -14,6 +14,8 @@ import {
 } from "../layout"
 import { uniqueArray } from "../unique"
 
+const movableSlotSchema = itemAddressSchema("slots", { template: false })
+
 const placementSchema = z.union([
   z.strictObject({ before: itemIdSchema }),
   z.strictObject({ after: itemIdSchema }),
@@ -42,7 +44,10 @@ export const structureOpSchemas = {
       ]),
     })
     .superRefine((move, ctx) => {
-      if ("into" in move.to && !/^[^[\]]*\/slots\/[^/]+$/.test(move.target)) {
+      if (
+        "into" in move.to &&
+        !movableSlotSchema.safeParse(move.target).success
+      ) {
         ctx.addIssue({
           code: "custom",
           path: ["target"],

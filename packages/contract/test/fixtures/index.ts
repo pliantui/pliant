@@ -6,7 +6,13 @@ const fixtureSchema = z.object({
   valid: z.array(z.unknown()).min(1),
   invalid: z.array(z.unknown()).min(1),
   crossField: z
-    .array(z.object({ value: z.unknown(), message: z.string() }))
+    .array(
+      z.object({
+        value: z.unknown(),
+        message: z.string(),
+        path: z.array(z.union([z.string(), z.number()])),
+      })
+    )
     .default([]),
 })
 
