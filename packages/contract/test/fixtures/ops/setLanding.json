@@ -1,0 +1,16 @@
+{
+  "valid": [
+    {
+      "op": "setLanding",
+      "target": "app-sidebar",
+      "href": "/reports"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setLanding",
+      "target": "app-sidebar",
+      "href": ""
+    }
+  ]
+}

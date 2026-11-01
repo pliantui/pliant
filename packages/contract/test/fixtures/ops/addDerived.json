@@ -1,0 +1,71 @@
+{
+  "valid": [
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "margin",
+      "label": "Margin",
+      "expr": {
+        "fn": "subtract",
+        "args": [
+          {
+            "field": "value"
+          },
+          {
+            "field": "cost"
+          }
+        ]
+      },
+      "format": {
+        "type": "currency",
+        "currency": "INR"
+      }
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "age",
+      "label": "Age in days",
+      "expr": {
+        "fn": "daysBetween",
+        "args": [
+          {
+            "field": "createdAt"
+          },
+          {
+            "fn": "today",
+            "args": []
+          }
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "margin",
+      "label": "Margin",
+      "expr": {
+        "field": "customer.region"
+      }
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "margin",
+      "label": "Margin",
+      "expr": "value - cost"
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "margin",
+      "label": "Margin",
+      "expr": {
+        "field": "value",
+        "value": 1
+      }
+    }
+  ]
+}

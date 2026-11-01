@@ -1,0 +1,21 @@
+{
+  "valid": [
+    {
+      "op": "setColumnWidth",
+      "target": "orders-table/columns/notes",
+      "width": 240
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setColumnWidth",
+      "target": "orders-table/columns/notes",
+      "width": 8
+    },
+    {
+      "op": "setColumnWidth",
+      "target": "orders-table/columns/notes",
+      "width": "240px"
+    }
+  ]
+}

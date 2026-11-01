@@ -1,0 +1,21 @@
+{
+  "valid": [
+    {
+      "op": "setGroupBy",
+      "target": "orders-table",
+      "fields": ["region", "status"]
+    },
+    {
+      "op": "setGroupBy",
+      "target": "orders-table",
+      "fields": []
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setGroupBy",
+      "target": "orders-table",
+      "fields": ["a", "b", "c", "d", "e"]
+    }
+  ]
+}

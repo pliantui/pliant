@@ -1,0 +1,15 @@
+{
+  "valid": [
+    {
+      "op": "promote",
+      "target": "orders-toolbar",
+      "action": "export"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "promote",
+      "target": "orders-toolbar"
+    }
+  ]
+}

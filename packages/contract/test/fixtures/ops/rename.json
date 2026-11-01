@@ -1,0 +1,16 @@
+{
+  "valid": [
+    {
+      "op": "rename",
+      "target": "orders-table/columns/value",
+      "label": "Order value"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "rename",
+      "target": "orders-table/columns/value",
+      "label": ""
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "valid": [
+    {
+      "op": "setTextScale",
+      "target": "@app",
+      "scale": 1.25
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setTextScale",
+      "target": "@app",
+      "scale": 2
+    },
+    {
+      "op": "setTextScale",
+      "target": "@surface",
+      "scale": 1
+    }
+  ]
+}

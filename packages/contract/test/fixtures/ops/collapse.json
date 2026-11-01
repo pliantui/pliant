@@ -1,0 +1,25 @@
+{
+  "valid": [
+    {
+      "op": "collapse",
+      "target": "ticket-form",
+      "items": ["fax", "middleName"],
+      "into": "more",
+      "label": "More fields"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "collapse",
+      "target": "ticket-form",
+      "items": [],
+      "into": "more"
+    },
+    {
+      "op": "collapse",
+      "target": "ticket-form",
+      "items": ["fax"],
+      "into": "drawer"
+    }
+  ]
+}

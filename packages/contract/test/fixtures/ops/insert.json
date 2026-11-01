@@ -1,0 +1,51 @@
+{
+  "valid": [
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "revenue-chart",
+        "kind": "chart",
+        "label": "Revenue"
+      },
+      "at": {
+        "after": "orders"
+      }
+    },
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "rating",
+        "kind": "acme:rating"
+      },
+      "at": {
+        "index": 2
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "revenue-chart",
+        "kind": "html"
+      },
+      "at": {
+        "index": 0
+      }
+    },
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "revenue-chart",
+        "kind": "chart"
+      },
+      "at": {
+        "into": "dashboard/slots/side"
+      }
+    }
+  ]
+}

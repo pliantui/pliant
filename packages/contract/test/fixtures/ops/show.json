@@ -1,0 +1,13 @@
+{
+  "valid": [
+    {
+      "op": "show",
+      "target": "app-sidebar/items/reports"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "show"
+    }
+  ]
+}

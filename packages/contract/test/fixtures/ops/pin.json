@@ -1,0 +1,21 @@
+{
+  "valid": [
+    {
+      "op": "pin",
+      "target": "orders-table/columns/id",
+      "where": "start"
+    },
+    {
+      "op": "pin",
+      "target": "orders-table/columns/id",
+      "where": "none"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "pin",
+      "target": "orders-table/columns/id",
+      "where": "top"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "valid": [
+    {
+      "op": "setProp",
+      "target": "checkout-actions/slots/pay-now",
+      "prop": "variant",
+      "value": "outline"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setProp",
+      "target": "checkout-actions/slots/pay-now",
+      "prop": "Variant",
+      "value": "outline"
+    },
+    {
+      "op": "setProp",
+      "target": "checkout-actions/slots/pay-now",
+      "prop": "variant"
+    }
+  ]
+}

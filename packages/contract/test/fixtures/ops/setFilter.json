@@ -1,0 +1,88 @@
+{
+  "valid": [
+    {
+      "op": "setFilter",
+      "target": "orders-table",
+      "filter": {
+        "field": "status",
+        "operator": "in",
+        "value": ["open", "pending"]
+      }
+    },
+    {
+      "op": "setFilter",
+      "target": "orders-table",
+      "filter": {
+        "field": "value",
+        "operator": "between",
+        "value": [100, 500]
+      }
+    },
+    {
+      "op": "setFilter",
+      "target": "orders-table",
+      "filter": {
+        "field": "shippedAt",
+        "operator": "isNull"
+      }
+    },
+    {
+      "op": "setFilter",
+      "target": "orders-table",
+      "filter": {
+        "field": "region",
+        "operator": "eq",
+        "value": "north"
+      }
+    },
+    {
+      "op": "setFilter",
+      "target": "orders-table",
+      "filter": {
+        "field": "rating",
+        "operator": "custom",
+        "value": {
+          "min": 4
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setFilter",
+      "target": "orders-table",
+      "filter": {
+        "field": "status",
+        "operator": "in",
+        "value": []
+      }
+    },
+    {
+      "op": "setFilter",
+      "target": "orders-table",
+      "filter": {
+        "field": "value",
+        "operator": "between",
+        "value": [100]
+      }
+    },
+    {
+      "op": "setFilter",
+      "target": "orders-table",
+      "filter": {
+        "field": "value",
+        "operator": "like",
+        "value": "a%"
+      }
+    },
+    {
+      "op": "setFilter",
+      "target": "orders-table",
+      "filter": {
+        "field": "customer.region",
+        "operator": "eq",
+        "value": "north"
+      }
+    }
+  ]
+}

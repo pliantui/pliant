@@ -1,0 +1,33 @@
+{
+  "valid": [
+    {
+      "op": "configureChart",
+      "target": "orders-table",
+      "type": "bar",
+      "x": "region",
+      "y": ["total"],
+      "stacking": "stacked",
+      "format": {
+        "type": "currency",
+        "currency": "INR",
+        "display": "symbol"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "op": "configureChart",
+      "target": "orders-table",
+      "type": "bar",
+      "x": "region",
+      "y": []
+    },
+    {
+      "op": "configureChart",
+      "target": "orders-table",
+      "type": "donut",
+      "x": "region",
+      "y": ["total"]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "valid": [
+    {
+      "op": "wrap",
+      "target": "dashboard",
+      "id": "kpis",
+      "items": ["revenue", "orders"],
+      "mode": "grid",
+      "columns": 2
+    }
+  ],
+  "invalid": [
+    {
+      "op": "wrap",
+      "target": "dashboard",
+      "id": "kpis",
+      "items": ["revenue"],
+      "mode": "grid"
+    },
+    {
+      "op": "wrap",
+      "target": "dashboard",
+      "items": ["revenue", "orders"],
+      "mode": "row"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "valid": [
+    {
+      "op": "bindShortcut",
+      "target": "orders-toolbar",
+      "action": "export",
+      "keys": "mod+shift+e"
+    },
+    {
+      "op": "bindShortcut",
+      "target": "orders-toolbar",
+      "action": "refresh",
+      "keys": "f5"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "bindShortcut",
+      "target": "orders-toolbar",
+      "action": "export",
+      "keys": "Ctrl+E"
+    },
+    {
+      "op": "bindShortcut",
+      "target": "orders-toolbar",
+      "action": "export",
+      "keys": "mod+"
+    }
+  ]
+}

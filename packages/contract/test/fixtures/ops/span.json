@@ -1,0 +1,22 @@
+{
+  "valid": [
+    {
+      "op": "span",
+      "target": "dashboard/slots/revenue",
+      "cols": 2,
+      "at": "md"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "span",
+      "target": "dashboard/slots/revenue",
+      "cols": 0
+    },
+    {
+      "op": "span",
+      "target": "dashboard/slots/revenue",
+      "cols": 1.5
+    }
+  ]
+}

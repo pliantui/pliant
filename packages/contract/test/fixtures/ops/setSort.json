@@ -1,0 +1,35 @@
+{
+  "valid": [
+    {
+      "op": "setSort",
+      "target": "orders-table",
+      "sort": [
+        {
+          "field": "createdAt",
+          "dir": "desc"
+        },
+        {
+          "field": "value",
+          "dir": "asc"
+        }
+      ]
+    },
+    {
+      "op": "setSort",
+      "target": "orders-table",
+      "sort": []
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setSort",
+      "target": "orders-table",
+      "sort": [
+        {
+          "field": "value",
+          "dir": "up"
+        }
+      ]
+    }
+  ]
+}

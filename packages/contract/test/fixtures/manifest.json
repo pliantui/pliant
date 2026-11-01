@@ -1,0 +1,153 @@
+{
+  "valid": [
+    {
+      "kind": "button",
+      "version": 1,
+      "description": "Clickable action",
+      "capabilities": {
+        "props": {
+          "variant": {
+            "values": [
+              "default",
+              "secondary",
+              "outline",
+              "ghost",
+              "destructive"
+            ],
+            "default": "default",
+            "semantic": ["destructive"],
+            "description": "Visual weight"
+          },
+          "size": {
+            "values": ["sm", "default", "lg"]
+          }
+        },
+        "label": true,
+        "hideable": true
+      }
+    },
+    {
+      "kind": "region",
+      "version": 2,
+      "description": "A group of slots users can reorder and lay out",
+      "capabilities": {
+        "slots": true,
+        "layout": true,
+        "insertable": true,
+        "hideable": true
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "kind": "Button",
+      "version": 1,
+      "description": "Clickable action",
+      "capabilities": {
+        "props": {
+          "variant": {
+            "values": [
+              "default",
+              "secondary",
+              "outline",
+              "ghost",
+              "destructive"
+            ],
+            "default": "default",
+            "semantic": ["destructive"],
+            "description": "Visual weight"
+          },
+          "size": {
+            "values": ["sm", "default", "lg"]
+          }
+        },
+        "label": true,
+        "hideable": true
+      }
+    },
+    {
+      "kind": "button",
+      "version": 0,
+      "description": "Clickable action",
+      "capabilities": {
+        "props": {
+          "variant": {
+            "values": [
+              "default",
+              "secondary",
+              "outline",
+              "ghost",
+              "destructive"
+            ],
+            "default": "default",
+            "semantic": ["destructive"],
+            "description": "Visual weight"
+          },
+          "size": {
+            "values": ["sm", "default", "lg"]
+          }
+        },
+        "label": true,
+        "hideable": true
+      }
+    },
+    {
+      "kind": "button",
+      "version": 1,
+      "description": "",
+      "capabilities": {
+        "props": {
+          "variant": {
+            "values": [
+              "default",
+              "secondary",
+              "outline",
+              "ghost",
+              "destructive"
+            ],
+            "default": "default",
+            "semantic": ["destructive"],
+            "description": "Visual weight"
+          },
+          "size": {
+            "values": ["sm", "default", "lg"]
+          }
+        },
+        "label": true,
+        "hideable": true
+      }
+    },
+    {
+      "kind": "button",
+      "version": 1,
+      "description": "Clickable action",
+      "capabilities": {
+        "props": {
+          "variant": {
+            "values": []
+          }
+        }
+      }
+    },
+    {
+      "kind": "button",
+      "version": 1,
+      "description": "Clickable action",
+      "capabilities": {
+        "props": {
+          "Variant": {
+            "values": ["default"]
+          }
+        }
+      }
+    },
+    {
+      "kind": "button",
+      "version": 1,
+      "description": "Clickable action",
+      "capabilities": {
+        "label": "yes"
+      }
+    }
+  ]
+}

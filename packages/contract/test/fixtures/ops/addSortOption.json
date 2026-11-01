@@ -1,0 +1,25 @@
+{
+  "valid": [
+    {
+      "op": "addSortOption",
+      "target": "orders-table",
+      "id": "newest",
+      "label": "Newest first",
+      "sort": [
+        {
+          "field": "createdAt",
+          "dir": "desc"
+        }
+      ]
+    }
+  ],
+  "invalid": [
+    {
+      "op": "addSortOption",
+      "target": "orders-table",
+      "id": "newest",
+      "label": "Newest first",
+      "sort": []
+    }
+  ]
+}

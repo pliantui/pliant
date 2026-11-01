@@ -1,0 +1,42 @@
+{
+  "valid": [
+    {
+      "op": "move",
+      "target": "checkout-actions/slots/pay-now",
+      "to": {
+        "before": "back"
+      }
+    },
+    {
+      "op": "move",
+      "target": "dashboard/slots/revenue",
+      "to": {
+        "index": 0
+      }
+    },
+    {
+      "op": "move",
+      "target": "dashboard/slots/revenue",
+      "to": {
+        "into": "dashboard/slots/sidebar"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "op": "move",
+      "target": "dashboard/slots/revenue",
+      "to": {
+        "before": "a",
+        "after": "b"
+      }
+    },
+    {
+      "op": "move",
+      "target": "dashboard/slots/revenue",
+      "to": {
+        "index": -1
+      }
+    }
+  ]
+}

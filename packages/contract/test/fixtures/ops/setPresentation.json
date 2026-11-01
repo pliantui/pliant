@@ -1,0 +1,22 @@
+{
+  "valid": [
+    {
+      "op": "setPresentation",
+      "target": "edit-order",
+      "as": "sheet",
+      "side": "right"
+    },
+    {
+      "op": "setPresentation",
+      "target": "edit-order",
+      "as": "page"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setPresentation",
+      "target": "edit-order",
+      "as": "popover"
+    }
+  ]
+}

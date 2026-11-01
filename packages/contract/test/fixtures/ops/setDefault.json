@@ -1,0 +1,29 @@
+{
+  "valid": [
+    {
+      "op": "setDefault",
+      "target": "ticket-form",
+      "field": "priority",
+      "value": "high"
+    },
+    {
+      "op": "setDefault",
+      "target": "ticket-form",
+      "field": "tags",
+      "value": ["billing", "urgent"]
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setDefault",
+      "target": "ticket-form",
+      "value": "high"
+    },
+    {
+      "op": "setDefault",
+      "target": "ticket-form",
+      "field": "customer.region",
+      "value": "north"
+    }
+  ]
+}

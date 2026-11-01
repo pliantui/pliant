@@ -1,0 +1,14 @@
+{
+  "valid": [
+    {
+      "op": "remove",
+      "target": "dashboard/slots/revenue-chart"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "remove",
+      "target": "dashboard/slots/Revenue"
+    }
+  ]
+}

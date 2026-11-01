@@ -1,0 +1,22 @@
+{
+  "valid": [
+    {
+      "op": "hide",
+      "target": "orders-table/columns/notes"
+    },
+    {
+      "op": "hide",
+      "target": "order-card[]/actions/refund"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "hide",
+      "target": "orders-table/columns/2024"
+    },
+    {
+      "op": "hide",
+      "target": "Orders-table"
+    }
+  ]
+}

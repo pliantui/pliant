@@ -1,0 +1,40 @@
+{
+  "valid": [
+    {
+      "op": "addHighlight",
+      "target": "orders-table",
+      "id": "late",
+      "when": {
+        "fn": "gt",
+        "args": [
+          {
+            "ref": "age"
+          },
+          {
+            "value": 30
+          }
+        ]
+      },
+      "tone": "danger"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "addHighlight",
+      "target": "orders-table",
+      "id": "late",
+      "when": {
+        "fn": "gt",
+        "args": [
+          {
+            "ref": "age"
+          },
+          {
+            "value": 30
+          }
+        ]
+      },
+      "tone": "red"
+    }
+  ]
+}

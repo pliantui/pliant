@@ -1,0 +1,37 @@
+{
+  "valid": [
+    {
+      "op": "addPreset",
+      "target": "orders-table",
+      "id": "open-north",
+      "label": "Open in north",
+      "filters": [
+        {
+          "field": "status",
+          "operator": "eq",
+          "value": "open"
+        },
+        {
+          "field": "region",
+          "operator": "eq",
+          "value": "north"
+        }
+      ],
+      "sort": [
+        {
+          "field": "value",
+          "dir": "desc"
+        }
+      ]
+    }
+  ],
+  "invalid": [
+    {
+      "op": "addPreset",
+      "target": "orders-table",
+      "id": "empty",
+      "label": "Empty",
+      "filters": []
+    }
+  ]
+}

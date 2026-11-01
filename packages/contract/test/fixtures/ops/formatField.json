@@ -1,0 +1,69 @@
+{
+  "valid": [
+    {
+      "op": "formatField",
+      "target": "orders-table",
+      "field": "value",
+      "format": {
+        "type": "number",
+        "decimals": 0,
+        "notation": "compact"
+      }
+    },
+    {
+      "op": "formatField",
+      "target": "orders-table",
+      "field": "createdAt",
+      "format": {
+        "type": "date",
+        "style": "relative"
+      }
+    },
+    {
+      "op": "formatField",
+      "target": "orders-table",
+      "field": "share",
+      "format": {
+        "type": "percent",
+        "decimals": 1
+      }
+    },
+    {
+      "op": "formatField",
+      "target": "orders-table",
+      "field": "weight",
+      "format": {
+        "type": "number",
+        "unit": "kilogram"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "op": "formatField",
+      "target": "orders-table",
+      "field": "value",
+      "format": {
+        "type": "currency",
+        "currency": "inr"
+      }
+    },
+    {
+      "op": "formatField",
+      "target": "orders-table",
+      "field": "value",
+      "format": {
+        "type": "number",
+        "decimals": 11
+      }
+    },
+    {
+      "op": "formatField",
+      "target": "orders-table",
+      "field": "value",
+      "format": {
+        "type": "color"
+      }
+    }
+  ]
+}
