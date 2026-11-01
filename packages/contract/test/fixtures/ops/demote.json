@@ -9,6 +9,10 @@
     {
       "op": "demote",
       "target": "orders-toolbar/actions/9lives"
+    },
+    {
+      "op": "demote",
+      "target": "orders-toolbar/items/archive"
     }
   ]
 }

@@ -5,7 +5,9 @@ import * as z from "zod"
 const fixtureSchema = z.object({
   valid: z.array(z.unknown()).min(1),
   invalid: z.array(z.unknown()).min(1),
-  crossField: z.array(z.unknown()).optional(),
+  crossField: z
+    .array(z.object({ value: z.unknown(), message: z.string() }))
+    .default([]),
 })
 
 export type Fixture = z.infer<typeof fixtureSchema>

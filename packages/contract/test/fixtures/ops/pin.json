@@ -16,6 +16,11 @@
       "op": "pin",
       "target": "orders-table/columns/id",
       "where": "top"
+    },
+    {
+      "op": "pin",
+      "target": "orders-table",
+      "where": "start"
     }
   ]
 }

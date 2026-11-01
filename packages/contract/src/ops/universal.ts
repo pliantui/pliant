@@ -1,7 +1,7 @@
 import * as z from "zod"
 
 import { addressSchema } from "../address"
-import { propNameSchema } from "../identifier"
+import { propNameSchema, propValueSchema } from "../identifier"
 import { labelSchema } from "../label"
 
 export const universalOpSchemas = {
@@ -9,7 +9,7 @@ export const universalOpSchemas = {
     op: z.literal("setProp"),
     target: addressSchema,
     prop: propNameSchema,
-    value: z.string().min(1).max(64),
+    value: propValueSchema,
   }),
   rename: z.strictObject({
     op: z.literal("rename"),

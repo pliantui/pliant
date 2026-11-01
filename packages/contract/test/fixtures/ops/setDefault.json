@@ -33,6 +33,11 @@
       "target": "ticket-form/fields/priority",
       "field": "priority",
       "value": "high"
+    },
+    {
+      "op": "setDefault",
+      "target": "ticket-form",
+      "value": "high"
     }
   ]
 }

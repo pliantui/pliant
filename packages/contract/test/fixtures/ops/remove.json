@@ -9,6 +9,10 @@
     {
       "op": "remove",
       "target": "dashboard/slots/Revenue"
+    },
+    {
+      "op": "remove",
+      "target": "dashboard"
     }
   ]
 }

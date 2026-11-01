@@ -67,6 +67,8 @@ describe("surfaceSchema", () => {
     "/docs/[...slug]",
     "/shop/[[...filters]]",
     "/files/.well-known",
+    "/products/[product-id]",
+    "/café",
     "app-shell",
     "@app",
   ])("accepts %s", (surface) => {
@@ -78,6 +80,11 @@ describe("surfaceSchema", () => {
     "orders/[id]",
     "/orders/",
     "//orders",
+    "/.",
+    "/..",
+    "/orders/..",
+    "/a/../b",
+    "/./orders",
     "@surface",
     "/orders?id=1",
   ])("rejects %j", (surface) => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { readFixture } from "../test/fixtures"
+import { expectCrossFieldIssue } from "../test/fixtures/cross-field"
 import { capabilitySchema } from "./capability"
 import { defineManifest, manifestSchema } from "./manifest"
 
@@ -17,12 +18,13 @@ describe("manifestSchema", () => {
     expect(manifestSchema.safeParse(manifest).success).toBe(true)
   })
 
-  it.each([...fixture.invalid, ...(fixture.crossField ?? [])])(
-    "rejects %j",
-    (manifest) => {
-      expect(manifestSchema.safeParse(manifest).success).toBe(false)
-    }
-  )
+  it.each(fixture.invalid)("rejects %j", (manifest) => {
+    expect(manifestSchema.safeParse(manifest).success).toBe(false)
+  })
+
+  it.each(fixture.crossField)("rejects $value with $message", (entry) => {
+    expectCrossFieldIssue(manifestSchema, entry)
+  })
 })
 
 describe("defineManifest", () => {

@@ -10,6 +10,10 @@
       "op": "setLanding",
       "target": "app-sidebar",
       "href": "javascript:alert(1)"
+    },
+    {
+      "op": "setLanding",
+      "target": "orders-table/columns/value"
     }
   ]
 }

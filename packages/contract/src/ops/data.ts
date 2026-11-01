@@ -1,6 +1,6 @@
 import * as z from "zod"
 
-import { addressSchema } from "../address"
+import { addressSchema, itemAddressSchema } from "../address"
 import { expressionSchema } from "../expression"
 import { filterSchema } from "../filter"
 import { formatSchema } from "../format"
@@ -134,7 +134,7 @@ export const dataOpSchemas = {
   }),
   setColumnWidth: z.strictObject({
     op: z.literal("setColumnWidth"),
-    target: addressSchema,
+    target: itemAddressSchema("columns"),
     width: z.int().min(16).max(2000),
   }),
 }

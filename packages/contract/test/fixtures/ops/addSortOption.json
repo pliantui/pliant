@@ -21,5 +21,26 @@
       "label": "Newest first",
       "sort": []
     }
+  ],
+  "crossField": [
+    {
+      "value": {
+        "op": "addSortOption",
+        "target": "orders-table",
+        "id": "twice",
+        "label": "Twice",
+        "sort": [
+          {
+            "field": "value",
+            "dir": "asc"
+          },
+          {
+            "field": "value",
+            "dir": "desc"
+          }
+        ]
+      },
+      "message": "Must sort by each field at most once"
+    }
   ]
 }

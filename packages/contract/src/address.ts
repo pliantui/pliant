@@ -15,12 +15,15 @@ export type Collection = z.infer<typeof collectionSchema>
 const { kebab, item } = idPatterns
 const itemCollections = collectionSchema.exclude(["slots"]).options.join("|")
 const segment = `/(?:(?:${itemCollections})/${item}|slots/${kebab})`
+const node = `${kebab}(?:\\[\\])?`
+const addressMessage =
+  "Must be node-id followed by /collection/item-id segments"
 
 export const nodeIdSchema = z
   .string()
   .max(64)
   .regex(
-    new RegExp(`^${kebab}(?:\\[\\])?$`),
+    new RegExp(`^${node}$`),
     "Must be kebab-case, start with a letter, and may end in [] for templates"
   )
 
@@ -32,9 +35,30 @@ export const slotIdSchema = z
 export const addressSchema = z
   .string()
   .max(256)
-  .regex(
-    new RegExp(`^${kebab}(?:\\[\\])?(?:${segment})*$`),
-    "Must be node-id followed by /collection/item-id segments"
-  )
+  .regex(new RegExp(`^${node}(?:${segment})*$`), addressMessage)
 
 export type Address = z.infer<typeof addressSchema>
+
+export function itemAddressSchema(collection?: Collection) {
+  const last =
+    collection === undefined
+      ? segment
+      : `/${collection}/${collection === "slots" ? kebab : item}`
+  return z
+    .string()
+    .max(256)
+    .regex(
+      new RegExp(`^${node}(?:${segment})*${last}$`),
+      collection === undefined
+        ? "Must address an item, for example orders-table/columns/value"
+        : `Must address an item in ${collection}`
+    )
+}
+
+export const containerAddressSchema = z
+  .string()
+  .max(256)
+  .regex(
+    new RegExp(`^${kebab}(?:${segment})*$`),
+    "Must address a node that isn't a template"
+  )

@@ -37,6 +37,13 @@
       "id": "kpis",
       "items": ["revenue", "revenue"],
       "mode": "row"
+    },
+    {
+      "op": "wrap",
+      "target": "order-card[]",
+      "id": "row",
+      "items": ["a", "b"],
+      "mode": "row"
     }
   ]
 }

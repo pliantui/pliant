@@ -31,5 +31,24 @@
         }
       ]
     }
+  ],
+  "crossField": [
+    {
+      "value": {
+        "op": "setSort",
+        "target": "orders-table",
+        "sort": [
+          {
+            "field": "value",
+            "dir": "asc"
+          },
+          {
+            "field": "value",
+            "dir": "desc"
+          }
+        ]
+      },
+      "message": "Must sort by each field at most once"
+    }
   ]
 }

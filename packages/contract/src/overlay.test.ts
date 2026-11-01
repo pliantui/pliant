@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { readFixture } from "../test/fixtures"
+import { expectCrossFieldIssue } from "../test/fixtures/cross-field"
 import { overlaySchema } from "./overlay"
 
 const fixture = readFixture("overlay")
@@ -10,21 +11,25 @@ describe("overlaySchema", () => {
     expect(overlaySchema.safeParse(overlay).success).toBe(true)
   })
 
-  it.each([...fixture.invalid, ...(fixture.crossField ?? [])])(
-    "rejects %j",
-    (overlay) => {
-      expect(overlaySchema.safeParse(overlay).success).toBe(false)
-    }
-  )
+  it.each(fixture.invalid)("rejects %j", (overlay) => {
+    expect(overlaySchema.safeParse(overlay).success).toBe(false)
+  })
 
-  it("keeps ops it doesn't recognise, with their arguments", () => {
-    const ops = fixture.valid.flatMap(
-      (overlay) => overlaySchema.parse(overlay).ops
+  it.each(fixture.crossField)("rejects $value with $message", (entry) => {
+    expectCrossFieldIssue(overlaySchema, entry)
+  })
+
+  it("keeps ops, targets and fields from newer versions", () => {
+    const overlays = fixture.valid.map((overlay) =>
+      overlaySchema.parse(overlay)
     )
-    expect(ops).toContainEqual({
-      op: "setTheme",
-      target: "orders-table",
-      theme: "ocean",
+    expect(overlays.flatMap((overlay) => overlay.ops)).toContainEqual({
+      op: "pinColumns",
+      target: "@page",
+      side: "left",
     })
+    expect(overlays).toContainEqual(
+      expect.objectContaining({ future: { kept: true } })
+    )
   })
 })

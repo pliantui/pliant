@@ -37,6 +37,13 @@
       "to": {
         "index": -1
       }
+    },
+    {
+      "op": "move",
+      "target": "dashboard",
+      "to": {
+        "index": 0
+      }
     }
   ]
 }

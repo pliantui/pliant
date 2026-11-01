@@ -1,9 +1,7 @@
 import * as z from "zod"
 
-import { kindSchema, propNameSchema } from "./identifier"
+import { kindSchema, propNameSchema, propValueSchema } from "./identifier"
 import { uniqueArray } from "./unique"
-
-const propValueSchema = z.string().min(1).max(64)
 
 export const manifestPropSchema = z
   .strictObject({

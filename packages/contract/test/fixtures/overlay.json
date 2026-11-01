@@ -172,6 +172,74 @@
       "explain": ["Went to page 3."],
       "createdBy": "user_123",
       "createdAt": "2026-11-01T09:30:00.000Z"
+    },
+    {
+      "v": 1,
+      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TF",
+      "surface": "/orders/[id]",
+      "layer": "personal",
+      "ops": [
+        {
+          "op": "pinColumns",
+          "target": "@page",
+          "side": "left"
+        }
+      ],
+      "basis": {
+        "contract": 1,
+        "core": "0.1.0",
+        "manifests": {
+          "data-table": 1
+        },
+        "datasets": {
+          "orders": 2
+        },
+        "layers": {
+          "team": {
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+            "version": 3
+          }
+        }
+      },
+      "source": "ai",
+      "createdBy": "user_123",
+      "createdAt": "2026-11-01T09:30:00.000Z",
+      "future": {
+        "kept": true
+      }
+    },
+    {
+      "v": 1,
+      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+      "surface": "/orders/[id]",
+      "layer": "personal",
+      "ops": [
+        {
+          "op": "hide",
+          "target": "orders-table/columns/notes"
+        },
+        {
+          "op": "setSort",
+          "target": "orders-table",
+          "sort": [
+            {
+              "field": "value",
+              "dir": "desc"
+            }
+          ]
+        }
+      ],
+      "basis": {
+        "contract": 1,
+        "core": "1.0.0-rc.1+build.5",
+        "manifests": {
+          "acme:rating": 1
+        }
+      },
+      "source": "ai",
+      "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+      "createdBy": "user_123",
+      "createdAt": "2026-11-01T09:30:00.000Z"
     }
   ],
   "invalid": [
@@ -366,7 +434,6 @@
         }
       },
       "source": "ai",
-      "explain": ["Hid the notes column.", "Sorted by value, highest first."],
       "createdBy": "user_123",
       "createdAt": "2026-11-01T09:30:00.000Z"
     },
@@ -397,7 +464,6 @@
         }
       },
       "source": "ai",
-      "explain": ["Hid the notes column.", "Sorted by value, highest first."],
       "createdBy": "user_123",
       "createdAt": "2026-11-01T09:30:00.000Z"
     },
@@ -673,7 +739,6 @@
         }
       },
       "source": "ai",
-      "explain": ["Hid the notes column.", "Sorted by value, highest first."],
       "createdBy": "user_123",
       "createdAt": "2026-11-01T09:30:00.000Z"
     },
@@ -705,7 +770,37 @@
         }
       },
       "source": "ai",
-      "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+      "createdBy": "user_123",
+      "createdAt": "2026-11-01T09:30:00.000Z"
+    },
+    {
+      "v": 1,
+      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+      "surface": "/orders/[id]",
+      "layer": "personal",
+      "ops": [
+        {
+          "op": "hide",
+          "target": "a b"
+        }
+      ],
+      "basis": {
+        "contract": 1,
+        "core": "0.1.0",
+        "manifests": {
+          "data-table": 1
+        },
+        "datasets": {
+          "orders": 2
+        },
+        "layers": {
+          "team": {
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+            "version": 3
+          }
+        }
+      },
+      "source": "ai",
       "createdBy": "user_123",
       "createdAt": "2026-11-01T09:30:00.000Z"
     },
@@ -739,9 +834,7 @@
       "explain": ["Hid the notes column.", "Sorted by value, highest first."],
       "createdBy": "user_123",
       "createdAt": "2026-11-01T09:30:00.000Z"
-    }
-  ],
-  "crossField": [
+    },
     {
       "v": 1,
       "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
@@ -765,90 +858,130 @@
       ],
       "basis": {
         "contract": 1,
-        "core": "0.1.0",
-        "manifests": {
-          "data-table": 1
-        },
-        "datasets": {
-          "orders": 2
-        },
-        "layers": {
-          "team": {
-            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
-            "version": 3
-          }
-        }
-      },
-      "source": "ai",
-      "explain": ["Only one sentence."],
-      "createdBy": "user_123",
-      "createdAt": "2026-11-01T09:30:00.000Z"
-    },
-    {
-      "v": 1,
-      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
-      "surface": "/orders/[id]",
-      "layer": "personal",
-      "ops": [
-        {
-          "op": "setTextScale",
-          "target": "@app",
-          "scale": 1.25
-        }
-      ],
-      "basis": {
-        "contract": 1,
-        "core": "0.1.0",
-        "manifests": {
-          "data-table": 1
-        },
-        "datasets": {
-          "orders": 2
-        },
-        "layers": {
-          "team": {
-            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
-            "version": 3
-          }
-        }
+        "core": "1.0.0-01",
+        "manifests": {}
       },
       "source": "ai",
       "explain": ["Hid the notes column.", "Sorted by value, highest first."],
       "createdBy": "user_123",
       "createdAt": "2026-11-01T09:30:00.000Z"
+    }
+  ],
+  "crossField": [
+    {
+      "value": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Only one sentence."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "message": "Must have one sentence per op"
     },
     {
-      "v": 1,
-      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
-      "surface": "/orders/[id]",
-      "layer": "personal",
-      "ops": [
-        {
-          "op": "setPage",
-          "target": "orders-table",
-          "index": 1
-        }
-      ],
-      "basis": {
-        "contract": 1,
-        "core": "0.1.0",
-        "manifests": {
-          "data-table": 1
-        },
-        "datasets": {
-          "orders": 2
-        },
-        "layers": {
-          "team": {
-            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
-            "version": 3
+      "value": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "setTextScale",
+            "target": "@app",
+            "scale": 1.25
           }
-        }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
       },
-      "source": "ai",
-      "explain": ["Hid the notes column.", "Sorted by value, highest first."],
-      "createdBy": "user_123",
-      "createdAt": "2026-11-01T09:30:00.000Z"
+      "message": "Ops target @app exactly when the overlay's surface is @app"
+    },
+    {
+      "value": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "setPage",
+            "target": "orders-table",
+            "index": 1
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "message": "setPage isn't allowed in the personal layer"
     }
   ]
 }

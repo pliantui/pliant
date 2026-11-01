@@ -1,12 +1,14 @@
 import * as z from "zod"
 
-import { kindSchema } from "./identifier"
+import { kebabIdSchema, kindSchema } from "./identifier"
+import { layerSchema, type Layer } from "./layer"
+import { opCatalog } from "./op-catalog"
 import { surfaceSchema } from "./surface"
 import { ulidSchema } from "./ulid"
 
 const referenceSchema = z.string().min(1).max(256)
 
-const layerVersionSchema = z.strictObject({
+const layerVersionSchema = z.looseObject({
   id: referenceSchema,
   version: z.int().min(1),
 })
@@ -16,34 +18,36 @@ export const overlayOpSchema = z.looseObject({
     .string()
     .max(64)
     .regex(/^[a-z][A-Za-z0-9]*$/, "Must be an op name"),
-  target: z.union([
-    z
-      .string()
-      .max(256)
-      .regex(/^[a-z]/, "Must be an address"),
-    z.enum(["@surface", "@app"]),
-  ]),
+  target: z
+    .string()
+    .max(256)
+    .regex(
+      /^(?:[a-z][A-Za-z0-9_\-[\]/]*|@[a-z]+)$/,
+      "Must be an address or a reserved target such as @app"
+    ),
 })
 
 export type OverlayOp = z.infer<typeof overlayOpSchema>
+
+function isKnownOp(op: string): op is keyof typeof opCatalog {
+  return Object.hasOwn(opCatalog, op)
+}
+
+const semverPattern =
+  /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/
 
 const overlayShape = {
   v: z.literal(1),
   id: ulidSchema,
   surface: surfaceSchema,
   ops: z.array(overlayOpSchema).min(1).max(500),
-  basis: z.object({
+  basis: z.looseObject({
     contract: z.literal(1),
-    core: z
-      .string()
-      .regex(
-        /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/,
-        "Must be a semver version"
-      ),
+    core: z.string().regex(semverPattern, "Must be a semver version"),
     manifests: z.record(kindSchema, z.int().min(1)),
-    datasets: z.record(kindSchema, z.int().min(1)).optional(),
+    datasets: z.record(kebabIdSchema, z.int().min(1)).optional(),
     layers: z
-      .object({
+      .looseObject({
         org: layerVersionSchema.optional(),
         team: layerVersionSchema.optional(),
       })
@@ -57,20 +61,20 @@ const overlayShape = {
 
 export const overlaySchema = z
   .discriminatedUnion("layer", [
-    z.object({
+    z.looseObject({
       ...overlayShape,
       layer: z.literal("org"),
-      scope: z.strictObject({ org: referenceSchema }),
+      scope: z.looseObject({ org: referenceSchema }),
     }),
-    z.object({
+    z.looseObject({
       ...overlayShape,
       layer: z.literal("team"),
-      scope: z.strictObject({
+      scope: z.looseObject({
         team: referenceSchema,
         org: referenceSchema.optional(),
       }),
     }),
-    z.object({
+    z.looseObject({
       ...overlayShape,
       layer: z.enum(["personal", "session"]),
       scope: z.never().optional(),
@@ -85,11 +89,14 @@ export const overlaySchema = z
       })
     }
     for (const [index, { op, target }] of overlay.ops.entries()) {
-      if (op === "setPage" && overlay.layer !== "session") {
+      const layers: readonly Layer[] = isKnownOp(op)
+        ? opCatalog[op].layers
+        : layerSchema.options
+      if (!layers.includes(overlay.layer)) {
         ctx.addIssue({
           code: "custom",
           path: ["ops", index, "op"],
-          message: "setPage is only allowed in the session layer",
+          message: `${op} isn't allowed in the ${overlay.layer} layer`,
         })
       }
       if ((target === "@app") !== (overlay.surface === "@app")) {

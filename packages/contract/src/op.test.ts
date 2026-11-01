@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { readOpFixtures } from "../test/fixtures"
+import { expectCrossFieldIssue } from "../test/fixtures/cross-field"
 import { opSchema } from "./op"
 import { opCatalog } from "./op-catalog"
 
@@ -18,6 +19,10 @@ describe("opSchema", () => {
 
     it.each(fixture.invalid)("rejects %j", (op) => {
       expect(opSchema.safeParse(op).success).toBe(false)
+    })
+
+    it.each(fixture.crossField)("rejects $value with $message", (entry) => {
+      expectCrossFieldIssue(opSchema, entry)
     })
   })
 

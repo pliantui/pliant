@@ -8,7 +8,9 @@ export type Expression =
   | { ref: string }
   | { fn: string; args: Expression[] }
 
-const maxDepth = 6
+const maxDepth = 5
+const maxArgs = 6
+const maxNodes = 64
 
 const leafSchemas = [
   z.strictObject({ field: itemIdSchema }),
@@ -18,7 +20,7 @@ const leafSchemas = [
   z.strictObject({ ref: itemIdSchema }),
 ] as const
 
-function expressionAtDepth(depth: number): z.ZodType<Expression> {
+function expressionAtDepth(depth: number): z.ZodType<Expression, Expression> {
   if (depth === 0) {
     return z.union(leafSchemas)
   }
@@ -26,9 +28,24 @@ function expressionAtDepth(depth: number): z.ZodType<Expression> {
     ...leafSchemas,
     z.strictObject({
       fn: functionNameSchema,
-      args: z.array(expressionAtDepth(depth - 1)).max(8),
+      args: z.array(expressionAtDepth(depth - 1)).max(maxArgs),
     }),
   ])
 }
 
-export const expressionSchema = expressionAtDepth(maxDepth)
+function countNodes(expression: Expression) {
+  let count = 0
+  const pending = [expression]
+  for (let next = pending.pop(); next; next = pending.pop()) {
+    count++
+    if ("fn" in next) {
+      pending.push(...next.args)
+    }
+  }
+  return count
+}
+
+export const expressionSchema = expressionAtDepth(maxDepth).refine(
+  (expression) => countNodes(expression) <= maxNodes,
+  `Must have at most ${String(maxNodes)} nodes`
+)

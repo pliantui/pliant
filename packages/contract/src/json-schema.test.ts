@@ -75,8 +75,8 @@ describe.each(schemas)("$name JSON Schema", ({ name, schema, fixtures }) => {
   })
 
   it("leaves only cross-field rules to Zod", () => {
-    for (const { crossField = [] } of fixtures) {
-      for (const value of crossField) {
+    for (const { crossField } of fixtures) {
+      for (const { value } of crossField) {
         expect(validate(value), JSON.stringify(value)).toBe(true)
         expect(schema.safeParse(value).success).toBe(false)
       }

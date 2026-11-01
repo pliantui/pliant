@@ -225,30 +225,36 @@
   ],
   "crossField": [
     {
-      "kind": "button",
-      "version": 1,
-      "description": "Clickable action",
-      "capabilities": {
-        "props": {
-          "variant": {
-            "values": ["a", "b"],
-            "default": "c"
+      "value": {
+        "kind": "button",
+        "version": 1,
+        "description": "Clickable action",
+        "capabilities": {
+          "props": {
+            "variant": {
+              "values": ["a", "b"],
+              "default": "c"
+            }
           }
         }
-      }
+      },
+      "message": "Must be one of values"
     },
     {
-      "kind": "button",
-      "version": 1,
-      "description": "Clickable action",
-      "capabilities": {
-        "props": {
-          "variant": {
-            "values": ["a", "b"],
-            "semantic": ["danger"]
+      "value": {
+        "kind": "button",
+        "version": 1,
+        "description": "Clickable action",
+        "capabilities": {
+          "props": {
+            "variant": {
+              "values": ["a", "b"],
+              "semantic": ["danger"]
+            }
           }
         }
-      }
+      },
+      "message": "Must be one of values"
     }
   ]
 }
