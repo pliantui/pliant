@@ -41,16 +41,23 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint --max-warnings 0 .",
     "lint:fix": "eslint . --fix",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "check:package": "publint --strict && attw --pack . --profile esm-only",
     "size": "size-limit"
   },
   "size-limit": [
     {
       "path": "dist/index.js",
-      "limit": "25 kB"
+      "limit": "25 kB",
+      "ignore": [
+        "zod",
+        "@pliantui/contract"
+      ]
     }
   ],
+  "peerDependencies": {
+    "zod": "^4.0.16"
+  },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@size-limit/preset-small-lib": "^14.3.0",
@@ -59,6 +66,10 @@
     "size-limit": "^14.3.0",
     "tsup": "^9.0.0",
     "typescript": "~6.0.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "zod": "^4.6.7"
+  },
+  "dependencies": {
+    "@pliantui/contract": "workspace:*"
   }
 }
