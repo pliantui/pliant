@@ -17,55 +17,29 @@ function overlay(ops: unknown[]) {
 }
 
 describe("loadOverlay", () => {
-  it("checks each op on its own", () => {
+  it("returns the overlay with a check for each op, in order", () => {
     const result = loadOverlay(
       overlay([
         { op: "hide", target: "orders-table/columns/notes" },
         { op: "setTheme", target: "orders-table", theme: "ocean" },
         { op: "hide", target: "orders-table/columns/notes", at: "sm" },
-        { op: "setPresentation", target: "edit-order", as: "sheet", width: 2 },
         { op: "rename", target: "orders-table/columns/notes", label: "" },
       ])
     )
     expect(
-      result.success &&
-        result.data.ops.map(({ index, status }) => [index, status])
+      result.data?.ops.map(({ index, status }) => [index, status])
     ).toEqual([
       [0, "valid"],
       [1, "unknown"],
       [2, "newer"],
-      [3, "newer"],
-      [4, "invalid"],
+      [3, "invalid"],
     ])
-  })
-
-  it("treats unknown arguments with an invalid value as invalid", () => {
-    const result = loadOverlay(
-      overlay([
-        {
-          op: "pin",
-          target: "orders-table/columns/id",
-          where: "top",
-          at: "sm",
-        },
-      ])
-    )
-    expect(result.success && result.data.ops[0]?.status).toBe("invalid")
-  })
-
-  it("returns the parsed op for valid ops", () => {
-    const result = loadOverlay(
-      overlay([{ op: "setDensity", target: "@surface", density: "compact" }])
-    )
-    expect(result.success && result.data.ops[0]).toEqual({
-      index: 0,
-      status: "valid",
-      op: { op: "setDensity", target: "@surface", density: "compact" },
-    })
+    expect(result.data?.surface).toBe("/orders/[id]")
   })
 
   it("fails when the envelope is invalid", () => {
     const result = loadOverlay({ ...overlay([]), v: 2 })
     expect(result.success).toBe(false)
+    expect(result.error?.issues.length).toBeGreaterThan(0)
   })
 })

@@ -50,11 +50,13 @@
       "path": "dist/index.js",
       "limit": "25 kB",
       "ignore": [
-        "zod",
-        "@pliantui/contract"
+        "zod"
       ]
     }
   ],
+  "dependencies": {
+    "@pliantui/contract": "workspace:*"
+  },
   "peerDependencies": {
     "zod": "^4.0.16"
   },
@@ -68,8 +70,5 @@
     "typescript": "~6.0.3",
     "vitest": "^5.0.5",
     "zod": "^4.6.7"
-  },
-  "dependencies": {
-    "@pliantui/contract": "workspace:*"
   }
 }

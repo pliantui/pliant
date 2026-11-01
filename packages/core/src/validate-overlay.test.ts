@@ -17,17 +17,14 @@ function overlay(ops: unknown[]) {
 }
 
 describe("validateOverlay", () => {
-  it("returns every op when all are valid", () => {
+  it("returns the overlay with parsed ops when every op is valid", () => {
     const result = validateOverlay(
       overlay([
         { op: "hide", target: "orders-table/columns/notes" },
         { op: "setDensity", target: "@surface", density: "compact" },
       ])
     )
-    expect(result.success && result.data.ops.map(({ op }) => op)).toEqual([
-      "hide",
-      "setDensity",
-    ])
+    expect(result.data?.ops.map(({ op }) => op)).toEqual(["hide", "setDensity"])
   })
 
   it("rejects the whole overlay when any op fails, with paths into ops", () => {
@@ -40,19 +37,35 @@ describe("validateOverlay", () => {
       ])
     )
     expect(
-      result.success ||
-        result.error.issues.map(({ path, message }) => ({ path, message }))
+      result.error?.issues.map(({ code, path, message }) => ({
+        code,
+        path,
+        message,
+      }))
     ).toEqual([
-      { path: ["ops", 1, "op"], message: "Unknown op setTheme" },
       {
-        path: ["ops", 2, "op"],
-        message: "hide has arguments this version doesn't support",
+        code: "custom",
+        path: ["ops", 1, "op"],
+        message: "Unknown op setTheme",
       },
       {
+        code: "unrecognized_keys",
+        path: ["ops", 2],
+        message: 'Unrecognized key: "at"',
+      },
+      {
+        code: "too_small",
         path: ["ops", 3, "label"],
         message: "Too small: expected string to have >=1 characters",
       },
     ])
+  })
+
+  it("doesn't copy op input into issues", () => {
+    const result = validateOverlay(
+      overlay([{ op: "setTheme", target: "orders-table", secret: "x" }])
+    )
+    expect(result.error?.issues[0]).not.toHaveProperty("input")
   })
 
   it("fails when the envelope is invalid", () => {
