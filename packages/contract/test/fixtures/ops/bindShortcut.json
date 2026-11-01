@@ -2,29 +2,40 @@
   "valid": [
     {
       "op": "bindShortcut",
-      "target": "orders-toolbar",
-      "action": "export",
+      "target": "orders-toolbar/actions/export",
       "keys": "mod+shift+e"
     },
     {
       "op": "bindShortcut",
-      "target": "orders-toolbar",
-      "action": "refresh",
+      "target": "orders-toolbar/actions/refresh",
       "keys": "f5"
+    },
+    {
+      "op": "bindShortcut",
+      "target": "orders-toolbar/actions/search",
+      "keys": "mod+/"
     }
   ],
   "invalid": [
     {
       "op": "bindShortcut",
-      "target": "orders-toolbar",
-      "action": "export",
+      "target": "orders-toolbar/actions/export",
       "keys": "Ctrl+E"
     },
     {
       "op": "bindShortcut",
-      "target": "orders-toolbar",
-      "action": "export",
+      "target": "orders-toolbar/actions/export",
       "keys": "mod+"
+    },
+    {
+      "op": "bindShortcut",
+      "target": "orders-toolbar/actions/export",
+      "keys": "shift+shift+k"
+    },
+    {
+      "op": "bindShortcut",
+      "target": "orders-toolbar/actions/export",
+      "keys": "shift+mod+k"
     }
   ]
 }

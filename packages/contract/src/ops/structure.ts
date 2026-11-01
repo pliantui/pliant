@@ -1,18 +1,14 @@
 import * as z from "zod"
 
 import { addressSchema } from "../address"
-import {
-  itemIdSchema,
-  kebabIdSchema,
-  labelSchema,
-  registeredNameSchema,
-} from "../identifier"
+import { itemIdSchema, kebabIdSchema, kindSchema } from "../identifier"
+import { labelSchema } from "../label"
 import {
   breakpointSchema,
   layoutAlignSchema,
   layoutColumnsSchema,
-  layoutModeSchema,
 } from "../layout"
+import { uniqueArray } from "../unique"
 
 const placementSchema = z.union([
   z.strictObject({ before: itemIdSchema }),
@@ -20,59 +16,84 @@ const placementSchema = z.union([
   z.strictObject({ index: z.int().min(0) }),
 ])
 
-export const structureOpSchemas = [
-  z.object({
+const flowLayoutShape = {
+  mode: z.enum(["stack", "row"]),
+  align: layoutAlignSchema.optional(),
+}
+
+const gridLayoutShape = {
+  mode: z.literal("grid"),
+  columns: layoutColumnsSchema.optional(),
+  align: layoutAlignSchema.optional(),
+}
+
+export const structureOpSchemas = {
+  move: z.strictObject({
     op: z.literal("move"),
     target: addressSchema,
     to: z.union([placementSchema, z.strictObject({ into: addressSchema })]),
   }),
-  z.object({
+  collapse: z.strictObject({
     op: z.literal("collapse"),
     target: addressSchema,
-    items: z.array(itemIdSchema).min(1).max(32),
+    items: uniqueArray(itemIdSchema).min(1).max(32),
     into: z.enum(["more", "accordion", "tabs"]),
     label: labelSchema.optional(),
   }),
-  z.object({
+  pin: z.strictObject({
     op: z.literal("pin"),
     target: addressSchema,
     where: z.enum(["start", "end", "sticky", "none"]),
   }),
-  z.object({
-    op: z.literal("setLayout"),
-    target: addressSchema,
-    mode: layoutModeSchema,
-    columns: layoutColumnsSchema.optional(),
-    align: layoutAlignSchema.optional(),
-    at: breakpointSchema.optional(),
-  }),
-  z.object({
+  setLayout: z.discriminatedUnion("mode", [
+    z.strictObject({
+      op: z.literal("setLayout"),
+      target: addressSchema,
+      ...flowLayoutShape,
+      at: breakpointSchema.optional(),
+    }),
+    z.strictObject({
+      op: z.literal("setLayout"),
+      target: addressSchema,
+      ...gridLayoutShape,
+      at: breakpointSchema.optional(),
+    }),
+  ]),
+  span: z.strictObject({
     op: z.literal("span"),
     target: addressSchema,
-    cols: layoutColumnsSchema,
+    columns: layoutColumnsSchema,
     at: breakpointSchema.optional(),
   }),
-  z.object({
+  insert: z.strictObject({
     op: z.literal("insert"),
     target: addressSchema,
-    node: z.object({
+    node: z.strictObject({
       id: kebabIdSchema,
-      kind: z.union([z.enum(["chart", "stat"]), registeredNameSchema]),
+      kind: kindSchema,
       label: labelSchema.optional(),
+      source: addressSchema.optional(),
     }),
     at: placementSchema,
   }),
-  z.object({
-    op: z.literal("wrap"),
-    target: addressSchema,
-    id: kebabIdSchema,
-    items: z.array(itemIdSchema).min(2).max(12),
-    mode: layoutModeSchema,
-    columns: layoutColumnsSchema.optional(),
-    align: layoutAlignSchema.optional(),
-  }),
-  z.object({
+  wrap: z.discriminatedUnion("mode", [
+    z.strictObject({
+      op: z.literal("wrap"),
+      target: addressSchema,
+      id: kebabIdSchema,
+      items: uniqueArray(itemIdSchema).min(2).max(12),
+      ...flowLayoutShape,
+    }),
+    z.strictObject({
+      op: z.literal("wrap"),
+      target: addressSchema,
+      id: kebabIdSchema,
+      items: uniqueArray(itemIdSchema).min(2).max(12),
+      ...gridLayoutShape,
+    }),
+  ]),
+  remove: z.strictObject({
     op: z.literal("remove"),
     target: addressSchema,
   }),
-] as const
+}

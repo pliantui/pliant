@@ -2,9 +2,6 @@ import * as z from "zod"
 
 import { idPatterns } from "./identifier"
 
-const { kebab, item } = idPatterns
-const segment = `/(?:(?:columns|fields|items|actions)/${item}|slots/${kebab})`
-
 export const collectionSchema = z.enum([
   "columns",
   "fields",
@@ -14,6 +11,10 @@ export const collectionSchema = z.enum([
 ])
 
 export type Collection = z.infer<typeof collectionSchema>
+
+const { kebab, item } = idPatterns
+const itemCollections = collectionSchema.exclude(["slots"]).options.join("|")
+const segment = `/(?:(?:${itemCollections})/${item}|slots/${kebab})`
 
 export const nodeIdSchema = z
   .string()

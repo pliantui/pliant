@@ -1,12 +1,12 @@
 import * as z from "zod"
 
-export const preferenceOpSchemas = [
-  z.object({
+export const preferenceOpSchemas = {
+  setDensity: z.strictObject({
     op: z.literal("setDensity"),
     target: z.literal("@surface"),
     density: z.enum(["compact", "default", "comfortable"]),
   }),
-  z.object({
+  setTextScale: z.strictObject({
     op: z.literal("setTextScale"),
     target: z.literal("@app"),
     scale: z.union([
@@ -16,9 +16,9 @@ export const preferenceOpSchemas = [
       z.literal(1.5),
     ]),
   }),
-  z.object({
+  setMotion: z.strictObject({
     op: z.literal("setMotion"),
     target: z.literal("@app"),
     motion: z.enum(["full", "reduced"]),
   }),
-] as const
+}

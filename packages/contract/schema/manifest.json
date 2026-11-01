@@ -3,9 +3,18 @@
   "type": "object",
   "properties": {
     "kind": {
-      "type": "string",
-      "maxLength": 64,
-      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][A-Za-z0-9-]*$"
+        }
+      ]
     },
     "version": {
       "type": "integer",
@@ -38,7 +47,8 @@
                   "type": "string",
                   "minLength": 1,
                   "maxLength": 64
-                }
+                },
+                "uniqueItems": true
               },
               "default": {
                 "type": "string",
@@ -52,7 +62,8 @@
                   "type": "string",
                   "minLength": 1,
                   "maxLength": 64
-                }
+                },
+                "uniqueItems": true
               },
               "description": {
                 "type": "string",
@@ -61,7 +72,8 @@
             },
             "required": [
               "values"
-            ]
+            ],
+            "additionalProperties": false
           }
         },
         "label": {
@@ -94,7 +106,8 @@
         "data": {
           "type": "boolean"
         }
-      }
+      },
+      "additionalProperties": false
     }
   },
   "required": [
@@ -102,5 +115,8 @@
     "version",
     "description",
     "capabilities"
-  ]
+  ],
+  "additionalProperties": false,
+  "title": "Pliant manifest",
+  "description": "What a component lets users change."
 }

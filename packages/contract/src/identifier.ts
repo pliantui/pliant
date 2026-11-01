@@ -31,6 +31,8 @@ export const registeredNameSchema = z
     "Must be namespace:name, for example acme:rating"
   )
 
+export const kindSchema = z.union([kebabIdSchema, registeredNameSchema])
+
 export const functionNameSchema = z
   .string()
   .max(64)
@@ -38,5 +40,3 @@ export const functionNameSchema = z
     new RegExp(`^(?:${kebab}:)?[a-z][A-Za-z0-9]*$`),
     "Must be a built-in function name or namespace:name"
   )
-
-export const labelSchema = z.string().min(1).max(80)

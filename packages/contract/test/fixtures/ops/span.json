@@ -3,7 +3,7 @@
     {
       "op": "span",
       "target": "dashboard/slots/revenue",
-      "cols": 2,
+      "columns": 2,
       "at": "md"
     }
   ],
@@ -11,12 +11,12 @@
     {
       "op": "span",
       "target": "dashboard/slots/revenue",
-      "cols": 0
+      "columns": 0
     },
     {
       "op": "span",
       "target": "dashboard/slots/revenue",
-      "cols": 1.5
+      "cols": 2
     }
   ]
 }

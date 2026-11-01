@@ -20,4 +20,20 @@ describe("opSchema", () => {
       expect(opSchema.safeParse(op).success).toBe(false)
     })
   })
+
+  it("rejects a deeply nested expression without throwing", () => {
+    let expr: unknown = { field: "value" }
+    for (let depth = 0; depth < 5000; depth++) {
+      expr = { fn: "abs", args: [expr] }
+    }
+    expect(
+      opSchema.safeParse({
+        op: "addDerived",
+        target: "orders-table",
+        id: "deep",
+        label: "Deep",
+        expr,
+      }).success
+    ).toBe(false)
+  })
 })

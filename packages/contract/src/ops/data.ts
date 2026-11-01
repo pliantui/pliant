@@ -2,38 +2,41 @@ import * as z from "zod"
 
 import { addressSchema } from "../address"
 import { expressionSchema } from "../expression"
-import { filterSchema, sortSchema } from "../filter"
+import { filterSchema } from "../filter"
 import { formatSchema } from "../format"
-import { itemIdSchema, labelSchema, registeredNameSchema } from "../identifier"
+import { itemIdSchema, registeredNameSchema } from "../identifier"
+import { labelSchema } from "../label"
+import { sortSchema } from "../sort"
+import { uniqueArray } from "../unique"
 
-export const dataOpSchemas = [
-  z.object({
+export const dataOpSchemas = {
+  setSort: z.strictObject({
     op: z.literal("setSort"),
     target: addressSchema,
     sort: sortSchema,
   }),
-  z.object({
+  setFilter: z.strictObject({
     op: z.literal("setFilter"),
     target: addressSchema,
     filter: filterSchema,
   }),
-  z.object({
+  clearFilter: z.strictObject({
     op: z.literal("clearFilter"),
     target: addressSchema,
     field: itemIdSchema,
   }),
-  z.object({
+  setPage: z.strictObject({
     op: z.literal("setPage"),
     target: addressSchema,
     index: z.int().min(0),
     size: z.int().min(1).max(1000).optional(),
   }),
-  z.object({
+  setGroupBy: z.strictObject({
     op: z.literal("setGroupBy"),
     target: addressSchema,
-    fields: z.array(itemIdSchema).max(4),
+    fields: uniqueArray(itemIdSchema).max(4),
   }),
-  z.object({
+  addDerived: z.strictObject({
     op: z.literal("addDerived"),
     target: addressSchema,
     id: itemIdSchema,
@@ -41,34 +44,34 @@ export const dataOpSchemas = [
     expr: expressionSchema,
     format: formatSchema.optional(),
   }),
-  z.object({
+  addAggregate: z.strictObject({
     op: z.literal("addAggregate"),
     target: addressSchema,
     id: itemIdSchema,
     label: labelSchema,
     expr: expressionSchema,
   }),
-  z.object({
+  formatField: z.strictObject({
     op: z.literal("formatField"),
     target: addressSchema,
     field: itemIdSchema,
     format: formatSchema,
   }),
-  z.object({
+  addHighlight: z.strictObject({
     op: z.literal("addHighlight"),
     target: addressSchema,
     id: itemIdSchema,
     when: expressionSchema,
     tone: z.enum(["emphasis", "success", "warning", "danger"]),
   }),
-  z.object({
+  addSortOption: z.strictObject({
     op: z.literal("addSortOption"),
     target: addressSchema,
     id: itemIdSchema,
     label: labelSchema,
     sort: sortSchema.min(1),
   }),
-  z.object({
+  addFilterControl: z.strictObject({
     op: z.literal("addFilterControl"),
     target: addressSchema,
     id: itemIdSchema,
@@ -86,7 +89,7 @@ export const dataOpSchemas = [
     ]),
     label: labelSchema.optional(),
   }),
-  z.object({
+  addPreset: z.strictObject({
     op: z.literal("addPreset"),
     target: addressSchema,
     id: itemIdSchema,
@@ -94,7 +97,7 @@ export const dataOpSchemas = [
     filters: z.array(filterSchema).min(1).max(8),
     sort: sortSchema.optional(),
   }),
-  z.object({
+  setViewKind: z.strictObject({
     op: z.literal("setViewKind"),
     target: addressSchema,
     kind: z.union([
@@ -102,36 +105,36 @@ export const dataOpSchemas = [
       registeredNameSchema,
     ]),
   }),
-  z.object({
+  configureChart: z.strictObject({
     op: z.literal("configureChart"),
     target: addressSchema,
     type: z.enum(["area", "bar", "line", "pie", "radar", "radial"]),
     x: itemIdSchema,
-    y: z.array(itemIdSchema).min(1).max(8),
+    y: uniqueArray(itemIdSchema).min(1).max(8),
     series: itemIdSchema.optional(),
     stacking: z.enum(["none", "stacked", "percent"]).optional(),
     format: formatSchema.optional(),
   }),
-  z.object({
+  configureStat: z.strictObject({
     op: z.literal("configureStat"),
     target: addressSchema,
     metric: itemIdSchema,
     comparison: z
-      .object({
+      .strictObject({
         metric: itemIdSchema,
         display: z.enum(["difference", "percent"]),
       })
       .optional(),
     format: formatSchema.optional(),
   }),
-  z.object({
+  removeUserItem: z.strictObject({
     op: z.literal("removeUserItem"),
     target: addressSchema,
     id: itemIdSchema,
   }),
-  z.object({
+  setColumnWidth: z.strictObject({
     op: z.literal("setColumnWidth"),
     target: addressSchema,
     width: z.int().min(16).max(2000),
   }),
-] as const
+}

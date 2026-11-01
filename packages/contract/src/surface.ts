@@ -3,7 +3,7 @@ import * as z from "zod"
 import { idPatterns } from "./identifier"
 
 const param = "[A-Za-z_][A-Za-z0-9_]*"
-const segment = `(?:[A-Za-z0-9._~-]+|\\[${param}\\]|\\[\\.\\.\\.${param}\\]|\\[\\[\\.\\.\\.${param}\\]\\])`
+const segment = `(?:(?!\\.{1,2}(?:/|$))[A-Za-z0-9._~-]+|\\[${param}\\]|\\[\\.\\.\\.${param}\\]|\\[\\[\\.\\.\\.${param}\\]\\])`
 
 export const surfaceSchema = z
   .string()

@@ -17,6 +17,12 @@
       "op": "setPresentation",
       "target": "edit-order",
       "as": "popover"
+    },
+    {
+      "op": "setPresentation",
+      "target": "edit-order",
+      "as": "dialog",
+      "side": "left"
     }
   ]
 }

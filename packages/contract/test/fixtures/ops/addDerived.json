@@ -38,6 +38,45 @@
           }
         ]
       }
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "nested",
+      "label": "Nested",
+      "expr": {
+        "fn": "abs",
+        "args": [
+          {
+            "fn": "abs",
+            "args": [
+              {
+                "fn": "abs",
+                "args": [
+                  {
+                    "fn": "abs",
+                    "args": [
+                      {
+                        "fn": "abs",
+                        "args": [
+                          {
+                            "fn": "abs",
+                            "args": [
+                              {
+                                "field": "value"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "invalid": [
@@ -65,6 +104,55 @@
       "expr": {
         "field": "value",
         "value": 1
+      }
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "nested",
+      "label": "Nested",
+      "expr": {
+        "fn": "abs",
+        "args": [
+          {
+            "fn": "abs",
+            "args": [
+              {
+                "fn": "abs",
+                "args": [
+                  {
+                    "fn": "abs",
+                    "args": [
+                      {
+                        "fn": "abs",
+                        "args": [
+                          {
+                            "fn": "abs",
+                            "args": [
+                              {
+                                "fn": "abs",
+                                "args": [
+                                  {
+                                    "fn": "abs",
+                                    "args": [
+                                      {
+                                        "field": "value"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       }
     }
   ]

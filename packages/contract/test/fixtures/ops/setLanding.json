@@ -2,15 +2,14 @@
   "valid": [
     {
       "op": "setLanding",
-      "target": "app-sidebar",
-      "href": "/reports"
+      "target": "app-sidebar/items/reports"
     }
   ],
   "invalid": [
     {
       "op": "setLanding",
       "target": "app-sidebar",
-      "href": ""
+      "href": "javascript:alert(1)"
     }
   ]
 }

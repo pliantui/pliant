@@ -17,9 +17,12 @@ describe("manifestSchema", () => {
     expect(manifestSchema.safeParse(manifest).success).toBe(true)
   })
 
-  it.each(fixture.invalid)("rejects %j", (manifest) => {
-    expect(manifestSchema.safeParse(manifest).success).toBe(false)
-  })
+  it.each([...fixture.invalid, ...(fixture.crossField ?? [])])(
+    "rejects %j",
+    (manifest) => {
+      expect(manifestSchema.safeParse(manifest).success).toBe(false)
+    }
+  )
 })
 
 describe("defineManifest", () => {

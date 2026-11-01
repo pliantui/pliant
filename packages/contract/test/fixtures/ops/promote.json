@@ -2,14 +2,14 @@
   "valid": [
     {
       "op": "promote",
-      "target": "orders-toolbar",
-      "action": "export"
+      "target": "orders-toolbar/actions/export"
     }
   ],
   "invalid": [
     {
       "op": "promote",
-      "target": "orders-toolbar"
+      "target": "orders-toolbar",
+      "action": "export"
     }
   ]
 }

@@ -8,16 +8,27 @@ export type Expression =
   | { ref: string }
   | { fn: string; args: Expression[] }
 
-export const expressionSchema: z.ZodType<Expression> = z.union([
+const maxDepth = 6
+
+const leafSchemas = [
   z.strictObject({ field: itemIdSchema }),
   z.strictObject({
     value: z.union([z.string().max(200), z.number(), z.boolean(), z.null()]),
   }),
   z.strictObject({ ref: itemIdSchema }),
-  z.strictObject({
-    fn: functionNameSchema,
-    get args() {
-      return z.array(expressionSchema).max(8)
-    },
-  }),
-])
+] as const
+
+function expressionAtDepth(depth: number): z.ZodType<Expression> {
+  if (depth === 0) {
+    return z.union(leafSchemas)
+  }
+  return z.union([
+    ...leafSchemas,
+    z.strictObject({
+      fn: functionNameSchema,
+      args: z.array(expressionAtDepth(depth - 1)).max(8),
+    }),
+  ])
+}
+
+export const expressionSchema = expressionAtDepth(maxDepth)

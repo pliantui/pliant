@@ -20,6 +20,12 @@
       "target": "ticket-form",
       "items": ["fax"],
       "into": "drawer"
+    },
+    {
+      "op": "collapse",
+      "target": "ticket-form",
+      "items": ["fax", "fax"],
+      "into": "more"
     }
   ]
 }

@@ -1,26 +1,27 @@
 import * as z from "zod"
 
 import { addressSchema } from "../address"
-import { labelSchema, propNameSchema } from "../identifier"
+import { propNameSchema } from "../identifier"
+import { labelSchema } from "../label"
 
-export const universalOpSchemas = [
-  z.object({
+export const universalOpSchemas = {
+  setProp: z.strictObject({
     op: z.literal("setProp"),
     target: addressSchema,
     prop: propNameSchema,
-    value: z.string().max(64),
+    value: z.string().min(1).max(64),
   }),
-  z.object({
+  rename: z.strictObject({
     op: z.literal("rename"),
     target: addressSchema,
     label: labelSchema,
   }),
-  z.object({
+  hide: z.strictObject({
     op: z.literal("hide"),
     target: addressSchema,
   }),
-  z.object({
+  show: z.strictObject({
     op: z.literal("show"),
     target: addressSchema,
   }),
-] as const
+}

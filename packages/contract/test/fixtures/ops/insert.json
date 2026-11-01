@@ -6,7 +6,8 @@
       "node": {
         "id": "revenue-chart",
         "kind": "chart",
-        "label": "Revenue"
+        "label": "Revenue",
+        "source": "orders-table"
       },
       "at": {
         "after": "orders"
@@ -30,7 +31,7 @@
       "target": "dashboard",
       "node": {
         "id": "revenue-chart",
-        "kind": "html"
+        "kind": "Chart"
       },
       "at": {
         "index": 0

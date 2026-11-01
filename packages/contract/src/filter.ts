@@ -1,11 +1,10 @@
 import * as z from "zod"
 
 import { itemIdSchema } from "./identifier"
-
-const scalarSchema = z.union([z.string().max(200), z.number(), z.boolean()])
+import { scalarSchema, valueSchema } from "./value"
 
 export const filterSchema = z.discriminatedUnion("operator", [
-  z.object({
+  z.strictObject({
     field: itemIdSchema,
     operator: z.enum([
       "eq",
@@ -19,36 +18,25 @@ export const filterSchema = z.discriminatedUnion("operator", [
     ]),
     value: scalarSchema,
   }),
-  z.object({
+  z.strictObject({
     field: itemIdSchema,
     operator: z.literal("in"),
     value: z.array(scalarSchema).min(1).max(100),
   }),
-  z.object({
+  z.strictObject({
     field: itemIdSchema,
     operator: z.literal("between"),
     value: z.tuple([scalarSchema, scalarSchema]),
   }),
-  z.object({
+  z.strictObject({
     field: itemIdSchema,
     operator: z.literal("isNull"),
   }),
-  z.object({
+  z.strictObject({
     field: itemIdSchema,
     operator: z.literal("custom"),
-    value: z.json(),
+    value: valueSchema,
   }),
 ])
 
 export type Filter = z.infer<typeof filterSchema>
-
-export const sortSchema = z
-  .array(
-    z.object({
-      field: itemIdSchema,
-      dir: z.enum(["asc", "desc"]),
-    })
-  )
-  .max(8)
-
-export type Sort = z.infer<typeof sortSchema>

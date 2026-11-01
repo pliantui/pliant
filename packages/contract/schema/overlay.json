@@ -1,195 +1,664 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "properties": {
-    "v": {
-      "type": "number",
-      "const": 1
-    },
-    "id": {
-      "type": "string",
-      "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
-    },
-    "surface": {
-      "type": "string",
-      "maxLength": 256,
-      "pattern": "^(?:@app|\\/(?:(?:[A-Za-z0-9._~-]+|\\[[A-Za-z_][A-Za-z0-9_]*\\]|\\[\\.\\.\\.[A-Za-z_][A-Za-z0-9_]*\\]|\\[\\[\\.\\.\\.[A-Za-z_][A-Za-z0-9_]*\\]\\])(?:\\/(?:[A-Za-z0-9._~-]+|\\[[A-Za-z_][A-Za-z0-9_]*\\]|\\[\\.\\.\\.[A-Za-z_][A-Za-z0-9_]*\\]|\\[\\[\\.\\.\\.[A-Za-z_][A-Za-z0-9_]*\\]\\]))*)?|[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$"
-    },
-    "layer": {
-      "type": "string",
-      "enum": [
-        "org",
-        "team",
-        "personal",
-        "session"
-      ]
-    },
-    "scope": {
+  "oneOf": [
+    {
       "type": "object",
       "properties": {
-        "team": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256
-        },
-        "org": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256
-        }
-      }
-    },
-    "ops": {
-      "minItems": 1,
-      "maxItems": 50,
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "op": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64
-          },
-          "target": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 256
-          }
-        },
-        "required": [
-          "op",
-          "target"
-        ],
-        "additionalProperties": {}
-      }
-    },
-    "basis": {
-      "type": "object",
-      "properties": {
-        "contract": {
+        "v": {
           "type": "number",
           "const": 1
         },
-        "core": {
+        "id": {
           "type": "string",
-          "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
         },
-        "manifests": {
-          "type": "object",
-          "propertyNames": {
-            "type": "string",
-            "maxLength": 64,
-            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
-          },
-          "additionalProperties": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991
+        "surface": {
+          "$ref": "#/$defs/surface"
+        },
+        "ops": {
+          "minItems": 1,
+          "maxItems": 500,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "maxLength": 64,
+                "pattern": "^[a-z][A-Za-z0-9]*$"
+              },
+              "target": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 256,
+                    "pattern": "^[a-z]"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "@surface",
+                      "@app"
+                    ]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "op",
+              "target"
+            ],
+            "additionalProperties": {}
           }
         },
-        "datasets": {
+        "basis": {
           "type": "object",
-          "propertyNames": {
-            "type": "string",
-            "maxLength": 64,
-            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+          "properties": {
+            "contract": {
+              "type": "number",
+              "const": 1
+            },
+            "core": {
+              "type": "string",
+              "pattern": "^(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+            },
+            "manifests": {
+              "type": "object",
+              "propertyNames": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                  },
+                  {
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][A-Za-z0-9-]*$"
+                  }
+                ]
+              },
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            },
+            "datasets": {
+              "type": "object",
+              "propertyNames": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                  },
+                  {
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][A-Za-z0-9-]*$"
+                  }
+                ]
+              },
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            },
+            "layers": {
+              "type": "object",
+              "properties": {
+                "org": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    "version": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                },
+                "team": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    "version": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           },
-          "additionalProperties": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991
+          "required": [
+            "contract",
+            "core",
+            "manifests"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "ai",
+            "manual",
+            "chip",
+            "share",
+            "promote"
+          ]
+        },
+        "explain": {
+          "maxItems": 500,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
           }
         },
-        "layers": {
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+        },
+        "layer": {
+          "type": "string",
+          "const": "org"
+        },
+        "scope": {
           "type": "object",
           "properties": {
             "org": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 256
-                },
-                "version": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 9007199254740991
-                }
-              },
-              "required": [
-                "id",
-                "version"
-              ]
-            },
-            "team": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 256
-                },
-                "version": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 9007199254740991
-                }
-              },
-              "required": [
-                "id",
-                "version"
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
             }
-          }
+          },
+          "required": [
+            "org"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
-        "contract",
-        "core",
-        "manifests"
+        "v",
+        "id",
+        "surface",
+        "ops",
+        "basis",
+        "source",
+        "createdBy",
+        "createdAt",
+        "layer",
+        "scope"
       ]
     },
-    "source": {
-      "type": "string",
-      "enum": [
-        "ai",
-        "manual",
-        "chip",
-        "share",
-        "promote"
+    {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "surface": {
+          "$ref": "#/$defs/surface"
+        },
+        "ops": {
+          "minItems": 1,
+          "maxItems": 500,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "maxLength": 64,
+                "pattern": "^[a-z][A-Za-z0-9]*$"
+              },
+              "target": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 256,
+                    "pattern": "^[a-z]"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "@surface",
+                      "@app"
+                    ]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "op",
+              "target"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "basis": {
+          "type": "object",
+          "properties": {
+            "contract": {
+              "type": "number",
+              "const": 1
+            },
+            "core": {
+              "type": "string",
+              "pattern": "^(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+            },
+            "manifests": {
+              "type": "object",
+              "propertyNames": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                  },
+                  {
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][A-Za-z0-9-]*$"
+                  }
+                ]
+              },
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            },
+            "datasets": {
+              "type": "object",
+              "propertyNames": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                  },
+                  {
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][A-Za-z0-9-]*$"
+                  }
+                ]
+              },
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            },
+            "layers": {
+              "type": "object",
+              "properties": {
+                "org": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    "version": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                },
+                "team": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    "version": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "required": [
+            "contract",
+            "core",
+            "manifests"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "ai",
+            "manual",
+            "chip",
+            "share",
+            "promote"
+          ]
+        },
+        "explain": {
+          "maxItems": 500,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+        },
+        "layer": {
+          "type": "string",
+          "const": "team"
+        },
+        "scope": {
+          "type": "object",
+          "properties": {
+            "team": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "org": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "team"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "v",
+        "id",
+        "surface",
+        "ops",
+        "basis",
+        "source",
+        "createdBy",
+        "createdAt",
+        "layer",
+        "scope"
       ]
     },
-    "explain": {
-      "maxItems": 50,
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1,
-        "maxLength": 200
-      }
-    },
-    "createdBy": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 256
-    },
-    "createdAt": {
-      "type": "string",
-      "format": "date-time",
-      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+    {
+      "type": "object",
+      "properties": {
+        "v": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "surface": {
+          "$ref": "#/$defs/surface"
+        },
+        "ops": {
+          "minItems": 1,
+          "maxItems": 500,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "maxLength": 64,
+                "pattern": "^[a-z][A-Za-z0-9]*$"
+              },
+              "target": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 256,
+                    "pattern": "^[a-z]"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "@surface",
+                      "@app"
+                    ]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "op",
+              "target"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "basis": {
+          "type": "object",
+          "properties": {
+            "contract": {
+              "type": "number",
+              "const": 1
+            },
+            "core": {
+              "type": "string",
+              "pattern": "^(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+            },
+            "manifests": {
+              "type": "object",
+              "propertyNames": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                  },
+                  {
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][A-Za-z0-9-]*$"
+                  }
+                ]
+              },
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            },
+            "datasets": {
+              "type": "object",
+              "propertyNames": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                  },
+                  {
+                    "type": "string",
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][A-Za-z0-9-]*$"
+                  }
+                ]
+              },
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              }
+            },
+            "layers": {
+              "type": "object",
+              "properties": {
+                "org": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    "version": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                },
+                "team": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    "version": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "required": [
+            "contract",
+            "core",
+            "manifests"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "ai",
+            "manual",
+            "chip",
+            "share",
+            "promote"
+          ]
+        },
+        "explain": {
+          "maxItems": 500,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+        },
+        "layer": {
+          "type": "string",
+          "enum": [
+            "personal",
+            "session"
+          ]
+        },
+        "scope": {
+          "not": {}
+        }
+      },
+      "required": [
+        "v",
+        "id",
+        "surface",
+        "ops",
+        "basis",
+        "source",
+        "createdBy",
+        "createdAt",
+        "layer"
+      ]
     }
-  },
-  "required": [
-    "v",
-    "id",
-    "surface",
-    "layer",
-    "ops",
-    "basis",
-    "source",
-    "createdBy",
-    "createdAt"
-  ]
+  ],
+  "title": "Pliant overlay",
+  "description": "A set of ops one layer applies to a surface.",
+  "$defs": {
+    "surface": {
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^(?:@app|\\/(?:(?:(?!\\.{1,2}(?:\\/|$))[A-Za-z0-9._~-]+|\\[[A-Za-z_][A-Za-z0-9_]*\\]|\\[\\.\\.\\.[A-Za-z_][A-Za-z0-9_]*\\]|\\[\\[\\.\\.\\.[A-Za-z_][A-Za-z0-9_]*\\]\\])(?:\\/(?:(?!\\.{1,2}(?:\\/|$))[A-Za-z0-9._~-]+|\\[[A-Za-z_][A-Za-z0-9_]*\\]|\\[\\.\\.\\.[A-Za-z_][A-Za-z0-9_]*\\]|\\[\\[\\.\\.\\.[A-Za-z_][A-Za-z0-9_]*\\]\\]))*)?|[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$"
+    }
+  }
 }

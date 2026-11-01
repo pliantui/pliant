@@ -16,6 +16,11 @@
       "op": "setGroupBy",
       "target": "orders-table",
       "fields": ["a", "b", "c", "d", "e"]
+    },
+    {
+      "op": "setGroupBy",
+      "target": "orders-table",
+      "fields": ["region", "region"]
     }
   ]
 }

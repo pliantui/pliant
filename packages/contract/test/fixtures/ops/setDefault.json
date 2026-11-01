@@ -2,28 +2,37 @@
   "valid": [
     {
       "op": "setDefault",
-      "target": "ticket-form",
-      "field": "priority",
+      "target": "ticket-form/fields/priority",
       "value": "high"
     },
     {
       "op": "setDefault",
-      "target": "ticket-form",
-      "field": "tags",
+      "target": "ticket-form/fields/tags",
       "value": ["billing", "urgent"]
+    },
+    {
+      "op": "setDefault",
+      "target": "ticket-form/fields/dueDate",
+      "value": null
     }
   ],
   "invalid": [
     {
       "op": "setDefault",
-      "target": "ticket-form",
-      "value": "high"
+      "target": "ticket-form/fields/priority"
     },
     {
       "op": "setDefault",
-      "target": "ticket-form",
-      "field": "customer.region",
-      "value": "north"
+      "target": "ticket-form/fields/address",
+      "value": {
+        "city": "Pune"
+      }
+    },
+    {
+      "op": "setDefault",
+      "target": "ticket-form/fields/priority",
+      "field": "priority",
+      "value": "high"
     }
   ]
 }

@@ -17,6 +17,11 @@
     {
       "op": "hide",
       "target": "Orders-table"
+    },
+    {
+      "op": "hide",
+      "target": "orders-table/columns/notes",
+      "at": "sm"
     }
   ]
 }

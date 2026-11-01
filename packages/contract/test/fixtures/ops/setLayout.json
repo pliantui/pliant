@@ -25,6 +25,12 @@
       "op": "setLayout",
       "target": "dashboard",
       "mode": "masonry"
+    },
+    {
+      "op": "setLayout",
+      "target": "dashboard",
+      "mode": "stack",
+      "columns": 2
     }
   ]
 }

@@ -1,9 +1,10 @@
 import * as z from "zod"
 
-import { labelSchema } from "./identifier"
+import { labelSchema } from "./label"
 import { layerSchema } from "./layer"
-import { overlaySchema, ulidSchema } from "./overlay"
+import { overlaySchema } from "./overlay"
 import { surfaceSchema } from "./surface"
+import { ulidSchema } from "./ulid"
 
 export const savedViewSchema = z.object({
   id: ulidSchema,

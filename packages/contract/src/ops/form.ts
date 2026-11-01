@@ -1,13 +1,12 @@
 import * as z from "zod"
 
 import { addressSchema } from "../address"
-import { itemIdSchema } from "../identifier"
+import { valueSchema } from "../value"
 
-export const formOpSchemas = [
-  z.object({
+export const formOpSchemas = {
+  setDefault: z.strictObject({
     op: z.literal("setDefault"),
     target: addressSchema,
-    field: itemIdSchema,
-    value: z.json(),
+    value: valueSchema,
   }),
-] as const
+}

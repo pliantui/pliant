@@ -66,6 +66,7 @@ describe("surfaceSchema", () => {
     "/orders/[id]",
     "/docs/[...slug]",
     "/shop/[[...filters]]",
+    "/files/.well-known",
     "app-shell",
     "@app",
   ])("accepts %s", (surface) => {

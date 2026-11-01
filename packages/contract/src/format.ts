@@ -3,7 +3,7 @@ import * as z from "zod"
 const decimalsSchema = z.int().min(0).max(10)
 
 export const formatSchema = z.discriminatedUnion("type", [
-  z.object({
+  z.strictObject({
     type: z.literal("number"),
     decimals: decimalsSchema.optional(),
     notation: z.enum(["standard", "compact"]).optional(),
@@ -13,11 +13,11 @@ export const formatSchema = z.discriminatedUnion("type", [
       .regex(/^[a-z]+(?:-[a-z]+)*$/)
       .optional(),
   }),
-  z.object({
+  z.strictObject({
     type: z.literal("percent"),
     decimals: decimalsSchema.optional(),
   }),
-  z.object({
+  z.strictObject({
     type: z.literal("currency"),
     currency: z
       .string()
@@ -26,7 +26,7 @@ export const formatSchema = z.discriminatedUnion("type", [
     display: z.enum(["symbol", "narrowSymbol", "code", "name"]).optional(),
     decimals: decimalsSchema.optional(),
   }),
-  z.object({
+  z.strictObject({
     type: z.literal("date"),
     style: z.enum(["short", "medium", "long", "full", "relative"]),
     time: z.boolean().optional(),

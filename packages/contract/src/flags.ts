@@ -1,6 +1,6 @@
 import * as z from "zod"
 
-export const flagsSchema = z.object({
+export const flagsSchema = z.strictObject({
   critical: z.boolean().optional(),
   required: z.boolean().optional(),
   destructive: z.boolean().optional(),
