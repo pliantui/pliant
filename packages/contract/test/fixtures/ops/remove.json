@@ -1,0 +1,22 @@
+{
+  "valid": [
+    {
+      "op": "remove",
+      "target": "dashboard/slots/revenue-chart"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "remove",
+      "target": "dashboard/slots/Revenue"
+    },
+    {
+      "op": "remove",
+      "target": "dashboard"
+    },
+    {
+      "op": "remove",
+      "target": "orders-table/columns/notes"
+    }
+  ]
+}

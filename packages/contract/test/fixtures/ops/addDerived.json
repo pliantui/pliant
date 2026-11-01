@@ -1,0 +1,1120 @@
+{
+  "valid": [
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "margin",
+      "label": "Margin",
+      "expr": {
+        "fn": "subtract",
+        "args": [
+          {
+            "field": "value"
+          },
+          {
+            "field": "cost"
+          }
+        ]
+      },
+      "format": {
+        "type": "currency",
+        "currency": "INR"
+      }
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "age",
+      "label": "Age in days",
+      "expr": {
+        "fn": "daysBetween",
+        "args": [
+          {
+            "field": "createdAt"
+          },
+          {
+            "fn": "today",
+            "args": []
+          }
+        ]
+      }
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "nested",
+      "label": "Nested",
+      "expr": {
+        "fn": "abs",
+        "args": [
+          {
+            "fn": "abs",
+            "args": [
+              {
+                "fn": "abs",
+                "args": [
+                  {
+                    "fn": "abs",
+                    "args": [
+                      {
+                        "fn": "abs",
+                        "args": [
+                          {
+                            "fn": "abs",
+                            "args": [
+                              {
+                                "fn": "abs",
+                                "args": [
+                                  {
+                                    "fn": "abs",
+                                    "args": [
+                                      {
+                                        "field": "value"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "wide",
+      "label": "Wide",
+      "expr": {
+        "fn": "coalesce",
+        "args": [
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          }
+        ]
+      }
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "limit",
+      "label": "Limit",
+      "expr": {
+        "fn": "sum",
+        "args": [
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "fn": "sum",
+            "args": [
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              },
+              {
+                "field": "a"
+              }
+            ]
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          }
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "margin",
+      "label": "Margin",
+      "expr": {
+        "field": "customer.region"
+      }
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "margin",
+      "label": "Margin",
+      "expr": "value - cost"
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "margin",
+      "label": "Margin",
+      "expr": {
+        "field": "value",
+        "value": 1
+      }
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "nested",
+      "label": "Nested",
+      "expr": {
+        "fn": "abs",
+        "args": [
+          {
+            "fn": "abs",
+            "args": [
+              {
+                "fn": "abs",
+                "args": [
+                  {
+                    "fn": "abs",
+                    "args": [
+                      {
+                        "fn": "abs",
+                        "args": [
+                          {
+                            "fn": "abs",
+                            "args": [
+                              {
+                                "fn": "abs",
+                                "args": [
+                                  {
+                                    "fn": "abs",
+                                    "args": [
+                                      {
+                                        "fn": "abs",
+                                        "args": [
+                                          {
+                                            "field": "value"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "op": "addDerived",
+      "target": "orders-table",
+      "id": "wide",
+      "label": "Wide",
+      "expr": {
+        "fn": "coalesce",
+        "args": [
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          },
+          {
+            "field": "a"
+          }
+        ]
+      }
+    }
+  ],
+  "crossField": [
+    {
+      "value": {
+        "op": "addDerived",
+        "target": "orders-table",
+        "id": "big",
+        "label": "Big",
+        "expr": {
+          "fn": "sum",
+          "args": [
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "message": "Must have at most 128 nodes and 16 arguments per function",
+      "path": ["expr"]
+    }
+  ]
+}

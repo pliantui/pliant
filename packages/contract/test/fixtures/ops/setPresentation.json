@@ -1,0 +1,33 @@
+{
+  "valid": [
+    {
+      "op": "setPresentation",
+      "target": "edit-order",
+      "as": "sheet",
+      "side": "right"
+    },
+    {
+      "op": "setPresentation",
+      "target": "edit-order",
+      "as": "page"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setPresentation",
+      "target": "edit-order",
+      "as": "popover"
+    },
+    {
+      "op": "setPresentation",
+      "target": "edit-order",
+      "as": "dialog",
+      "side": "left"
+    },
+    {
+      "op": "setPresentation",
+      "target": "orders-table/columns/notes",
+      "as": "page"
+    }
+  ]
+}

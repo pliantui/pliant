@@ -1,0 +1,26 @@
+{
+  "valid": [
+    {
+      "op": "setViewKind",
+      "target": "orders-table",
+      "kind": "chart"
+    },
+    {
+      "op": "setViewKind",
+      "target": "orders-table",
+      "kind": "acme:kanban"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setViewKind",
+      "target": "orders-table",
+      "kind": "kanban"
+    },
+    {
+      "op": "setViewKind",
+      "target": "orders-table",
+      "kind": "pliant:kanban"
+    }
+  ]
+}

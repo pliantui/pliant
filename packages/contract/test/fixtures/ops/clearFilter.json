@@ -1,0 +1,15 @@
+{
+  "valid": [
+    {
+      "op": "clearFilter",
+      "target": "orders-table",
+      "field": "status"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "clearFilter",
+      "target": "orders-table"
+    }
+  ]
+}

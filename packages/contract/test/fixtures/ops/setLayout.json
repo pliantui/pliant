@@ -1,0 +1,46 @@
+{
+  "valid": [
+    {
+      "op": "setLayout",
+      "target": "dashboard",
+      "mode": "grid",
+      "columns": 3,
+      "align": "start",
+      "at": "lg"
+    },
+    {
+      "op": "setLayout",
+      "target": "dashboard",
+      "mode": "stack"
+    },
+    {
+      "op": "setLayout",
+      "target": "dashboard/slots/kpis",
+      "mode": "row"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setLayout",
+      "target": "dashboard",
+      "mode": "grid",
+      "columns": 5
+    },
+    {
+      "op": "setLayout",
+      "target": "dashboard",
+      "mode": "masonry"
+    },
+    {
+      "op": "setLayout",
+      "target": "dashboard",
+      "mode": "stack",
+      "columns": 2
+    },
+    {
+      "op": "setLayout",
+      "target": "orders-table/columns/notes",
+      "mode": "stack"
+    }
+  ]
+}

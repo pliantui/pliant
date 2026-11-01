@@ -27,10 +27,12 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./schema/*.json": "./schema/*.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "schema"
   ],
   "publishConfig": {
     "access": "public"
@@ -41,24 +43,35 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint --max-warnings 0 .",
     "lint:fix": "eslint . --fix",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "check:package": "publint --strict && attw --pack . --profile esm-only",
-    "size": "size-limit"
+    "size": "size-limit",
+    "generate:schema": "vitest run --update src/json-schema.test.ts --testNamePattern \"matches the published file\""
   },
   "size-limit": [
     {
       "path": "dist/index.js",
-      "limit": "10 kB"
+      "limit": "10 kB",
+      "ignore": [
+        "zod"
+      ]
     }
   ],
+  "peerDependencies": {
+    "zod": "^4.0.16"
+  },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@size-limit/preset-small-lib": "^14.3.0",
+    "@types/node": "~22.12.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "eslint": "^9.39.5",
     "publint": "^0.3.25",
     "size-limit": "^14.3.0",
     "tsup": "^9.0.0",
     "typescript": "~6.0.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "zod": "^4.6.7"
   }
 }

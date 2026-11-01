@@ -1,0 +1,28 @@
+{
+  "valid": [
+    {
+      "op": "setPage",
+      "target": "orders-table",
+      "index": 2,
+      "size": 50
+    },
+    {
+      "op": "setPage",
+      "target": "orders-table",
+      "index": 0
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setPage",
+      "target": "orders-table",
+      "index": -1
+    },
+    {
+      "op": "setPage",
+      "target": "orders-table",
+      "index": 0,
+      "size": 0
+    }
+  ]
+}

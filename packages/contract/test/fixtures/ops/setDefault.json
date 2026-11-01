@@ -1,0 +1,48 @@
+{
+  "valid": [
+    {
+      "op": "setDefault",
+      "target": "ticket-form/fields/priority",
+      "value": "high"
+    },
+    {
+      "op": "setDefault",
+      "target": "ticket-form/fields/tags",
+      "value": ["billing", "urgent"]
+    },
+    {
+      "op": "setDefault",
+      "target": "ticket-form/fields/dueDate",
+      "value": null
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setDefault",
+      "target": "ticket-form/fields/priority"
+    },
+    {
+      "op": "setDefault",
+      "target": "ticket-form/fields/address",
+      "value": {
+        "city": "Pune"
+      }
+    },
+    {
+      "op": "setDefault",
+      "target": "ticket-form/fields/priority",
+      "field": "priority",
+      "value": "high"
+    },
+    {
+      "op": "setDefault",
+      "target": "ticket-form",
+      "value": "high"
+    },
+    {
+      "op": "setDefault",
+      "target": "ticket-form/columns/priority",
+      "value": "high"
+    }
+  ]
+}

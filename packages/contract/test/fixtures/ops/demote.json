@@ -1,0 +1,18 @@
+{
+  "valid": [
+    {
+      "op": "demote",
+      "target": "orders-toolbar/actions/archive"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "demote",
+      "target": "orders-toolbar/actions/9lives"
+    },
+    {
+      "op": "demote",
+      "target": "orders-toolbar/items/archive"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "valid": [
+    {
+      "op": "setSort",
+      "target": "orders-table",
+      "sort": [
+        {
+          "field": "createdAt",
+          "dir": "desc"
+        },
+        {
+          "field": "value",
+          "dir": "asc"
+        }
+      ]
+    },
+    {
+      "op": "setSort",
+      "target": "orders-table",
+      "sort": []
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setSort",
+      "target": "orders-table",
+      "sort": [
+        {
+          "field": "value",
+          "dir": "up"
+        }
+      ]
+    },
+    {
+      "op": "setSort",
+      "target": "orders-table/columns/value",
+      "sort": []
+    }
+  ],
+  "crossField": [
+    {
+      "value": {
+        "op": "setSort",
+        "target": "orders-table",
+        "sort": [
+          {
+            "field": "value",
+            "dir": "asc"
+          },
+          {
+            "field": "value",
+            "dir": "desc"
+          }
+        ]
+      },
+      "message": "Must sort by each field at most once",
+      "path": ["sort"]
+    }
+  ]
+}

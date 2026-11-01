@@ -1,0 +1,120 @@
+{
+  "valid": [
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "revenue-chart",
+        "kind": "chart",
+        "dataset": "orders",
+        "label": "Revenue"
+      },
+      "at": {
+        "after": "orders"
+      }
+    },
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "rating",
+        "kind": "acme:rating"
+      },
+      "at": {
+        "index": 2
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "revenue-chart",
+        "kind": "Chart",
+        "dataset": "orders"
+      },
+      "at": {
+        "index": 0
+      }
+    },
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "revenue-chart",
+        "kind": "chart",
+        "dataset": "orders"
+      },
+      "at": {
+        "into": "dashboard/slots/side"
+      }
+    },
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "revenue-chart",
+        "kind": "chart"
+      },
+      "at": {
+        "index": 0
+      }
+    },
+    {
+      "op": "insert",
+      "target": "order-card[]",
+      "node": {
+        "id": "badge",
+        "kind": "acme:badge"
+      },
+      "at": {
+        "index": 0
+      }
+    },
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "rating",
+        "kind": "acme:fooBar"
+      },
+      "at": {
+        "index": 0
+      }
+    },
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "rating",
+        "kind": "acme:foo-"
+      },
+      "at": {
+        "index": 0
+      }
+    },
+    {
+      "op": "insert",
+      "target": "ticket-form/fields/x",
+      "node": {
+        "id": "badge",
+        "kind": "acme:badge"
+      },
+      "at": {
+        "index": 0
+      }
+    },
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "rating",
+        "kind": "pliant:rating"
+      },
+      "at": {
+        "index": 0
+      }
+    }
+  ]
+}

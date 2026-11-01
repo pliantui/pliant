@@ -1,0 +1,62 @@
+{
+  "valid": [
+    {
+      "op": "addAggregate",
+      "target": "orders-table",
+      "id": "total",
+      "label": "Total",
+      "expr": {
+        "fn": "sum",
+        "args": [
+          {
+            "field": "value"
+          }
+        ]
+      }
+    },
+    {
+      "op": "addAggregate",
+      "target": "orders-table",
+      "id": "spread",
+      "label": "Spread",
+      "expr": {
+        "fn": "acme:iqr",
+        "args": [
+          {
+            "field": "value"
+          }
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "op": "addAggregate",
+      "target": "orders-table",
+      "id": "total",
+      "label": "Total",
+      "expr": {
+        "fn": "Sum",
+        "args": [
+          {
+            "field": "value"
+          }
+        ]
+      }
+    },
+    {
+      "op": "addAggregate",
+      "target": "orders-table",
+      "id": "total",
+      "label": "Total",
+      "expr": {
+        "fn": "pliant:sum",
+        "args": [
+          {
+            "field": "value"
+          }
+        ]
+      }
+    }
+  ]
+}

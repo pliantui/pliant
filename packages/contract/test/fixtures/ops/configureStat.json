@@ -1,0 +1,24 @@
+{
+  "valid": [
+    {
+      "op": "configureStat",
+      "target": "revenue-stat",
+      "metric": "total",
+      "comparison": {
+        "metric": "lastMonth",
+        "display": "percent"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "op": "configureStat",
+      "target": "revenue-stat",
+      "metric": "total",
+      "comparison": {
+        "metric": "lastMonth",
+        "display": "ratio"
+      }
+    }
+  ]
+}

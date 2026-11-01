@@ -1,0 +1,15 @@
+{
+  "valid": [
+    {
+      "op": "removeUserItem",
+      "target": "orders-table",
+      "id": "margin"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "removeUserItem",
+      "target": "orders-table"
+    }
+  ]
+}

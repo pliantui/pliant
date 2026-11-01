@@ -1,0 +1,21 @@
+{
+  "valid": [
+    {
+      "op": "setMotion",
+      "target": "@app",
+      "motion": "reduced"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setMotion",
+      "target": "@app",
+      "motion": "none"
+    },
+    {
+      "op": "setMotion",
+      "target": "@surface",
+      "motion": "reduced"
+    }
+  ]
+}

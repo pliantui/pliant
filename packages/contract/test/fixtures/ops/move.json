@@ -1,0 +1,141 @@
+{
+  "valid": [
+    {
+      "op": "move",
+      "target": "checkout-actions/slots/pay-now",
+      "to": {
+        "before": "back"
+      }
+    },
+    {
+      "op": "move",
+      "target": "dashboard/slots/revenue",
+      "to": {
+        "index": 0
+      }
+    },
+    {
+      "op": "move",
+      "target": "dashboard/slots/revenue",
+      "to": {
+        "into": "dashboard/slots/sidebar"
+      }
+    },
+    {
+      "op": "move",
+      "target": "order-card[]/slots/badge",
+      "to": {
+        "after": "title"
+      }
+    },
+    {
+      "op": "move",
+      "target": "dashboard/slots/revenue",
+      "to": {
+        "into": "sidebar/slots/top"
+      }
+    },
+    {
+      "op": "move",
+      "target": "nav/slots/x",
+      "to": {
+        "into": "nav/slots/x-2"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "op": "move",
+      "target": "dashboard/slots/revenue",
+      "to": {
+        "before": "a",
+        "after": "b"
+      }
+    },
+    {
+      "op": "move",
+      "target": "dashboard/slots/revenue",
+      "to": {
+        "index": -1
+      }
+    },
+    {
+      "op": "move",
+      "target": "dashboard",
+      "to": {
+        "index": 0
+      }
+    },
+    {
+      "op": "move",
+      "target": "dashboard/slots/x",
+      "to": {
+        "into": "order-card[]"
+      }
+    },
+    {
+      "op": "move",
+      "target": "dashboard/slots/x",
+      "to": {
+        "into": "orders-table/columns/notes"
+      }
+    }
+  ],
+  "crossField": [
+    {
+      "value": {
+        "op": "move",
+        "target": "order-card[]/slots/badge",
+        "to": {
+          "into": "dashboard"
+        }
+      },
+      "message": "Only a slot outside a template can move into another node",
+      "path": ["target"]
+    },
+    {
+      "value": {
+        "op": "move",
+        "target": "orders-table/columns/notes",
+        "to": {
+          "into": "dashboard"
+        }
+      },
+      "message": "Only a slot outside a template can move into another node",
+      "path": ["target"]
+    },
+    {
+      "value": {
+        "op": "move",
+        "target": "orders-toolbar/actions/export",
+        "to": {
+          "into": "nav/slots/x"
+        }
+      },
+      "message": "Only a slot outside a template can move into another node",
+      "path": ["target"]
+    },
+    {
+      "value": {
+        "op": "move",
+        "target": "nav/slots/x",
+        "to": {
+          "into": "nav/slots/x"
+        }
+      },
+      "message": "Can't move a node into itself",
+      "path": ["to", "into"]
+    },
+    {
+      "value": {
+        "op": "move",
+        "target": "nav/slots/x",
+        "to": {
+          "into": "nav/slots/x/slots/y"
+        }
+      },
+      "message": "Can't move a node into itself",
+      "path": ["to", "into"]
+    }
+  ]
+}

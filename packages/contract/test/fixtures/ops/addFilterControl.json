@@ -1,0 +1,35 @@
+{
+  "valid": [
+    {
+      "op": "addFilterControl",
+      "target": "orders-table",
+      "id": "status-filter",
+      "field": "status",
+      "control": "multi-select"
+    },
+    {
+      "op": "addFilterControl",
+      "target": "orders-table",
+      "id": "rating-filter",
+      "field": "rating",
+      "control": "acme:stars",
+      "label": "Rating"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "addFilterControl",
+      "target": "orders-table",
+      "id": "status-filter",
+      "field": "status",
+      "control": "dropdown"
+    },
+    {
+      "op": "addFilterControl",
+      "target": "orders-table",
+      "id": "stars",
+      "field": "rating",
+      "control": "pliant:stars"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "valid": [
+    {
+      "op": "setDensity",
+      "target": "@surface",
+      "density": "compact"
+    }
+  ],
+  "invalid": [
+    {
+      "op": "setDensity",
+      "target": "orders-table",
+      "density": "compact"
+    },
+    {
+      "op": "setDensity",
+      "target": "@surface",
+      "density": "tight"
+    }
+  ]
+}
