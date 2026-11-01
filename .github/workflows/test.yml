@@ -38,15 +38,17 @@ jobs:
 
   zod:
     runs-on: ubuntu-latest
-    name: pnpm test (zod 4.1.0)
+    name: pnpm test (zod 4.0.16)
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
+      # Build with the development Zod version first, so the type check below
+      # checks the declarations that ship against the lowest supported one.
       - run: pnpm --filter @pliantui/contract build
-      - run: pnpm --filter @pliantui/contract add --save-dev zod@4.1.0
+      - run: pnpm --filter @pliantui/contract add --save-dev zod@4.0.16
       # The published JSON Schemas are generated with the development Zod
       # version, so only the check that regenerates them is skipped.
       - run: >-

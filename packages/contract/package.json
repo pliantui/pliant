@@ -58,7 +58,7 @@
     }
   ],
   "peerDependencies": {
-    "zod": "^4.1.0"
+    "zod": "^4.0.16"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",

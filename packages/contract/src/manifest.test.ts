@@ -25,6 +25,18 @@ describe("manifestSchema", () => {
   it.each(fixture.crossField)("reports $message for $value", (entry) => {
     expectCrossFieldIssue(manifestSchema, entry)
   })
+
+  it("reports only the format issue for a malformed namespaced kind", () => {
+    const result = manifestSchema.safeParse({
+      kind: "pliant:Button",
+      version: 1,
+      description: "Clickable action",
+      capabilities: {},
+    })
+    expect(result.error?.issues.map(({ message }) => message)).toEqual([
+      "Must be kebab-case, optionally namespaced, for example acme:rating",
+    ])
+  })
 })
 
 describe("defineManifest", () => {
@@ -53,17 +65,5 @@ describe("defineManifest", () => {
         capabilities: {},
       })
     ).toThrow("kebab-case")
-  })
-
-  it("reports only the format issue for a malformed namespaced kind", () => {
-    const result = manifestSchema.safeParse({
-      kind: "pliant:Button",
-      version: 1,
-      description: "Clickable action",
-      capabilities: {},
-    })
-    expect(result.error?.issues.map(({ message }) => message)).toEqual([
-      "Must be kebab-case, optionally namespaced, for example acme:rating",
-    ])
   })
 })

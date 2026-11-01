@@ -65,7 +65,6 @@ export const expressionSchema: z.ZodType<Expression, Expression> = z.preprocess(
       ctx.addIssue({
         code: "custom",
         input: expression,
-        continue: false,
         message: `Must have at most ${String(maxNodes)} nodes and ${String(maxArgs)} arguments per function`,
       })
       return z.NEVER

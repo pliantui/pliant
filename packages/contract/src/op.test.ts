@@ -77,7 +77,7 @@ describe("opSchema", () => {
         args: Array.from({ length: 100_000 }, () => ({ field: "a" })),
       },
     ],
-  ])("rejects %s with one issue, before parsing it", (_, expr) => {
+  ])("rejects %s with only the size issue", (_, expr) => {
     const result = opSchema.safeParse(addDerived(expr))
     expect(
       result.error?.issues.map(({ code, message, path }) => ({
@@ -86,5 +86,28 @@ describe("opSchema", () => {
         path,
       }))
     ).toEqual([sizeIssue])
+  })
+
+  it.each([
+    [
+      "a reserved view kind",
+      { op: "setViewKind", target: "orders-table", kind: "pliant:Kanban" },
+      ["kind"],
+    ],
+    [
+      "a reserved function",
+      {
+        op: "addDerived",
+        target: "orders-table",
+        id: "total",
+        label: "Total",
+        expr: { fn: "pliant:Sum", args: [] },
+      },
+      ["expr"],
+    ],
+  ])("reports %s that is also malformed once", (_, op, path) => {
+    const issues = opSchema.safeParse(op).error?.issues ?? []
+    expect(issues).toHaveLength(1)
+    expect(issues[0]?.path).toEqual(path)
   })
 })
