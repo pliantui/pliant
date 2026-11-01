@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { validateOverlay } from "./validate-overlay"
+import { overlaySchema } from "@pliantui/contract"
+
+import { opsListSchema, validateOverlay } from "./validate-overlay"
 
 function overlay(ops: unknown[]) {
   return {
@@ -108,25 +110,54 @@ describe("validateOverlay", () => {
     ])
   })
 
+  function overLimit(malformedFirst = false) {
+    return Array.from({ length: 501 }, (_, index) =>
+      malformedFirst && index === 0
+        ? { op: 5 }
+        : { op: "rename", target: "orders-table/columns/notes", label: "" }
+    )
+  }
+
   it.each([
-    ["on its own", {}],
-    ["with another envelope issue", { v: 2 }],
-    ["without a layer", { layer: undefined }],
-    ["with an unknown layer", { layer: "global" }],
+    ["on its own", {}, false],
+    ["with another envelope issue", { v: 2 }, false],
+    ["without a layer", { layer: undefined }, false],
+    ["with an unknown layer", { layer: "global" }, false],
+    ["with a malformed op and no layer", { layer: undefined }, true],
   ])(
     "doesn't check ops one by one when the list is over the limit, %s",
-    (_, change) => {
-      const ops = Array.from({ length: 501 }, () => ({
-        op: "rename",
-        target: "orders-table/columns/notes",
-        label: "",
-      }))
-      const result = validateOverlay({ ...overlay(ops), ...change })
-      expect(result.error?.issues.every(({ path }) => path.length <= 1)).toBe(
-        true
-      )
+    (_, change, malformedFirst) => {
+      const result = validateOverlay({
+        ...overlay(overLimit(malformedFirst)),
+        ...change,
+      })
+      const paths = result.error?.issues.map(({ path }) => path) ?? []
+      expect(paths.some((path) => path.length > 2)).toBe(false)
+      if (!("layer" in change)) {
+        expect(paths).toContainEqual(["ops"])
+      }
     }
   )
+
+  it("reads the list limit every overlay layer shares", () => {
+    expect(
+      new Set(overlaySchema.options.map((option) => option.shape.ops))
+    ).toEqual(new Set([opsListSchema]))
+  })
+
+  it("reads ops once", () => {
+    let reads = 0
+    const input = {
+      ...overlay([]),
+      layer: undefined,
+      get ops() {
+        reads++
+        return reads === 1 ? [{ op: 5 }] : overLimit()
+      },
+    }
+    const result = validateOverlay(input)
+    expect(result.error?.issues.some(({ path }) => path.length > 2)).toBe(false)
+  })
 
   it("fails when the envelope is invalid", () => {
     expect(validateOverlay({ ...overlay([]), v: 2 }).success).toBe(false)

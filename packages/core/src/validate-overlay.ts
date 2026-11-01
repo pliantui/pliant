@@ -14,24 +14,25 @@ import type { WithOps } from "./with-ops"
 export type ValidatedOverlay = WithOps<Op>
 
 const [overlayVariant] = overlaySchema.options
-const opsListSchema = overlayVariant.shape.ops
+export const opsListSchema = overlayVariant.shape.ops
 
 function opsOf(input: unknown): [OverlayOp, number][] {
   if (typeof input !== "object" || input === null || !("ops" in input)) {
     return []
   }
-  const list = opsListSchema.safeParse(input.ops)
+  const { ops } = input
+  const list = opsListSchema.safeParse(ops)
   if (list.success) {
     return list.data.map((op, index) => [op, index])
   }
   if (
-    !Array.isArray(input.ops) ||
+    !Array.isArray(ops) ||
     list.error.issues.some(({ path }) => path.length === 0)
   ) {
     return []
   }
-  const ops: unknown[] = input.ops
-  return ops.flatMap((op, index): [OverlayOp, number][] => {
+  const items: unknown[] = ops
+  return items.flatMap((op, index): [OverlayOp, number][] => {
     const result = overlayOpSchema.safeParse(op)
     return result.success ? [[result.data, index]] : []
   })
@@ -69,9 +70,14 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
 
 export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
   const result = overlaySchema.safeParse(input)
+  const listFailed = result.error?.issues.some(
+    ({ path }) => path.length === 1 && path[0] === "ops"
+  )
   const ops = result.success
     ? result.data.ops.map((op, index): [OverlayOp, number] => [op, index])
-    : opsOf(input)
+    : listFailed
+      ? []
+      : opsOf(input)
   const checks = ops.map(([op, index]) => checkOp(op, index))
   const issues = [
     ...(result.success ? [] : result.error.issues),
