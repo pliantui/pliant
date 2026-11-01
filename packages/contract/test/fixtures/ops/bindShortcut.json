@@ -51,6 +51,11 @@
       "op": "bindShortcut",
       "target": "orders-toolbar",
       "keys": "mod+k"
+    },
+    {
+      "op": "bindShortcut",
+      "target": "orders-toolbar/items/export",
+      "keys": "mod+k"
     }
   ]
 }

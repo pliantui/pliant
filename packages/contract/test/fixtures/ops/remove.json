@@ -13,6 +13,10 @@
     {
       "op": "remove",
       "target": "dashboard"
+    },
+    {
+      "op": "remove",
+      "target": "orders-table/columns/notes"
     }
   ]
 }

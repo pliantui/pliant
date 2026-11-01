@@ -11,6 +11,11 @@
       "op": "setMotion",
       "target": "@app",
       "motion": "none"
+    },
+    {
+      "op": "setMotion",
+      "target": "@surface",
+      "motion": "reduced"
     }
   ]
 }

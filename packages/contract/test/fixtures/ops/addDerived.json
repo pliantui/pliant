@@ -57,12 +57,7 @@
                     "fn": "abs",
                     "args": [
                       {
-                        "fn": "abs",
-                        "args": [
-                          {
-                            "field": "value"
-                          }
-                        ]
+                        "field": "value"
                       }
                     ]
                   }
@@ -122,12 +117,7 @@
                         "fn": "abs",
                         "args": [
                           {
-                            "fn": "abs",
-                            "args": [
-                              {
-                                "field": "value"
-                              }
-                            ]
+                            "field": "value"
                           }
                         ]
                       }
@@ -148,12 +138,6 @@
       "expr": {
         "fn": "sum",
         "args": [
-          {
-            "field": "a"
-          },
-          {
-            "field": "a"
-          },
           {
             "field": "a"
           },
@@ -200,47 +184,12 @@
                     },
                     {
                       "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
                     }
                   ]
                 },
                 {
                   "fn": "sum",
                   "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
-                },
-                {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
                     {
                       "field": "a"
                     },
@@ -269,47 +218,12 @@
                     },
                     {
                       "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
                     }
                   ]
                 },
                 {
                   "fn": "sum",
                   "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
-                },
-                {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
                     {
                       "field": "a"
                     },
@@ -343,47 +257,12 @@
                     },
                     {
                       "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
                     }
                   ]
                 },
                 {
                   "fn": "sum",
                   "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    }
-                  ]
-                },
-                {
-                  "fn": "sum",
-                  "args": [
-                    {
-                      "field": "a"
-                    },
-                    {
-                      "field": "a"
-                    },
                     {
                       "field": "a"
                     },
@@ -412,6 +291,39 @@
                     },
                     {
                       "field": "a"
+                    }
+                  ]
+                },
+                {
+                  "fn": "sum",
+                  "args": [
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "fn": "sum",
+                  "args": [
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
                     },
                     {
                       "field": "a"
@@ -435,6 +347,17 @@
                     },
                     {
                       "field": "a"
+                    }
+                  ]
+                },
+                {
+                  "fn": "sum",
+                  "args": [
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
                     },
                     {
                       "field": "a"
@@ -453,6 +376,73 @@
                     {
                       "field": "a"
                     },
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "fn": "sum",
+                  "args": [
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
+                    }
+                  ]
+                },
+                {
+                  "fn": "sum",
+                  "args": [
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
+                    }
+                  ]
+                },
+                {
+                  "fn": "sum",
+                  "args": [
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
+                    },
+                    {
+                      "field": "a"
+                    }
+                  ]
+                },
+                {
+                  "fn": "sum",
+                  "args": [
                     {
                       "field": "a"
                     },

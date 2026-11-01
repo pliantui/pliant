@@ -43,7 +43,7 @@ const overlayShape = {
   ops: z.array(overlayOpSchema).min(1).max(500),
   basis: z.looseObject({
     contract: z.literal(1),
-    core: z.string().regex(semverPattern, "Must be a semver version"),
+    core: z.string().max(64).regex(semverPattern, "Must be a semver version"),
     manifests: z.record(kindSchema, z.int().min(1)),
     datasets: z.record(kebabIdSchema, z.int().min(1)).optional(),
     layers: z

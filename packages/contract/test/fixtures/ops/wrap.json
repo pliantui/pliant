@@ -44,6 +44,14 @@
       "id": "row",
       "items": ["a", "b"],
       "mode": "row"
+    },
+    {
+      "op": "wrap",
+      "target": "order-card[]",
+      "id": "grid",
+      "items": ["a", "b"],
+      "mode": "grid",
+      "columns": 2
     }
   ]
 }

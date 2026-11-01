@@ -3,15 +3,15 @@ import * as z from "zod"
 import { idPatterns } from "./identifier"
 
 const param = "[A-Za-z_][A-Za-z0-9_-]*"
-const segment = `(?:(?!\\.{1,2}(?:/|$))[\\p{L}\\p{N}._~-]+|\\[${param}\\]|\\[\\.\\.\\.${param}\\]|\\[\\[\\.\\.\\.${param}\\]\\])`
+const char = "[A-Za-z0-9_~\\-\\u0080-\\uFFFF]"
+const segment = `(?:\\.*${char}[.]*(?:${char}[.]*)*|\\[${param}\\]|\\[\\.\\.\\.${param}\\]|\\[\\[\\.\\.\\.${param}\\]\\])`
 
 export const surfaceSchema = z
   .string()
   .max(256)
   .regex(
     new RegExp(
-      `^(?:@app|/(?:${segment}(?:/${segment})*)?|${idPatterns.kebab})$`,
-      "u"
+      `^(?:@app|/(?:${segment}(?:/${segment})*)?|${idPatterns.kebab})$`
     ),
     "Must be a route pattern, a kebab-case surface id, or @app"
   )

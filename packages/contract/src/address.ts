@@ -39,7 +39,11 @@ export const addressSchema = z
 
 export type Address = z.infer<typeof addressSchema>
 
-export function itemAddressSchema(collection?: Collection) {
+export function itemAddressSchema(
+  collection?: Collection,
+  { template = true }: { template?: boolean } = {}
+) {
+  const root = template ? node : kebab
   const last =
     collection === undefined
       ? segment
@@ -48,17 +52,23 @@ export function itemAddressSchema(collection?: Collection) {
     .string()
     .max(256)
     .regex(
-      new RegExp(`^${node}(?:${segment})*${last}$`),
+      new RegExp(`^${root}(?:${segment})*${last}$`),
       collection === undefined
         ? "Must address an item, for example orders-table/columns/value"
         : `Must address an item in ${collection}`
     )
 }
 
-export const containerAddressSchema = z
-  .string()
-  .max(256)
-  .regex(
-    new RegExp(`^${kebab}(?:${segment})*$`),
-    "Must address a node that isn't a template"
-  )
+export function nodeAddressSchema({
+  template = true,
+}: { template?: boolean } = {}) {
+  return z
+    .string()
+    .max(256)
+    .regex(
+      new RegExp(`^${template ? node : kebab}(?:/slots/${kebab})*$`),
+      template
+        ? "Must address a node, for example orders-table or dashboard/slots/revenue"
+        : "Must address a node that isn't a template"
+    )
+}

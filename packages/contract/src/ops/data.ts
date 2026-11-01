@@ -1,6 +1,6 @@
 import * as z from "zod"
 
-import { addressSchema, itemAddressSchema } from "../address"
+import { itemAddressSchema, nodeAddressSchema } from "../address"
 import { expressionSchema } from "../expression"
 import { filterSchema } from "../filter"
 import { formatSchema } from "../format"
@@ -12,33 +12,33 @@ import { uniqueArray } from "../unique"
 export const dataOpSchemas = {
   setSort: z.strictObject({
     op: z.literal("setSort"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     sort: sortSchema,
   }),
   setFilter: z.strictObject({
     op: z.literal("setFilter"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     filter: filterSchema,
   }),
   clearFilter: z.strictObject({
     op: z.literal("clearFilter"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     field: itemIdSchema,
   }),
   setPage: z.strictObject({
     op: z.literal("setPage"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     index: z.int().min(0),
     size: z.int().min(1).max(1000).optional(),
   }),
   setGroupBy: z.strictObject({
     op: z.literal("setGroupBy"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     fields: uniqueArray(itemIdSchema).max(4),
   }),
   addDerived: z.strictObject({
     op: z.literal("addDerived"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     id: itemIdSchema,
     label: labelSchema,
     expr: expressionSchema,
@@ -46,34 +46,34 @@ export const dataOpSchemas = {
   }),
   addAggregate: z.strictObject({
     op: z.literal("addAggregate"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     id: itemIdSchema,
     label: labelSchema,
     expr: expressionSchema,
   }),
   formatField: z.strictObject({
     op: z.literal("formatField"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     field: itemIdSchema,
     format: formatSchema,
   }),
   addHighlight: z.strictObject({
     op: z.literal("addHighlight"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     id: itemIdSchema,
     when: expressionSchema,
     tone: z.enum(["emphasis", "success", "warning", "danger"]),
   }),
   addSortOption: z.strictObject({
     op: z.literal("addSortOption"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     id: itemIdSchema,
     label: labelSchema,
     sort: sortSchema.min(1),
   }),
   addFilterControl: z.strictObject({
     op: z.literal("addFilterControl"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     id: itemIdSchema,
     field: itemIdSchema,
     control: z.union([
@@ -91,7 +91,7 @@ export const dataOpSchemas = {
   }),
   addPreset: z.strictObject({
     op: z.literal("addPreset"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     id: itemIdSchema,
     label: labelSchema,
     filters: z.array(filterSchema).min(1).max(8),
@@ -99,7 +99,7 @@ export const dataOpSchemas = {
   }),
   setViewKind: z.strictObject({
     op: z.literal("setViewKind"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     kind: z.union([
       z.enum(["table", "chart", "stat", "list"]),
       registeredNameSchema,
@@ -107,7 +107,7 @@ export const dataOpSchemas = {
   }),
   configureChart: z.strictObject({
     op: z.literal("configureChart"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     type: z.enum(["area", "bar", "line", "pie", "radar", "radial"]),
     x: itemIdSchema,
     y: uniqueArray(itemIdSchema).min(1).max(8),
@@ -117,7 +117,7 @@ export const dataOpSchemas = {
   }),
   configureStat: z.strictObject({
     op: z.literal("configureStat"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     metric: itemIdSchema,
     comparison: z
       .strictObject({
@@ -129,7 +129,7 @@ export const dataOpSchemas = {
   }),
   removeUserItem: z.strictObject({
     op: z.literal("removeUserItem"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     id: itemIdSchema,
   }),
   setColumnWidth: z.strictObject({

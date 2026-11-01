@@ -1,8 +1,9 @@
 import * as z from "zod"
 
 import { addressSchema } from "../address"
-import { propNameSchema, propValueSchema } from "../identifier"
+import { propNameSchema } from "../identifier"
 import { labelSchema } from "../label"
+import { propValueSchema } from "../value"
 
 export const universalOpSchemas = {
   setProp: z.strictObject({

@@ -1,10 +1,6 @@
 import * as z from "zod"
 
-import {
-  addressSchema,
-  containerAddressSchema,
-  itemAddressSchema,
-} from "../address"
+import { itemAddressSchema, nodeAddressSchema } from "../address"
 import {
   itemIdSchema,
   kebabIdSchema,
@@ -36,14 +32,22 @@ const gridLayoutShape = {
 }
 
 export const structureOpSchemas = {
-  move: z.strictObject({
-    op: z.literal("move"),
-    target: itemAddressSchema(),
-    to: z.union([placementSchema, z.strictObject({ into: addressSchema })]),
-  }),
+  move: z
+    .strictObject({
+      op: z.literal("move"),
+      target: itemAddressSchema(),
+      to: z.union([
+        placementSchema,
+        z.strictObject({ into: nodeAddressSchema({ template: false }) }),
+      ]),
+    })
+    .refine(
+      (move) => !("into" in move.to && move.target.includes("[]")),
+      "Can't move an item out of a template"
+    ),
   collapse: z.strictObject({
     op: z.literal("collapse"),
-    target: addressSchema,
+    target: nodeAddressSchema(),
     items: uniqueArray(itemIdSchema).min(1).max(32),
     into: z.enum(["more", "accordion", "tabs"]),
     label: labelSchema.optional(),
@@ -56,13 +60,13 @@ export const structureOpSchemas = {
   setLayout: z.discriminatedUnion("mode", [
     z.strictObject({
       op: z.literal("setLayout"),
-      target: addressSchema,
+      target: nodeAddressSchema(),
       ...flowLayoutShape,
       at: breakpointSchema.optional(),
     }),
     z.strictObject({
       op: z.literal("setLayout"),
-      target: addressSchema,
+      target: nodeAddressSchema(),
       ...gridLayoutShape,
       at: breakpointSchema.optional(),
     }),
@@ -75,7 +79,7 @@ export const structureOpSchemas = {
   }),
   insert: z.strictObject({
     op: z.literal("insert"),
-    target: containerAddressSchema,
+    target: nodeAddressSchema({ template: false }),
     node: z.union([
       z.strictObject({
         id: kebabIdSchema,
@@ -95,14 +99,14 @@ export const structureOpSchemas = {
   wrap: z.discriminatedUnion("mode", [
     z.strictObject({
       op: z.literal("wrap"),
-      target: containerAddressSchema,
+      target: nodeAddressSchema({ template: false }),
       id: kebabIdSchema,
       items: uniqueArray(itemIdSchema).min(2).max(12),
       ...flowLayoutShape,
     }),
     z.strictObject({
       op: z.literal("wrap"),
-      target: containerAddressSchema,
+      target: nodeAddressSchema({ template: false }),
       id: kebabIdSchema,
       items: uniqueArray(itemIdSchema).min(2).max(12),
       ...gridLayoutShape,
@@ -110,6 +114,6 @@ export const structureOpSchemas = {
   ]),
   remove: z.strictObject({
     op: z.literal("remove"),
-    target: itemAddressSchema(),
+    target: itemAddressSchema("slots"),
   }),
 }

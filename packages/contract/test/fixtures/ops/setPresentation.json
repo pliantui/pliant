@@ -23,6 +23,11 @@
       "target": "edit-order",
       "as": "dialog",
       "side": "left"
+    },
+    {
+      "op": "setPresentation",
+      "target": "orders-table/columns/notes",
+      "as": "page"
     }
   ]
 }

@@ -13,6 +13,7 @@ import { breakpointSchema } from "./layout"
 import { manifestSchema } from "./manifest"
 import { opSchema } from "./op"
 import { overlaySchema } from "./overlay"
+import { savedViewSchema } from "./saved-view"
 import { sortSchema } from "./sort"
 import { surfaceSchema } from "./surface"
 
@@ -26,6 +27,11 @@ const schemas = [
     name: "overlay",
     schema: overlaySchema,
     fixtures: [readFixture("overlay")],
+  },
+  {
+    name: "saved-view",
+    schema: savedViewSchema,
+    fixtures: [readFixture("saved-view")],
   },
   {
     name: "manifest",

@@ -38,6 +38,11 @@
       "op": "setDefault",
       "target": "ticket-form",
       "value": "high"
+    },
+    {
+      "op": "setDefault",
+      "target": "ticket-form/columns/priority",
+      "value": "high"
     }
   ]
 }

@@ -20,6 +20,13 @@
       "to": {
         "into": "dashboard/slots/sidebar"
       }
+    },
+    {
+      "op": "move",
+      "target": "order-card[]/slots/badge",
+      "to": {
+        "after": "title"
+      }
     }
   ],
   "invalid": [
@@ -44,6 +51,32 @@
       "to": {
         "index": 0
       }
+    },
+    {
+      "op": "move",
+      "target": "dashboard/slots/x",
+      "to": {
+        "into": "order-card[]"
+      }
+    },
+    {
+      "op": "move",
+      "target": "dashboard/slots/x",
+      "to": {
+        "into": "orders-table/columns/notes"
+      }
+    }
+  ],
+  "crossField": [
+    {
+      "value": {
+        "op": "move",
+        "target": "order-card[]/slots/badge",
+        "to": {
+          "into": "dashboard"
+        }
+      },
+      "message": "Can't move an item out of a template"
     }
   ]
 }

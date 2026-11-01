@@ -93,6 +93,17 @@
       "at": {
         "index": 0
       }
+    },
+    {
+      "op": "insert",
+      "target": "ticket-form/fields/x",
+      "node": {
+        "id": "badge",
+        "kind": "acme:badge"
+      },
+      "at": {
+        "index": 0
+      }
     }
   ]
 }

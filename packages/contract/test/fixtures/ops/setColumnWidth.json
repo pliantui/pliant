@@ -21,6 +21,11 @@
       "op": "setColumnWidth",
       "target": "orders-table",
       "width": 240
+    },
+    {
+      "op": "setColumnWidth",
+      "target": "orders-table/fields/notes",
+      "width": 240
     }
   ]
 }

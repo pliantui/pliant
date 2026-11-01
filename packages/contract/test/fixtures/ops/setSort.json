@@ -30,6 +30,11 @@
           "dir": "up"
         }
       ]
+    },
+    {
+      "op": "setSort",
+      "target": "orders-table/columns/value",
+      "sort": []
     }
   ],
   "crossField": [

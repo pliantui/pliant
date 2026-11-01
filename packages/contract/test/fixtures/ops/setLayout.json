@@ -12,6 +12,11 @@
       "op": "setLayout",
       "target": "dashboard",
       "mode": "stack"
+    },
+    {
+      "op": "setLayout",
+      "target": "dashboard/slots/kpis",
+      "mode": "row"
     }
   ],
   "invalid": [
@@ -31,6 +36,11 @@
       "target": "dashboard",
       "mode": "stack",
       "columns": 2
+    },
+    {
+      "op": "setLayout",
+      "target": "orders-table/columns/notes",
+      "mode": "stack"
     }
   ]
 }

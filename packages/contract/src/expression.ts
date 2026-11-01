@@ -8,8 +8,8 @@ export type Expression =
   | { ref: string }
   | { fn: string; args: Expression[] }
 
-const maxDepth = 5
-const maxArgs = 6
+const maxDepth = 4
+const maxArgs = 4
 const maxNodes = 64
 
 const leafSchemas = [

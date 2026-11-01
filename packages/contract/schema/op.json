@@ -147,7 +147,9 @@
               "type": "object",
               "properties": {
                 "into": {
-                  "$ref": "#/$defs/address"
+                  "type": "string",
+                  "maxLength": 256,
+                  "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
                 }
               },
               "required": [
@@ -173,7 +175,9 @@
           "const": "collapse"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "items": {
           "minItems": 1,
@@ -245,7 +249,9 @@
               "const": "setLayout"
             },
             "target": {
-              "$ref": "#/$defs/address"
+              "type": "string",
+              "maxLength": 256,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
             },
             "mode": {
               "type": "string",
@@ -282,7 +288,9 @@
               "const": "setLayout"
             },
             "target": {
-              "$ref": "#/$defs/address"
+              "type": "string",
+              "maxLength": 256,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
             },
             "mode": {
               "type": "string",
@@ -353,7 +361,7 @@
         "target": {
           "type": "string",
           "maxLength": 256,
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\/(?:(?:columns|fields|items|actions)\\/[A-Za-z][A-Za-z0-9_-]*|slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*))*$"
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "node": {
           "anyOf": [
@@ -485,7 +493,7 @@
             "target": {
               "type": "string",
               "maxLength": 256,
-              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\/(?:(?:columns|fields|items|actions)\\/[A-Za-z][A-Za-z0-9_-]*|slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*))*$"
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
             },
             "id": {
               "type": "string",
@@ -537,7 +545,7 @@
             "target": {
               "type": "string",
               "maxLength": 256,
-              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\/(?:(?:columns|fields|items|actions)\\/[A-Za-z][A-Za-z0-9_-]*|slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*))*$"
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
             },
             "id": {
               "type": "string",
@@ -593,7 +601,7 @@
         "target": {
           "type": "string",
           "maxLength": 256,
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/(?:(?:columns|fields|items|actions)\\/[A-Za-z][A-Za-z0-9_-]*|slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*))*\\/(?:(?:columns|fields|items|actions)\\/[A-Za-z][A-Za-z0-9_-]*|slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$"
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/(?:(?:columns|fields|items|actions)\\/[A-Za-z][A-Za-z0-9_-]*|slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*))*\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
         }
       },
       "required": [
@@ -671,7 +679,9 @@
               "const": "setPresentation"
             },
             "target": {
-              "$ref": "#/$defs/address"
+              "type": "string",
+              "maxLength": 256,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
             },
             "as": {
               "type": "string",
@@ -696,7 +706,9 @@
               "const": "setPresentation"
             },
             "target": {
-              "$ref": "#/$defs/address"
+              "type": "string",
+              "maxLength": 256,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
             },
             "as": {
               "type": "string",
@@ -732,7 +744,9 @@
           "const": "setSize"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "size": {
           "type": "string",
@@ -842,7 +856,9 @@
           "const": "setSort"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "sort": {
           "$ref": "#/$defs/sort"
@@ -863,7 +879,9 @@
           "const": "setFilter"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "filter": {
           "$ref": "#/$defs/filter"
@@ -884,7 +902,9 @@
           "const": "clearFilter"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "field": {
           "$ref": "#/$defs/itemId"
@@ -905,7 +925,9 @@
           "const": "setPage"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "index": {
           "type": "integer",
@@ -933,7 +955,9 @@
           "const": "setGroupBy"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "fields": {
           "maxItems": 4,
@@ -959,7 +983,9 @@
           "const": "addDerived"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "id": {
           "$ref": "#/$defs/itemId"
@@ -993,7 +1019,9 @@
           "const": "addAggregate"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "id": {
           "$ref": "#/$defs/itemId"
@@ -1024,7 +1052,9 @@
           "const": "formatField"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "field": {
           "$ref": "#/$defs/itemId"
@@ -1049,7 +1079,9 @@
           "const": "addHighlight"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "id": {
           "$ref": "#/$defs/itemId"
@@ -1084,7 +1116,9 @@
           "const": "addSortOption"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "id": {
           "$ref": "#/$defs/itemId"
@@ -1116,7 +1150,9 @@
           "const": "addFilterControl"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "id": {
           "$ref": "#/$defs/itemId"
@@ -1167,7 +1203,9 @@
           "const": "addPreset"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "id": {
           "$ref": "#/$defs/itemId"
@@ -1206,7 +1244,9 @@
           "const": "setViewKind"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "kind": {
           "anyOf": [
@@ -1242,7 +1282,9 @@
           "const": "configureChart"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "type": {
           "type": "string",
@@ -1299,7 +1341,9 @@
           "const": "configureStat"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "metric": {
           "$ref": "#/$defs/itemId"
@@ -1343,7 +1387,9 @@
           "const": "removeUserItem"
         },
         "target": {
-          "$ref": "#/$defs/address"
+          "type": "string",
+          "maxLength": 256,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
         },
         "id": {
           "$ref": "#/$defs/itemId"
@@ -1793,7 +1839,7 @@
               "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
             },
             "args": {
-              "maxItems": 6,
+              "maxItems": 4,
               "type": "array",
               "items": {
                 "anyOf": [
@@ -1856,7 +1902,7 @@
                         "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
                       },
                       "args": {
-                        "maxItems": 6,
+                        "maxItems": 4,
                         "type": "array",
                         "items": {
                           "anyOf": [
@@ -1919,7 +1965,7 @@
                                   "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
                                 },
                                 "args": {
-                                  "maxItems": 6,
+                                  "maxItems": 4,
                                   "type": "array",
                                   "items": {
                                     "anyOf": [
@@ -1982,7 +2028,7 @@
                                             "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
                                           },
                                           "args": {
-                                            "maxItems": 6,
+                                            "maxItems": 4,
                                             "type": "array",
                                             "items": {
                                               "anyOf": [
@@ -2033,79 +2079,6 @@
                                                   },
                                                   "required": [
                                                     "ref"
-                                                  ],
-                                                  "additionalProperties": false
-                                                },
-                                                {
-                                                  "type": "object",
-                                                  "properties": {
-                                                    "fn": {
-                                                      "type": "string",
-                                                      "maxLength": 64,
-                                                      "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
-                                                    },
-                                                    "args": {
-                                                      "maxItems": 6,
-                                                      "type": "array",
-                                                      "items": {
-                                                        "anyOf": [
-                                                          {
-                                                            "type": "object",
-                                                            "properties": {
-                                                              "field": {
-                                                                "$ref": "#/$defs/itemId"
-                                                              }
-                                                            },
-                                                            "required": [
-                                                              "field"
-                                                            ],
-                                                            "additionalProperties": false
-                                                          },
-                                                          {
-                                                            "type": "object",
-                                                            "properties": {
-                                                              "value": {
-                                                                "anyOf": [
-                                                                  {
-                                                                    "type": "string",
-                                                                    "maxLength": 200
-                                                                  },
-                                                                  {
-                                                                    "type": "number"
-                                                                  },
-                                                                  {
-                                                                    "type": "boolean"
-                                                                  },
-                                                                  {
-                                                                    "type": "null"
-                                                                  }
-                                                                ]
-                                                              }
-                                                            },
-                                                            "required": [
-                                                              "value"
-                                                            ],
-                                                            "additionalProperties": false
-                                                          },
-                                                          {
-                                                            "type": "object",
-                                                            "properties": {
-                                                              "ref": {
-                                                                "$ref": "#/$defs/itemId"
-                                                              }
-                                                            },
-                                                            "required": [
-                                                              "ref"
-                                                            ],
-                                                            "additionalProperties": false
-                                                          }
-                                                        ]
-                                                      }
-                                                    }
-                                                  },
-                                                  "required": [
-                                                    "fn",
-                                                    "args"
                                                   ],
                                                   "additionalProperties": false
                                                 }
