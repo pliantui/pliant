@@ -7,9 +7,12 @@ export interface OpDefinition {
   readonly appliesTo: "target" | "parent" | "surface" | "app"
   readonly layers: readonly Layer[]
   /**
-   * The op's argument keys, without `op` and `target`: one list per shape, in
-   * schema order. An op that fails its schema comes from a newer version when
-   * it passes after removing the keys that appear in no list.
+   * The op's top-level argument keys, without `op` and `target`: one list per
+   * shape, in no particular order. An op that fails its schema comes from a
+   * newer version when it passes after removing every key other than `op` and
+   * `target` that appears in none of these lists. Unknown keys nested inside an
+   * argument, a new value for a shape's discriminator, and a key added to one
+   * shape that another shape already has all leave the op invalid.
    */
   readonly args: readonly (readonly string[])[]
 }

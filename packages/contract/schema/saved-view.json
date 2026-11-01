@@ -51,7 +51,7 @@
                 "maxItems": 500,
                 "type": "array",
                 "items": {},
-                "description": "When an overlay is loaded, each op is checked on its own (op.json, the layers its catalog entry allows, and @app only on the @app surface); an invalid, unknown or newer op is skipped, not the overlay."
+                "description": "When an overlay is loaded, each op is checked on its own: against op.json, against the layers listed for the op in the op catalog of @pliantui/contract, and ops target @app exactly when the surface is @app. An invalid, unknown or newer op is skipped, not the overlay."
               },
               "basis": {
                 "type": "object",
@@ -229,7 +229,7 @@
                 "maxItems": 500,
                 "type": "array",
                 "items": {},
-                "description": "When an overlay is loaded, each op is checked on its own (op.json, the layers its catalog entry allows, and @app only on the @app surface); an invalid, unknown or newer op is skipped, not the overlay."
+                "description": "When an overlay is loaded, each op is checked on its own: against op.json, against the layers listed for the op in the op catalog of @pliantui/contract, and ops target @app exactly when the surface is @app. An invalid, unknown or newer op is skipped, not the overlay."
               },
               "basis": {
                 "type": "object",
@@ -412,7 +412,7 @@
                 "maxItems": 500,
                 "type": "array",
                 "items": {},
-                "description": "When an overlay is loaded, each op is checked on its own (op.json, the layers its catalog entry allows, and @app only on the @app surface); an invalid, unknown or newer op is skipped, not the overlay."
+                "description": "When an overlay is loaded, each op is checked on its own: against op.json, against the layers listed for the op in the op catalog of @pliantui/contract, and ops target @app exactly when the surface is @app. An invalid, unknown or newer op is skipped, not the overlay."
               },
               "basis": {
                 "type": "object",
