@@ -46,11 +46,16 @@ describe("surfaceSchema percent-encoding", () => {
   }, 30_000)
 
   it("accepts exactly the well-formed 4-byte sequences at each boundary", () => {
-    for (let first = 0xf0; first <= 0xf7; first++) {
+    const boundaries = [0x80, 0xbf, 0xc0]
+    for (let first = 0xf0; first <= 0xff; first++) {
       for (const second of high) {
-        for (const rest of [0x80, 0xbf, 0xc0]) {
-          const bytes = [first, second, rest, rest]
-          expect(accepts(bytes), bytes.join()).toBe(isUtf8(bytes))
+        for (const third of boundaries) {
+          for (const fourth of boundaries) {
+            const bytes = [first, second, third, fourth]
+            if (accepts(bytes) !== isUtf8(bytes)) {
+              expect.fail(`mismatch on ${bytes.join()}`)
+            }
+          }
         }
       }
     }

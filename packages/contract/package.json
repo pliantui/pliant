@@ -46,7 +46,7 @@
     "test": "vitest run",
     "check:package": "publint --strict && attw --pack . --profile esm-only",
     "size": "size-limit",
-    "generate:schema": "vitest run --update src/json-schema.test.ts"
+    "generate:schema": "vitest run --update src/json-schema.test.ts --testNamePattern \"matches the published file\""
   },
   "size-limit": [
     {

@@ -16,17 +16,11 @@
       "op": "setViewKind",
       "target": "orders-table",
       "kind": "kanban"
-    }
-  ],
-  "crossField": [
+    },
     {
-      "value": {
-        "op": "setViewKind",
-        "target": "orders-table",
-        "kind": "pliant:kanban"
-      },
-      "message": "The pliant: namespace is reserved for built-ins",
-      "path": ["kind"]
+      "op": "setViewKind",
+      "target": "orders-table",
+      "kind": "pliant:kanban"
     }
   ]
 }

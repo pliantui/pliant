@@ -88,7 +88,10 @@
                     "propertyNames": {
                       "type": "string",
                       "maxLength": 64,
-                      "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                      "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+                      "not": {
+                        "pattern": "^pliant:"
+                      }
                     },
                     "additionalProperties": {
                       "type": "integer",
@@ -281,7 +284,10 @@
                     "propertyNames": {
                       "type": "string",
                       "maxLength": 64,
-                      "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                      "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+                      "not": {
+                        "pattern": "^pliant:"
+                      }
                     },
                     "additionalProperties": {
                       "type": "integer",
@@ -479,7 +485,10 @@
                     "propertyNames": {
                       "type": "string",
                       "maxLength": 64,
-                      "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                      "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+                      "not": {
+                        "pattern": "^pliant:"
+                      }
                     },
                     "additionalProperties": {
                       "type": "integer",

@@ -23,31 +23,42 @@ export const propNameSchema = z
   .max(64)
   .regex(/^[a-z][A-Za-z0-9]*$/, "Must be camelCase")
 
-const reservedNamespace = "The pliant: namespace is reserved for built-ins"
+function notReserved<T extends z.ZodString>(schema: T) {
+  return schema
+    .refine(
+      (name) => !name.startsWith("pliant:"),
+      "The pliant: namespace is reserved for built-ins"
+    )
+    .meta({ not: { pattern: "^pliant:" } })
+}
 
-export const registeredNameSchema = z
-  .string()
-  .max(64)
-  .regex(
-    new RegExp(`^${kebab}:${kebab}$`),
-    "Must be namespace:name, for example acme:rating"
-  )
-  .refine((name) => !name.startsWith("pliant:"), reservedNamespace)
+export const registeredNameSchema = notReserved(
+  z
+    .string()
+    .max(64)
+    .regex(new RegExp(`^${kebab}:${kebab}$`), {
+      message: "Must be namespace:name, for example acme:rating",
+      abort: true,
+    })
+)
 
-export const kindSchema = z
-  .string()
-  .max(64)
-  .regex(
-    new RegExp(`^(?:${kebab}:)?${kebab}$`),
-    "Must be kebab-case, optionally namespaced, for example acme:rating"
-  )
-  .refine((name) => !name.startsWith("pliant:"), reservedNamespace)
+export const kindSchema = notReserved(
+  z
+    .string()
+    .max(64)
+    .regex(new RegExp(`^(?:${kebab}:)?${kebab}$`), {
+      message:
+        "Must be kebab-case, optionally namespaced, for example acme:rating",
+      abort: true,
+    })
+)
 
-export const functionNameSchema = z
-  .string()
-  .max(64)
-  .regex(
-    new RegExp(`^(?:${kebab}:)?[a-z][A-Za-z0-9]*$`),
-    "Must be a built-in function name or namespace:name"
-  )
-  .refine((name) => !name.startsWith("pliant:"), reservedNamespace)
+export const functionNameSchema = notReserved(
+  z
+    .string()
+    .max(64)
+    .regex(new RegExp(`^(?:${kebab}:)?[a-z][A-Za-z0-9]*$`), {
+      message: "Must be a built-in function name or namespace:name",
+      abort: true,
+    })
+)

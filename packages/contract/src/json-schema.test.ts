@@ -42,6 +42,10 @@ const schemas = [
   },
 ] satisfies { name: string; schema: z.ZodType; fixtures: Fixture[] }[]
 
+function schemaId(name: string) {
+  return `https://pliantui.dev/schema/${name}.json`
+}
+
 const definitions = {
   address: addressSchema,
   breakpoint: breakpointSchema,
@@ -63,7 +67,7 @@ const ajv = new Ajv({ strict: true, strictTypes: false })
 addFormats(ajv)
 
 function compilePublished(name: string) {
-  const compiled = ajv.getSchema(`https://pliantui.dev/schema/${name}.json`)
+  const compiled = ajv.getSchema(schemaId(name))
   if (compiled) {
     return compiled
   }
@@ -81,7 +85,7 @@ describe.each(schemas)("$name JSON Schema", ({ name, schema, fixtures }) => {
     const { $schema, ...rest } = z.toJSONSchema(schema, { io: "input" })
     const jsonSchema = {
       $schema,
-      $id: `https://pliantui.dev/schema/${name}.json`,
+      $id: schemaId(name),
       ...rest,
     }
     await expect(

@@ -23,6 +23,13 @@
       "id": "status-filter",
       "field": "status",
       "control": "dropdown"
+    },
+    {
+      "op": "addFilterControl",
+      "target": "orders-table",
+      "id": "stars",
+      "field": "rating",
+      "control": "pliant:stars"
     }
   ]
 }

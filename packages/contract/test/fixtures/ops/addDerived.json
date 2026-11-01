@@ -757,71 +757,12 @@
                 },
                 {
                   "field": "a"
-                },
-                {
-                  "field": "a"
                 }
               ]
             },
             {
               "fn": "sum",
               "args": [
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                }
-              ]
-            },
-            {
-              "fn": "sum",
-              "args": [
-                {
-                  "field": "a"
-                },
                 {
                   "field": "a"
                 },
@@ -916,71 +857,12 @@
                 },
                 {
                   "field": "a"
-                },
-                {
-                  "field": "a"
                 }
               ]
             },
             {
               "fn": "sum",
               "args": [
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                },
-                {
-                  "field": "a"
-                }
-              ]
-            },
-            {
-              "fn": "sum",
-              "args": [
-                {
-                  "field": "a"
-                },
                 {
                   "field": "a"
                 },
@@ -1075,6 +957,53 @@
                 },
                 {
                   "field": "a"
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
                 },
                 {
                   "field": "a"
@@ -1087,6 +1016,53 @@
                 {
                   "field": "a"
                 },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                },
+                {
+                  "field": "a"
+                }
+              ]
+            },
+            {
+              "fn": "sum",
+              "args": [
                 {
                   "field": "a"
                 },
@@ -1137,7 +1113,7 @@
           ]
         }
       },
-      "message": "Must have at most 128 nodes",
+      "message": "Must have at most 128 nodes and 16 arguments per function",
       "path": ["expr"]
     }
   ]

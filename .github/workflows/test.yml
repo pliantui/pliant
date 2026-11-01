@@ -46,8 +46,8 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm --filter @pliantui/contract add --save-dev zod@4.0.0
-      # Union error messages differ between Zod minors, so only accept and
-      # reject behaviour is checked against the lowest supported version.
+      # The published JSON Schemas are generated with the development Zod
+      # version, so only the check that regenerates them is skipped.
       - run: >-
           pnpm --filter @pliantui/contract exec vitest run
-          --testNamePattern '^(?!.*(matches the published file|reports ))'
+          --testNamePattern '^(?!.*matches the published file)'

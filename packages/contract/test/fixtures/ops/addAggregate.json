@@ -43,26 +43,20 @@
           }
         ]
       }
-    }
-  ],
-  "crossField": [
+    },
     {
-      "value": {
-        "op": "addAggregate",
-        "target": "orders-table",
-        "id": "total",
-        "label": "Total",
-        "expr": {
-          "fn": "pliant:sum",
-          "args": [
-            {
-              "field": "value"
-            }
-          ]
-        }
-      },
-      "message": "The pliant: namespace is reserved for built-ins",
-      "path": ["expr", "fn"]
+      "op": "addAggregate",
+      "target": "orders-table",
+      "id": "total",
+      "label": "Total",
+      "expr": {
+        "fn": "pliant:sum",
+        "args": [
+          {
+            "field": "value"
+          }
+        ]
+      }
     }
   ]
 }

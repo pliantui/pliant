@@ -410,7 +410,10 @@
                 "kind": {
                   "type": "string",
                   "maxLength": 64,
-                  "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                  "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+                  "not": {
+                    "pattern": "^pliant:"
+                  }
                 },
                 "dataset": {
                   "type": "string",
@@ -1177,7 +1180,10 @@
             {
               "type": "string",
               "maxLength": 64,
-              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+              "not": {
+                "pattern": "^pliant:"
+              }
             }
           ]
         },
@@ -1263,7 +1269,10 @@
             {
               "type": "string",
               "maxLength": 64,
-              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+              "not": {
+                "pattern": "^pliant:"
+              }
             }
           ]
         }
@@ -1837,7 +1846,10 @@
             "fn": {
               "type": "string",
               "maxLength": 64,
-              "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
+              "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$",
+              "not": {
+                "pattern": "^pliant:"
+              }
             },
             "args": {
               "maxItems": 16,
@@ -1900,7 +1912,10 @@
                       "fn": {
                         "type": "string",
                         "maxLength": 64,
-                        "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
+                        "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$",
+                        "not": {
+                          "pattern": "^pliant:"
+                        }
                       },
                       "args": {
                         "maxItems": 16,
@@ -1963,7 +1978,10 @@
                                 "fn": {
                                   "type": "string",
                                   "maxLength": 64,
-                                  "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
+                                  "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$",
+                                  "not": {
+                                    "pattern": "^pliant:"
+                                  }
                                 },
                                 "args": {
                                   "maxItems": 16,
@@ -2026,7 +2044,10 @@
                                           "fn": {
                                             "type": "string",
                                             "maxLength": 64,
-                                            "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
+                                            "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$",
+                                            "not": {
+                                              "pattern": "^pliant:"
+                                            }
                                           },
                                           "args": {
                                             "maxItems": 16,
@@ -2089,7 +2110,10 @@
                                                     "fn": {
                                                       "type": "string",
                                                       "maxLength": 64,
-                                                      "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
+                                                      "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$",
+                                                      "not": {
+                                                        "pattern": "^pliant:"
+                                                      }
                                                     },
                                                     "args": {
                                                       "maxItems": 16,
@@ -2152,7 +2176,10 @@
                                                               "fn": {
                                                                 "type": "string",
                                                                 "maxLength": 64,
-                                                                "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
+                                                                "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$",
+                                                                "not": {
+                                                                  "pattern": "^pliant:"
+                                                                }
                                                               },
                                                               "args": {
                                                                 "maxItems": 16,
@@ -2215,7 +2242,10 @@
                                                                         "fn": {
                                                                           "type": "string",
                                                                           "maxLength": 64,
-                                                                          "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
+                                                                          "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$",
+                                                                          "not": {
+                                                                            "pattern": "^pliant:"
+                                                                          }
                                                                         },
                                                                         "args": {
                                                                           "maxItems": 16,
@@ -2278,7 +2308,10 @@
                                                                                   "fn": {
                                                                                     "type": "string",
                                                                                     "maxLength": 64,
-                                                                                    "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$"
+                                                                                    "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$",
+                                                                                    "not": {
+                                                                                      "pattern": "^pliant:"
+                                                                                    }
                                                                                   },
                                                                                   "args": {
                                                                                     "maxItems": 16,

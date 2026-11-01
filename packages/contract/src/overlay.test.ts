@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import * as z from "zod"
 
 import { readFixture } from "../test/fixtures"
 import { expectCrossFieldIssue } from "../test/fixtures/cross-field"
@@ -30,6 +31,25 @@ describe("overlaySchema", () => {
     })
     expect(overlays).toContainEqual(
       expect.objectContaining({ future: { kept: true } })
+    )
+  })
+
+  it("accepts up to 500 ops", () => {
+    const withoutExplain = Object.fromEntries(
+      Object.entries(z.looseObject({}).parse(fixture.valid[0])).filter(
+        ([key]) => key !== "explain"
+      )
+    )
+    const ops = Array.from({ length: 501 }, () => ({
+      op: "hide",
+      target: "orders-table",
+    }))
+    expect(
+      overlaySchema.safeParse({ ...withoutExplain, ops: ops.slice(0, 500) })
+        .success
+    ).toBe(true)
+    expect(overlaySchema.safeParse({ ...withoutExplain, ops }).success).toBe(
+      false
     )
   })
 })

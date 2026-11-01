@@ -41,4 +41,20 @@ describe("opSchema", () => {
       }).success
     ).toBe(false)
   })
+
+  it("rejects an oversized expression with one issue, before parsing it", () => {
+    function tree(depth: number): unknown {
+      return depth === 0
+        ? { field: "1bad" }
+        : { fn: "sum", args: Array.from({ length: 16 }, () => tree(depth - 1)) }
+    }
+    const result = opSchema.safeParse({
+      op: "addDerived",
+      target: "orders-table",
+      id: "big",
+      label: "Big",
+      expr: tree(4),
+    })
+    expect(result.error?.issues).toHaveLength(1)
+  })
 })

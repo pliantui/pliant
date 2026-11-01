@@ -33,19 +33,45 @@ function expressionAtDepth(depth: number): z.ZodType<Expression, Expression> {
   ])
 }
 
-function countNodes(expression: Expression) {
-  let count = 0
-  const pending = [expression]
-  for (let next = pending.pop(); next; next = pending.pop()) {
-    count++
-    if ("fn" in next) {
-      pending.push(...next.args)
-    }
+function argsOf(value: unknown): unknown[] {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "args" in value &&
+    Array.isArray(value.args)
+  ) {
+    return value.args
   }
-  return count
+  return []
 }
 
-export const expressionSchema = expressionAtDepth(maxDepth).refine(
-  (expression) => countNodes(expression) <= maxNodes,
-  `Must have at most ${String(maxNodes)} nodes`
-)
+function isWithinNodeLimit(expression: unknown) {
+  let count = 0
+  const pending = [expression]
+  while (pending.length > 0) {
+    const args = argsOf(pending.pop())
+    count++
+    if (count > maxNodes || args.length > maxArgs) {
+      return false
+    }
+    pending.push(...args)
+  }
+  return true
+}
+
+export const expressionSchema = z.preprocess<
+  unknown,
+  z.ZodType<Expression, Expression>,
+  Expression
+>((expression, ctx) => {
+  if (!isWithinNodeLimit(expression)) {
+    ctx.addIssue({
+      code: "custom",
+      input: expression,
+      continue: false,
+      message: `Must have at most ${String(maxNodes)} nodes and ${String(maxArgs)} arguments per function`,
+    })
+    return z.NEVER
+  }
+  return expression
+}, expressionAtDepth(maxDepth))
