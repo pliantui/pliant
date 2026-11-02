@@ -46,6 +46,14 @@ const inlineOps = [
   { op: "setTheme", target: `a${"b".repeat(256)}` },
   { op: `a${"b".repeat(64)}`, target: "orders-table" },
   { op: "Hide", target: "orders-table" },
+  { op: "set_theme", target: "orders-table" },
+  { op: "1x", target: "orders-table" },
+  { op: "hide\n", target: "orders-table" },
+  { op: "setTheme", target: "a\n" },
+  { op: "setTheme", target: "a.b" },
+  { op: "setTheme", target: "@App" },
+  { op: `a${"b".repeat(63)}`, target: "orders-table" },
+  { op: "setTheme", target: `a${"b".repeat(255)}` },
   { op: 5, target: "orders-table" },
   null,
 ]
@@ -67,6 +75,39 @@ const overlays = [
     surface: "/orders",
     ops: [{ op: "hide", target: "orders-table" }],
     explain: ["One.", "Two."],
+  },
+  {
+    ...base,
+    layer: "personal",
+    surface: "/orders",
+    ops: [{ op: "hide", target: "orders-table", futureArgument: 1 }],
+  },
+  {
+    ...base,
+    layer: "personal",
+    surface: "/orders",
+    ops: [{ op: "hide", target: "orders-table" }],
+    createdAt: "2026-02-30T09:30:00.000Z",
+  },
+]
+
+const savedViews = [
+  ...valuesOf(readFixture("saved-view")),
+  {
+    v: 1,
+    id: "01JBQ3V8Z7XKQ2M4N5P6R7S8TV",
+    name: "Mine",
+    surface: "/orders",
+    layer: "personal",
+    overlays: [
+      {
+        ...base,
+        layer: "personal",
+        surface: "/orders",
+        ops: [{ op: "hide", target: "orders-table" }],
+        explain: ["One.", "Two."],
+      },
+    ],
   },
 ]
 
@@ -107,7 +148,7 @@ describe("validating with the published JSON files", () => {
   })
 
   it("accepts the same saved views as the contract", () => {
-    for (const view of valuesOf(readFixture("saved-view"))) {
+    for (const view of savedViews) {
       expect(isSavedViewValid(view), JSON.stringify(view)).toBe(
         savedViewSchema.safeParse(view).success
       )

@@ -179,10 +179,7 @@ export function opStatus(op: unknown, layer: string, surface: string): Status {
   const stripped = Object.fromEntries(
     Object.entries(op).filter(([key]) => known.has(key))
   )
-  return Object.keys(op).length > Object.keys(stripped).length &&
-    isValid(stripped, entry, layer, surface)
-    ? "newer"
-    : "invalid"
+  return isValid(stripped, entry, layer, surface) ? "newer" : "invalid"
 }
 
 function hasMatchingExplain(overlay: Json) {
