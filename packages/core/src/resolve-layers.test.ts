@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest"
 import type { Layer } from "@pliantui/contract"
 
 import { loadOverlay, type LoadedOverlay } from "./load-overlay"
-import { resolveLayers } from "./resolve-layers"
+import type { OpPropertyKey } from "./op-property"
+import { resolveLayers, type ResolvedLayers } from "./resolve-layers"
 
 const scopes: Record<Layer, object> = {
   org: { scope: { org: "acme" } },
@@ -12,13 +13,22 @@ const scopes: Record<Layer, object> = {
   session: {},
 }
 
-let count = 0
+function overlays() {
+  let count = 0
+  return (layer: Layer, ops: unknown[]) => {
+    count++
+    return overlayWith(
+      `01JBQ3V8Z7XKQ2M4N5P6R7S8${String(count).padStart(2, "0")}`,
+      layer,
+      ops
+    )
+  }
+}
 
-function overlay(layer: Layer, ops: unknown[]): LoadedOverlay {
-  count++
+function overlayWith(id: string, layer: Layer, ops: unknown[]): LoadedOverlay {
   const result = loadOverlay({
     v: 1,
-    id: `01JBQ3V8Z7XKQ2M4N5P6R7S8${String(count).padStart(2, "0")}`,
+    id,
     surface: "/orders/[id]",
     layer,
     ...scopes[layer],
@@ -40,50 +50,55 @@ const show = { op: "show", target: notes }
 
 describe("resolveLayers", () => {
   it("returns nothing for no overlays", () => {
-    expect(resolveLayers([])).toEqual({ ops: new Map(), skipped: [] })
+    expect(resolveLayers([])).toEqual({ properties: new Map(), skipped: [] })
   })
 
   it("lets the higher layer win, whatever order overlays are given in", () => {
+    const overlay = overlays()
     const session = overlay("session", [show])
     const org = overlay("org", [hide])
     const personal = overlay("personal", [hide])
     const team = overlay("team", [show])
 
-    const winner = (overlays: LoadedOverlay[]) =>
-      resolveLayers(overlays).ops.get(notes)?.get("visible")
+    const visible = (input: LoadedOverlay[]) =>
+      resolveLayers(input).properties.get(notes)?.get("visible")
 
-    expect(winner([session, org, personal, team])).toEqual({
-      op: show,
-      index: 0,
-      layer: "session",
-      overlay: session,
-    })
-    expect(winner([personal, team, org])?.overlay).toBe(personal)
-    expect(winner([team, org])?.overlay).toBe(team)
-    expect(winner([org])?.layer).toBe("org")
+    const resolved = visible([session, org, personal, team])
+    expect(resolved?.winner.overlay).toBe(session)
+    expect(resolved?.winner.check).toBe(session.ops[0])
+    expect(resolved?.overridden.map(({ overlay }) => overlay)).toEqual([
+      org,
+      team,
+      personal,
+    ])
+    expect(visible([personal, team, org])?.winner.overlay).toBe(personal)
+    expect(visible([team, org])?.winner.overlay).toBe(team)
+    expect(visible([org])?.overridden).toEqual([])
   })
 
   it("applies overlays in a layer in the order given", () => {
+    const overlay = overlays()
     const first = overlay("personal", [hide])
     const second = overlay("personal", [show])
+    const visible = (input: LoadedOverlay[]) =>
+      resolveLayers(input).properties.get(notes)?.get("visible")
 
-    expect(
-      resolveLayers([first, second]).ops.get(notes)?.get("visible")?.overlay
-    ).toBe(second)
-    expect(
-      resolveLayers([second, first]).ops.get(notes)?.get("visible")?.overlay
-    ).toBe(first)
+    expect(visible([first, second])?.winner.overlay).toBe(second)
+    expect(visible([first, second])?.overridden[0]?.overlay).toBe(first)
+    expect(visible([second, first])?.winner.overlay).toBe(first)
   })
 
   it("lets a later op in an overlay win", () => {
-    const resolved = resolveLayers([overlay("personal", [hide, show])]).ops.get(
-      notes
-    )
+    const overlay = overlays()
+    const personal = overlay("personal", [hide, show])
+    const resolved = resolveLayers([personal]).properties.get(notes)
 
-    expect(resolved?.get("visible")).toMatchObject({ op: show, index: 1 })
+    expect(resolved?.get("visible")?.winner.check).toBe(personal.ops[1])
+    expect(resolved?.get("visible")?.overridden[0]?.check).toBe(personal.ops[0])
   })
 
   it("keeps different properties independent", () => {
+    const overlay = overlays()
     const team = overlay("team", [
       { op: "move", target: "dashboard/slots/x", to: { after: "y" } },
       { op: "setLayout", target: "dashboard", mode: "grid", columns: 3 },
@@ -92,15 +107,18 @@ describe("resolveLayers", () => {
       { op: "hide", target: "dashboard/slots/y" },
       { op: "setLayout", target: "dashboard", mode: "stack", at: "sm" },
     ])
-    const { ops } = resolveLayers([team, personal])
+    const { properties } = resolveLayers([team, personal])
+    const layer = (address: string, property: OpPropertyKey) =>
+      get(properties, property, address)
 
-    expect(ops.get("dashboard/slots/x")?.get("position")?.layer).toBe("team")
-    expect(ops.get("dashboard/slots/y")?.get("visible")?.layer).toBe("personal")
-    expect(ops.get("dashboard")?.get("layout.md")?.layer).toBe("team")
-    expect(ops.get("dashboard")?.get("layout.sm")?.layer).toBe("personal")
+    expect(layer("dashboard/slots/x", "position")).toBe("team")
+    expect(layer("dashboard/slots/y", "visible")).toBe("personal")
+    expect(layer("dashboard", "layout.md")).toBe("team")
+    expect(layer("dashboard", "layout.sm")).toBe("personal")
   })
 
   it("treats a layout without a breakpoint as md", () => {
+    const overlay = overlays()
     const team = overlay("team", [
       { op: "setLayout", target: "dashboard", mode: "grid", at: "md" },
     ])
@@ -109,31 +127,45 @@ describe("resolveLayers", () => {
     ])
 
     expect(
-      resolveLayers([team, personal]).ops.get("dashboard")?.get("layout.md")
-        ?.layer
+      get(resolveLayers([team, personal]).properties, "layout.md", "dashboard")
     ).toBe("personal")
   })
 
-  it("skips ops that aren't valid and lists them", () => {
-    const team = overlay("team", [hide])
+  it("skips ops that aren't valid and lists them in precedence order", () => {
+    const overlay = overlays()
     const personal = overlay("personal", [
       { op: "show", target: notes, at: "sm" },
       { op: "setTheme", target: notes },
       { op: "rename", target: notes, label: "" },
       { op: "setPage", target: "orders-table", index: 1 },
     ])
-    const { ops, skipped } = resolveLayers([personal, team])
+    const team = overlay("team", [hide, { op: "setTheme", target: notes }])
+    const { properties, skipped } = resolveLayers([personal, team])
 
-    expect(ops.get(notes)?.get("visible")?.overlay).toBe(team)
-    expect(ops.get(notes)?.has("label")).toBe(false)
-    expect(ops.has("orders-table")).toBe(false)
-    expect(skipped.map(({ check }) => [check.index, check.status])).toEqual([
-      [0, "newer"],
-      [1, "unknown"],
-      [2, "invalid"],
-      [3, "invalid"],
+    expect(properties.get(notes)?.get("visible")?.winner.overlay).toBe(team)
+    expect(properties.get(notes)?.has("label")).toBe(false)
+    expect(properties.has("orders-table")).toBe(false)
+    expect(
+      skipped.map(({ check, overlay }) => [
+        overlay.layer,
+        check.index,
+        check.status,
+      ])
+    ).toEqual([
+      ["team", 1, "unknown"],
+      ["personal", 0, "newer"],
+      ["personal", 1, "unknown"],
+      ["personal", 2, "invalid"],
+      ["personal", 3, "invalid"],
     ])
-    expect(skipped.every(({ overlay }) => overlay === personal)).toBe(true)
-    expect(skipped[0]?.check).toBe(personal.ops[0])
+    expect(skipped[1]?.check).toBe(personal.ops[0])
   })
 })
+
+function get(
+  properties: ResolvedLayers["properties"],
+  property: OpPropertyKey,
+  address: string
+) {
+  return properties.get(address)?.get(property)?.winner.overlay.layer
+}

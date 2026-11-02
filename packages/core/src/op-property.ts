@@ -1,8 +1,38 @@
 import type { Breakpoint, Op } from "@pliantui/contract"
 
-export interface OpProperty {
+export type OpPropertyKey =
+  | "chart"
+  | "collapse"
+  | "default"
+  | "density"
+  | "groupBy"
+  | "inserted"
+  | "label"
+  | "landing"
+  | "motion"
+  | "page"
+  | "pin"
+  | "position"
+  | "presentation"
+  | "promoted"
+  | "shortcut"
+  | "size"
+  | "sort"
+  | "stat"
+  | "textScale"
+  | "viewKind"
+  | "visible"
+  | "width"
+  | `filter.${string}`
+  | `format.${string}`
+  | `layout.${Breakpoint}`
+  | `props.${string}`
+  | `span.${Breakpoint}`
+  | `userItems.${string}`
+
+interface OpProperty {
   address: string
-  property: string
+  property: OpPropertyKey
 }
 
 // Layout changes without `at` apply from md up, so they share a key with an
@@ -100,4 +130,5 @@ export function opProperty(op: Op): OpProperty {
     case "setMotion":
       return { address: op.target, property: "motion" }
   }
+  return op satisfies never
 }
