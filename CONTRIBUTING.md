@@ -35,7 +35,7 @@ packages
 | `packages/core`     | The `@pliantui/core` package.                       |
 | `packages/server`   | The `@pliantui/server` package.                     |
 | `packages/pliantui` | The `pliantui` CLI.                                 |
-| `packages/tests`    | Integration tests for the CLI.                      |
+| `packages/tests`    | Integration tests.                                  |
 
 ## Development
 
