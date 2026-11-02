@@ -1,6 +1,7 @@
 import * as z from "zod"
 
 import { kindSchema, propNameSchema } from "./identifier"
+import { textSchema } from "./text"
 import { uniqueArray } from "./unique"
 import { propValueSchema } from "./value"
 
@@ -9,7 +10,7 @@ export const manifestPropSchema = z
     values: uniqueArray(propValueSchema).min(1).max(32),
     default: propValueSchema.optional(),
     semantic: uniqueArray(propValueSchema).max(32).optional(),
-    description: z.string().max(200).optional(),
+    description: textSchema(200).optional(),
   })
   .superRefine((prop, ctx) => {
     if (prop.default !== undefined && !prop.values.includes(prop.default)) {
@@ -36,7 +37,7 @@ export const manifestSchema = z
   .strictObject({
     kind: kindSchema,
     version: z.int().min(1),
-    description: z.string().min(1).max(200),
+    description: textSchema(200).min(1),
     capabilities: z.strictObject({
       props: z.record(propNameSchema, manifestPropSchema).optional(),
       label: z.boolean().optional(),

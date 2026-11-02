@@ -1,3 +1,3 @@
-import * as z from "zod"
+import { textSchema } from "./text"
 
-export const labelSchema = z.string().min(1).max(80)
+export const labelSchema = textSchema(80).min(1)

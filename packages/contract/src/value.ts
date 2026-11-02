@@ -1,12 +1,10 @@
 import * as z from "zod"
 
-export const propValueSchema = z.string().min(1).max(64)
+import { textSchema } from "./text"
 
-export const scalarSchema = z.union([
-  z.string().max(200),
-  z.number(),
-  z.boolean(),
-])
+export const propValueSchema = textSchema(64).min(1)
+
+export const scalarSchema = z.union([textSchema(200), z.number(), z.boolean()])
 
 export const valueSchema = z.union([
   scalarSchema,

@@ -2,9 +2,10 @@ import * as z from "zod"
 
 import { kebabIdSchema, kindSchema } from "./identifier"
 import { surfaceSchema } from "./surface"
+import { textSchema } from "./text"
 import { ulidSchema } from "./ulid"
 
-const referenceSchema = z.string().min(1).max(256)
+const referenceSchema = textSchema(256).min(1)
 
 const layerVersionSchema = z.looseObject({
   id: referenceSchema,
@@ -51,7 +52,7 @@ const overlayShape = {
       .optional(),
   }),
   source: z.enum(["ai", "manual", "chip", "share", "promote"]),
-  explain: z.array(z.string().min(1).max(200)).max(500).optional(),
+  explain: z.array(textSchema(200).min(1)).max(500).optional(),
   createdBy: referenceSchema,
   createdAt: z.iso.datetime({ offset: true }),
 }
