@@ -26,13 +26,17 @@ function reservedKeyPath(value: unknown): PropertyKey[] | undefined {
       continue
     }
     seen.add(current)
-    const entries: [string | number, unknown][] = Array.isArray(current)
-      ? [...current.entries()]
-      : Object.entries(current)
-    for (let index = entries.length - 1; index >= 0; index--) {
-      const entry = entries[index]
-      if (entry) {
-        pending.push({ value: entry[1], key: entry[0], parent: node })
+    if (Array.isArray(current)) {
+      for (let index = current.length - 1; index >= 0; index--) {
+        pending.push({ value: current[index], key: index, parent: node })
+      }
+    } else {
+      const entries = Object.entries(current)
+      for (let index = entries.length - 1; index >= 0; index--) {
+        const entry = entries[index]
+        if (entry) {
+          pending.push({ value: entry[1], key: entry[0], parent: node })
+        }
       }
     }
   }

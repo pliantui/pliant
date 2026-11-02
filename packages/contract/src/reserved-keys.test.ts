@@ -89,4 +89,14 @@ describe("withoutReservedKeys", () => {
     expect(performance.now() - start).toBeLessThan(2000)
     expect(path).toHaveLength(400_001)
   })
+
+  it("walks arrays by index, even with an own entries property", () => {
+    const items: unknown[] = [{ ok: 1 }, JSON.parse('{"prototype":1}')]
+    Object.assign(items, { entries: 1 })
+    expect(schema.safeParse({ items }).error?.issues[0]?.path).toEqual([
+      "items",
+      1,
+      "prototype",
+    ])
+  })
 })
