@@ -1,85 +1,123 @@
-import { readdirSync, readFileSync } from "node:fs"
-import path from "node:path"
 import { describe, expect, it } from "vitest"
 
-import { loadOverlay } from "@pliantui/core"
+import { manifestSchema, savedViewSchema } from "@pliantui/contract"
+import { loadOverlay, validateOverlay } from "@pliantui/core"
 
-import { isOverlayValid, opStatus } from "./json-validator"
+import {
+  readFixture,
+  readOpFixtures,
+  type Fixture,
+} from "../../contract/test/fixtures"
+import {
+  isImportValid,
+  isManifestValid,
+  isOverlayValid,
+  isSavedViewValid,
+  opStatus,
+  opStatuses,
+  type Status,
+} from "./json-validator"
 
-const fixtures = path.join(import.meta.dirname, "../../contract/test/fixtures")
-
-function readFixture(file: string): unknown[] {
-  const value: unknown = JSON.parse(
-    readFileSync(path.join(fixtures, file), "utf8")
-  )
-  if (typeof value !== "object" || value === null) {
-    return []
-  }
-  const entries = Object.fromEntries(Object.entries(value))
-  const list = (key: string): unknown[] => {
-    const items: unknown = entries[key]
-    return Array.isArray(items) ? items : []
-  }
-  return [
-    ...list("valid"),
-    ...list("invalid"),
-    ...list("crossField").map((entry) =>
-      typeof entry === "object" && entry !== null && "value" in entry
-        ? entry.value
-        : entry
-    ),
-  ]
+function valuesOf({ valid, invalid, crossField }: Fixture) {
+  return [...valid, ...invalid, ...crossField.map(({ value }) => value)]
 }
 
-const ops = readdirSync(path.join(fixtures, "ops")).flatMap((file) =>
-  readFixture(`ops/${file}`)
-)
-const overlays = readFixture("overlay.json")
+const base = {
+  v: 1,
+  id: "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+  basis: { contract: 1, core: "0.1.0", manifests: {} },
+  source: "manual",
+  createdBy: "user_123",
+  createdAt: "2026-11-01T09:30:00.000Z",
+}
 
 const contexts = [
   { layer: "personal", surface: "/orders/[id]" },
   { layer: "session", surface: "/orders/[id]" },
   { layer: "personal", surface: "@app" },
   { layer: "team", surface: "/orders/[id]", scope: { team: "support" } },
+  { layer: "org", surface: "/orders/[id]", scope: { org: "acme" } },
 ]
 
-function withExtraKey(op: unknown) {
-  return typeof op === "object" && op !== null && !Array.isArray(op)
-    ? { ...op, futureArgument: 1 }
-    : op
-}
+const inlineOps = [
+  { op: "setTheme", target: "orders-table" },
+  { op: "setTheme", target: "@app" },
+  { op: "setTheme", target: "Orders" },
+  { op: "setTheme", target: `a${"b".repeat(256)}` },
+  { op: `a${"b".repeat(64)}`, target: "orders-table" },
+  { op: "Hide", target: "orders-table" },
+  { op: 5, target: "orders-table" },
+  null,
+]
 
-function coreStatus(op: unknown, context: (typeof contexts)[number]) {
-  const result = loadOverlay({
-    v: 1,
-    id: "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
-    ops: [op],
-    basis: { contract: 1, core: "0.1.0", manifests: {} },
-    source: "manual",
-    createdBy: "user_123",
-    createdAt: "2026-11-01T09:30:00.000Z",
-    ...context,
-  })
-  return result.data?.ops[0]?.status
-}
+const ops = [
+  ...[...readOpFixtures().values()].flatMap(valuesOf),
+  ...inlineOps,
+].flatMap((op) =>
+  typeof op === "object" && op !== null && !Array.isArray(op)
+    ? [op, { ...op, futureArgument: 1 }]
+    : [op]
+)
+
+const overlays = [
+  ...valuesOf(readFixture("overlay")),
+  {
+    ...base,
+    layer: "personal",
+    surface: "/orders",
+    ops: [{ op: "hide", target: "orders-table" }],
+    explain: ["One.", "Two."],
+  },
+]
 
 describe("validating with the published JSON files", () => {
   it.each(contexts)(
-    "gives every op fixture the same status as core in %j",
+    "gives every op the same status as core in %j",
     (context) => {
-      for (const op of ops.flatMap((op) => [op, withExtraKey(op)])) {
-        expect(
-          opStatus(op, context.layer, context.surface),
-          JSON.stringify(op)
-        ).toBe(coreStatus(op, context))
+      const seen = new Set<Status>()
+      for (const op of ops) {
+        const status = opStatus(op, context.layer, context.surface)
+        seen.add(status)
+        expect(status, JSON.stringify(op)).toBe(
+          loadOverlay({ ...base, ...context, ops: [op] }).data?.ops[0]?.status
+        )
       }
+      expect([...seen].sort()).toEqual(["invalid", "newer", "unknown", "valid"])
     }
   )
 
-  it("accepts and rejects the same overlay fixtures as core", () => {
+  it("loads the same overlays with the same op statuses as core", () => {
     for (const overlay of overlays) {
+      const result = loadOverlay(overlay)
       expect(isOverlayValid(overlay), JSON.stringify(overlay)).toBe(
-        loadOverlay(overlay).success
+        result.success
+      )
+      expect(opStatuses(overlay), JSON.stringify(overlay)).toEqual(
+        result.data?.ops.map(({ status }) => status) ?? []
+      )
+    }
+  })
+
+  it("accepts the same AI answers and imports as core", () => {
+    for (const overlay of overlays) {
+      expect(isImportValid(overlay), JSON.stringify(overlay)).toBe(
+        validateOverlay(overlay).success
+      )
+    }
+  })
+
+  it("accepts the same saved views as the contract", () => {
+    for (const view of valuesOf(readFixture("saved-view"))) {
+      expect(isSavedViewValid(view), JSON.stringify(view)).toBe(
+        savedViewSchema.safeParse(view).success
+      )
+    }
+  })
+
+  it("accepts the same manifests as the contract", () => {
+    for (const manifest of valuesOf(readFixture("manifest"))) {
+      expect(isManifestValid(manifest), JSON.stringify(manifest)).toBe(
+        manifestSchema.safeParse(manifest).success
       )
     }
   })
