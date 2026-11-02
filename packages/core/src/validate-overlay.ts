@@ -1,13 +1,13 @@
 import * as z from "zod"
 
 import {
-  overlayOpSchema,
+  layerSchema,
   overlaySchema,
+  surfaceSchema,
   type Op,
-  type OverlayOp,
 } from "@pliantui/contract"
 
-import { checkOp, type OpCheck } from "./check-op"
+import { checkOp, type OpCheck, type OpContext } from "./check-op"
 import type { Result } from "./result"
 import type { WithOps } from "./with-ops"
 
@@ -16,43 +16,31 @@ export type ValidatedOverlay = WithOps<Op>
 const [overlayVariant] = overlaySchema.options
 const opsListSchema = overlayVariant.shape.ops
 
-interface OpsOf {
-  ops: [OverlayOp, number][]
+interface Fallback {
+  ops: unknown[]
   issues: z.core.$ZodIssue[]
+  context: OpContext
 }
 
-function opsOf(input: unknown): OpsOf {
+function fallbackOf(input: unknown): Fallback {
   if (typeof input !== "object" || input === null) {
-    return { ops: [], issues: [] }
+    return { ops: [], issues: [], context: {} }
   }
   const ops = "ops" in input ? input.ops : undefined
+  const layer =
+    "layer" in input ? layerSchema.safeParse(input.layer).data : undefined
+  const surface =
+    "surface" in input ? surfaceSchema.safeParse(input.surface).data : undefined
+  const context = { layer, surface }
   const list = opsListSchema.safeParse(ops)
   if (list.success) {
-    return { ops: list.data.map((op, index) => [op, index]), issues: [] }
+    return { ops: list.data, issues: [], context }
   }
-  const listIssues = list.error.issues.filter(({ path }) => path.length === 0)
-  if (!Array.isArray(ops) || listIssues.length > 0) {
-    return {
-      ops: [],
-      issues: listIssues.map((issue) => ({ ...issue, path: ["ops"] })),
-    }
+  return {
+    ops: [],
+    issues: list.error.issues.map((issue) => ({ ...issue, path: ["ops"] })),
+    context,
   }
-  const items: unknown[] = ops
-  const result: OpsOf = { ops: [], issues: [] }
-  for (const [index, item] of items.entries()) {
-    const op = overlayOpSchema.safeParse(item)
-    if (op.success) {
-      result.ops.push([op.data, index])
-    } else {
-      result.issues.push(
-        ...op.error.issues.map((issue) => ({
-          ...issue,
-          path: ["ops", index, ...issue.path],
-        }))
-      )
-    }
-  }
-  return result
 }
 
 function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
@@ -87,25 +75,25 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
 
 export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
   const result = overlaySchema.safeParse(input)
-  const listFailed =
-    result.error?.issues.some(
-      ({ path }) => path.length === 1 && path[0] === "ops"
-    ) ?? false
-  const envelopeIssues = (result.error?.issues ?? []).filter(
-    ({ path }) => !listFailed || path[0] !== "ops" || path.length === 1
+  const envelopeIssues = result.error?.issues ?? []
+  const listFailed = envelopeIssues.some(
+    ({ path }) => path.length === 1 && path[0] === "ops"
   )
-  const reportedOps = envelopeIssues.some(({ path }) => path[0] === "ops")
-  const fallback =
-    result.success || listFailed ? { ops: [], issues: [] } : opsOf(input)
-  const ops = result.success
-    ? result.data.ops.map((op, index): [OverlayOp, number] => [op, index])
-    : fallback.ops
-  const checks = ops.map(([op, index]) => checkOp(op, index))
-  const issues = [
-    ...envelopeIssues,
-    ...(reportedOps ? [] : fallback.issues),
-    ...checks.flatMap(issuesOf),
-  ]
+  const {
+    ops,
+    issues: listIssues,
+    context,
+  } = result.success
+    ? {
+        ops: result.data.ops,
+        issues: [],
+        context: { layer: result.data.layer, surface: result.data.surface },
+      }
+    : listFailed
+      ? { ops: [], issues: [], context: {} }
+      : fallbackOf(input)
+  const checks = ops.map((op, index) => checkOp(op, index, context))
+  const issues = [...envelopeIssues, ...listIssues, ...checks.flatMap(issuesOf)]
   if (!result.success || issues.length > 0) {
     return { success: false, error: new z.ZodError(issues) }
   }

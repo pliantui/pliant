@@ -3,7 +3,8 @@ import * as z from "zod"
 import {
   opCatalog,
   opSchema,
-  opSchemas,
+  overlayOpSchema,
+  type Layer,
   type Op,
   type OpName,
   type OverlayOp,
@@ -13,61 +14,74 @@ export type OpCheck =
   | { index: number; status: "valid"; op: Op }
   | { index: number; status: "unknown"; op: OverlayOp }
   | { index: number; status: "newer"; op: OverlayOp; keys: string[] }
-  | { index: number; status: "invalid"; op: OverlayOp; error: z.ZodError }
+  | { index: number; status: "invalid"; op: unknown; error: z.ZodError }
 
-interface Branch {
-  schema: z.core.$ZodType
-  keys: ReadonlySet<string>
-}
-
-export function branchesOf(schema: z.core.$ZodType): Branch[] {
-  if (schema instanceof z.core.$ZodObject) {
-    return [{ schema, keys: new Set(Object.keys(schema._zod.def.shape)) }]
-  }
-  if (schema instanceof z.core.$ZodUnion) {
-    return schema._zod.def.options.flatMap(branchesOf)
-  }
-  throw new TypeError(`Unsupported op schema type: ${schema._zod.def.type}`)
+export interface OpContext {
+  layer?: Layer | undefined
+  surface?: string | undefined
 }
 
 function isOpName(name: string): name is OpName {
   return Object.hasOwn(opCatalog, name)
 }
 
-let opBranches: ReadonlyMap<OpName, Branch[]> | undefined
-
-export function getOpBranches() {
-  opBranches ??= new Map(
-    Object.keys(opSchemas)
-      .filter(isOpName)
-      .map((name) => [name, branchesOf(opSchemas[name])])
-  )
-  return opBranches
+function contextIssues(
+  { op, target }: { op: OpName; target: string },
+  { layer, surface }: OpContext
+): z.core.$ZodIssue[] {
+  const issues: z.core.$ZodIssue[] = []
+  if (layer !== undefined && !opCatalog[op].layers.includes(layer)) {
+    issues.push({
+      code: "custom",
+      path: ["op"],
+      message: `${op} isn't allowed in the ${layer} layer`,
+    })
+  }
+  if (surface !== undefined && (target === "@app") !== (surface === "@app")) {
+    issues.push({
+      code: "custom",
+      path: ["target"],
+      message: "Ops target @app exactly when the overlay's surface is @app",
+    })
+  }
+  return issues
 }
 
-function extraKeys(op: OverlayOp, keys: ReadonlySet<string>) {
-  return Object.keys(op).filter((key) => !keys.has(key))
-}
-
-export function checkOp(op: OverlayOp, index: number): OpCheck {
+export function checkOp(
+  input: unknown,
+  index: number,
+  context: OpContext = {}
+): OpCheck {
+  const envelope = overlayOpSchema.safeParse(input)
+  if (!envelope.success) {
+    return { index, status: "invalid", op: input, error: envelope.error }
+  }
+  const op = envelope.data
   if (!isOpName(op.op)) {
     return { index, status: "unknown", op }
   }
+  const issues = contextIssues({ op: op.op, target: op.target }, context)
   const result = opSchema.safeParse(op)
   if (result.success) {
-    return { index, status: "valid", op: result.data }
+    return issues.length === 0
+      ? { index, status: "valid", op: result.data }
+      : { index, status: "invalid", op, error: new z.ZodError(issues) }
   }
-  for (const { schema, keys } of getOpBranches().get(op.op) ?? []) {
-    const extra = extraKeys(op, keys)
-    if (
-      extra.length > 0 &&
-      z.safeParse(
-        schema,
-        Object.fromEntries(Object.entries(op).filter(([key]) => keys.has(key)))
-      ).success
-    ) {
-      return { index, status: "newer", op, keys: extra }
-    }
+  const known = new Set(["op", "target", ...opCatalog[op.op].args.flat()])
+  const keys = Object.keys(op).filter((key) => !known.has(key))
+  if (
+    keys.length > 0 &&
+    issues.length === 0 &&
+    opSchema.safeParse(
+      Object.fromEntries(Object.entries(op).filter(([key]) => known.has(key)))
+    ).success
+  ) {
+    return { index, status: "newer", op, keys }
   }
-  return { index, status: "invalid", op, error: result.error }
+  return {
+    index,
+    status: "invalid",
+    op,
+    error: new z.ZodError([...result.error.issues, ...issues]),
+  }
 }

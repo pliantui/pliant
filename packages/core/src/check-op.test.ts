@@ -1,12 +1,8 @@
 import { describe, expect, it } from "vitest"
-import * as z from "zod"
 
-import type { OverlayOp } from "@pliantui/contract"
-import { opCatalog } from "@pliantui/contract"
+import { checkOp } from "./check-op"
 
-import { branchesOf, checkOp, getOpBranches } from "./check-op"
-
-function check(op: OverlayOp) {
+function check(op: unknown) {
   return checkOp(op, 0)
 }
 
@@ -38,35 +34,21 @@ describe("checkOp", () => {
       { op: "setLayout", target: "dashboard", mode: "row", gap: 2, wrap: true },
       ["gap", "wrap"],
     ],
-    [
-      {
-        op: "setPresentation",
-        target: "edit-order",
-        as: "dialog",
-        side: "left",
-      },
-      ["side"],
-    ],
-    [
-      { op: "setLayout", target: "dashboard", mode: "row", columns: 2 },
-      ["columns"],
-    ],
-    [
-      {
-        op: "wrap",
-        target: "dashboard",
-        id: "row",
-        items: ["a", "b"],
-        mode: "stack",
-        columns: 2,
-      },
-      ["columns"],
-    ],
   ])("treats unknown top-level arguments as newer: %j", (op, keys) => {
     expect(check(op)).toEqual({ index: 0, status: "newer", op, keys })
   })
 
   it.each([
+    { op: "setPresentation", target: "edit-order", as: "dialog", side: "left" },
+    { op: "setLayout", target: "dashboard", mode: "row", columns: 2 },
+    {
+      op: "wrap",
+      target: "dashboard",
+      id: "row",
+      items: ["a", "b"],
+      mode: "stack",
+      columns: 2,
+    },
     { op: "pin", target: "orders-table/columns/id", where: "top", at: "sm" },
     { op: "move", target: "dashboard/slots/a", to: { before: "b", gap: 1 } },
     {
@@ -94,26 +76,63 @@ describe("checkOp", () => {
 
   it("keeps the original op for ops it can't apply", () => {
     const op = { op: "hide", target: "orders-table/columns/notes", at: "sm" }
-    expect(check(op).op).toBe(op)
+    expect(check(op).op).toStrictEqual(op)
   })
 
-  it("knows the arguments of every op in the catalog", () => {
-    const opBranches = getOpBranches()
-    expect([...opBranches.keys()].sort()).toEqual(Object.keys(opCatalog).sort())
-    for (const [name, branches] of opBranches) {
-      expect(branches.length, name).toBeGreaterThan(0)
-      for (const { keys } of branches) {
-        expect([...keys], name).toEqual(
-          expect.arrayContaining(["op", "target"])
-        )
-      }
-    }
+  it.each([
+    null,
+    "hide",
+    5,
+    [],
+    { target: "orders-table" },
+    { op: "Hide", target: "x" },
+  ])("treats %j as invalid, keeping it unchanged", (op) => {
+    const result = check(op)
+    expect(result.status).toBe("invalid")
+    expect(result.op).toBe(op)
   })
 
-  it.each([z.string(), z.string().transform((value) => value.length)])(
-    "rejects op schemas it can't read arguments from",
-    (schema) => {
-      expect(() => branchesOf(schema)).toThrow(TypeError)
-    }
-  )
+  it.each([
+    [
+      { layer: "personal" as const },
+      { op: "setPage", target: "orders-table", index: 1 },
+      ["op"],
+    ],
+    [
+      { surface: "/orders" },
+      { op: "setTextScale", target: "@app", scale: 1.25 },
+      ["target"],
+    ],
+    [{ surface: "@app" }, { op: "hide", target: "orders-table" }, ["target"]],
+  ])("applies the overlay's %j to %j", (context, op, path) => {
+    const result = checkOp(op, 0, context)
+    expect(
+      result.status === "invalid" &&
+        result.error.issues.map((issue) => issue.path)
+    ).toEqual([path])
+  })
+
+  it("doesn't treat an op that breaks a layer rule as newer", () => {
+    const result = checkOp(
+      { op: "setPage", target: "orders-table", index: 1, cursor: "x" },
+      0,
+      { layer: "personal" }
+    )
+    expect(result.status).toBe("invalid")
+  })
+
+  it("accepts ops in their allowed layer and on the right surface", () => {
+    expect(
+      checkOp({ op: "setPage", target: "orders-table", index: 1 }, 0, {
+        layer: "session",
+        surface: "/orders",
+      }).status
+    ).toBe("valid")
+    expect(
+      checkOp({ op: "setTextScale", target: "@app", scale: 1.25 }, 0, {
+        layer: "personal",
+        surface: "@app",
+      }).status
+    ).toBe("valid")
+  })
 })

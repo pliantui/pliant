@@ -37,6 +37,24 @@ describe("loadOverlay", () => {
     expect(result.data?.surface).toBe("/orders/[id]")
   })
 
+  it("loads an overlay whose ops break per-op rules, marking only those ops", () => {
+    const result = loadOverlay(
+      overlay([
+        { op: "hide", target: "orders-table/columns/notes" },
+        { op: "setPage", target: "orders-table", index: 1 },
+        { op: "setTextScale", target: "@app", scale: 1.25 },
+        null,
+      ])
+    )
+    expect(result.data?.ops.map(({ status }) => status)).toEqual([
+      "valid",
+      "invalid",
+      "invalid",
+      "invalid",
+    ])
+    expect(result.data?.ops[3]?.op).toBeNull()
+  })
+
   it("fails when the envelope is invalid", () => {
     const result = loadOverlay({ ...overlay([]), v: 2 })
     expect(result.success).toBe(false)

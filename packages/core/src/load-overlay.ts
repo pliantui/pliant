@@ -11,11 +11,14 @@ export function loadOverlay(input: unknown): Result<LoadedOverlay> {
   if (!result.success) {
     return { success: false, error: result.error }
   }
+  const { layer, surface } = result.data
   return {
     success: true,
     data: {
       ...result.data,
-      ops: result.data.ops.map((op, index) => checkOp(op, index)),
+      ops: result.data.ops.map((op, index) =>
+        checkOp(op, index, { layer, surface })
+      ),
     },
   }
 }
