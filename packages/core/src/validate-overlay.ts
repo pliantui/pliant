@@ -8,6 +8,7 @@ import {
 } from "@pliantui/contract"
 
 import { checkOp, type OpCheck, type OpContext } from "./check-op"
+import { ownEntries } from "./own-entries"
 import type { Result } from "./result"
 import type { WithOps } from "./with-ops"
 
@@ -22,15 +23,13 @@ interface Fallback {
   context: OpContext
 }
 
-function fallbackOf(input: unknown): Fallback {
-  if (typeof input !== "object" || input === null) {
+function fallbackOf(input: Record<string, unknown> | undefined): Fallback {
+  if (input === undefined) {
     return { ops: [], issues: [], context: {} }
   }
-  const ops = "ops" in input ? input.ops : undefined
-  const layer =
-    "layer" in input ? layerSchema.safeParse(input.layer).data : undefined
-  const surface =
-    "surface" in input ? surfaceSchema.safeParse(input.surface).data : undefined
+  const { ops } = input
+  const layer = layerSchema.safeParse(input["layer"]).data
+  const surface = surfaceSchema.safeParse(input["surface"]).data
   const context = { layer, surface }
   const list = opsListSchema.safeParse(ops)
   if (list.success) {
@@ -59,7 +58,7 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
           code: "unrecognized_keys",
           keys: check.keys,
           path,
-          message: `Unrecognized ${check.keys.length === 1 ? "key" : "keys"}: ${check.keys.map((key) => `"${key}"`).join(", ")}`,
+          message: `Unrecognized ${check.keys.length === 1 ? "key" : "keys"}: ${check.keys.map((key) => JSON.stringify(key)).join(", ")}`,
         },
       ]
     case "unknown":
@@ -74,7 +73,8 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
 }
 
 export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
-  const result = overlaySchema.safeParse(input)
+  const entries = ownEntries(input)
+  const result = overlaySchema.safeParse(entries ?? input)
   const envelopeIssues = result.error?.issues ?? []
   const listFailed = envelopeIssues.some(
     ({ path }) => path.length === 1 && path[0] === "ops"
@@ -91,7 +91,7 @@ export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
       }
     : listFailed
       ? { ops: [], issues: [], context: {} }
-      : fallbackOf(input)
+      : fallbackOf(entries)
   const checks = ops.map((op, index) => checkOp(op, index, context))
   const issues = [...envelopeIssues, ...listIssues, ...checks.flatMap(issuesOf)]
   if (!result.success || issues.length > 0) {

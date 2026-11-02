@@ -135,4 +135,26 @@ describe("checkOp", () => {
       }).status
     ).toBe("valid")
   })
+
+  it("counts an own __proto__ key as an unknown argument", () => {
+    const op: unknown = JSON.parse(
+      '{"op":"hide","target":"orders-table","__proto__":{}}'
+    )
+    const result = check(op)
+    expect(result.status).toBe("newer")
+    expect(result.status === "newer" && result.keys).toEqual(["__proto__"])
+    expect(Object.keys(result.op as object)).toContain("__proto__")
+  })
+
+  it("reports a schema issue and a layer issue together", () => {
+    const result = checkOp(
+      { op: "setPage", target: "orders-table", index: -1 },
+      0,
+      { layer: "personal" }
+    )
+    expect(
+      result.status === "invalid" &&
+        result.error.issues.map(({ path }) => path.join("."))
+    ).toEqual(["index", "op"])
+  })
 })

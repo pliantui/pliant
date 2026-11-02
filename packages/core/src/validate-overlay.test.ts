@@ -63,6 +63,50 @@ describe("validateOverlay", () => {
     ])
   })
 
+  it.each<[string, object, unknown[], string[]]>([
+    [
+      "the layer rule when another field fails",
+      { v: 2 },
+      [{ op: "setPage", target: "orders-table", index: 1 }],
+      ["v", "ops.0.op"],
+    ],
+    [
+      "the @app rule when another field fails",
+      { v: 2 },
+      [{ op: "setTextScale", target: "@app", scale: 1.25 }],
+      ["v", "ops.0.target"],
+    ],
+    [
+      "only the @app rule when the layer is invalid",
+      { layer: "global" },
+      [
+        { op: "setPage", target: "orders-table", index: 1 },
+        { op: "setTextScale", target: "@app", scale: 1.25 },
+      ],
+      ["layer", "ops.1.target"],
+    ],
+    [
+      "only the layer rule when the surface is invalid",
+      { surface: "orders/x" },
+      [
+        { op: "setPage", target: "orders-table", index: 1 },
+        { op: "setTextScale", target: "@app", scale: 1.25 },
+      ],
+      ["surface", "ops.0.op"],
+    ],
+  ])("applies %s", (_, change, ops, paths) => {
+    const result = validateOverlay({ ...overlay(ops), ...change })
+    expect(result.error?.issues.map(({ path }) => path.join("."))).toEqual(
+      paths
+    )
+  })
+
+  it("reports only the root issue for an array", () => {
+    expect(validateOverlay([]).error?.issues.map(({ path }) => path)).toEqual([
+      [],
+    ])
+  })
+
   it("doesn't copy op values into issues", () => {
     const result = validateOverlay(
       overlay([
@@ -206,7 +250,7 @@ describe("validateOverlay", () => {
       "with another envelope issue",
       { v: 2 },
       ["valid", "large", "small"],
-      ["v", "ops"],
+      ["v"],
     ],
   ])(
     "checks the same ops it read, when a getter changes them, %s",
