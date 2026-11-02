@@ -37,7 +37,7 @@ export const manifestSchema = z
   .strictObject({
     kind: kindSchema,
     version: z.int().min(1),
-    description: textSchema(200).min(1),
+    description: textSchema(200, { min: 1 }),
     capabilities: z.strictObject({
       props: z.record(propNameSchema, manifestPropSchema).optional(),
       label: z.boolean().optional(),
