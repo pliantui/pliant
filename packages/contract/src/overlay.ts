@@ -1,6 +1,7 @@
 import * as z from "zod"
 
 import { kebabIdSchema, kindSchema } from "./identifier"
+import { withoutReservedKeys } from "./reserved-keys"
 import { surfaceSchema } from "./surface"
 import { textSchema } from "./text"
 import { ulidSchema } from "./ulid"
@@ -12,19 +13,21 @@ const layerVersionSchema = z.looseObject({
   version: z.int().min(1),
 })
 
-export const overlayOpSchema = z.looseObject({
-  op: z
-    .string()
-    .max(64)
-    .regex(/^[a-z][A-Za-z0-9]*$/, "Must be an op name"),
-  target: z
-    .string()
-    .max(256)
-    .regex(
-      /^(?:[a-z][A-Za-z0-9_\-[\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$/,
-      "Must be an address or a reserved target such as @app"
-    ),
-})
+export const overlayOpSchema = withoutReservedKeys(
+  z.looseObject({
+    op: z
+      .string()
+      .max(64)
+      .regex(/^[a-z][A-Za-z0-9]*$/, "Must be an op name"),
+    target: z
+      .string()
+      .max(256)
+      .regex(
+        /^(?:[a-z][A-Za-z0-9_\-[\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$/,
+        "Must be an address or a reserved target such as @app"
+      ),
+  })
+)
 
 export type OverlayOp = z.infer<typeof overlayOpSchema>
 
@@ -60,7 +63,7 @@ const overlayShape = {
   createdAt: z.iso.datetime({ offset: true }),
 }
 
-export const overlaySchema = z
+export const overlayObjectSchema = z
   .discriminatedUnion("layer", [
     z.looseObject({
       ...overlayShape,
@@ -95,5 +98,7 @@ export const overlaySchema = z
     description:
       "A set of ops one layer applies to a surface. This schema checks the overlay but not its ops: check each op on its own against op.json and catalog.json, following the steps in the @pliantui/contract README. When loading, apply only valid ops and keep the others unchanged; reject an AI answer or import unless every op is valid.",
   })
+
+export const overlaySchema = withoutReservedKeys(overlayObjectSchema)
 
 export type Overlay = z.infer<typeof overlaySchema>

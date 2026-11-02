@@ -14,7 +14,7 @@ import type { WithOps } from "./with-ops"
 
 export type ValidatedOverlay = WithOps<Op>
 
-const [overlayVariant] = overlaySchema.options
+const [overlayVariant] = overlaySchema.out.options
 const opsListSchema = overlayVariant.shape.ops
 
 interface Fallback {
@@ -76,8 +76,10 @@ export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
   const entries = ownEntries(input)
   const result = overlaySchema.safeParse(entries ?? input)
   const envelopeIssues = result.error?.issues ?? []
-  const listFailed = envelopeIssues.some(
-    ({ path }) => path.length === 1 && path[0] === "ops"
+  const skipOps = envelopeIssues.some(
+    (issue) =>
+      (issue.path.length === 1 && issue.path[0] === "ops") ||
+      (issue.code === "custom" && issue.params?.["reservedKey"] === true)
   )
   const {
     ops,
@@ -89,7 +91,7 @@ export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
         issues: [],
         context: { layer: result.data.layer, surface: result.data.surface },
       }
-    : listFailed
+    : skipOps
       ? { ops: [], issues: [], context: {} }
       : fallbackOf(entries)
   const checks = ops.map((op, index) => checkOp(op, index, context))

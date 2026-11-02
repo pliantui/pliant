@@ -136,14 +136,18 @@ describe("checkOp", () => {
     ).toBe("valid")
   })
 
-  it("counts an own __proto__ key as an unknown argument", () => {
+  it("treats an op with a reserved key as invalid", () => {
     const op: unknown = JSON.parse(
       '{"op":"hide","target":"orders-table","__proto__":{}}'
     )
     const result = check(op)
-    expect(result.status).toBe("newer")
-    expect(result.status === "newer" && result.keys).toEqual(["__proto__"])
-    expect(Object.keys(result.op as object)).toContain("__proto__")
+    expect(result.status).toBe("invalid")
+    expect(
+      result.status === "invalid" &&
+        result.error.issues.map(({ path, message }) => ({ path, message }))
+    ).toEqual([
+      { path: ["__proto__"], message: "Must not have a __proto__ key" },
+    ])
   })
 
   it("reports a schema issue and a layer issue together", () => {
