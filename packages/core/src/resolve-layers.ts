@@ -5,13 +5,18 @@ import type { LoadedOverlay } from "./load-overlay"
 import { opProperty, type OpPropertyKey } from "./op-property"
 
 export interface ResolvedOp {
-  check: Extract<OpCheck, { status: "valid" }>
-  overlay: LoadedOverlay
+  readonly check: Extract<OpCheck, { status: "valid" }>
+  readonly overlay: LoadedOverlay
 }
 
 export interface ResolvedProperty {
+  readonly winner: ResolvedOp
+  readonly overridden: readonly ResolvedOp[]
+}
+
+interface Entry {
   winner: ResolvedOp
-  overridden: readonly ResolvedOp[]
+  overridden: ResolvedOp[]
 }
 
 export interface SkippedOp {
@@ -42,10 +47,7 @@ const precedence: Readonly<Record<Layer, number>> = {
 export function resolveLayers(
   overlays: readonly LoadedOverlay[]
 ): ResolvedLayers {
-  const properties = new Map<
-    string,
-    Map<OpPropertyKey, { winner: ResolvedOp; overridden: ResolvedOp[] }>
-  >()
+  const properties = new Map<string, Map<OpPropertyKey, Entry>>()
   const skipped: SkippedOp[] = []
   const ordered = overlays.toSorted(
     (a, b) => precedence[a.layer] - precedence[b.layer]
@@ -57,12 +59,11 @@ export function resolveLayers(
         continue
       }
       const { address, property } = opProperty(check.op)
-      const byProperty =
-        properties.get(address) ??
-        new Map<
-          OpPropertyKey,
-          { winner: ResolvedOp; overridden: ResolvedOp[] }
-        >()
+      let byProperty = properties.get(address)
+      if (!byProperty) {
+        byProperty = new Map<OpPropertyKey, Entry>()
+        properties.set(address, byProperty)
+      }
       const previous = byProperty.get(property)
       if (previous) {
         previous.overridden.push(previous.winner)
@@ -70,7 +71,6 @@ export function resolveLayers(
       } else {
         byProperty.set(property, { winner: { check, overlay }, overridden: [] })
       }
-      properties.set(address, byProperty)
     }
   }
   return { properties, skipped }
