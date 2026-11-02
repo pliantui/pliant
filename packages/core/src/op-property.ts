@@ -130,5 +130,6 @@ export function opProperty(op: Op): OpProperty {
     case "setMotion":
       return { address: op.target, property: "motion" }
   }
-  return op satisfies never
+  const unknown: never = op
+  throw new TypeError(`Unknown op: ${JSON.stringify(unknown)}`)
 }

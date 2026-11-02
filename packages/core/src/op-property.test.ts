@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest"
 
 import { opCatalog, opSchema, type Op, type OpName } from "@pliantui/contract"
 
-import { opProperty } from "./op-property"
+import { opProperty, type OpPropertyKey } from "./op-property"
 
 const expr = { field: "total" }
 
-const cases: [Op, string, string][] = [
+const cases: [Op, string, OpPropertyKey][] = [
   [
     { op: "setProp", target: "pay-now", prop: "variant", value: "outline" },
     "pay-now",

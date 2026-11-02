@@ -32,16 +32,20 @@ const precedence: Readonly<Record<Layer, number>> = {
 }
 
 /**
- * Resolves the overlays that apply to one surface into a value per (address,
- * property). Layers apply org, team, personal, session; within a layer,
- * overlays apply in the order given, and within an overlay later ops win.
- * Only valid ops apply. `overridden` lists the ops a property's winner replaced,
- * lowest precedence first, and `skipped` lists non-valid ops in the same order.
+ * Resolves the overlays for one surface, plus the @app overlays, into a value
+ * per (address, property). Layers apply org, team, personal, session; within a
+ * layer, overlays apply in the order given, and within an overlay later ops
+ * win. Only valid ops apply. `overridden` lists the ops a property's winner
+ * replaced, lowest precedence first, and `skipped` lists non-valid ops in the
+ * same order.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[]
 ): ResolvedLayers {
-  const properties = new Map<string, Map<OpPropertyKey, ResolvedProperty>>()
+  const properties = new Map<
+    string,
+    Map<OpPropertyKey, { winner: ResolvedOp; overridden: ResolvedOp[] }>
+  >()
   const skipped: SkippedOp[] = []
   const ordered = overlays.toSorted(
     (a, b) => precedence[a.layer] - precedence[b.layer]
@@ -54,12 +58,18 @@ export function resolveLayers(
       }
       const { address, property } = opProperty(check.op)
       const byProperty =
-        properties.get(address) ?? new Map<OpPropertyKey, ResolvedProperty>()
+        properties.get(address) ??
+        new Map<
+          OpPropertyKey,
+          { winner: ResolvedOp; overridden: ResolvedOp[] }
+        >()
       const previous = byProperty.get(property)
-      byProperty.set(property, {
-        winner: { check, overlay },
-        overridden: previous ? [...previous.overridden, previous.winner] : [],
-      })
+      if (previous) {
+        previous.overridden.push(previous.winner)
+        previous.winner = { check, overlay }
+      } else {
+        byProperty.set(property, { winner: { check, overlay }, overridden: [] })
+      }
       properties.set(address, byProperty)
     }
   }

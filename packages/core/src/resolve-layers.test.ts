@@ -66,11 +66,11 @@ describe("resolveLayers", () => {
     const resolved = visible([session, org, personal, team])
     expect(resolved?.winner.overlay).toBe(session)
     expect(resolved?.winner.check).toBe(session.ops[0])
-    expect(resolved?.overridden.map(({ overlay }) => overlay)).toEqual([
-      org,
-      team,
-      personal,
-    ])
+    const expected = [org, team, personal]
+    expect(resolved?.overridden).toHaveLength(3)
+    resolved?.overridden.forEach(({ overlay }, index) => {
+      expect(overlay).toBe(expected[index])
+    })
     expect(visible([personal, team, org])?.winner.overlay).toBe(personal)
     expect(visible([team, org])?.winner.overlay).toBe(team)
     expect(visible([org])?.overridden).toEqual([])
@@ -159,6 +159,22 @@ describe("resolveLayers", () => {
       ["personal", 3, "invalid"],
     ])
     expect(skipped[1]?.check).toBe(personal.ops[0])
+    expect(skipped[1]?.overlay).toBe(personal)
+    expect(skipped[0]?.overlay).toBe(team)
+  })
+
+  it("resolves many ops on one property in linear time", () => {
+    const overlay = overlays()
+    const input = Array.from({ length: 40 }, () =>
+      overlay(
+        "personal",
+        Array.from({ length: 500 }, () => hide)
+      )
+    )
+    const start = Date.now()
+    const resolved = resolveLayers(input).properties.get(notes)?.get("visible")
+    expect(Date.now() - start).toBeLessThan(500)
+    expect(resolved?.overridden).toHaveLength(19_999)
   })
 })
 
