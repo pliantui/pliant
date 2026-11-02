@@ -90,16 +90,7 @@ export function checkOp(
     status: "invalid",
     op,
     error: new z.ZodError([
-      ...(result.success
-        ? [
-            {
-              code: "unrecognized_keys" as const,
-              keys,
-              path: [],
-              message: `Unrecognized ${keys.length === 1 ? "key" : "keys"}: ${keys.map((key) => JSON.stringify(key)).join(", ")}`,
-            },
-          ]
-        : result.error.issues),
+      ...(result.success ? [] : result.error.issues),
       ...issues,
     ]),
   }

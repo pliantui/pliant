@@ -157,4 +157,22 @@ describe("checkOp", () => {
         result.error.issues.map(({ path }) => path.join("."))
     ).toEqual(["index", "op"])
   })
+
+  it("reads each property once and checks what it read", () => {
+    let reads = 0
+    const op = {
+      get op() {
+        reads++
+        return reads === 1 ? "hide" : 5
+      },
+      target: "orders-table",
+    }
+    expect(check(op).status).toBe("valid")
+    expect(reads).toBe(1)
+  })
+
+  it("ignores inherited properties", () => {
+    const op: unknown = Object.create({ op: "hide", target: "orders-table" })
+    expect(check(op).status).toBe("invalid")
+  })
 })

@@ -1,13 +1,14 @@
 import { overlaySchema } from "@pliantui/contract"
 
 import { checkOp, type OpCheck } from "./check-op"
+import { ownEntries } from "./own-entries"
 import type { Result } from "./result"
 import type { WithOps } from "./with-ops"
 
 export type LoadedOverlay = WithOps<OpCheck>
 
 export function loadOverlay(input: unknown): Result<LoadedOverlay> {
-  const result = overlaySchema.safeParse(input)
+  const result = overlaySchema.safeParse(ownEntries(input) ?? input)
   if (!result.success) {
     return { success: false, error: result.error }
   }

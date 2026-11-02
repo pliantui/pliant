@@ -70,7 +70,7 @@ export function formatError(
 
   function line(issue: Issue, path: readonly PropertyKey[], depth: number) {
     const at = formatPath(path)
-    return `${"  ".repeat(depth)}${at ? `${at}: ` : ""}${issue.message.replace(/\s*\n\s*/g, " ")}`
+    return `${"  ".repeat(depth)}${at ? `${at}: ` : ""}${issue.message.replace(/\s*[\r\n\u2028\u2029]+\s*/g, " ")}`
   }
 
   function expand(issue: Issue, path: readonly PropertyKey[], depth: number) {

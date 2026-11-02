@@ -37,6 +37,18 @@ describe("formatError", () => {
     )
   })
 
+  it("quotes keys that aren't identifiers as JSON strings", () => {
+    const error = new z.ZodError([issue(['a"b\nc'], "Bad key")])
+    expect(formatError(error)).toBe('["a\\"b\\nc"]: Bad key')
+  })
+
+  it.each(["a\nb", "a\rb", "a\u2028b", "a \r\n b"])(
+    "keeps a message with line breaks on one line: %j",
+    (message) => {
+      expect(formatError(new z.ZodError([issue([], message)]))).toBe("a b")
+    }
+  )
+
   it("caps the number of issues and says how many were left out", () => {
     const error = new z.ZodError(
       Array.from({ length: 5 }, (_, index) => issue(["ops", index], "Bad op"))

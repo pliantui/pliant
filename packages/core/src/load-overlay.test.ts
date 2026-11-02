@@ -55,6 +55,13 @@ describe("loadOverlay", () => {
     expect(result.data?.ops[3]?.op).toBeNull()
   })
 
+  it("reads only the overlay's own properties", () => {
+    const inherited: unknown = Object.create(
+      overlay([{ op: "hide", target: "orders-table/columns/notes" }])
+    )
+    expect(loadOverlay(inherited).success).toBe(false)
+  })
+
   it("fails when the envelope is invalid", () => {
     const result = loadOverlay({ ...overlay([]), v: 2 })
     expect(result.success).toBe(false)
