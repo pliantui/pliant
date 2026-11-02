@@ -24,16 +24,21 @@ describe("textSchema", () => {
     "a\u{1F600}b",
     "\uD800\uD800\uD800",
     "\uDC00\uDC00\uDC00",
-  ])("rejects %j with Zod's own too_big issue", (value) => {
-    expect(schema.safeParse(value).error?.issues).toEqual([
-      expect.objectContaining({
-        code: "too_big",
-        origin: "string",
-        maximum: 2,
-        inclusive: true,
-        path: [],
-      }),
-    ])
+  ])("rejects %j with the same issue as Zod's own max", (value) => {
+    expect(schema.safeParse(value).error?.issues).toEqual(
+      z.string().max(2).safeParse(value).error?.issues
+    )
+  })
+
+  it("reports the same localized message as Zod's own max", () => {
+    z.config(z.locales.de())
+    try {
+      expect(schema.safeParse("abc").error?.issues).toEqual(
+        z.string().max(2).safeParse("abc").error?.issues
+      )
+    } finally {
+      z.config(z.locales.en())
+    }
   })
 
   it("keeps minLength and maxLength in its JSON Schema", () => {

@@ -28,8 +28,8 @@ export function textSchema(max: number, { min = 0 }: { min?: number } = {}) {
     .superRefine((value, ctx) => {
       if (!isWithinCodePoints(value, max)) {
         ctx.addIssue({
-          code: "too_big",
           origin: "string",
+          code: "too_big",
           maximum: max,
           inclusive: true,
           input: value,
