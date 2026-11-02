@@ -1,6 +1,7 @@
 import * as z from "zod"
 
 import { functionNameSchema, itemIdSchema } from "./identifier"
+import { textSchema } from "./text"
 
 export type Expression =
   | { field: string }
@@ -15,7 +16,7 @@ const maxNodes = 128
 const leafSchemas = [
   z.strictObject({ field: itemIdSchema }),
   z.strictObject({
-    value: z.union([z.string().max(200), z.number(), z.boolean(), z.null()]),
+    value: z.union([textSchema(200), z.number(), z.boolean(), z.null()]),
   }),
   z.strictObject({ ref: itemIdSchema }),
 ] as const

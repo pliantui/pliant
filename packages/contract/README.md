@@ -6,7 +6,7 @@ Pliant is in early development. See https://github.com/pliantui/pliant.
 
 ## Validating without JavaScript
 
-`schema/` holds JSON Schemas for overlays, ops, saved views and manifests, and the op catalog as data in `catalog.json`. Patterns are ECMA-262 regular expressions: `\d` matches only ASCII digits and `$` matches only at the end of the string (Python's `re` differs on both). `format: date-time` (RFC 3339) must be checked.
+`schema/` holds JSON Schemas for overlays, ops, saved views and manifests, and the op catalog as data in `catalog.json`. Patterns are ECMA-262 regular expressions: `\d` matches only ASCII digits and `$` matches only at the end of the string (Python's `re` differs on both). `format: date-time` (RFC 3339) must be checked. String lengths count Unicode code points, as `maxLength` does.
 
 `catalog.json` is `{ "contract": 1, "ops": { [name]: { capability, layers, args } } }`. `capability` is checked against manifests at resolution time; `null` means none is needed. `layers` and each `args` list are unordered. `args` holds one list of top-level argument keys per shape, without `op` and `target`. New ops and fields may be added within contract 1, so ignore keys you don't know.
 
