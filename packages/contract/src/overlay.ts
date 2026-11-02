@@ -28,7 +28,7 @@ export const overlayOpSchema = z.looseObject({
 export type OverlayOp = z.infer<typeof overlayOpSchema>
 
 const semverPattern =
-  /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/
+  /^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/
 
 const overlayShape = {
   v: z.literal(1),
@@ -36,7 +36,7 @@ const overlayShape = {
   surface: surfaceSchema,
   ops: z.array(z.unknown()).min(1).max(500).meta({
     description:
-      "Each op is checked on its own, against op.json and catalog.json. See the overlay's description.",
+      "Each op is checked on its own against op.json and catalog.json, and an op that fails is skipped, not the overlay. The steps are in the @pliantui/contract README.",
   }),
   basis: z.looseObject({
     contract: z.literal(1),
@@ -89,7 +89,7 @@ export const overlaySchema = z
   .meta({
     title: "Pliant overlay",
     description:
-      "A set of ops one layer applies to a surface. Validate it in two steps. First, check the overlay against this schema. Then check each op on its own: it must match op.json, the overlay's layer must be listed in the op's layers in catalog.json, and its target must be @app exactly when the overlay's surface is @app. When loading a saved overlay, skip an op that fails, is unknown, or has top-level keys missing from every args list in catalog.json; keep the rest. Reject an AI answer or import if any op fails.",
+      "A set of ops one layer applies to a surface. This schema checks the overlay but not its ops: check each op on its own against op.json and catalog.json, following the steps in the @pliantui/contract README. When loading, apply only valid ops and keep the others unchanged; reject an AI answer or import unless every op is valid.",
   })
 
 export type Overlay = z.infer<typeof overlaySchema>

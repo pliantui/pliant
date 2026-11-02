@@ -6,12 +6,22 @@ Pliant is in early development. See https://github.com/pliantui/pliant.
 
 ## Validating without JavaScript
 
-The package publishes JSON Schemas for overlays, ops, saved views and manifests in `schema/`, plus the op catalog as data in `schema/catalog.json`. Overlays are validated in two steps:
+`schema/` holds JSON Schemas for overlays, ops, saved views and manifests, and the op catalog as data in `catalog.json`. Patterns are ECMA-262 regular expressions with ASCII `\d`, and `format` must be checked.
 
-1. Check the overlay against `overlay.json`. It checks the overlay's own fields and that `ops` is a list of 1 to 500 values, but not the ops themselves.
-2. Check each op on its own:
-   - it matches `op.json`;
-   - the overlay's `layer` is in the op's `layers` in `catalog.json`;
-   - its `target` is `@app` exactly when the overlay's `surface` is `@app`.
+`catalog.json` is `{ "contract": 1, "ops": { [name]: { capability, layers, args } } }`. `capability` is checked against manifests at resolution time; `null` means none is needed. `layers` and each `args` list are unordered. `args` holds one list of top-level argument keys per shape, without `op` and `target`. New ops and fields may be added within contract 1, so ignore keys you don't know.
 
-When loading a saved overlay, skip each op that fails and keep the rest. An op whose name isn't in `catalog.json` is from a newer version. So is an op that fails `op.json` but passes once every key other than `op` and `target` that appears in none of its `args` lists is removed. Reject an AI answer or an import if any op fails.
+To validate an overlay:
+
+1. Check it against `overlay.json`, plus one `explain` sentence per op when `explain` is present.
+2. Give each op one status:
+   - **invalid** unless it is an object whose `op` matches `^[a-z][A-Za-z0-9]*$` (at most 64 characters) and whose `target` matches `^(?:[a-z][A-Za-z0-9_\-[\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$` (at most 256);
+   - **unknown** if its name isn't in `catalog.json`;
+   - **valid** if it matches `op.json`, the overlay's `layer` is in its `layers`, its `target` is `@app` exactly when the overlay's `surface` is `@app`, and it passes the rules below;
+   - **newer** if it is valid once every key other than `op` and `target` that appears in none of its `args` lists is removed;
+   - **invalid** otherwise.
+
+   Rules JSON Schema can't express: `move` with `to.into` needs a target in `slots` outside a template and can't move a node into itself; sort fields are unique; an expression has at most 128 nodes and 16 arguments per function.
+
+When loading a saved overlay, apply only valid ops, flag unknown and newer ones, and keep every op unchanged when saving it again. Reject an AI answer or an import unless every op is valid.
+
+A saved view also needs every overlay to share the view's `surface`, `layer` and `scope`, with unique ids. In a manifest, a prop's `default` and `semantic` values must be among its `values`.

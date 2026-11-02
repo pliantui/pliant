@@ -47,7 +47,8 @@ export const savedViewSchema = z
   })
   .meta({
     title: "Pliant saved view",
-    description: "A named set of overlays for one surface.",
+    description:
+      "A named set of overlays for one surface. Every overlay must share the view's surface, layer and scope, and overlay ids must be unique. Validate each overlay as the @pliantui/contract README describes.",
   })
 
 export type SavedView = z.infer<typeof savedViewSchema>

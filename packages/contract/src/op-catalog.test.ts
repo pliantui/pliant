@@ -45,7 +45,21 @@ describe("opCatalog", () => {
 
   it("matches the published file", async () => {
     await expect(
-      `${JSON.stringify({ contract: 1, ops: opCatalog }, null, 2)}\n`
+      `${JSON.stringify(
+        {
+          contract: 1,
+          ops: Object.fromEntries(
+            Object.entries(opCatalog).map(
+              ([name, { capability, layers, args }]) => [
+                name,
+                { capability, layers, args },
+              ]
+            )
+          ),
+        },
+        null,
+        2
+      )}\n`
     ).toMatchFileSnapshot("../schema/catalog.json")
   })
 })

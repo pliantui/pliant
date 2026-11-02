@@ -3,7 +3,6 @@
   "ops": {
     "setProp": {
       "capability": "props",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -19,7 +18,6 @@
     },
     "rename": {
       "capability": "label",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -34,7 +32,6 @@
     },
     "hide": {
       "capability": "hideable",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -47,7 +44,6 @@
     },
     "show": {
       "capability": "hideable",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -60,7 +56,6 @@
     },
     "move": {
       "capability": "slots",
-      "appliesTo": "parent",
       "layers": [
         "org",
         "team",
@@ -75,7 +70,6 @@
     },
     "collapse": {
       "capability": "slots",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -92,7 +86,6 @@
     },
     "pin": {
       "capability": "slots",
-      "appliesTo": "parent",
       "layers": [
         "org",
         "team",
@@ -107,7 +100,6 @@
     },
     "setLayout": {
       "capability": "layout",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -130,7 +122,6 @@
     },
     "span": {
       "capability": "layout",
-      "appliesTo": "parent",
       "layers": [
         "org",
         "team",
@@ -146,7 +137,6 @@
     },
     "insert": {
       "capability": "insertable",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -162,7 +152,6 @@
     },
     "wrap": {
       "capability": "insertable",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -187,7 +176,6 @@
     },
     "remove": {
       "capability": "insertable",
-      "appliesTo": "parent",
       "layers": [
         "org",
         "team",
@@ -200,7 +188,6 @@
     },
     "setDefault": {
       "capability": "form",
-      "appliesTo": "parent",
       "layers": [
         "org",
         "team",
@@ -215,7 +202,6 @@
     },
     "setPresentation": {
       "capability": "presentation",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -234,7 +220,6 @@
     },
     "setSize": {
       "capability": "presentation",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -249,7 +234,6 @@
     },
     "setLanding": {
       "capability": "nav",
-      "appliesTo": "parent",
       "layers": [
         "org",
         "team",
@@ -262,7 +246,6 @@
     },
     "promote": {
       "capability": "actions",
-      "appliesTo": "parent",
       "layers": [
         "org",
         "team",
@@ -275,7 +258,6 @@
     },
     "demote": {
       "capability": "actions",
-      "appliesTo": "parent",
       "layers": [
         "org",
         "team",
@@ -288,7 +270,6 @@
     },
     "bindShortcut": {
       "capability": "actions",
-      "appliesTo": "parent",
       "layers": [
         "org",
         "team",
@@ -303,7 +284,6 @@
     },
     "setSort": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -318,7 +298,6 @@
     },
     "setFilter": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -333,7 +312,6 @@
     },
     "clearFilter": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -348,7 +326,6 @@
     },
     "setPage": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "session"
       ],
@@ -361,7 +338,6 @@
     },
     "setGroupBy": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -376,7 +352,6 @@
     },
     "addDerived": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -394,7 +369,6 @@
     },
     "addAggregate": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -411,7 +385,6 @@
     },
     "formatField": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -427,7 +400,6 @@
     },
     "addHighlight": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -444,7 +416,6 @@
     },
     "addSortOption": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -461,7 +432,6 @@
     },
     "addFilterControl": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -479,7 +449,6 @@
     },
     "addPreset": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -497,7 +466,6 @@
     },
     "setViewKind": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -512,7 +480,6 @@
     },
     "configureChart": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -532,7 +499,6 @@
     },
     "configureStat": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -549,7 +515,6 @@
     },
     "removeUserItem": {
       "capability": "data",
-      "appliesTo": "target",
       "layers": [
         "org",
         "team",
@@ -564,7 +529,6 @@
     },
     "setColumnWidth": {
       "capability": "data",
-      "appliesTo": "parent",
       "layers": [
         "org",
         "team",
@@ -579,7 +543,6 @@
     },
     "setDensity": {
       "capability": null,
-      "appliesTo": "surface",
       "layers": [
         "org",
         "team",
@@ -594,7 +557,6 @@
     },
     "setTextScale": {
       "capability": null,
-      "appliesTo": "app",
       "layers": [
         "org",
         "team",
@@ -609,7 +571,6 @@
     },
     "setMotion": {
       "capability": null,
-      "appliesTo": "app",
       "layers": [
         "org",
         "team",
