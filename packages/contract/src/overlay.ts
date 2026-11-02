@@ -13,19 +13,21 @@ const layerVersionSchema = z.looseObject({
   version: z.int().min(1),
 })
 
-export const overlayOpSchema = z.looseObject({
-  op: z
-    .string()
-    .max(64)
-    .regex(/^[a-z][A-Za-z0-9]*$/, "Must be an op name"),
-  target: z
-    .string()
-    .max(256)
-    .regex(
-      /^(?:[a-z][A-Za-z0-9_\-[\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$/,
-      "Must be an address or a reserved target such as @app"
-    ),
-})
+export const overlayOpSchema = withoutReservedKeys(
+  z.looseObject({
+    op: z
+      .string()
+      .max(64)
+      .regex(/^[a-z][A-Za-z0-9]*$/, "Must be an op name"),
+    target: z
+      .string()
+      .max(256)
+      .regex(
+        /^(?:[a-z][A-Za-z0-9_\-[\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$/,
+        "Must be an address or a reserved target such as @app"
+      ),
+  })
+)
 
 export type OverlayOp = z.infer<typeof overlayOpSchema>
 

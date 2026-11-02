@@ -62,6 +62,6 @@ export const manifestSchema = withoutReservedKeys(manifestObjectSchema)
 
 export type Manifest = z.infer<typeof manifestSchema>
 
-export function defineManifest(manifest: z.input<typeof manifestObjectSchema>) {
+export function defineManifest(manifest: z.input<typeof manifestSchema>) {
   return manifestSchema.parse(manifest)
 }

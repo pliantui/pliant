@@ -57,4 +57,23 @@ describe("withoutReservedKeys", () => {
     )
     expect(parsed).toBe(false)
   })
+
+  it("reports the first reserved key in document order", () => {
+    expect(
+      schema.safeParse(
+        JSON.parse('{"a":{"prototype":1},"b":{"constructor":1}}')
+      ).error?.issues[0]?.path
+    ).toEqual(["a", "prototype"])
+  })
+
+  it("walks deeply nested input in linear time", () => {
+    let json = '{"x":1}'
+    for (let depth = 0; depth < 100_000; depth++) {
+      json = `{"a":${json}}`
+    }
+    const value: unknown = JSON.parse(json)
+    const start = performance.now()
+    expect(schema.safeParse(value).success).toBe(true)
+    expect(performance.now() - start).toBeLessThan(2000)
+  })
 })

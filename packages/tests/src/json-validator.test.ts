@@ -98,9 +98,7 @@ const overlays = [
 
 function parseObject(json: string): Record<string, unknown> {
   const value: unknown = JSON.parse(json)
-  return typeof value === "object" && value !== null
-    ? Object.fromEntries(Object.entries(value))
-    : {}
+  return typeof value === "object" && value !== null ? { ...value } : {}
 }
 
 overlays.push(

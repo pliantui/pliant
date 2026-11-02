@@ -107,6 +107,22 @@ describe("validateOverlay", () => {
     ])
   })
 
+  it("reports a reserved key in an op once", () => {
+    const result = validateOverlay(
+      overlay([
+        JSON.parse('{"op":"hide","target":"orders-table","__proto__":{}}'),
+      ])
+    )
+    expect(
+      result.error?.issues.map(({ path, message }) => ({ path, message }))
+    ).toEqual([
+      {
+        path: ["ops", 0, "__proto__"],
+        message: "Must not have a __proto__ key",
+      },
+    ])
+  })
+
   it("doesn't copy op values into issues", () => {
     const result = validateOverlay(
       overlay([

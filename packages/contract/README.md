@@ -10,7 +10,7 @@ Pliant is in early development. See https://github.com/pliantui/pliant.
 
 `catalog.json` is `{ "contract": 1, "ops": { [name]: { capability, layers, args } } }`. `capability` is checked against manifests at resolution time; `null` means none is needed. `layers` and each `args` list are unordered. `args` holds one list of top-level argument keys per shape, without `op` and `target`. New ops and fields may be added within contract 1, so ignore keys you don't know.
 
-Before anything else, reject an overlay, saved view or manifest if any object in it, at any depth, has an own key named `__proto__`, `constructor` or `prototype`. JSON parsers can produce these keys, and some validators and runtimes treat them specially.
+Before anything else, reject an overlay, saved view or manifest if any object in it, at any depth, has a key named `__proto__`, `constructor` or `prototype`. JSON parsers can produce these keys, and some runtimes treat them specially.
 
 To validate an overlay:
 

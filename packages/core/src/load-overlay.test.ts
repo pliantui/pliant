@@ -62,6 +62,19 @@ describe("loadOverlay", () => {
     expect(loadOverlay(inherited).success).toBe(false)
   })
 
+  it("rejects an overlay with a reserved key anywhere", () => {
+    const basis: unknown = JSON.parse(
+      '{"__proto__":{"layers":"x"},"contract":1,"core":"0.1.0","manifests":{}}'
+    )
+    const result = loadOverlay({
+      ...overlay([{ op: "hide", target: "orders-table" }]),
+      basis,
+    })
+    expect(result.error?.issues.map(({ path }) => path)).toEqual([
+      ["basis", "__proto__"],
+    ])
+  })
+
   it("fails when the envelope is invalid", () => {
     const result = loadOverlay({ ...overlay([]), v: 2 })
     expect(result.success).toBe(false)
