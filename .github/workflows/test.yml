@@ -47,14 +47,17 @@ jobs:
       - uses: ./.github/actions/setup
       # Build with the development Zod version first, so the type check below
       # checks the declarations that ship against the lowest supported one.
-      - run: pnpm --filter @pliantui/contract build
-      - run: pnpm --filter @pliantui/contract add --save-dev zod@4.0.16
+      - run: pnpm build:packages
+      - run: >-
+          pnpm --filter @pliantui/contract --filter @pliantui/core
+          add --save-dev zod@4.0.16
       # The published JSON Schemas are generated with the development Zod
       # version, so only the check that regenerates them is skipped.
       - run: >-
           pnpm --filter @pliantui/contract exec vitest run
           --testNamePattern '^(?!.*matches the published file)'
+      - run: pnpm --filter @pliantui/core test
       - run: >-
-          pnpm --filter @pliantui/contract exec tsc --ignoreConfig --noEmit --strict
-          --skipLibCheck false --module preserve --moduleResolution bundler
-          dist/index.d.ts
+          pnpm --recursive --filter @pliantui/contract --filter @pliantui/core
+          exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false
+          --module preserve --moduleResolution bundler dist/index.d.ts
