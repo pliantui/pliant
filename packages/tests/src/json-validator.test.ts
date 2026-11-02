@@ -46,6 +46,11 @@ const inlineOps = [
   { op: "setTheme", target: `a${"b".repeat(256)}` },
   { op: `a${"b".repeat(64)}`, target: "orders-table" },
   { op: "Hide", target: "orders-table" },
+  {
+    op: "move",
+    target: "orders/slots/a/columns/b",
+    to: { into: "other/slots/z" },
+  },
   { op: "set_theme", target: "orders-table" },
   { op: "1x", target: "orders-table" },
   { op: "hide\n", target: "orders-table" },
