@@ -110,6 +110,46 @@
         }
       ],
       "v": 1
+    },
+    {
+      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TV",
+      "name": "My orders",
+      "surface": "/orders/[id]",
+      "layer": "personal",
+      "overlays": [
+        {
+          "v": 1,
+          "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+          "surface": "/orders/[id]",
+          "layer": "personal",
+          "ops": [
+            {
+              "op": "Hide",
+              "target": "!!!"
+            }
+          ],
+          "basis": {
+            "contract": 1,
+            "core": "0.1.0",
+            "manifests": {
+              "data-table": 1
+            },
+            "datasets": {
+              "orders": 2
+            },
+            "layers": {
+              "team": {
+                "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+                "version": 3
+              }
+            }
+          },
+          "source": "ai",
+          "createdBy": "user_123",
+          "createdAt": "2026-11-01T09:30:00.000Z"
+        }
+      ],
+      "v": 1
     }
   ],
   "invalid": [

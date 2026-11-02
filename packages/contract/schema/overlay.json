@@ -20,26 +20,8 @@
           "minItems": 1,
           "maxItems": 500,
           "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "op": {
-                "type": "string",
-                "maxLength": 64,
-                "pattern": "^[a-z][A-Za-z0-9]*$"
-              },
-              "target": {
-                "type": "string",
-                "maxLength": 256,
-                "pattern": "^(?:[a-z][A-Za-z0-9_\\-[\\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$"
-              }
-            },
-            "required": [
-              "op",
-              "target"
-            ],
-            "additionalProperties": {}
-          }
+          "items": {},
+          "description": "Each op is checked on its own against op.json and catalog.json, and an op that fails is skipped, not the overlay. The steps are in the @pliantui/contract README."
         },
         "basis": {
           "type": "object",
@@ -216,26 +198,8 @@
           "minItems": 1,
           "maxItems": 500,
           "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "op": {
-                "type": "string",
-                "maxLength": 64,
-                "pattern": "^[a-z][A-Za-z0-9]*$"
-              },
-              "target": {
-                "type": "string",
-                "maxLength": 256,
-                "pattern": "^(?:[a-z][A-Za-z0-9_\\-[\\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$"
-              }
-            },
-            "required": [
-              "op",
-              "target"
-            ],
-            "additionalProperties": {}
-          }
+          "items": {},
+          "description": "Each op is checked on its own against op.json and catalog.json, and an op that fails is skipped, not the overlay. The steps are in the @pliantui/contract README."
         },
         "basis": {
           "type": "object",
@@ -417,26 +381,8 @@
           "minItems": 1,
           "maxItems": 500,
           "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "op": {
-                "type": "string",
-                "maxLength": 64,
-                "pattern": "^[a-z][A-Za-z0-9]*$"
-              },
-              "target": {
-                "type": "string",
-                "maxLength": 256,
-                "pattern": "^(?:[a-z][A-Za-z0-9_\\-[\\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$"
-              }
-            },
-            "required": [
-              "op",
-              "target"
-            ],
-            "additionalProperties": {}
-          }
+          "items": {},
+          "description": "Each op is checked on its own against op.json and catalog.json, and an op that fails is skipped, not the overlay. The steps are in the @pliantui/contract README."
         },
         "basis": {
           "type": "object",
@@ -588,7 +534,7 @@
     }
   ],
   "title": "Pliant overlay",
-  "description": "A set of ops one layer applies to a surface.",
+  "description": "A set of ops one layer applies to a surface. This schema checks the overlay but not its ops: check each op on its own against op.json and catalog.json, following the steps in the @pliantui/contract README. When loading, apply only valid ops and keep the others unchanged; reject an AI answer or import unless every op is valid.",
   "$defs": {
     "surface": {
       "type": "string",

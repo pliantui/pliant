@@ -356,6 +356,308 @@
       "source": "ai",
       "createdBy": "user_123",
       "createdAt": "2026-11-01T09:30:00.000Z"
+    },
+    {
+      "v": 1,
+      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+      "surface": "/orders/[id]",
+      "layer": "personal",
+      "ops": [
+        {
+          "target": "orders-table"
+        }
+      ],
+      "basis": {
+        "contract": 1,
+        "core": "0.1.0",
+        "manifests": {
+          "data-table": 1
+        },
+        "datasets": {
+          "orders": 2
+        },
+        "layers": {
+          "team": {
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+            "version": 3
+          }
+        }
+      },
+      "source": "ai",
+      "createdBy": "user_123",
+      "createdAt": "2026-11-01T09:30:00.000Z"
+    },
+    {
+      "v": 1,
+      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+      "surface": "/orders/[id]",
+      "layer": "personal",
+      "ops": [
+        {
+          "op": "hide",
+          "target": "!!!"
+        }
+      ],
+      "basis": {
+        "contract": 1,
+        "core": "0.1.0",
+        "manifests": {
+          "data-table": 1
+        },
+        "datasets": {
+          "orders": 2
+        },
+        "layers": {
+          "team": {
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+            "version": 3
+          }
+        }
+      },
+      "source": "ai",
+      "createdBy": "user_123",
+      "createdAt": "2026-11-01T09:30:00.000Z"
+    },
+    {
+      "v": 1,
+      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+      "surface": "/orders/[id]",
+      "layer": "personal",
+      "ops": [
+        {
+          "op": "Hide",
+          "target": "orders-table"
+        }
+      ],
+      "basis": {
+        "contract": 1,
+        "core": "0.1.0",
+        "manifests": {
+          "data-table": 1
+        },
+        "datasets": {
+          "orders": 2
+        },
+        "layers": {
+          "team": {
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+            "version": 3
+          }
+        }
+      },
+      "source": "ai",
+      "createdBy": "user_123",
+      "createdAt": "2026-11-01T09:30:00.000Z"
+    },
+    {
+      "v": 1,
+      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+      "surface": "/orders/[id]",
+      "layer": "personal",
+      "ops": [
+        {
+          "op": "hide",
+          "target": "a b"
+        }
+      ],
+      "basis": {
+        "contract": 1,
+        "core": "0.1.0",
+        "manifests": {
+          "data-table": 1
+        },
+        "datasets": {
+          "orders": 2
+        },
+        "layers": {
+          "team": {
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+            "version": 3
+          }
+        }
+      },
+      "source": "ai",
+      "createdBy": "user_123",
+      "createdAt": "2026-11-01T09:30:00.000Z"
+    },
+    {
+      "v": 1,
+      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TS",
+      "surface": "/orders/[id]",
+      "layer": "personal",
+      "ops": [
+        {
+          "op": "setFont",
+          "target": "@App",
+          "font": "serif"
+        }
+      ],
+      "basis": {
+        "contract": 1,
+        "core": "0.1.0",
+        "manifests": {
+          "data-table": 1
+        },
+        "datasets": {
+          "orders": 2
+        },
+        "layers": {
+          "team": {
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+            "version": 3
+          }
+        }
+      },
+      "source": "ai",
+      "createdBy": "user_123",
+      "createdAt": "2026-11-01T09:30:00.000Z"
+    },
+    {
+      "v": 1,
+      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+      "surface": "/orders/[id]",
+      "layer": "personal",
+      "ops": [
+        {
+          "op": "setTextScale",
+          "target": "@app",
+          "scale": 1.25
+        }
+      ],
+      "basis": {
+        "contract": 1,
+        "core": "0.1.0",
+        "manifests": {
+          "data-table": 1
+        },
+        "datasets": {
+          "orders": 2
+        },
+        "layers": {
+          "team": {
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+            "version": 3
+          }
+        }
+      },
+      "source": "ai",
+      "createdBy": "user_123",
+      "createdAt": "2026-11-01T09:30:00.000Z"
+    },
+    {
+      "v": 1,
+      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+      "surface": "/orders/[id]",
+      "layer": "personal",
+      "ops": [
+        {
+          "op": "setPage",
+          "target": "orders-table",
+          "index": 1
+        }
+      ],
+      "basis": {
+        "contract": 1,
+        "core": "0.1.0",
+        "manifests": {
+          "data-table": 1
+        },
+        "datasets": {
+          "orders": 2
+        },
+        "layers": {
+          "team": {
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+            "version": 3
+          }
+        }
+      },
+      "source": "ai",
+      "createdBy": "user_123",
+      "createdAt": "2026-11-01T09:30:00.000Z"
+    },
+    {
+      "v": 1,
+      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+      "surface": "@app",
+      "layer": "personal",
+      "ops": [
+        {
+          "op": "hide",
+          "target": "orders-table"
+        }
+      ],
+      "basis": {
+        "contract": 1,
+        "core": "0.1.0",
+        "manifests": {
+          "data-table": 1
+        },
+        "datasets": {
+          "orders": 2
+        },
+        "layers": {
+          "team": {
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+            "version": 3
+          }
+        }
+      },
+      "source": "ai",
+      "createdBy": "user_123",
+      "createdAt": "2026-11-01T09:30:00.000Z"
+    },
+    {
+      "v": 1,
+      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+      "surface": "/orders/[id]",
+      "layer": "personal",
+      "ops": [null],
+      "basis": {
+        "contract": 1,
+        "core": "0.1.0",
+        "manifests": {
+          "data-table": 1
+        },
+        "datasets": {
+          "orders": 2
+        },
+        "layers": {
+          "team": {
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+            "version": 3
+          }
+        }
+      },
+      "source": "ai",
+      "createdBy": "user_123",
+      "createdAt": "2026-11-01T09:30:00.000Z"
+    },
+    {
+      "v": 1,
+      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+      "surface": "/orders/[id]",
+      "layer": "personal",
+      "ops": ["x", 1],
+      "basis": {
+        "contract": 1,
+        "core": "0.1.0",
+        "manifests": {
+          "data-table": 1
+        },
+        "datasets": {
+          "orders": 2
+        },
+        "layers": {
+          "team": {
+            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+            "version": 3
+          }
+        }
+      },
+      "source": "ai",
+      "createdBy": "user_123",
+      "createdAt": "2026-11-01T09:30:00.000Z"
     }
   ],
   "invalid": [
@@ -533,36 +835,6 @@
       "surface": "/orders/[id]",
       "layer": "personal",
       "ops": [],
-      "basis": {
-        "contract": 1,
-        "core": "0.1.0",
-        "manifests": {
-          "data-table": 1
-        },
-        "datasets": {
-          "orders": 2
-        },
-        "layers": {
-          "team": {
-            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
-            "version": 3
-          }
-        }
-      },
-      "source": "ai",
-      "createdBy": "user_123",
-      "createdAt": "2026-11-01T09:30:00.000Z"
-    },
-    {
-      "v": 1,
-      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
-      "surface": "/orders/[id]",
-      "layer": "personal",
-      "ops": [
-        {
-          "target": "orders-table"
-        }
-      ],
       "basis": {
         "contract": 1,
         "core": "0.1.0",
@@ -824,99 +1096,6 @@
       },
       "source": "ai",
       "explain": ["Hid the notes column.", "Sorted by value, highest first."],
-      "createdBy": "user_123",
-      "createdAt": "2026-11-01T09:30:00.000Z"
-    },
-    {
-      "v": 1,
-      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
-      "surface": "/orders/[id]",
-      "layer": "personal",
-      "ops": [
-        {
-          "op": "hide",
-          "target": "!!!"
-        }
-      ],
-      "basis": {
-        "contract": 1,
-        "core": "0.1.0",
-        "manifests": {
-          "data-table": 1
-        },
-        "datasets": {
-          "orders": 2
-        },
-        "layers": {
-          "team": {
-            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
-            "version": 3
-          }
-        }
-      },
-      "source": "ai",
-      "createdBy": "user_123",
-      "createdAt": "2026-11-01T09:30:00.000Z"
-    },
-    {
-      "v": 1,
-      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
-      "surface": "/orders/[id]",
-      "layer": "personal",
-      "ops": [
-        {
-          "op": "Hide",
-          "target": "orders-table"
-        }
-      ],
-      "basis": {
-        "contract": 1,
-        "core": "0.1.0",
-        "manifests": {
-          "data-table": 1
-        },
-        "datasets": {
-          "orders": 2
-        },
-        "layers": {
-          "team": {
-            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
-            "version": 3
-          }
-        }
-      },
-      "source": "ai",
-      "createdBy": "user_123",
-      "createdAt": "2026-11-01T09:30:00.000Z"
-    },
-    {
-      "v": 1,
-      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
-      "surface": "/orders/[id]",
-      "layer": "personal",
-      "ops": [
-        {
-          "op": "hide",
-          "target": "a b"
-        }
-      ],
-      "basis": {
-        "contract": 1,
-        "core": "0.1.0",
-        "manifests": {
-          "data-table": 1
-        },
-        "datasets": {
-          "orders": 2
-        },
-        "layers": {
-          "team": {
-            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
-            "version": 3
-          }
-        }
-      },
-      "source": "ai",
       "createdBy": "user_123",
       "createdAt": "2026-11-01T09:30:00.000Z"
     },
@@ -1740,38 +1919,6 @@
     },
     {
       "v": 1,
-      "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TS",
-      "surface": "/orders/[id]",
-      "layer": "personal",
-      "ops": [
-        {
-          "op": "setFont",
-          "target": "@App",
-          "font": "serif"
-        }
-      ],
-      "basis": {
-        "contract": 1,
-        "core": "0.1.0",
-        "manifests": {
-          "data-table": 1
-        },
-        "datasets": {
-          "orders": 2
-        },
-        "layers": {
-          "team": {
-            "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
-            "version": 3
-          }
-        }
-      },
-      "source": "ai",
-      "createdBy": "user_123",
-      "createdAt": "2026-11-01T09:30:00.000Z"
-    },
-    {
-      "v": 1,
       "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
       "surface": "/orders/[id]",
       "layer": "personal",
@@ -1859,113 +2006,6 @@
       },
       "message": "Must have one sentence per op",
       "path": ["explain"]
-    },
-    {
-      "value": {
-        "v": 1,
-        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
-        "surface": "/orders/[id]",
-        "layer": "personal",
-        "ops": [
-          {
-            "op": "setTextScale",
-            "target": "@app",
-            "scale": 1.25
-          }
-        ],
-        "basis": {
-          "contract": 1,
-          "core": "0.1.0",
-          "manifests": {
-            "data-table": 1
-          },
-          "datasets": {
-            "orders": 2
-          },
-          "layers": {
-            "team": {
-              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
-              "version": 3
-            }
-          }
-        },
-        "source": "ai",
-        "createdBy": "user_123",
-        "createdAt": "2026-11-01T09:30:00.000Z"
-      },
-      "message": "Ops target @app exactly when the overlay's surface is @app",
-      "path": ["ops", 0, "target"]
-    },
-    {
-      "value": {
-        "v": 1,
-        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
-        "surface": "/orders/[id]",
-        "layer": "personal",
-        "ops": [
-          {
-            "op": "setPage",
-            "target": "orders-table",
-            "index": 1
-          }
-        ],
-        "basis": {
-          "contract": 1,
-          "core": "0.1.0",
-          "manifests": {
-            "data-table": 1
-          },
-          "datasets": {
-            "orders": 2
-          },
-          "layers": {
-            "team": {
-              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
-              "version": 3
-            }
-          }
-        },
-        "source": "ai",
-        "createdBy": "user_123",
-        "createdAt": "2026-11-01T09:30:00.000Z"
-      },
-      "message": "setPage isn't allowed in the personal layer",
-      "path": ["ops", 0, "op"]
-    },
-    {
-      "value": {
-        "v": 1,
-        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
-        "surface": "@app",
-        "layer": "personal",
-        "ops": [
-          {
-            "op": "hide",
-            "target": "orders-table"
-          }
-        ],
-        "basis": {
-          "contract": 1,
-          "core": "0.1.0",
-          "manifests": {
-            "data-table": 1
-          },
-          "datasets": {
-            "orders": 2
-          },
-          "layers": {
-            "team": {
-              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
-              "version": 3
-            }
-          }
-        },
-        "source": "ai",
-        "createdBy": "user_123",
-        "createdAt": "2026-11-01T09:30:00.000Z"
-      },
-      "message": "Ops target @app exactly when the overlay's surface is @app",
-      "path": ["ops", 0, "target"]
     }
   ]
 }

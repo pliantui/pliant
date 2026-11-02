@@ -123,7 +123,7 @@ For example: `feat(core): add layer resolution`. Retitle reverts to match, for e
 ## Pull requests
 
 - Keep each pull request to one logical change. Split large features into a sequence of small pull requests.
-- Pull requests are squash-merged, so the pull request title becomes the commit on `main`. CI checks that the title follows the commit convention.
+- Pull requests are squash-merged, so the pull request title becomes the commit on `main`. CI checks that the title follows the commit convention. Dependabot's titles are the one exception: they start with a capitalised "Bump", which Dependabot can't be configured to change.
 - Fill in the pull request template: what changed and why, how it was tested, and the related issue.
 
 ## Changesets

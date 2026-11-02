@@ -1,8 +1,6 @@
 import * as z from "zod"
 
 import { kebabIdSchema, kindSchema } from "./identifier"
-import { layerSchema, type Layer } from "./layer"
-import { opCatalog } from "./op-catalog"
 import { surfaceSchema } from "./surface"
 import { ulidSchema } from "./ulid"
 
@@ -29,10 +27,6 @@ export const overlayOpSchema = z.looseObject({
 
 export type OverlayOp = z.infer<typeof overlayOpSchema>
 
-function isKnownOp(op: string): op is keyof typeof opCatalog {
-  return Object.hasOwn(opCatalog, op)
-}
-
 const semverPattern =
   /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/
 
@@ -40,7 +34,10 @@ const overlayShape = {
   v: z.literal(1),
   id: ulidSchema,
   surface: surfaceSchema,
-  ops: z.array(overlayOpSchema).min(1).max(500),
+  ops: z.array(z.unknown()).min(1).max(500).meta({
+    description:
+      "Each op is checked on its own against op.json and catalog.json, and an op that fails is skipped, not the overlay. The steps are in the @pliantui/contract README.",
+  }),
   basis: z.looseObject({
     contract: z.literal(1),
     core: z.string().max(64).regex(semverPattern, "Must be a semver version"),
@@ -88,29 +85,11 @@ export const overlaySchema = z
         message: "Must have one sentence per op",
       })
     }
-    for (const [index, { op, target }] of overlay.ops.entries()) {
-      const layers: readonly Layer[] = isKnownOp(op)
-        ? opCatalog[op].layers
-        : layerSchema.options
-      if (!layers.includes(overlay.layer)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["ops", index, "op"],
-          message: `${op} isn't allowed in the ${overlay.layer} layer`,
-        })
-      }
-      if ((target === "@app") !== (overlay.surface === "@app")) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["ops", index, "target"],
-          message: "Ops target @app exactly when the overlay's surface is @app",
-        })
-      }
-    }
   })
   .meta({
     title: "Pliant overlay",
-    description: "A set of ops one layer applies to a surface.",
+    description:
+      "A set of ops one layer applies to a surface. This schema checks the overlay but not its ops: check each op on its own against op.json and catalog.json, following the steps in the @pliantui/contract README. When loading, apply only valid ops and keep the others unchanged; reject an AI answer or import unless every op is valid.",
   })
 
 export type Overlay = z.infer<typeof overlaySchema>
