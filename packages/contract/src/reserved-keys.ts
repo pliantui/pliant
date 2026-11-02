@@ -10,18 +10,21 @@ interface Node {
 
 function pathOf(node: Node): PropertyKey[] {
   const path: PropertyKey[] = []
-  let current = node
-  while (current.parent && current.key !== undefined) {
-    path.unshift(current.key)
-    current = current.parent
+  for (let current = node; current.parent; current = current.parent) {
+    if (current.key !== undefined) {
+      path.push(current.key)
+    }
   }
-  return path
+  return path.reverse()
 }
 
 function reservedKeyPath(value: unknown): PropertyKey[] | undefined {
   const seen = new WeakSet<object>()
   const pending: Node[] = [{ value }]
   for (let node = pending.pop(); node; node = pending.pop()) {
+    if (typeof node.key === "string" && reservedKeys.has(node.key)) {
+      return pathOf(node)
+    }
     const current = node.value
     if (typeof current !== "object" || current === null || seen.has(current)) {
       continue
@@ -29,11 +32,6 @@ function reservedKeyPath(value: unknown): PropertyKey[] | undefined {
     seen.add(current)
     const entries: [string, unknown][] = Object.entries(current)
     const isArray = Array.isArray(current)
-    for (const [key] of entries) {
-      if (!isArray && reservedKeys.has(key)) {
-        return [...pathOf(node), key]
-      }
-    }
     for (let index = entries.length - 1; index >= 0; index--) {
       const entry = entries[index]
       if (entry) {
