@@ -61,15 +61,15 @@ describe("withoutReservedKeys", () => {
   it.each([
     ['{"a":{"prototype":1},"b":{"constructor":1}}', ["a", "prototype"]],
     ['{"a":{"b":{"prototype":1},"constructor":1}}', ["a", "b", "prototype"]],
-  ])("reports the first reserved key in document order in %s", (json, path) => {
-    expect(schema.safeParse(JSON.parse(json)).error?.issues[0]?.path).toEqual(
-      path
-    )
+  ])("reports the first reserved key in key order in %s", (json, path) => {
+    const issues = schema.safeParse(JSON.parse(json)).error?.issues
+    expect(issues).toHaveLength(1)
+    expect(issues?.[0]?.path).toEqual(path)
   })
 
   it("walks deeply nested input in linear time", () => {
     let json = '{"x":1}'
-    for (let depth = 0; depth < 100_000; depth++) {
+    for (let depth = 0; depth < 400_000; depth++) {
       json = `{"a":${json}}`
     }
     const value: unknown = JSON.parse(json)
@@ -80,13 +80,13 @@ describe("withoutReservedKeys", () => {
 
   it("finds a deeply nested reserved key in linear time", () => {
     let json = '{"__proto__":1}'
-    for (let depth = 0; depth < 100_000; depth++) {
+    for (let depth = 0; depth < 400_000; depth++) {
       json = `{"a":${json}}`
     }
     const value: unknown = JSON.parse(json)
     const start = performance.now()
     const path = schema.safeParse(value).error?.issues[0]?.path
     expect(performance.now() - start).toBeLessThan(2000)
-    expect(path).toHaveLength(100_001)
+    expect(path).toHaveLength(400_001)
   })
 })

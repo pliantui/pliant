@@ -2,18 +2,14 @@ import * as z from "zod"
 
 const reservedKeys = new Set(["__proto__", "constructor", "prototype"])
 
-interface Node {
-  value: unknown
-  key?: PropertyKey
-  parent?: Node
-}
+type Node =
+  | { value: unknown; key?: never; parent?: never }
+  | { value: unknown; key: string | number; parent: Node }
 
 function pathOf(node: Node): PropertyKey[] {
   const path: PropertyKey[] = []
   for (let current = node; current.parent; current = current.parent) {
-    if (current.key !== undefined) {
-      path.push(current.key)
-    }
+    path.push(current.key)
   }
   return path.reverse()
 }
@@ -30,17 +26,13 @@ function reservedKeyPath(value: unknown): PropertyKey[] | undefined {
       continue
     }
     seen.add(current)
-    const entries: [string, unknown][] = Object.entries(current)
-    const isArray = Array.isArray(current)
+    const entries: [string | number, unknown][] = Array.isArray(current)
+      ? [...current.entries()]
+      : Object.entries(current)
     for (let index = entries.length - 1; index >= 0; index--) {
       const entry = entries[index]
       if (entry) {
-        const [key, child] = entry
-        pending.push({
-          value: child,
-          key: isArray ? Number(key) : key,
-          parent: node,
-        })
+        pending.push({ value: entry[1], key: entry[0], parent: node })
       }
     }
   }
