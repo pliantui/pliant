@@ -1,0 +1,626 @@
+{
+  "contract": 1,
+  "ops": {
+    "setProp": {
+      "capability": "props",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "prop",
+          "value"
+        ]
+      ]
+    },
+    "rename": {
+      "capability": "label",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "label"
+        ]
+      ]
+    },
+    "hide": {
+      "capability": "hideable",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        []
+      ]
+    },
+    "show": {
+      "capability": "hideable",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        []
+      ]
+    },
+    "move": {
+      "capability": "slots",
+      "appliesTo": "parent",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "to"
+        ]
+      ]
+    },
+    "collapse": {
+      "capability": "slots",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "items",
+          "into",
+          "label"
+        ]
+      ]
+    },
+    "pin": {
+      "capability": "slots",
+      "appliesTo": "parent",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "where"
+        ]
+      ]
+    },
+    "setLayout": {
+      "capability": "layout",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "mode",
+          "align",
+          "at"
+        ],
+        [
+          "mode",
+          "columns",
+          "align",
+          "at"
+        ]
+      ]
+    },
+    "span": {
+      "capability": "layout",
+      "appliesTo": "parent",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "columns",
+          "at"
+        ]
+      ]
+    },
+    "insert": {
+      "capability": "insertable",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "node",
+          "at"
+        ]
+      ]
+    },
+    "wrap": {
+      "capability": "insertable",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "id",
+          "items",
+          "mode",
+          "align"
+        ],
+        [
+          "id",
+          "items",
+          "mode",
+          "columns",
+          "align"
+        ]
+      ]
+    },
+    "remove": {
+      "capability": "insertable",
+      "appliesTo": "parent",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        []
+      ]
+    },
+    "setDefault": {
+      "capability": "form",
+      "appliesTo": "parent",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "value"
+        ]
+      ]
+    },
+    "setPresentation": {
+      "capability": "presentation",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "as"
+        ],
+        [
+          "as",
+          "side"
+        ]
+      ]
+    },
+    "setSize": {
+      "capability": "presentation",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "size"
+        ]
+      ]
+    },
+    "setLanding": {
+      "capability": "nav",
+      "appliesTo": "parent",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        []
+      ]
+    },
+    "promote": {
+      "capability": "actions",
+      "appliesTo": "parent",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        []
+      ]
+    },
+    "demote": {
+      "capability": "actions",
+      "appliesTo": "parent",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        []
+      ]
+    },
+    "bindShortcut": {
+      "capability": "actions",
+      "appliesTo": "parent",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "keys"
+        ]
+      ]
+    },
+    "setSort": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "sort"
+        ]
+      ]
+    },
+    "setFilter": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "filter"
+        ]
+      ]
+    },
+    "clearFilter": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "field"
+        ]
+      ]
+    },
+    "setPage": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "session"
+      ],
+      "args": [
+        [
+          "index",
+          "size"
+        ]
+      ]
+    },
+    "setGroupBy": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "fields"
+        ]
+      ]
+    },
+    "addDerived": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "id",
+          "label",
+          "expr",
+          "format"
+        ]
+      ]
+    },
+    "addAggregate": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "id",
+          "label",
+          "expr"
+        ]
+      ]
+    },
+    "formatField": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "field",
+          "format"
+        ]
+      ]
+    },
+    "addHighlight": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "id",
+          "when",
+          "tone"
+        ]
+      ]
+    },
+    "addSortOption": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "id",
+          "label",
+          "sort"
+        ]
+      ]
+    },
+    "addFilterControl": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "id",
+          "field",
+          "control",
+          "label"
+        ]
+      ]
+    },
+    "addPreset": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "id",
+          "label",
+          "filters",
+          "sort"
+        ]
+      ]
+    },
+    "setViewKind": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "kind"
+        ]
+      ]
+    },
+    "configureChart": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "type",
+          "x",
+          "y",
+          "series",
+          "stacking",
+          "format"
+        ]
+      ]
+    },
+    "configureStat": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "metric",
+          "comparison",
+          "format"
+        ]
+      ]
+    },
+    "removeUserItem": {
+      "capability": "data",
+      "appliesTo": "target",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "id"
+        ]
+      ]
+    },
+    "setColumnWidth": {
+      "capability": "data",
+      "appliesTo": "parent",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "width"
+        ]
+      ]
+    },
+    "setDensity": {
+      "capability": null,
+      "appliesTo": "surface",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "density"
+        ]
+      ]
+    },
+    "setTextScale": {
+      "capability": null,
+      "appliesTo": "app",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "scale"
+        ]
+      ]
+    },
+    "setMotion": {
+      "capability": null,
+      "appliesTo": "app",
+      "layers": [
+        "org",
+        "team",
+        "personal",
+        "session"
+      ],
+      "args": [
+        [
+          "motion"
+        ]
+      ]
+    }
+  }
+}

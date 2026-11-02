@@ -7,9 +7,9 @@ import { opCatalog } from "./op-catalog"
 function argsOf(schema: z.core.$ZodType): string[][] {
   if (schema instanceof z.ZodObject) {
     return [
-      Object.keys(schema.shape)
-        .filter((key) => key !== "op" && key !== "target")
-        .sort(),
+      Object.keys(schema.shape).filter(
+        (key) => key !== "op" && key !== "target"
+      ),
     ]
   }
   if (schema instanceof z.ZodDiscriminatedUnion) {
@@ -41,5 +41,11 @@ describe("opCatalog", () => {
         ])
       )
     )
+  })
+
+  it("matches the published file", async () => {
+    await expect(
+      `${JSON.stringify({ contract: 1, ops: opCatalog }, null, 2)}\n`
+    ).toMatchFileSnapshot("../schema/catalog.json")
   })
 })
