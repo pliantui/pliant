@@ -96,6 +96,27 @@ const overlays = [
   },
 ]
 
+function parseObject(json: string): Record<string, unknown> {
+  const value: unknown = JSON.parse(json)
+  return typeof value === "object" && value !== null
+    ? Object.fromEntries(Object.entries(value))
+    : {}
+}
+
+overlays.push(
+  ...[
+    '{"basis":{"__proto__":{"layers":"x"},"contract":1,"core":"0.1.0","manifests":{}}}',
+    '{"layer":"team","scope":{"team":"a","__proto__":{"org":"x"}}}',
+    '{"ops":[{"op":"hide","target":"orders-table","__proto__":{}}]}',
+  ].map((json) => ({
+    ...base,
+    layer: "personal",
+    surface: "/orders",
+    ops: [{ op: "hide", target: "orders-table" }],
+    ...parseObject(json),
+  }))
+)
+
 const savedViews = [
   ...valuesOf(readFixture("saved-view")),
   {

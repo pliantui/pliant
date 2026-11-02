@@ -223,7 +223,7 @@ describe("validateOverlay", () => {
 
   it("reads every overlay layer's shared list limit", () => {
     expect(
-      new Set(overlaySchema.options.map((option) => option.shape.ops)).size
+      new Set(overlaySchema.out.options.map((option) => option.shape.ops)).size
     ).toBe(1)
   })
 

@@ -9,7 +9,7 @@ const fixture = readFixture("manifest")
 
 describe("manifestSchema", () => {
   it("declares exactly the capabilities in the capability set", () => {
-    expect(Object.keys(manifestSchema.shape.capabilities.shape)).toEqual(
+    expect(Object.keys(manifestSchema.out.shape.capabilities.shape)).toEqual(
       capabilitySchema.options
     )
   })

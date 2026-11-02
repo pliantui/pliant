@@ -14,7 +14,7 @@ import type { WithOps } from "./with-ops"
 
 export type ValidatedOverlay = WithOps<Op>
 
-const [overlayVariant] = overlaySchema.options
+const [overlayVariant] = overlaySchema.out.options
 const opsListSchema = overlayVariant.shape.ops
 
 interface Fallback {
