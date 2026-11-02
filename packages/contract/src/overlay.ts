@@ -36,7 +36,7 @@ const overlayShape = {
   surface: surfaceSchema,
   ops: z.array(z.unknown()).min(1).max(500).meta({
     description:
-      "When an overlay is loaded, each op is checked on its own: against op.json, against the layers listed for the op in the op catalog of @pliantui/contract, and ops target @app exactly when the surface is @app. An invalid, unknown or newer op is skipped, not the overlay.",
+      "Each op is checked on its own against op.json and catalog.json, and an op that fails is skipped, not the overlay. The steps are in the @pliantui/contract README.",
   }),
   basis: z.looseObject({
     contract: z.literal(1),
@@ -88,7 +88,8 @@ export const overlaySchema = z
   })
   .meta({
     title: "Pliant overlay",
-    description: "A set of ops one layer applies to a surface.",
+    description:
+      "A set of ops one layer applies to a surface. This schema checks the overlay but not its ops: check each op on its own against op.json and catalog.json, following the steps in the @pliantui/contract README. When loading, apply only valid ops and keep the others unchanged; reject an AI answer or import unless every op is valid.",
   })
 
 export type Overlay = z.infer<typeof overlaySchema>
