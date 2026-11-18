@@ -24,10 +24,10 @@ export interface ResolvedProperty {
   readonly winner: ResolvedOp
   /**
    * Set for `placement` only: where the item sits. When a wrap is replaced
-   * without an item, or removed, the item goes back to its placement from
-   * before the wrap's scope placed it; with no such placement, it goes back
-   * to the wrap's target with no position, and the replacing wrap or the
-   * removal is the winner.
+   * without an item, or removed, the item goes back to the placement it had
+   * just before that wrap, passing over wraps replaced or removed since; with
+   * no such placement, it goes back to the wrap's target with no position,
+   * and the replacing wrap or the removal is the winner.
    */
   readonly placement?: ResolvedPlacement
   /**
