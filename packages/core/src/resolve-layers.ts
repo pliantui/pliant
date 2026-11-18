@@ -86,6 +86,16 @@ export interface ResolveLayersOptions {
    */
   readonly surface: string
   /**
+   * The surface's known node ids, from the `pliantui scan` inventory. When
+   * given, they are exactly the base nodes: an `insert` or `wrap` collides
+   * with a base node only if its id is listed.
+   *
+   * When omitted, a base node is approximated as an id some op pointed at,
+   * in resolution order, before any insert or wrap created it. That guess is
+   * meant only for using core directly; Pliant's runtime always passes ids.
+   */
+  readonly baseIds?: ReadonlySet<string> | readonly string[] | undefined
+  /**
    * Team ids, highest precedence first. Overlays from teams not listed rank
    * below the listed ones, and among themselves by ascending team id, so the
    * later id wins.
@@ -131,9 +141,9 @@ export interface ResolvedLayers {
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],
-  { surface, teamOrder = [] }: ResolveLayersOptions
+  { surface, baseIds, teamOrder = [] }: ResolveLayersOptions
 ): ResolvedLayers {
-  const state = createResolution()
+  const state = createResolution(baseIds)
   const skipped: SkippedOp[] = []
   const unapplied: UnappliedOp[] = []
   for (const { overlay, reason } of surfaceOrder(

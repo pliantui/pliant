@@ -18,6 +18,8 @@ interface Contribution {
   readonly op: ResolvedOp
   readonly scope: string
   readonly placement?: ResolvedPlacement | undefined
+  // The winner this one replaced, which an item a wrap drops returns to.
+  readonly previous?: Contribution | undefined
 }
 
 interface Entry {
@@ -34,14 +36,23 @@ export interface Resolution {
   readonly nodes: Map<string, Map<OpPropertyKey, Entry>>
   // Ids an insert or wrap has created so far.
   readonly created: Set<string>
-  // Ids an op pointed at before anything created them, so base nodes.
+  // The base node ids: exactly the ones given, or else the ids an op pointed
+  // at before anything created them.
   readonly base: Set<string>
+  readonly exactBase: boolean
 }
 
 type WrapOp = Extract<Op, { op: "wrap" }>
 
-export function createResolution(): Resolution {
-  return { nodes: new Map(), created: new Set(), base: new Set() }
+export function createResolution(
+  baseIds?: ReadonlySet<string> | readonly string[]
+): Resolution {
+  return {
+    nodes: new Map(),
+    created: new Set(),
+    base: new Set(baseIds),
+    exactBase: baseIds !== undefined,
+  }
 }
 
 function isRemoval(op: Op): boolean {
@@ -83,13 +94,19 @@ function write(
     entry.breakpoints?.set(breakpoint, op)
   }
   entry.history.push(op)
-  entry.winner = contribution
+  entry.winner = { ...contribution, previous: entry.winner }
+}
+
+// A wrap that was replaced or removed no longer places anything.
+function isLiveWrap(state: Resolution, { op }: Contribution): boolean {
+  const wrap = op.check.op
+  return wrap.op !== "wrap" || liveNode(state, wrap.id)?.op === op
 }
 
 /**
- * Sends the items `wrap` still places back to their placement from before the
- * wrap's scope wrote it. Items a replacing wrap lists already have it as their
- * winner, so they stay.
+ * Sends the items `wrap` still places back to the placement they had just
+ * before it, passing over wraps that no longer place anything. Items a
+ * replacing wrap lists already have it as their winner, so they stay.
  */
 function release(
   state: Resolution,
@@ -105,8 +122,12 @@ function release(
     if (entry?.winner.op !== wrap) {
       continue
     }
+    let previous = entry.winner.previous
+    while (previous && !isLiveWrap(state, previous)) {
+      previous = previous.previous
+    }
     entry.history.push(cause.op)
-    entry.winner = entry.baseline ?? {
+    entry.winner = previous ?? {
       ...cause,
       placement: { container: identityOf(op.target) },
     }
@@ -191,9 +212,11 @@ export function applyOp(
   scope: string
 ): UnappliedReason | undefined {
   const { op } = resolved.check
-  for (const id of referencedNodes(op)) {
-    if (!state.created.has(id)) {
-      state.base.add(id)
+  if (!state.exactBase) {
+    for (const id of referencedNodes(op)) {
+      if (!state.created.has(id)) {
+        state.base.add(id)
+      }
     }
   }
   const contribution: Contribution = { op: resolved, scope }

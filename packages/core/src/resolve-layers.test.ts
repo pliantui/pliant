@@ -946,7 +946,7 @@ describe("resolveLayers", () => {
       expect(properties.has("sidebar/slots/x")).toBe(false)
     })
 
-    it("returns items a replacing wrap drops to their earlier placement", () => {
+    it("returns items a replacing wrap drops to their placement just before it", () => {
       const overlay = overlays()
       const team = overlay("team", [{ op: "pin", target: x, where: "start" }])
       const personal = overlay("personal", [
@@ -965,21 +965,94 @@ describe("resolveLayers", () => {
         container: "dashboard",
         position: { pin: "start" },
       })
-      expect(get(properties, "y", "placement")?.winner.check).toBe(
-        personal.ops[2]
-      )
       expect(
         get(properties, "x", "placement")?.overridden.map(({ check }) => check)
       ).toEqual([personal.ops[1], personal.ops[2]])
-      expect(
-        get(properties, "y", "placement")?.overridden.map(({ check }) => check)
-      ).toEqual([personal.ops[0], personal.ops[1]])
+      expect(get(properties, "y", "placement")?.winner.check).toBe(
+        personal.ops[0]
+      )
       expect(get(properties, "y", "placement")?.placement).toEqual({
         container: "dashboard",
+        position: { index: 1 },
       })
+      expect(
+        get(properties, "y", "placement")?.overridden.map(({ check }) => check)
+      ).toEqual([personal.ops[1], personal.ops[2]])
       expect(get(properties, "z", "placement")?.placement).toEqual({
         container: "pair",
         position: { index: 0 },
+      })
+      expect(get(properties, "w", "placement")?.placement).toEqual({
+        container: "pair",
+        position: { index: 1 },
+      })
+    })
+
+    it("brings back a pin the same user set before wrapping", () => {
+      const overlay = overlays()
+      const personal = overlay("personal", [
+        { op: "pin", target: "dashboard/slots/a", where: "start" },
+        wrap("dashboard", "pair", ["a", "b"]),
+        wrap("dashboard", "pair", ["b", "c"]),
+      ])
+      const { properties } = resolve([personal])
+
+      expect(get(properties, "a", "placement")?.winner.check).toBe(
+        personal.ops[0]
+      )
+      expect(get(properties, "a", "placement")?.placement).toEqual({
+        container: "dashboard",
+        position: { pin: "start" },
+      })
+      expect(get(properties, "b", "placement")?.placement).toEqual({
+        container: "pair",
+        position: { index: 0 },
+      })
+    })
+
+    it("passes over earlier versions of the wrap in a chain of re-wraps", () => {
+      const overlay = overlays()
+      const personal = overlay("personal", [
+        { op: "pin", target: "dashboard/slots/a", where: "start" },
+        wrap("dashboard", "pair", ["a", "b"]),
+        wrap("dashboard", "pair", ["b", "a"]),
+        wrap("dashboard", "pair", ["b", "c"]),
+      ])
+      const { properties } = resolve([personal])
+      const a = get(properties, "a", "placement")
+
+      expect(a?.winner.check).toBe(personal.ops[0])
+      expect(a?.placement).toEqual({
+        container: "dashboard",
+        position: { pin: "start" },
+      })
+      expect(a?.overridden.map(({ check }) => check)).toEqual([
+        personal.ops[1],
+        personal.ops[2],
+        personal.ops[3],
+      ])
+    })
+
+    it("returns items past wraps that were removed meanwhile", () => {
+      const overlay = overlays()
+      const personal = overlay("personal", [
+        { op: "pin", target: "dashboard/slots/c", where: "end" },
+        wrap("dashboard", "outer", ["a", "c"]),
+        wrap("dashboard", "inner", ["c", "d"]),
+        { op: "remove", target: "outer" },
+        { op: "remove", target: "dashboard/slots/inner" },
+      ])
+      const { properties, unapplied } = resolve([personal])
+
+      expect(unapplied).toEqual([])
+      expect(get(properties, "c", "placement")?.winner.check).toBe(
+        personal.ops[0]
+      )
+      expect(get(properties, "a", "placement")?.winner.check).toBe(
+        personal.ops[3]
+      )
+      expect(get(properties, "a", "placement")?.placement).toEqual({
+        container: "dashboard",
       })
     })
 
@@ -1076,6 +1149,51 @@ describe("resolveLayers", () => {
           [team.ops[4], "id-collision"],
           [personal.ops[2], "id-collision"],
         ])
+      })
+
+      describe("with baseIds", () => {
+        it("lets a higher team insert an id a lower team only pointed at", () => {
+          const overlay = overlays()
+          const aaa = overlay("team", [{ op: "hide", target: x }], {
+            scope: "aaa",
+          })
+          const zzz = overlay("team", [insert("dashboard", "x")], {
+            scope: "zzz",
+          })
+
+          expect(
+            resolve([zzz, aaa], { baseIds: ["dashboard", "y"] }).unapplied
+          ).toEqual([])
+          expect(
+            winner(
+              resolve([zzz, aaa], { baseIds: new Set(["dashboard"]) })
+                .properties,
+              "x",
+              "inserted"
+            )
+          ).toBe(zzz)
+          expect(collisions(zzz, aaa)).toEqual([[zzz.ops[0], "id-collision"]])
+        })
+
+        it("rejects exactly the listed ids, still with the live node rules", () => {
+          const overlay = overlays()
+          const personal = overlay("personal", [
+            insert("dashboard", "orders"),
+            wrap("dashboard", "pair", ["a", "b"]),
+            insert("page", "pair"),
+            wrap("dashboard", "a", ["a", "b"]),
+            insert("dashboard", "fresh"),
+          ])
+          const { unapplied } = resolve([personal], { baseIds: ["orders"] })
+
+          expect(unapplied.map(({ check, reason }) => [check, reason])).toEqual(
+            [
+              [personal.ops[0], "id-collision"],
+              [personal.ops[2], "id-collision"],
+              [personal.ops[3], "id-collision"],
+            ]
+          )
+        })
       })
 
       it("rejects a re-wrap that lists its own id", () => {
@@ -1424,7 +1542,8 @@ describe("resolveLayers", () => {
       for (let seed = 1; seed <= 300; seed++) {
         const next = random(seed)
         const input = generate(next)
-        const resolved = resolve(input)
+        const options = seed % 2 === 0 ? { baseIds: ["dashboard", "a"] } : {}
+        const resolved = resolve(input, options)
         const applied = new Map<OpCheck, number>()
         for (const node of resolved.properties.values()) {
           for (const { winner, overridden, breakpoints } of node.values()) {
@@ -1469,7 +1588,9 @@ describe("resolveLayers", () => {
             overlay
           )
         }
-        expect(canonical(resolve(shuffled))).toEqual(canonical(resolved))
+        expect(canonical(resolve(shuffled, options))).toEqual(
+          canonical(resolved)
+        )
       }
     })
   })
@@ -1599,6 +1720,31 @@ describe("resolveLayers", () => {
       )
       expect(get(resolved.properties, "a", "placement")?.placement).toEqual({
         container: "dashboard",
+      })
+    })
+
+    it("resolves many re-wraps", () => {
+      const wrap = (items: string[]) => ({
+        op: "wrap",
+        target: "dashboard",
+        id: "pair",
+        items,
+        mode: "row",
+      })
+      const resolved = expectLinear(
+        "personal",
+        cycle(
+          { op: "pin", target: "dashboard/slots/a", where: "start" },
+          wrap(["a", "b"]),
+          wrap(["b", "a"]),
+          wrap(["a", "c"]),
+          wrap(["b", "c"])
+        )
+      )
+      expect(resolved.unapplied).toEqual([])
+      expect(get(resolved.properties, "a", "placement")?.placement).toEqual({
+        container: "dashboard",
+        position: { pin: "start" },
       })
     })
 

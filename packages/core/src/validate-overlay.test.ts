@@ -511,6 +511,23 @@ describe("validateOverlay", () => {
         layers: { overlays: [below], surface },
       })
       const resolvedAfter = resolveLayers([load(below), loaded], { surface })
+      const baseIds = ["page", "dashboard", "orders"]
+      const exact = validateOverlay(input, {
+        layers: { overlays: [below], surface, baseIds },
+      })
+      const resolvedExact = resolveLayers([load(below), loaded], {
+        surface,
+        baseIds,
+      })
+
+      expect(exact.error?.issues.map(({ path }) => path[1]) ?? []).toEqual(
+        resolvedExact.unapplied
+          .filter(
+            ({ overlay, reason }) =>
+              overlay === loaded && reason === "id-collision"
+          )
+          .map(({ check }) => check.index)
+      )
 
       expect(validated.error?.issues.map(({ path }) => path[1]) ?? []).toEqual(
         expected
@@ -559,6 +576,29 @@ describe("validateOverlay", () => {
           .filter(({ overlay }) => overlay.layer === "personal")
           .map(({ check }) => check.index)
       ).toEqual(expected)
+    })
+
+    it("uses baseIds as the exact base nodes", () => {
+      const lower = lowerOverlay("team", [
+        { op: "hide", target: "dashboard/slots/orders" },
+      ])
+      const input = overlay([insert("orders"), insert("fresh")])
+
+      expect(
+        validateOverlay(input, {
+          layers: { overlays: [lower], surface, baseIds: ["dashboard"] },
+        }).success
+      ).toBe(true)
+      expect(
+        validateOverlay(input, {
+          layers: { overlays: [lower], surface, baseIds: ["fresh"] },
+        }).error?.issues.map(({ path }) => path)
+      ).toEqual([["ops", 1, "node", "id"]])
+      expect(
+        validateOverlay(input, {
+          layers: { overlays: [lower], surface },
+        }).error?.issues.map(({ path }) => path)
+      ).toEqual([["ops", 0, "node", "id"]])
     })
 
     it("reads layers as plain data, for example after JSON", () => {

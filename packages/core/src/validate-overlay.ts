@@ -29,6 +29,11 @@ export interface ValidateOverlayLayers {
   readonly overlays: readonly unknown[]
   /** The surface the layers resolve for, as in `resolveLayers`. */
   readonly surface: string
+  /**
+   * The surface's known node ids, as in `resolveLayers`: exact when given,
+   * approximated from the ops when omitted.
+   */
+  readonly baseIds?: readonly string[] | undefined
   /** Team ids, highest precedence first, as in `resolveLayers`. */
   readonly teamOrder?: readonly string[] | undefined
 }
@@ -105,7 +110,7 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
 
 function layerIssues(
   overlay: LoadedOverlay,
-  { overlays, surface, teamOrder = [] }: ValidateOverlayLayers
+  { overlays, surface, baseIds, teamOrder = [] }: ValidateOverlayLayers
 ): z.core.$ZodIssue[] {
   const below = overlays.flatMap((input) => {
     const loaded = loadOverlay(input)
@@ -121,7 +126,7 @@ function layerIssues(
       },
     ]
   }
-  const state = createResolution()
+  const state = createResolution(baseIds)
   for (const { overlay: lower, reason } of ordered) {
     const scope = scopeKeyOf(lower)
     for (const check of lower.ops) {
