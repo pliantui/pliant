@@ -1,0 +1,33 @@
+{
+  "key": "981d4375b4556eef70980643e28bfdad630e1e74cd963efd29773c52efb95639",
+  "provider": "anthropic.messages",
+  "modelId": "claude-haiku-5-5",
+  "recordedAt": "2026-11-18T23:05:35.298Z",
+  "source": "claude -p (headless Claude Code)",
+  "model": "claude-haiku-5-5",
+  "standIn": true,
+  "note": "not the production API path; re-record before teaser, launch video or P3 evals (https://github.com/pliantui/pliant/issues/24)",
+  "cliVersion": "2.1.29 (Claude Code)",
+  "result": {
+    "content": [
+      {
+        "type": "tool-call",
+        "toolCallId": "toolu_01MnmJxsHarXD5qvUKtCyinD",
+        "toolName": "move",
+        "input": "{\"item\":\"overdue\",\"to\":{\"index\":0},\"explain\":\"Moved the Overdue card to the first position.\"}"
+      },
+      {
+        "type": "text",
+        "text": "I moved the Overdue card to the first position in the key metrics row."
+      }
+    ],
+    "finishReason": {
+      "unified": "tool-calls"
+    },
+    "usage": {
+      "inputTokens": {},
+      "outputTokens": {}
+    },
+    "warnings": []
+  }
+}

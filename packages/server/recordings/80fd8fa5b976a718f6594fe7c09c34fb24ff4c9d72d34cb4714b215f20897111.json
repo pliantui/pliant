@@ -1,0 +1,33 @@
+{
+  "key": "80fd8fa5b976a718f6594fe7c09c34fb24ff4c9d72d34cb4714b215f20897111",
+  "provider": "anthropic.messages",
+  "modelId": "claude-haiku-5-5",
+  "recordedAt": "2026-11-18T23:05:05.668Z",
+  "source": "claude -p (headless Claude Code)",
+  "model": "claude-haiku-5-5",
+  "standIn": true,
+  "note": "not the production API path; re-record before teaser, launch video or P3 evals (https://github.com/pliantui/pliant/issues/24)",
+  "cliVersion": "2.1.29 (Claude Code)",
+  "result": {
+    "content": [
+      {
+        "type": "tool-call",
+        "toolCallId": "toolu_01BbjSFPmcM2h7SRRkL3LRpT",
+        "toolName": "setColumnWidth",
+        "input": "{\"column\":\"customer\",\"width\":240,\"explain\":\"Set the Customer column width to 240 pixels.\"}"
+      },
+      {
+        "type": "text",
+        "text": "I set the Customer column to 240 pixels wide."
+      }
+    ],
+    "finishReason": {
+      "unified": "tool-calls"
+    },
+    "usage": {
+      "inputTokens": {},
+      "outputTokens": {}
+    },
+    "warnings": []
+  }
+}
