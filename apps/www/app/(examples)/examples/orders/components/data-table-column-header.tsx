@@ -5,14 +5,12 @@ import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 
-import type { OrdersTableFeatures } from "./table-features"
+import type { DataTableFeatures } from "./data-table-features"
 
-export function ColumnHeader<TData extends RowData, TValue>({
+export function DataTableColumnHeader<TData extends RowData, TValue>({
   column,
-  title,
 }: {
-  column: Column<OrdersTableFeatures, TData, TValue>
-  title: string
+  column: Column<DataTableFeatures, TData, TValue>
 }) {
   const sorted = column.getIsSorted()
 
@@ -25,7 +23,7 @@ export function ColumnHeader<TData extends RowData, TValue>({
         column.toggleSorting(sorted === "asc")
       }}
     >
-      {title}
+      {column.columnDef.meta?.label}
       {sorted === "asc" ? (
         <ArrowUp />
       ) : sorted === "desc" ? (

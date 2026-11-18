@@ -2,7 +2,6 @@ import { expect, test } from "./fixtures"
 
 test("renders the home page", async ({ page, errors }) => {
   await page.goto("/")
-  await page.waitForLoadState("networkidle")
   await expect(
     page.getByRole("heading", { level: 1, name: "Pliant" })
   ).toBeVisible()
@@ -12,7 +11,6 @@ test("renders the home page", async ({ page, errors }) => {
 
 test("renders a docs page", async ({ page, errors }) => {
   await page.goto("/docs")
-  await page.waitForLoadState("networkidle")
   await expect(
     page.getByRole("heading", { level: 1, name: "Introduction" })
   ).toBeVisible()

@@ -11,7 +11,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "next typegen && eslint --max-warnings 0 .",
     "lint:fix": "next typegen && eslint . --fix",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test": "vitest run"
   },
   "dependencies": {
     "@tanstack/react-table": "^9.3.1",
@@ -39,6 +40,7 @@
     "postcss": "^8.5.32",
     "shadcn": "^4.23.0",
     "tailwindcss": "^4.3.5",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.0"
   }
 }

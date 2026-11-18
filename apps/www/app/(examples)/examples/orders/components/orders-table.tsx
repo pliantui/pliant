@@ -19,9 +19,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-import { columnLabels, columns } from "./columns"
-import type { Order } from "./data"
-import { features } from "./table-features"
+import type { Order } from "../data"
+import { columns } from "./columns"
+import { features } from "./data-table-features"
 
 const ariaSort = { asc: "ascending", desc: "descending" } as const
 
@@ -29,11 +29,16 @@ export function OrdersTable({ data }: { data: Order[] }) {
   const table = useTable({ features, data, columns })
   const { pageIndex, pageSize } = table.state.pagination
   const rowCount = table.getRowCount()
+  const range = rowCount
+    ? `${String(pageIndex * pageSize + 1)}–${String(Math.min((pageIndex + 1) * pageSize, rowCount))} of ${String(rowCount)}`
+    : "0 of 0"
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Orders</h2>
+        <h2 id="orders-table-title" className="text-lg font-semibold">
+          All orders
+        </h2>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm">
@@ -52,14 +57,14 @@ export function OrdersTable({ data }: { data: Order[] }) {
                     column.toggleVisibility(value)
                   }}
                 >
-                  {columnLabels[column.id as keyof typeof columnLabels]}
+                  {column.columnDef.meta?.label}
                 </DropdownMenuCheckboxItem>
               ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
       <div className="overflow-hidden rounded-lg border border-border">
-        <Table>
+        <Table aria-labelledby="orders-table-title">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="border-border">
@@ -105,8 +110,7 @@ export function OrdersTable({ data }: { data: Order[] }) {
       </div>
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground" aria-live="polite">
-          {pageIndex * pageSize + 1}-
-          {Math.min((pageIndex + 1) * pageSize, rowCount)} of {rowCount} orders
+          {range} orders
         </p>
         <div className="flex gap-2">
           <Button
