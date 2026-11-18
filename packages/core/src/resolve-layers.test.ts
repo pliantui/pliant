@@ -460,6 +460,19 @@ describe("resolveLayers", () => {
       })
     })
 
+    it("copies a reorder's position instead of sharing the op's object", () => {
+      const overlay = overlays()
+      const personal = overlay("personal", [
+        { op: "move", target: x, to: { before: "y" } },
+      ])
+      const placement = get(resolve([personal]).properties, "x", "placement")
+
+      expect(placement?.placement?.position).toEqual({ before: "y" })
+      expect(Object.values(placement?.winner.check.op ?? {})).not.toContain(
+        placement?.placement?.position
+      )
+    })
+
     it("sets the container on move into and wrap", () => {
       const overlay = overlays()
       const personal = overlay("personal", [
@@ -988,6 +1001,89 @@ describe("resolveLayers", () => {
       })
     })
 
+    describe.each([
+      ["re-wrap", wrap("dashboard", "w", ["b", "d"])],
+      ["removal", { op: "remove", target: "w" }],
+    ])("after a %s", (_, release) => {
+      const before = [
+        { op: "pin", target: "dashboard/slots/a", where: "start" },
+        { op: "pin", target: "dashboard/slots/c", where: "end" },
+        wrap("dashboard", "w", ["a", "b"]),
+      ]
+
+      it.each([
+        [
+          "a pin inside the wrapper",
+          { op: "pin", target: "w/slots/a", where: "end" },
+          ["a"],
+        ],
+        [
+          "a reorder inside the wrapper",
+          { op: "move", target: "w/slots/a", to: { index: 1 } },
+          ["a"],
+        ],
+        [
+          "a move into the wrapper",
+          { op: "move", target: "dashboard/slots/c", to: { into: "w" } },
+          ["a", "c"],
+        ],
+      ])("returns every item in the wrapper after %s", (_, inside, moved) => {
+        const overlay = overlays()
+        const personal = overlay("personal", [...before, inside, release])
+        const { properties, unapplied } = resolve([personal])
+
+        expect(unapplied).toEqual([])
+        expect(get(properties, "a", "placement")?.winner.check).toBe(
+          personal.ops[0]
+        )
+        expect(get(properties, "c", "placement")?.winner.check).toBe(
+          personal.ops[1]
+        )
+        for (const item of moved) {
+          expect(
+            get(properties, item, "placement")?.overridden.map(
+              ({ check }) => check
+            )
+          ).toContain(personal.ops[4])
+        }
+      })
+    })
+
+    it("returns an item with no earlier placement to the wrap's target", () => {
+      const overlay = overlays()
+      const personal = overlay("personal", [
+        wrap("page/slots/dashboard", "w", ["a", "b"]),
+        { op: "move", target: "sidebar/slots/c", to: { into: "w" } },
+        { op: "remove", target: "w" },
+      ])
+      const { properties } = resolve([personal])
+
+      expect(get(properties, "c", "placement")?.winner.check).toBe(
+        personal.ops[2]
+      )
+      expect(get(properties, "c", "placement")?.placement).toEqual({
+        container: "dashboard",
+      })
+    })
+
+    it("lets a re-wrap replace a pin inside the wrapper on an item it keeps", () => {
+      const overlay = overlays()
+      const personal = overlay("personal", [
+        wrap("dashboard", "w", ["a", "b"]),
+        { op: "pin", target: "w/slots/a", where: "end" },
+        wrap("dashboard", "w", ["c", "a"]),
+      ])
+      const { properties } = resolve([personal])
+
+      expect(get(properties, "a", "placement")?.winner.check).toBe(
+        personal.ops[2]
+      )
+      expect(get(properties, "a", "placement")?.placement).toEqual({
+        container: "w",
+        position: { index: 1 },
+      })
+    })
+
     it("brings back a pin the same user set before wrapping", () => {
       const overlay = overlays()
       const personal = overlay("personal", [
@@ -1360,6 +1456,16 @@ describe("resolveLayers", () => {
       expect(resolve(different).skipped).toHaveLength(2)
     })
 
+    it("throws when baseIds isn't an array or a Set", () => {
+      const overlay = overlays()
+      for (const baseIds of ["dashboard", null]) {
+        expect(() =>
+          // @ts-expect-error JavaScript callers can pass anything.
+          resolve([overlay("team", [hide])], { baseIds })
+        ).toThrow(TypeError)
+      }
+    })
+
     it("throws when the surface isn't a string", () => {
       const overlay = overlays()
 
@@ -1545,7 +1651,21 @@ describe("resolveLayers", () => {
         const options = seed % 2 === 0 ? { baseIds: ["dashboard", "a"] } : {}
         const resolved = resolve(input, options)
         const applied = new Map<OpCheck, number>()
-        for (const node of resolved.properties.values()) {
+        for (const [address, node] of resolved.properties) {
+          const placed = node.get("placement")
+          const container = placed?.placement?.container
+          const holder =
+            container === undefined
+              ? undefined
+              : get(resolved.properties, container, "inserted")?.winner.check.op
+          expect(holder?.op).not.toBe("remove")
+          if (
+            placed?.winner.check.op.op === "wrap" &&
+            placed.placement?.container === placed.winner.check.op.id
+          ) {
+            expect(holder).toBe(placed.winner.check.op)
+            expect(placed.winner.check.op.items).toContain(address)
+          }
           for (const { winner, overridden, breakpoints } of node.values()) {
             const ops = new Set([
               winner,
@@ -1745,6 +1865,22 @@ describe("resolveLayers", () => {
       expect(get(resolved.properties, "a", "placement")?.placement).toEqual({
         container: "dashboard",
         position: { pin: "start" },
+      })
+    })
+
+    it("releases many wrappers holding moved and pinned items", () => {
+      const resolved = expectLinear(
+        "personal",
+        cycle(
+          wrapOp("dashboard", "w"),
+          { op: "move", target: "dashboard/slots/c", to: { into: "w" } },
+          { op: "pin", target: "w/slots/a", where: "end" },
+          { op: "remove", target: "w" }
+        )
+      )
+      expect(resolved.unapplied).toEqual([])
+      expect(get(resolved.properties, "c", "placement")?.placement).toEqual({
+        container: "dashboard",
       })
     })
 

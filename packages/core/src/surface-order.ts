@@ -8,6 +8,12 @@ export interface OrderedOverlay {
   readonly reason: "duplicate-id" | "surface-mismatch" | undefined
 }
 
+export function checkSurface(surface: unknown): asserts surface is string {
+  if (typeof surface !== "string") {
+    throw new TypeError("Resolving layers needs the surface as a string")
+  }
+}
+
 /**
  * The overlays in resolution order, each with why it is skipped: it is for
  * another surface than `surface` (other than `@app`), or its id is taken by
@@ -18,9 +24,7 @@ export function surfaceOrder(
   surface: unknown,
   teamOrder: readonly string[]
 ): OrderedOverlay[] {
-  if (typeof surface !== "string") {
-    throw new TypeError("Resolving layers needs the surface as a string")
-  }
+  checkSurface(surface)
   const ordered: OrderedOverlay[] = []
   const seen = new Set<string>()
   for (const group of orderOverlays(overlays, teamOrder)) {

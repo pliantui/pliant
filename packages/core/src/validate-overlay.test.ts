@@ -578,6 +578,37 @@ describe("validateOverlay", () => {
       ).toEqual(expected)
     })
 
+    it.each([
+      [
+        "an overlay for another surface",
+        [{ ...lowerOverlay("team", [insert("x")]), surface: "/invoices" }],
+      ],
+      [
+        "a later overlay with a duplicate id",
+        [
+          lowerOverlay("team", [{ op: "hide", target: "page" }]),
+          {
+            ...lowerOverlay("team", [insert("x")]),
+            createdAt: "2026-11-02T09:30:00.000Z",
+          },
+        ],
+      ],
+    ])("agrees with resolveLayers that %s doesn't block an id", (_, lower) => {
+      const input = {
+        ...overlay([insert("x")]),
+        id: "01JBQ3V8Z7XKQ2M4N5P6R7S8B0",
+      }
+      const resolved = resolveLayers([...lower.map(load), load(input)], {
+        surface,
+      })
+
+      expect(
+        validateOverlay(input, { layers: { overlays: lower, surface } }).success
+      ).toBe(true)
+      expect(resolved.unapplied).toEqual([])
+      expect(resolved.skipped).toHaveLength(1)
+    })
+
     it("uses baseIds as the exact base nodes", () => {
       const lower = lowerOverlay("team", [
         { op: "hide", target: "dashboard/slots/orders" },
@@ -694,13 +725,21 @@ describe("validateOverlay", () => {
       ])
     })
 
-    it("throws when the layers have no surface", () => {
-      expect(() =>
-        validateOverlay(overlay([wrap("dashboard", "pair")]), {
-          // @ts-expect-error JavaScript callers can leave the surface out.
-          layers: { overlays: [] },
-        })
-      ).toThrow(TypeError)
+    it("throws on bad layers, even when the overlay doesn't parse", () => {
+      for (const input of [overlay([wrap("dashboard", "pair")]), { v: 2 }]) {
+        expect(() =>
+          validateOverlay(input, {
+            // @ts-expect-error JavaScript callers can leave the surface out.
+            layers: { overlays: [] },
+          })
+        ).toThrow(TypeError)
+        expect(() =>
+          validateOverlay(input, {
+            // @ts-expect-error JavaScript callers can pass anything.
+            layers: { overlays: [], surface, baseIds: "x" },
+          })
+        ).toThrow(TypeError)
+      }
     })
   })
 })

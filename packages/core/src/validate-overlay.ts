@@ -11,9 +11,9 @@ import { checkOp, type OpCheck, type OpContext } from "./check-op"
 import { loadOverlay, type LoadedOverlay } from "./load-overlay"
 import { scopeKeyOf } from "./overlay-scope"
 import { ownEntries } from "./own-entries"
-import { applyOp, createResolution } from "./resolution"
+import { applyOp, checkBaseIds, createResolution } from "./resolution"
 import type { Result } from "./result"
-import { surfaceOrder } from "./surface-order"
+import { checkSurface, surfaceOrder } from "./surface-order"
 import type { WithOps } from "./with-ops"
 
 export type ValidatedOverlay = WithOps<Op>
@@ -38,6 +38,7 @@ export interface ValidateOverlayLayers {
   readonly teamOrder?: readonly string[] | undefined
 }
 
+/** How `validateOverlay` checks an overlay beyond its own shape. */
 export interface ValidateOverlayOptions {
   /**
    * The layers the overlay will apply on top of. The overlay is validated as
@@ -45,7 +46,8 @@ export interface ValidateOverlayOptions {
    * When given, the overlay must be for `layers.surface` or `@app`, and an
    * `insert` or `wrap` whose id is already used on the surface is invalid,
    * exactly as `resolveLayers` would report it (`id-collision`). Throws a
-   * `TypeError` when `layers.surface` isn't a string.
+   * `TypeError` when `layers.surface` isn't a string or `layers.baseIds`
+   * isn't an array, whatever the input.
    */
   readonly layers?: ValidateOverlayLayers | undefined
 }
@@ -112,11 +114,6 @@ function layerIssues(
   overlay: LoadedOverlay,
   { overlays, surface, baseIds, teamOrder = [] }: ValidateOverlayLayers
 ): z.core.$ZodIssue[] {
-  const below = overlays.flatMap((input) => {
-    const loaded = loadOverlay(input)
-    return loaded.success && loaded.data.id !== overlay.id ? [loaded.data] : []
-  })
-  const ordered = surfaceOrder(below, surface, teamOrder)
   if (overlay.surface !== surface && overlay.surface !== "@app") {
     return [
       {
@@ -126,6 +123,11 @@ function layerIssues(
       },
     ]
   }
+  const below = overlays.flatMap((input) => {
+    const loaded = loadOverlay(input)
+    return loaded.success && loaded.data.id !== overlay.id ? [loaded.data] : []
+  })
+  const ordered = surfaceOrder(below, surface, teamOrder)
   const state = createResolution(baseIds)
   for (const { overlay: lower, reason } of ordered) {
     const scope = scopeKeyOf(lower)
@@ -163,6 +165,10 @@ export function validateOverlay(
   input: unknown,
   { layers }: ValidateOverlayOptions = {}
 ): Result<ValidatedOverlay> {
+  if (layers) {
+    checkSurface(layers.surface)
+    checkBaseIds(layers.baseIds)
+  }
   const entries = ownEntries(input)
   const result = overlaySchema.safeParse(entries ?? input)
   const envelopeIssues = result.error?.issues ?? []

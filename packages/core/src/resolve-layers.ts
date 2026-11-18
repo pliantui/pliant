@@ -14,6 +14,7 @@ export interface ResolvedOp {
   readonly overlay: LoadedOverlay
 }
 
+/** The resolved value of one property of one node or item. */
 export interface ResolvedProperty {
   /**
    * The op that decides the value. A `remove` or `removeUserItem` winner
@@ -23,11 +24,15 @@ export interface ResolvedProperty {
    */
   readonly winner: ResolvedOp
   /**
-   * Set for `placement` only: where the item sits. When a wrap is replaced
-   * without an item, or removed, the item goes back to the placement it had
-   * just before that wrap, passing over wraps replaced or removed since; with
-   * no such placement, it goes back to the wrap's target with no position,
-   * and the replacing wrap or the removal is the winner.
+   * Set for `placement` only: where the item sits.
+   *
+   * When a wrapper is removed, or re-wrapped without an item, every item in
+   * it (listed by the wrap, or pinned, reordered or moved into it later)
+   * goes back to the placement it had just before it entered the wrapper,
+   * passing over placements in nodes that are gone. With no such placement,
+   * it goes back to the wrap's target with no position, and the re-wrap or
+   * the removal is the winner. An item the re-wrap lists is placed by the
+   * re-wrap, which replaces any earlier pin or reorder inside the wrapper.
    */
   readonly placement?: ResolvedPlacement
   /**
@@ -68,8 +73,10 @@ export type SkippedOp =
  * and `nothing-to-remove` means nothing was there. `id-collision` means the id
  * an `insert` or `wrap` creates is already used on the surface: by a live
  * inserted node (unless an insert replaces one at the same target), a live
- * wrapper (unless its own scope replaces it at the same target), a base node
- * an earlier op pointed at, or a node the op itself points at.
+ * wrapper (unless its own scope replaces it at the same target), a base
+ * node, or a node the op itself points at. With `baseIds`, a base node is
+ * exactly a listed id; without them, it is approximated as an id an earlier
+ * op in the resolution order pointed at before anything created it.
  */
 export type UnappliedReason =
   "cross-layer-remove" | "id-collision" | "nothing-to-remove"
@@ -79,6 +86,7 @@ export interface UnappliedOp extends ResolvedOp {
   readonly reason: UnappliedReason
 }
 
+/** What `resolveLayers` resolves for, and how. */
 export interface ResolveLayersOptions {
   /**
    * The surface to resolve. Overlays for any other surface, except `@app`,
@@ -103,6 +111,7 @@ export interface ResolveLayersOptions {
   readonly teamOrder?: readonly string[] | undefined
 }
 
+/** The result of `resolveLayers`. */
 export interface ResolvedLayers {
   /**
    * The resolved properties by identity, then property key. The identity is a
@@ -137,7 +146,8 @@ export interface ResolvedLayers {
  * `removeUserItem` that removed part of what it names also appears there.
  * Both lists follow the resolution order.
  *
- * Throws a `TypeError` when `surface` isn't a string.
+ * Throws a `TypeError` when `surface` isn't a string, or `baseIds` isn't
+ * an array or a `Set`.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],
