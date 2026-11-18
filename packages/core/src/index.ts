@@ -4,9 +4,12 @@ export { loadOverlay, type LoadedOverlay } from "./load-overlay"
 export { type OpPropertyKey } from "./op-property"
 export {
   resolveLayers,
+  type ResolveLayersOptions,
   type ResolvedLayers,
   type ResolvedOp,
   type ResolvedProperty,
   type SkippedOp,
+  type UnappliedOp,
+  type UnappliedReason,
 } from "./resolve-layers"
 export { validateOverlay, type ValidatedOverlay } from "./validate-overlay"

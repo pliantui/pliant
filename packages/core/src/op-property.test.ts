@@ -2,55 +2,62 @@ import { describe, expect, it } from "vitest"
 
 import { opCatalog, opSchema, type Op, type OpName } from "@pliantui/contract"
 
-import { opProperty, type OpPropertyKey } from "./op-property"
+import { opProperties, type OpProperty } from "./op-property"
 
 const expr = { field: "total" }
+const table = "orders-table"
+const exportAction = "orders-toolbar/actions/export"
 
-const cases: [Op, string, OpPropertyKey][] = [
+const cases: [Op, OpProperty[]][] = [
   [
     { op: "setProp", target: "pay-now", prop: "variant", value: "outline" },
-    "pay-now",
-    "props.variant",
+    [{ address: "pay-now", property: "props.variant" }],
   ],
   [
     { op: "rename", target: "orders-table/columns/value", label: "Amount" },
-    "orders-table/columns/value",
-    "label",
+    [{ address: "orders-table/columns/value", property: "label" }],
   ],
   [
     { op: "hide", target: "orders-table/columns/notes" },
-    "orders-table/columns/notes",
-    "visible",
+    [{ address: "orders-table/columns/notes", property: "visible" }],
   ],
   [
     { op: "show", target: "orders-table/columns/notes" },
-    "orders-table/columns/notes",
-    "visible",
+    [{ address: "orders-table/columns/notes", property: "visible" }],
   ],
   [
     { op: "move", target: "dashboard/slots/revenue", to: { after: "orders" } },
-    "dashboard/slots/revenue",
-    "position",
+    [{ address: "dashboard/slots/revenue", property: "placement" }],
   ],
   [
-    { op: "collapse", target: "dashboard", items: ["notes"], into: "more" },
-    "dashboard",
-    "collapse",
+    {
+      op: "collapse",
+      target: "dashboard",
+      items: ["notes", "history"],
+      into: "more",
+    },
+    [
+      { address: "dashboard", property: "collapse.notes" },
+      { address: "dashboard", property: "collapse.history" },
+    ],
   ],
   [
     { op: "pin", target: "orders-table/columns/id", where: "start" },
-    "orders-table/columns/id",
-    "pin",
+    [{ address: "orders-table/columns/id", property: "placement" }],
   ],
   [
     { op: "setLayout", target: "dashboard", mode: "grid", columns: 2 },
-    "dashboard",
-    "layout.md",
+    [{ address: "dashboard", property: "layout", breakpoint: "md" }],
   ],
   [
     { op: "span", target: "dashboard/slots/revenue", columns: 2, at: "lg" },
-    "dashboard/slots/revenue",
-    "span.lg",
+    [
+      {
+        address: "dashboard/slots/revenue",
+        property: "span",
+        breakpoint: "lg",
+      },
+    ],
   ],
   [
     {
@@ -59,8 +66,7 @@ const cases: [Op, string, OpPropertyKey][] = [
       node: { id: "revenue-chart", kind: "chart", dataset: "orders" },
       at: { index: 0 },
     },
-    "dashboard/slots/revenue-chart",
-    "inserted",
+    [{ address: "dashboard/slots/revenue-chart", property: "inserted" }],
   ],
   [
     {
@@ -70,243 +76,244 @@ const cases: [Op, string, OpPropertyKey][] = [
       items: ["revenue", "orders"],
       mode: "row",
     },
-    "dashboard/slots/top-row",
-    "inserted",
+    [
+      { address: "top-row", property: "inserted" },
+      { address: "dashboard/slots/revenue", property: "placement" },
+      { address: "dashboard/slots/orders", property: "placement" },
+    ],
   ],
   [
     { op: "remove", target: "dashboard/slots/revenue-chart" },
-    "dashboard/slots/revenue-chart",
-    "inserted",
+    [{ address: "dashboard/slots/revenue-chart", property: "inserted" }],
   ],
   [
     { op: "setDefault", target: "ticket-form/fields/priority", value: "high" },
-    "ticket-form/fields/priority",
-    "default",
+    [{ address: "ticket-form/fields/priority", property: "default" }],
   ],
   [
     { op: "setPresentation", target: "edit-order", as: "sheet", side: "right" },
-    "edit-order",
-    "presentation",
+    [{ address: "edit-order", property: "presentation" }],
   ],
-  [{ op: "setSize", target: "edit-order", size: "lg" }, "edit-order", "size"],
+  [
+    { op: "setSize", target: "edit-order", size: "lg" },
+    [{ address: "edit-order", property: "size" }],
+  ],
   [
     { op: "setLanding", target: "app-sidebar/items/reports" },
-    "app-sidebar",
-    "landing",
+    [{ address: "app-sidebar", property: "landing" }],
   ],
   [
-    { op: "promote", target: "orders-toolbar/actions/export" },
-    "orders-toolbar/actions/export",
-    "promoted",
+    { op: "promote", target: exportAction },
+    [{ address: exportAction, property: "placement" }],
   ],
   [
-    { op: "demote", target: "orders-toolbar/actions/export" },
-    "orders-toolbar/actions/export",
-    "promoted",
+    { op: "demote", target: exportAction },
+    [{ address: exportAction, property: "placement" }],
   ],
   [
-    {
-      op: "bindShortcut",
-      target: "orders-toolbar/actions/export",
-      keys: "mod+e",
-    },
-    "orders-toolbar/actions/export",
-    "shortcut",
+    { op: "bindShortcut", target: exportAction, keys: "mod+e" },
+    [{ address: exportAction, property: "shortcut" }],
   ],
   [
-    {
-      op: "setSort",
-      target: "orders-table",
-      sort: [{ field: "total", dir: "desc" }],
-    },
-    "orders-table",
-    "sort",
+    { op: "setSort", target: table, sort: [{ field: "total", dir: "desc" }] },
+    [{ address: table, property: "sort" }],
   ],
   [
     {
       op: "setFilter",
-      target: "orders-table",
+      target: table,
       filter: { field: "status", operator: "eq", value: "open" },
     },
-    "orders-table",
-    "filter.status",
+    [{ address: table, property: "filter.status" }],
   ],
   [
-    { op: "clearFilter", target: "orders-table", field: "status" },
-    "orders-table",
-    "filter.status",
+    { op: "clearFilter", target: table, field: "status" },
+    [{ address: table, property: "filter.status" }],
   ],
   [
-    { op: "setPage", target: "orders-table", index: 2, size: 50 },
-    "orders-table",
-    "page",
+    { op: "setPage", target: table, index: 2, size: 50 },
+    [{ address: table, property: "page" }],
   ],
   [
-    { op: "setGroupBy", target: "orders-table", fields: ["status"] },
-    "orders-table",
-    "groupBy",
+    { op: "setGroupBy", target: table, fields: ["status"] },
+    [{ address: table, property: "groupBy" }],
   ],
   [
-    {
-      op: "addDerived",
-      target: "orders-table",
-      id: "margin",
-      label: "Margin",
-      expr,
-    },
-    "orders-table",
-    "userItems.margin",
+    { op: "addDerived", target: table, id: "margin", label: "Margin", expr },
+    [{ address: table, property: "derived.margin" }],
   ],
   [
     {
       op: "addAggregate",
-      target: "orders-table",
+      target: table,
       id: "sum",
       label: "Sum",
       expr: { fn: "sum", args: [expr] },
     },
-    "orders-table",
-    "userItems.sum",
+    [{ address: table, property: "aggregate.sum" }],
   ],
   [
     {
       op: "formatField",
-      target: "orders-table",
+      target: table,
       field: "total",
       format: { type: "currency", currency: "USD" },
     },
-    "orders-table",
-    "format.total",
+    [{ address: table, property: "format.total" }],
   ],
   [
     {
       op: "addHighlight",
-      target: "orders-table",
+      target: table,
       id: "late",
       when: expr,
       tone: "warning",
     },
-    "orders-table",
-    "userItems.late",
+    [{ address: table, property: "highlight.late" }],
   ],
   [
     {
       op: "addSortOption",
-      target: "orders-table",
+      target: table,
       id: "newest",
       label: "Newest",
       sort: [{ field: "created", dir: "desc" }],
     },
-    "orders-table",
-    "userItems.newest",
+    [{ address: table, property: "sortOption.newest" }],
   ],
   [
     {
       op: "addFilterControl",
-      target: "orders-table",
+      target: table,
       id: "status-filter",
       field: "status",
       control: "select",
     },
-    "orders-table",
-    "userItems.status-filter",
+    [{ address: table, property: "filterControl.status-filter" }],
   ],
   [
     {
       op: "addPreset",
-      target: "orders-table",
+      target: table,
       id: "open",
       label: "Open",
       filters: [{ field: "status", operator: "eq", value: "open" }],
     },
-    "orders-table",
-    "userItems.open",
+    [{ address: table, property: "preset.open" }],
   ],
   [
-    { op: "setViewKind", target: "orders-table", kind: "chart" },
-    "orders-table",
-    "viewKind",
+    { op: "setViewKind", target: table, kind: "chart" },
+    [{ address: table, property: "viewKind" }],
   ],
   [
     {
       op: "configureChart",
-      target: "orders-table",
+      target: table,
       type: "bar",
       x: "month",
       y: ["total"],
     },
-    "orders-table",
-    "chart",
+    [{ address: table, property: "chart" }],
   ],
   [
     { op: "configureStat", target: "revenue", metric: "total" },
-    "revenue",
-    "stat",
+    [{ address: "revenue", property: "stat" }],
   ],
   [
-    { op: "removeUserItem", target: "orders-table", id: "margin" },
-    "orders-table",
-    "userItems.margin",
+    { op: "removeUserItem", target: table, id: "margin" },
+    [
+      { address: table, property: "derived.margin" },
+      { address: table, property: "aggregate.margin" },
+      { address: table, property: "highlight.margin" },
+      { address: table, property: "sortOption.margin" },
+      { address: table, property: "filterControl.margin" },
+      { address: table, property: "preset.margin" },
+    ],
   ],
   [
     { op: "setColumnWidth", target: "orders-table/columns/notes", width: 240 },
-    "orders-table/columns/notes",
-    "width",
+    [{ address: "orders-table/columns/notes", property: "width" }],
   ],
   [
     { op: "setDensity", target: "@surface", density: "compact" },
-    "@surface",
-    "density",
+    [{ address: "@surface", property: "density" }],
   ],
-  [{ op: "setTextScale", target: "@app", scale: 1.25 }, "@app", "textScale"],
-  [{ op: "setMotion", target: "@app", motion: "reduced" }, "@app", "motion"],
+  [
+    { op: "setTextScale", target: "@app", scale: 1.25 },
+    [{ address: "@app", property: "textScale" }],
+  ],
+  [
+    { op: "setMotion", target: "@app", motion: "reduced" },
+    [{ address: "@app", property: "motion" }],
+  ],
 ]
 
-describe("opProperty", () => {
+describe("opProperties", () => {
   it("covers every op in the catalog", () => {
     const names = new Set<OpName>(cases.map(([op]) => op.op))
     expect([...names].sort()).toEqual(Object.keys(opCatalog).sort())
   })
 
-  it.each(cases)("maps %j to %s %s", (op, address, property) => {
+  it.each(cases)("maps %j to %j", (op, properties) => {
     expect(opSchema.safeParse(op).success).toBe(true)
-    expect(opProperty(op)).toEqual({ address, property })
+    expect(opProperties(op)).toEqual(properties)
   })
 
   it.each([
-    [undefined, "layout.md"],
-    ["md", "layout.md"],
-    ["base", "layout.base"],
-    ["2xl", "layout.2xl"],
-  ] as const)("keys setLayout at %s as %s", (at, property) => {
+    [undefined, "md"],
+    ["md", "md"],
+    ["base", "base"],
+    ["2xl", "2xl"],
+  ] as const)("reads setLayout at %s as breakpoint %s", (at, breakpoint) => {
     const op: Op = {
       op: "setLayout",
       target: "dashboard",
       mode: "stack",
       ...(at === undefined ? {} : { at }),
     }
-    expect(opProperty(op).property).toBe(property)
+    expect(opProperties(op)).toEqual([
+      { address: "dashboard", property: "layout", breakpoint },
+    ])
   })
 
   it.each([
-    [undefined, "span.md"],
-    ["sm", "span.sm"],
-  ] as const)("keys span at %s as %s", (at, property) => {
+    [undefined, "md"],
+    ["sm", "sm"],
+  ] as const)("reads span at %s as breakpoint %s", (at, breakpoint) => {
     const op: Op = {
       op: "span",
       target: "dashboard/slots/a",
       columns: 2,
       ...(at === undefined ? {} : { at }),
     }
-    expect(opProperty(op).property).toBe(property)
+    expect(opProperties(op)).toEqual([
+      { address: "dashboard/slots/a", property: "span", breakpoint },
+    ])
   })
 
   it("keys setLanding on the nav node that holds the item", () => {
     expect(
-      opProperty({
+      opProperties({
         op: "setLanding",
         target: "shell/slots/app-sidebar/items/reports",
-      }).address
-    ).toBe("shell/slots/app-sidebar")
+      })
+    ).toEqual([{ address: "shell/slots/app-sidebar", property: "landing" }])
+  })
+
+  it("keys a wrapper on its own id, even inside another node", () => {
+    expect(
+      opProperties({
+        op: "wrap",
+        target: "page/slots/dashboard",
+        id: "top-row",
+        items: ["a", "b"],
+        mode: "grid",
+        columns: 2,
+      })
+    ).toEqual([
+      { address: "top-row", property: "inserted" },
+      { address: "page/slots/dashboard/slots/a", property: "placement" },
+      { address: "page/slots/dashboard/slots/b", property: "placement" },
+    ])
   })
 })

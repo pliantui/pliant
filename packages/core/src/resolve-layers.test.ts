@@ -6,37 +6,51 @@ import { loadOverlay, type LoadedOverlay } from "./load-overlay"
 import type { OpPropertyKey } from "./op-property"
 import { resolveLayers, type ResolvedLayers } from "./resolve-layers"
 
-const scopes: Record<Layer, object> = {
-  org: { scope: { org: "acme" } },
-  team: { scope: { team: "sales" } },
-  personal: {},
-  session: {},
+interface OverlayOptions {
+  id?: string
+  scope?: string
+  createdAt?: string
+}
+
+const defaultScopes: Record<Layer, string | undefined> = {
+  org: "acme",
+  team: "sales",
+  personal: undefined,
+  session: undefined,
 }
 
 function overlays() {
   let count = 0
-  return (layer: Layer, ops: unknown[]) => {
+  return (layer: Layer, ops: unknown[], options: OverlayOptions = {}) => {
     count++
-    return overlayWith(
-      `01JBQ3V8Z7XKQ2M4N5P6R7S8${String(count).padStart(2, "0")}`,
-      layer,
-      ops
-    )
+    return overlayWith(layer, ops, {
+      id: `01JBQ3V8Z7XKQ2M4N5P6R7S8${String(count).padStart(2, "0")}`,
+      ...options,
+    })
   }
 }
 
-function overlayWith(id: string, layer: Layer, ops: unknown[]): LoadedOverlay {
+function overlayWith(
+  layer: Layer,
+  ops: unknown[],
+  {
+    id = "01JBQ3V8Z7XKQ2M4N5P6R7S800",
+    scope = defaultScopes[layer],
+    createdAt = "2026-11-01T09:30:00.000Z",
+  }: OverlayOptions
+): LoadedOverlay {
   const result = loadOverlay({
     v: 1,
     id,
     surface: "/orders/[id]",
     layer,
-    ...scopes[layer],
+    ...(layer === "org" && { scope: { org: scope } }),
+    ...(layer === "team" && { scope: { team: scope } }),
     ops,
     basis: { contract: 1, core: "0.1.0", manifests: {} },
     source: "manual",
     createdBy: "user_123",
-    createdAt: "2026-11-01T09:30:00.000Z",
+    createdAt,
   })
   if (!result.success) {
     throw result.error
@@ -44,13 +58,63 @@ function overlayWith(id: string, layer: Layer, ops: unknown[]): LoadedOverlay {
   return result.data
 }
 
+function get(
+  properties: ResolvedLayers["properties"],
+  address: string,
+  property: OpPropertyKey
+) {
+  return properties.get(address)?.get(property)
+}
+
+function winner(
+  properties: ResolvedLayers["properties"],
+  address: string,
+  property: OpPropertyKey
+) {
+  return get(properties, address, property)?.winner.overlay
+}
+
 const notes = "orders-table/columns/notes"
 const hide = { op: "hide", target: notes }
 const show = { op: "show", target: notes }
+const table = "orders-table"
+const chart = "dashboard/slots/revenue-chart"
+const insertChart = {
+  op: "insert",
+  target: "dashboard",
+  node: { id: "revenue-chart", kind: "chart", dataset: "orders" },
+  at: { index: 0 },
+}
+const removeChart = { op: "remove", target: chart }
+const derived = (id: string) => ({
+  op: "addDerived",
+  target: table,
+  id,
+  label: "Margin",
+  expr: { field: "total" },
+})
+const preset = (id: string) => ({
+  op: "addPreset",
+  target: table,
+  id,
+  label: "Open",
+  filters: [{ field: "status", operator: "eq", value: "open" }],
+})
+const removeItem = (id: string) => ({ op: "removeUserItem", target: table, id })
+const layout = (mode: string, at?: string) => ({
+  op: "setLayout",
+  target: "dashboard",
+  mode,
+  ...(at && { at }),
+})
 
 describe("resolveLayers", () => {
   it("returns nothing for no overlays", () => {
-    expect(resolveLayers([])).toEqual({ properties: new Map(), skipped: [] })
+    expect(resolveLayers([])).toEqual({
+      properties: new Map(),
+      skipped: [],
+      unapplied: [],
+    })
   })
 
   it("lets the higher layer win, whatever order overlays are given in", () => {
@@ -61,7 +125,7 @@ describe("resolveLayers", () => {
     const team = overlay("team", [show])
 
     const visible = (input: LoadedOverlay[]) =>
-      resolveLayers(input).properties.get(notes)?.get("visible")
+      get(resolveLayers(input).properties, notes, "visible")
 
     const resolved = visible([session, org, personal, team])
     expect(resolved?.winner.overlay).toBe(session)
@@ -76,59 +140,412 @@ describe("resolveLayers", () => {
     expect(visible([org])?.overridden).toEqual([])
   })
 
-  it("applies overlays in a layer in the order given", () => {
-    const overlay = overlays()
-    const first = overlay("personal", [hide])
-    const second = overlay("personal", [show])
-    const visible = (input: LoadedOverlay[]) =>
-      resolveLayers(input).properties.get(notes)?.get("visible")
-
-    expect(visible([first, second])?.winner.overlay).toBe(second)
-    expect(visible([first, second])?.overridden[0]?.overlay).toBe(first)
-    expect(visible([second, first])?.winner.overlay).toBe(first)
-  })
-
   it("lets a later op in an overlay win", () => {
     const overlay = overlays()
     const personal = overlay("personal", [hide, show])
-    const resolved = resolveLayers([personal]).properties.get(notes)
+    const resolved = get(resolveLayers([personal]).properties, notes, "visible")
 
-    expect(resolved?.get("visible")?.winner.check).toBe(personal.ops[1])
-    expect(resolved?.get("visible")?.overridden[0]?.check).toBe(personal.ops[0])
+    expect(resolved?.winner.check).toBe(personal.ops[1])
+    expect(resolved?.overridden[0]?.check).toBe(personal.ops[0])
+  })
+
+  describe("order within a layer", () => {
+    const visible = (input: LoadedOverlay[], teamOrder?: string[]) =>
+      get(resolveLayers(input, { teamOrder }).properties, notes, "visible")
+
+    it("applies personal overlays by createdAt, then id", () => {
+      const overlay = overlays()
+      const first = overlay("personal", [hide], {
+        createdAt: "2026-11-02T00:00:00.000Z",
+      })
+      const second = overlay("personal", [show], {
+        createdAt: "2026-11-01T23:00:00.000-02:00",
+      })
+      const sameTimeLowId = overlay("session", [hide], {
+        id: "01JBQ3V8Z7XKQ2M4N5P6R7S8A0",
+      })
+      const sameTimeHighId = overlay("session", [show], {
+        id: "01JBQ3V8Z7XKQ2M4N5P6R7S8B0",
+      })
+
+      expect(visible([first, second])?.winner.overlay).toBe(second)
+      expect(visible([second, first])?.winner.overlay).toBe(second)
+      expect(visible([first, second])?.overridden[0]?.overlay).toBe(first)
+      expect(visible([sameTimeHighId, sameTimeLowId])?.winner.overlay).toBe(
+        sameTimeHighId
+      )
+      expect(visible([sameTimeLowId, sameTimeHighId])?.winner.overlay).toBe(
+        sameTimeHighId
+      )
+    })
+
+    it("ranks teams by teamOrder, highest precedence first", () => {
+      const overlay = overlays()
+      const sales = overlay("team", [hide], { scope: "sales" })
+      const finance = overlay("team", [show], { scope: "finance" })
+      const ops = overlay("team", [hide], { scope: "ops" })
+      const all = [sales, finance, ops]
+
+      expect(visible(all, ["sales", "finance"])?.winner.overlay).toBe(sales)
+      expect(
+        visible(all, ["sales", "finance"])?.overridden.map((op) => op.overlay)
+      ).toEqual([ops, finance])
+      expect(visible(all, ["finance", "sales"])?.winner.overlay).toBe(finance)
+      expect(visible(all.toReversed(), ["ops"])?.winner.overlay).toBe(ops)
+    })
+
+    it("ranks unlisted teams by team id, then createdAt", () => {
+      const overlay = overlays()
+      const sales = overlay("team", [hide], { scope: "sales" })
+      const finance = overlay("team", [show], {
+        scope: "finance",
+        createdAt: "2026-12-01T00:00:00.000Z",
+      })
+      const laterSales = overlay("team", [show], {
+        scope: "sales",
+        createdAt: "2026-11-05T00:00:00.000Z",
+      })
+
+      expect(visible([sales, finance])?.winner.overlay).toBe(sales)
+      expect(visible([finance, sales])?.winner.overlay).toBe(sales)
+      expect(
+        visible([laterSales, finance, sales])?.overridden.map(
+          (op) => op.overlay
+        )
+      ).toEqual([finance, sales])
+      expect(visible([finance, sales], ["finance"])?.winner.overlay).toBe(
+        finance
+      )
+    })
+
+    it("ranks org overlays by org id, then createdAt", () => {
+      const overlay = overlays()
+      const beta = overlay("org", [hide], { scope: "beta" })
+      const alpha = overlay("org", [show], {
+        scope: "alpha",
+        createdAt: "2027-01-01T00:00:00.000Z",
+      })
+
+      expect(visible([beta, alpha])?.winner.overlay).toBe(beta)
+      expect(visible([alpha, beta])?.winner.overlay).toBe(beta)
+    })
   })
 
   it("keeps different properties independent", () => {
     const overlay = overlays()
     const team = overlay("team", [
       { op: "move", target: "dashboard/slots/x", to: { after: "y" } },
-      { op: "setLayout", target: "dashboard", mode: "grid", columns: 3 },
+      { op: "setDensity", target: "@surface", density: "compact" },
     ])
     const personal = overlay("personal", [
       { op: "hide", target: "dashboard/slots/y" },
-      { op: "setLayout", target: "dashboard", mode: "stack", at: "sm" },
+      layout("stack"),
     ])
     const { properties } = resolveLayers([team, personal])
-    const layer = (address: string, property: OpPropertyKey) =>
-      get(properties, property, address)
 
-    expect(layer("dashboard/slots/x", "position")).toBe("team")
-    expect(layer("dashboard/slots/y", "visible")).toBe("personal")
-    expect(layer("dashboard", "layout.md")).toBe("team")
-    expect(layer("dashboard", "layout.sm")).toBe("personal")
+    expect(winner(properties, "dashboard/slots/x", "placement")).toBe(team)
+    expect(winner(properties, "dashboard/slots/y", "visible")).toBe(personal)
+    expect(winner(properties, "@surface", "density")).toBe(team)
+    expect(winner(properties, "dashboard", "layout")).toBe(personal)
   })
 
-  it("treats a layout without a breakpoint as md", () => {
+  describe("layout and span", () => {
+    it("merges breakpoints within a layer, md when at is missing", () => {
+      const overlay = overlays()
+      const first = overlay("team", [layout("grid", "lg"), layout("row", "md")])
+      const second = overlay("team", [layout("stack")], { scope: "support" })
+      const resolved = get(
+        resolveLayers([second, first]).properties,
+        "dashboard",
+        "layout"
+      )
+
+      expect(resolved?.winner.check).toBe(second.ops[0])
+      expect([...(resolved?.breakpoints ?? [])]).toEqual([
+        ["md", { check: second.ops[0], overlay: second }],
+        ["lg", { check: first.ops[0], overlay: first }],
+      ])
+      expect(resolved?.breakpoints?.get("md")?.check).toBe(second.ops[0])
+      expect(resolved?.overridden).toHaveLength(1)
+      expect(resolved?.overridden[0]?.check).toBe(first.ops[1])
+    })
+
+    it("lets a higher layer replace every lower breakpoint", () => {
+      const overlay = overlays()
+      const team = overlay("team", [layout("grid", "lg"), layout("row", "sm")])
+      const personal = overlay("personal", [layout("stack")])
+      const resolved = get(
+        resolveLayers([personal, team]).properties,
+        "dashboard",
+        "layout"
+      )
+
+      expect([...(resolved?.breakpoints?.keys() ?? [])]).toEqual(["md"])
+      expect(resolved?.breakpoints?.get("md")?.check).toBe(personal.ops[0])
+      expect(resolved?.overridden.map(({ check }) => check)).toEqual([
+        team.ops[0],
+        team.ops[1],
+      ])
+    })
+
+    it("resolves span the same way", () => {
+      const overlay = overlays()
+      const span = (columns: number, at?: string) => ({
+        op: "span",
+        target: "dashboard/slots/a",
+        columns,
+        ...(at && { at }),
+      })
+      const org = overlay("org", [span(4, "xl")])
+      const team = overlay("team", [span(2, "base"), span(3), span(1, "base")])
+      const resolved = get(
+        resolveLayers([team, org]).properties,
+        "dashboard/slots/a",
+        "span"
+      )
+
+      expect(
+        [...(resolved?.breakpoints ?? [])].map(([at, { check }]) => [at, check])
+      ).toEqual([
+        ["base", team.ops[2]],
+        ["md", team.ops[1]],
+      ])
+      expect(resolved?.overridden.map(({ check }) => check)).toEqual([
+        org.ops[0],
+        team.ops[0],
+      ])
+    })
+
+    it("sets breakpoints only on layout and span", () => {
+      const overlay = overlays()
+      const personal = overlay("personal", [hide])
+
+      expect(
+        get(resolveLayers([personal]).properties, notes, "visible")
+      ).not.toHaveProperty("breakpoints")
+    })
+  })
+
+  it("keys collapse per item on the container", () => {
     const overlay = overlays()
+    const collapse = (items: string[], into: string) => ({
+      op: "collapse",
+      target: "dashboard",
+      items,
+      into,
+    })
+    const team = overlay("team", [collapse(["a", "b"], "more")])
+    const personal = overlay("personal", [
+      collapse(["c"], "accordion"),
+      collapse(["a"], "tabs"),
+    ])
+    const { properties } = resolveLayers([team, personal])
+
+    expect(winner(properties, "dashboard", "collapse.a")).toBe(personal)
+    expect(winner(properties, "dashboard", "collapse.b")).toBe(team)
+    expect(winner(properties, "dashboard", "collapse.c")).toBe(personal)
+    expect(
+      get(properties, "dashboard", "collapse.a")?.overridden[0]?.check
+    ).toBe(team.ops[0])
+  })
+
+  it("shares one placement per item across structure and action ops", () => {
+    const overlay = overlays()
+    const x = "dashboard/slots/x"
     const team = overlay("team", [
-      { op: "setLayout", target: "dashboard", mode: "grid", at: "md" },
+      {
+        op: "wrap",
+        target: "dashboard",
+        id: "top-row",
+        items: ["x", "y"],
+        mode: "row",
+      },
+      { op: "promote", target: "toolbar/actions/export" },
     ])
     const personal = overlay("personal", [
-      { op: "setLayout", target: "dashboard", mode: "row" },
+      { op: "move", target: x, to: { into: "sidebar" } },
+      { op: "pin", target: x, where: "none" },
+      { op: "demote", target: "toolbar/actions/export" },
     ])
+    const { properties } = resolveLayers([team, personal])
 
+    expect(get(properties, x, "placement")?.winner.check).toBe(personal.ops[1])
     expect(
-      get(resolveLayers([team, personal]).properties, "layout.md", "dashboard")
-    ).toBe("personal")
+      get(properties, x, "placement")?.overridden.map(({ check }) => check)
+    ).toEqual([team.ops[0], personal.ops[0]])
+    expect(winner(properties, "dashboard/slots/y", "placement")).toBe(team)
+    expect(winner(properties, "toolbar/actions/export", "placement")).toBe(
+      personal
+    )
+  })
+
+  it("keeps original addresses after wrap and move", () => {
+    const overlay = overlays()
+    const team = overlay("team", [
+      insertChart,
+      {
+        op: "wrap",
+        target: "dashboard",
+        id: "top-row",
+        items: ["revenue-chart", "orders"],
+        mode: "row",
+      },
+      { op: "move", target: chart, to: { index: 0 } },
+    ])
+    const personal = overlay("personal", [{ op: "hide", target: chart }])
+    const { properties } = resolveLayers([team, personal])
+
+    expect(winner(properties, "top-row", "inserted")).toBe(team)
+    expect(properties.has("dashboard/slots/top-row")).toBe(false)
+    expect(winner(properties, chart, "inserted")).toBe(team)
+    expect(winner(properties, chart, "visible")).toBe(personal)
+  })
+
+  describe("user items", () => {
+    it("keeps a separate id space per kind", () => {
+      const overlay = overlays()
+      const team = overlay("team", [derived("margin")])
+      const personal = overlay("personal", [preset("margin"), derived("tax")])
+      const override = overlay("personal", [derived("margin")])
+      const { properties } = resolveLayers([team, personal])
+
+      expect(winner(properties, table, "derived.margin")).toBe(team)
+      expect(winner(properties, table, "preset.margin")).toBe(personal)
+      expect(
+        winner(
+          resolveLayers([team, override]).properties,
+          table,
+          "derived.margin"
+        )
+      ).toBe(override)
+    })
+
+    it("removes the id in every kind the same layer added it to", () => {
+      const overlay = overlays()
+      const first = overlay("personal", [derived("margin"), preset("margin")])
+      const second = overlay("personal", [removeItem("margin")])
+      const { properties, unapplied } = resolveLayers([second, first])
+
+      for (const property of ["derived.margin", "preset.margin"] as const) {
+        expect(get(properties, table, property)?.winner.check).toBe(
+          second.ops[0]
+        )
+      }
+      expect(properties.get(table)?.has("highlight.margin")).toBe(false)
+      expect(unapplied).toEqual([])
+    })
+
+    it("removes only what the same layer added", () => {
+      const overlay = overlays()
+      const team = overlay("team", [derived("margin")])
+      const personal = overlay("personal", [
+        preset("margin"),
+        removeItem("margin"),
+      ])
+      const { properties, unapplied } = resolveLayers([team, personal])
+
+      expect(winner(properties, table, "derived.margin")).toBe(team)
+      expect(get(properties, table, "preset.margin")?.winner.check).toBe(
+        personal.ops[1]
+      )
+      expect(unapplied).toEqual([])
+    })
+
+    it("reports a removal of a lower layer's item or of nothing", () => {
+      const overlay = overlays()
+      const team = overlay("team", [derived("margin")])
+      const personal = overlay("personal", [
+        removeItem("margin"),
+        removeItem("tax"),
+      ])
+      const { properties, unapplied } = resolveLayers([personal, team])
+
+      expect(winner(properties, table, "derived.margin")).toBe(team)
+      expect(get(properties, table, "derived.margin")?.overridden).toEqual([])
+      expect(unapplied).toEqual([
+        {
+          check: personal.ops[0],
+          overlay: personal,
+          reason: "cross-layer-remove",
+        },
+        {
+          check: personal.ops[1],
+          overlay: personal,
+          reason: "nothing-to-remove",
+        },
+      ])
+      expect(unapplied[0]?.check).toBe(personal.ops[0])
+      expect(unapplied[0]?.overlay).toBe(personal)
+    })
+
+    it("reports removing an item twice, and lets a higher layer add it back", () => {
+      const overlay = overlays()
+      const team = overlay("team", [
+        derived("margin"),
+        removeItem("margin"),
+        removeItem("margin"),
+      ])
+      const personal = overlay("personal", [derived("margin")])
+      const { properties, unapplied } = resolveLayers([team, personal])
+
+      expect(unapplied.map(({ check, reason }) => [check, reason])).toEqual([
+        [team.ops[2], "nothing-to-remove"],
+      ])
+      expect(
+        get(properties, table, "derived.margin")?.overridden.map(
+          ({ check }) => check
+        )
+      ).toEqual([team.ops[0], team.ops[1]])
+      expect(winner(properties, table, "derived.margin")).toBe(personal)
+    })
+  })
+
+  describe("remove", () => {
+    it("removes a node inserted by another overlay in the same layer", () => {
+      const overlay = overlays()
+      const sales = overlay("team", [insertChart], { scope: "sales" })
+      const support = overlay("team", [removeChart], { scope: "support" })
+      const { properties, unapplied } = resolveLayers([support, sales])
+
+      expect(get(properties, chart, "inserted")?.winner.check).toBe(
+        support.ops[0]
+      )
+      expect(get(properties, chart, "inserted")?.overridden[0]?.check).toBe(
+        sales.ops[0]
+      )
+      expect(unapplied).toEqual([])
+    })
+
+    it("doesn't remove a node a lower layer inserted", () => {
+      const overlay = overlays()
+      const team = overlay("team", [insertChart])
+      const personal = overlay("personal", [removeChart])
+      const { properties, unapplied } = resolveLayers([team, personal])
+
+      expect(winner(properties, chart, "inserted")).toBe(team)
+      expect(unapplied).toEqual([
+        {
+          check: personal.ops[0],
+          overlay: personal,
+          reason: "cross-layer-remove",
+        },
+      ])
+    })
+
+    it("reports removing a node that wasn't inserted", () => {
+      const overlay = overlays()
+      const personal = overlay("personal", [removeChart])
+      const { properties, unapplied } = resolveLayers([personal])
+
+      expect(properties.has(chart)).toBe(false)
+      expect(unapplied).toEqual([
+        {
+          check: personal.ops[0],
+          overlay: personal,
+          reason: "nothing-to-remove",
+        },
+      ])
+    })
   })
 
   it("skips ops that aren't valid and lists them in precedence order", () => {
@@ -163,25 +580,50 @@ describe("resolveLayers", () => {
     expect(skipped[0]?.overlay).toBe(team)
   })
 
-  it("resolves many ops on one property in linear time", () => {
-    const overlay = overlays()
-    const input = Array.from({ length: 40 }, () =>
-      overlay(
-        "personal",
-        Array.from({ length: 500 }, () => hide)
+  describe("in linear time", () => {
+    const repeat = (layer: Layer, ops: unknown[]) => {
+      const overlay = overlays()
+      return Array.from({ length: 40 }, () =>
+        overlay(
+          layer,
+          Array.from({ length: 500 }, (_, index) => ops[index % ops.length])
+        )
       )
-    )
-    const start = Date.now()
-    const resolved = resolveLayers(input).properties.get(notes)?.get("visible")
-    expect(Date.now() - start).toBeLessThan(500)
-    expect(resolved?.overridden).toHaveLength(19_999)
+    }
+
+    it("resolves many ops on one property", () => {
+      const input = repeat("personal", [hide])
+      const start = Date.now()
+      const resolved = get(resolveLayers(input).properties, notes, "visible")
+      expect(Date.now() - start).toBeLessThan(500)
+      expect(resolved?.overridden).toHaveLength(19_999)
+    })
+
+    it("resolves many layout ops across breakpoints", () => {
+      const input = repeat("team", [layout("grid", "lg"), layout("row")])
+      const start = Date.now()
+      const resolved = get(
+        resolveLayers(input).properties,
+        "dashboard",
+        "layout"
+      )
+      expect(Date.now() - start).toBeLessThan(500)
+      expect(resolved?.breakpoints?.size).toBe(2)
+      expect(resolved?.overridden).toHaveLength(19_998)
+    })
+
+    it("resolves many removals", () => {
+      const input = repeat("personal", [
+        derived("margin"),
+        removeItem("margin"),
+      ])
+      const start = Date.now()
+      const resolved = resolveLayers(input)
+      expect(Date.now() - start).toBeLessThan(500)
+      expect(resolved.unapplied).toEqual([])
+      expect(
+        get(resolved.properties, table, "derived.margin")?.overridden
+      ).toHaveLength(19_999)
+    })
   })
 })
-
-function get(
-  properties: ResolvedLayers["properties"],
-  property: OpPropertyKey,
-  address: string
-) {
-  return properties.get(address)?.get(property)?.winner.overlay.layer
-}

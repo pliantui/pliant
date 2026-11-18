@@ -1,134 +1,171 @@
 import type { Breakpoint, Op } from "@pliantui/contract"
 
+const userItemKinds = [
+  "derived",
+  "aggregate",
+  "highlight",
+  "sortOption",
+  "filterControl",
+  "preset",
+] as const
+
+type UserItemKind = (typeof userItemKinds)[number]
+
 export type OpPropertyKey =
   | "chart"
-  | "collapse"
   | "default"
   | "density"
   | "groupBy"
   | "inserted"
   | "label"
   | "landing"
+  | "layout"
   | "motion"
   | "page"
-  | "pin"
-  | "position"
+  | "placement"
   | "presentation"
-  | "promoted"
   | "shortcut"
   | "size"
   | "sort"
+  | "span"
   | "stat"
   | "textScale"
   | "viewKind"
   | "visible"
   | "width"
+  | `collapse.${string}`
   | `filter.${string}`
   | `format.${string}`
-  | `layout.${Breakpoint}`
   | `props.${string}`
-  | `span.${Breakpoint}`
-  | `userItems.${string}`
+  | `${UserItemKind}.${string}`
 
-interface OpProperty {
-  address: string
-  property: OpPropertyKey
+export interface OpProperty {
+  readonly address: string
+  readonly property: OpPropertyKey
+  readonly breakpoint?: Breakpoint
 }
 
-// Layout changes without `at` apply from md up, so they share a key with an
-// explicit `at: "md"`.
+// Layout changes without `at` apply from md up, so they share a breakpoint
+// with an explicit `at: "md"`.
 const defaultBreakpoint: Breakpoint = "md"
 
 function parentOf(address: string): string {
   return address.replace(/\/[^/]+\/[^/]+$/, "")
 }
 
-export function opProperty(op: Op): OpProperty {
+function one(address: string, property: OpPropertyKey): OpProperty[] {
+  return [{ address, property }]
+}
+
+/**
+ * The (address, property) pairs an op writes. `remove` and `removeUserItem`
+ * list the pairs they may clear; resolution decides which ones they do.
+ */
+export function opProperties(op: Op): readonly OpProperty[] {
   switch (op.op) {
     case "setProp":
-      return { address: op.target, property: `props.${op.prop}` }
+      return one(op.target, `props.${op.prop}`)
     case "rename":
-      return { address: op.target, property: "label" }
+      return one(op.target, "label")
     case "hide":
     case "show":
-      return { address: op.target, property: "visible" }
+      return one(op.target, "visible")
     case "move":
-      return { address: op.target, property: "position" }
-    case "collapse":
-      return { address: op.target, property: "collapse" }
     case "pin":
-      return { address: op.target, property: "pin" }
-    case "setLayout":
-      return {
-        address: op.target,
-        property: `layout.${op.at ?? defaultBreakpoint}`,
-      }
-    case "span":
-      return {
-        address: op.target,
-        property: `span.${op.at ?? defaultBreakpoint}`,
-      }
-    // An inserted node or wrapper is the slot `remove` targets, so the three
-    // share one key and the later op decides whether the slot exists.
-    case "insert":
-      return {
-        address: `${op.target}/slots/${op.node.id}`,
-        property: "inserted",
-      }
-    case "wrap":
-      return { address: `${op.target}/slots/${op.id}`, property: "inserted" }
-    case "remove":
-      return { address: op.target, property: "inserted" }
-    case "setDefault":
-      return { address: op.target, property: "default" }
-    case "setPresentation":
-      return { address: op.target, property: "presentation" }
-    case "setSize":
-      return { address: op.target, property: "size" }
-    // A nav node has one landing item, so the key is on the node, not the item.
-    case "setLanding":
-      return { address: parentOf(op.target), property: "landing" }
     case "promote":
     case "demote":
-      return { address: op.target, property: "promoted" }
+      return one(op.target, "placement")
+    // Collapse items are bare ids, so membership is keyed on the container.
+    case "collapse":
+      return op.items.map((item) => ({
+        address: op.target,
+        property: `collapse.${item}`,
+      }))
+    case "setLayout":
+      return [
+        {
+          address: op.target,
+          property: "layout",
+          breakpoint: op.at ?? defaultBreakpoint,
+        },
+      ]
+    case "span":
+      return [
+        {
+          address: op.target,
+          property: "span",
+          breakpoint: op.at ?? defaultBreakpoint,
+        },
+      ]
+    case "insert":
+      return one(`${op.target}/slots/${op.node.id}`, "inserted")
+    // A wrapper is addressed by its own id, and its items keep their
+    // addresses, so later ops on them still match.
+    case "wrap":
+      return [
+        { address: op.id, property: "inserted" },
+        ...op.items.map((item) => ({
+          address: `${op.target}/slots/${item}`,
+          property: "placement" as const,
+        })),
+      ]
+    case "remove":
+      return one(op.target, "inserted")
+    case "setDefault":
+      return one(op.target, "default")
+    case "setPresentation":
+      return one(op.target, "presentation")
+    case "setSize":
+      return one(op.target, "size")
+    // A nav node has one landing item, so the key is on the node, not the item.
+    case "setLanding":
+      return one(parentOf(op.target), "landing")
     case "bindShortcut":
-      return { address: op.target, property: "shortcut" }
+      return one(op.target, "shortcut")
     case "setSort":
-      return { address: op.target, property: "sort" }
+      return one(op.target, "sort")
     case "setFilter":
-      return { address: op.target, property: `filter.${op.filter.field}` }
+      return one(op.target, `filter.${op.filter.field}`)
     case "clearFilter":
-      return { address: op.target, property: `filter.${op.field}` }
+      return one(op.target, `filter.${op.field}`)
     case "setPage":
-      return { address: op.target, property: "page" }
+      return one(op.target, "page")
     case "setGroupBy":
-      return { address: op.target, property: "groupBy" }
-    // `removeUserItem` names only an id, so every user-added item on a node
-    // shares one id space.
+      return one(op.target, "groupBy")
     case "addDerived":
+      return one(op.target, `derived.${op.id}`)
     case "addAggregate":
+      return one(op.target, `aggregate.${op.id}`)
     case "addHighlight":
+      return one(op.target, `highlight.${op.id}`)
     case "addSortOption":
+      return one(op.target, `sortOption.${op.id}`)
     case "addFilterControl":
+      return one(op.target, `filterControl.${op.id}`)
     case "addPreset":
+      return one(op.target, `preset.${op.id}`)
+    // `removeUserItem` names only an id, so it may clear that id in any kind.
     case "removeUserItem":
-      return { address: op.target, property: `userItems.${op.id}` }
+      return userItemKinds.map((kind) => ({
+        address: op.target,
+        property: `${kind}.${op.id}`,
+      }))
     case "formatField":
-      return { address: op.target, property: `format.${op.field}` }
+      return one(op.target, `format.${op.field}`)
     case "setViewKind":
-      return { address: op.target, property: "viewKind" }
+      return one(op.target, "viewKind")
     case "configureChart":
-      return { address: op.target, property: "chart" }
+      return one(op.target, "chart")
     case "configureStat":
-      return { address: op.target, property: "stat" }
+      return one(op.target, "stat")
     case "setColumnWidth":
-      return { address: op.target, property: "width" }
+      return one(op.target, "width")
     case "setDensity":
-      return { address: op.target, property: "density" }
+      return one(op.target, "density")
     case "setTextScale":
-      return { address: op.target, property: "textScale" }
+      return one(op.target, "textScale")
     case "setMotion":
-      return { address: op.target, property: "motion" }
+      return one(op.target, "motion")
   }
   const unknown: never = op
   throw new TypeError(`Unknown op: ${JSON.stringify(unknown)}`)
