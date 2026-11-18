@@ -44,8 +44,9 @@ export interface ValidateOverlayOptions {
    * The layers the overlay will apply on top of. The overlay is validated as
    * if it applied last, after all of them, so pass only the layers below it.
    * When given, the overlay must be for `layers.surface` or `@app`, and an
-   * `insert` or `wrap` whose id is already used on the surface is invalid,
-   * exactly as `resolveLayers` would report it (`id-collision`). Throws a
+   * `insert` or `wrap` whose id is already used on the surface, or a
+   * `move … into` a node that doesn't exist, is invalid, exactly as
+   * `resolveLayers` would report it (`id-collision`, `missing-container`). Throws a
    * `TypeError` when `layers.surface` isn't a string or `layers.baseIds`
    * isn't an array, whatever the input.
    */
@@ -139,14 +140,21 @@ function layerIssues(
   }
   const scope = scopeKeyOf(overlay)
   return overlay.ops.flatMap((check): z.core.$ZodIssue[] => {
-    if (
-      check.status !== "valid" ||
-      applyOp(state, { check, overlay }, scope) !== "id-collision"
-    ) {
+    if (check.status !== "valid") {
       return []
     }
+    const reason = applyOp(state, { check, overlay }, scope)
     const { op, index } = check
-    return op.op === "insert" || op.op === "wrap"
+    if (reason === "missing-container" && op.op === "move" && "into" in op.to) {
+      return [
+        {
+          code: "custom",
+          path: ["ops", index, "to", "into"],
+          message: `The node ${op.to.into} doesn't exist on this surface`,
+        },
+      ]
+    }
+    return reason === "id-collision" && (op.op === "insert" || op.op === "wrap")
       ? [
           {
             code: "custom",

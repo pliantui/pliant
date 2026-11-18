@@ -9,6 +9,7 @@ import {
 } from "./op-property"
 import { placementOf, type ResolvedPlacement } from "./placement"
 import type {
+  ResolvedItemPlacement,
   ResolvedOp,
   ResolvedProperty,
   UnappliedReason,
@@ -41,7 +42,8 @@ interface Placements {
   // Placements that may still hold, latest last. A placement whose container
   // has moved on to another version never holds again, so it is dropped.
   readonly candidates: Placed[]
-  // The item's container before any op placed it.
+  // The item's container before any op placed it: where an op created it,
+  // else the parent in the address it was first placed from.
   readonly origin: string
 }
 
@@ -58,6 +60,8 @@ export interface Resolution {
   // Created node id to its version, which changes each time the node is
   // created again or its wrap is replaced.
   readonly versions: Map<string, number>
+  // Created node id to where it was last created, kept after a removal.
+  readonly createdIn: Map<string, string>
 }
 
 function checkBaseIds(baseIds: unknown): void {
@@ -81,6 +85,7 @@ export function createResolution(
     base: new Set<string>(baseIds),
     exactBase: baseIds !== undefined,
     versions: new Map(),
+    createdIn: new Map(),
   }
 }
 
@@ -92,15 +97,6 @@ function entryAt(state: Resolution, address: string, property: OpPropertyKey) {
   return state.nodes.get(address)?.get(property)
 }
 
-function nodeAt(state: Resolution, address: string) {
-  let node = state.nodes.get(address)
-  if (!node) {
-    node = new Map()
-    state.nodes.set(address, node)
-  }
-  return node
-}
-
 function liveNode(state: Resolution, id: string): Contribution | undefined {
   const winner = entryAt(state, id, "inserted")?.winner
   return winner && !isRemoval(winner.op.check.op) ? winner : undefined
@@ -109,20 +105,28 @@ function liveNode(state: Resolution, id: string): Contribution | undefined {
 /**
  * The version of the node `id` as a container, or undefined while it doesn't
  * exist: a node an op created is live until it is removed, and a base node
- * is always version 0.
+ * is always version 0. So is `parent`, the item's own base parent, which its
+ * address shows exists even when `baseIds` doesn't list it.
  */
-function versionOf(state: Resolution, id: string): number | undefined {
+function versionOf(
+  state: Resolution,
+  id: string,
+  parent?: string
+): number | undefined {
   if (entryAt(state, id, "inserted")) {
     return liveNode(state, id) ? state.versions.get(id) : undefined
   }
-  // A container that is neither created nor a known base node doesn't exist,
-  // so nothing placed in it holds (pending the owner's ruling).
-  return state.base.has(id) ? 0 : undefined
+  return state.base.has(id) || id === parent ? 0 : undefined
 }
 
-function holds(state: Resolution, { placement, version }: Placed): boolean {
+function holds(
+  state: Resolution,
+  { origin }: Placements,
+  { placement, version }: Placed
+): boolean {
   return (
-    version !== undefined && versionOf(state, placement.container) === version
+    version !== undefined &&
+    versionOf(state, placement.container, origin) === version
   )
 }
 
@@ -134,19 +138,11 @@ function currentPlacement(
 ): Placed | undefined {
   const candidates = placements?.candidates ?? []
   let top = candidates.at(-1)
-  while (top && !holds(state, top)) {
+  while (placements && top && !holds(state, placements, top)) {
     candidates.pop()
     top = candidates.at(-1)
   }
   return top
-}
-
-/** Where an item created by an op sits before anything moves it. */
-function createdIn(state: Resolution, id: string): string | undefined {
-  const op = entryAt(state, id, "inserted")?.winner.op.check.op
-  return op?.op === "insert" || op?.op === "wrap"
-    ? identityOf(op.target)
-    : undefined
 }
 
 function place(
@@ -155,39 +151,56 @@ function place(
   address: string,
   resolved: ResolvedOp
 ): void {
-  nodeAt(state, address)
   let placements = state.placements.get(address)
   if (!placements) {
     placements = {
       history: [],
       candidates: [],
       origin:
-        createdIn(state, address) ??
+        state.createdIn.get(address) ??
         (op.op === "wrap" ? identityOf(op.target) : parentOf(op.target)),
     }
     state.placements.set(address, placements)
   }
-  const container =
+  const placement = placementOf(
+    op,
+    address,
     currentPlacement(state, placements)?.placement.container ??
-    createdIn(state, address) ??
-    placements.origin
-  const placement = placementOf(op, address, container)
+      placements.origin
+  )
   if (placement) {
     placements.history.push(resolved)
     placements.candidates.push({
       op: resolved,
       placement,
-      version: versionOf(state, placement.container),
+      version: versionOf(state, placement.container, placements.origin),
     })
   }
 }
 
+// A `move … into` a node that doesn't exist yet, or was removed, needs
+// updating (spec 5.4 rule 3), pending the owner's ruling. Without `baseIds`
+// an unknown id counts as a base node, so only a removed one is missing.
+function missingContainer(state: Resolution, op: Op): boolean {
+  return (
+    op.op === "move" &&
+    "into" in op.to &&
+    versionOf(state, identityOf(op.to.into)) === undefined
+  )
+}
+
 function write(
   state: Resolution,
-  { address, property, breakpoint }: OpProperty,
+  address: string,
+  property: OpPropertyKey,
+  breakpoint: Breakpoint | undefined,
   contribution: Contribution
 ): void {
-  const node = nodeAt(state, address)
+  let node = state.nodes.get(address)
+  if (!node) {
+    node = new Map()
+    state.nodes.set(address, node)
+  }
   const { op, scope } = contribution
   const entry = node.get(property)
   if (!entry) {
@@ -220,7 +233,8 @@ function remove(
   let applied = false
   let foreign = false
   for (const { address, property } of properties) {
-    const entry = entryAt(state, address, property)
+    const entry =
+      property === "placement" ? undefined : entryAt(state, address, property)
     if (!entry || isRemoval(entry.winner.op.check.op)) {
       continue
     }
@@ -299,12 +313,16 @@ export function applyOp(
       state.versions.set(id, (state.versions.get(id) ?? 0) + 1)
     }
     state.created.add(id)
+    state.createdIn.set(id, identityOf(op.target))
   }
-  for (const property of opProperties(op)) {
-    if (property.property === "placement") {
-      place(state, op, property.address, resolved)
+  if (missingContainer(state, op)) {
+    return "missing-container"
+  }
+  for (const { address, property, breakpoint } of opProperties(op)) {
+    if (property === "placement") {
+      place(state, op, address, resolved)
     } else {
-      write(state, property, contribution)
+      write(state, address, property, breakpoint, contribution)
     }
   }
   return undefined
@@ -327,44 +345,72 @@ function settle({ winner, breakpoints, history }: Entry): ResolvedProperty {
 }
 
 /**
- * The item's placement: the latest one whose container still exists in the
- * version it had when the item was placed, else its base parent with no
- * position and no winner.
+ * The containers items resolve to. An item in no placement that holds sits
+ * in its base parent; when that parent is a node that was removed, it sits
+ * where that node would, recursively (pending the owner's ruling). Memoized,
+ * so each node is resolved once.
  */
+function containers(state: Resolution) {
+  const resolved = new Map<string, string>()
+  const containerOf = (id: string): string | undefined => {
+    const known = resolved.get(id)
+    if (known !== undefined) {
+      return known
+    }
+    const placements = state.placements.get(id)
+    const current = currentPlacement(state, placements)
+    const parent = state.createdIn.get(id) ?? placements?.origin
+    if (current || parent === undefined) {
+      return current?.placement.container
+    }
+    // A container cycle stops at the node itself.
+    resolved.set(id, parent)
+    const removed =
+      entryAt(state, parent, "inserted") !== undefined &&
+      !liveNode(state, parent)
+    const container = (removed ? containerOf(parent) : undefined) ?? parent
+    resolved.set(id, container)
+    return container
+  }
+  return containerOf
+}
+
 function settlePlacement(
   state: Resolution,
   address: string,
-  placements: Placements
-): ResolvedProperty {
+  placements: Placements,
+  containerOf: (id: string) => string | undefined
+): ResolvedItemPlacement {
   const current = currentPlacement(state, placements)
-  return current
-    ? {
-        winner: current.op,
-        placement: current.placement,
-        overridden: placements.history.filter((op) => op !== current.op),
-      }
-    : {
-        placement: {
-          container: createdIn(state, address) ?? placements.origin,
-        },
-        overridden: placements.history,
-      }
+  if (!current) {
+    return {
+      container: containerOf(address) ?? placements.origin,
+      overridden: placements.history,
+    }
+  }
+  return {
+    ...current.placement,
+    winner: current.op,
+    overridden: placements.history.filter((op) => op !== current.op),
+  }
 }
 
-export function settleResolution(
-  state: Resolution
-): Map<string, Map<OpPropertyKey, ResolvedProperty>> {
+export function settleResolution(state: Resolution): {
+  properties: Map<string, Map<OpPropertyKey, ResolvedProperty>>
+  placements: Map<string, ResolvedItemPlacement>
+} {
   const properties = new Map<string, Map<OpPropertyKey, ResolvedProperty>>()
   for (const [address, node] of state.nodes) {
     const settled = new Map<OpPropertyKey, ResolvedProperty>()
     for (const [property, entry] of node) {
       settled.set(property, settle(entry))
     }
-    const placements = state.placements.get(address)
-    if (placements) {
-      settled.set("placement", settlePlacement(state, address, placements))
-    }
     properties.set(address, settled)
   }
-  return properties
+  const containerOf = containers(state)
+  const placements = new Map<string, ResolvedItemPlacement>()
+  for (const [address, item] of state.placements) {
+    placements.set(address, settlePlacement(state, address, item, containerOf))
+  }
+  return { properties, placements }
 }

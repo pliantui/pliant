@@ -7,8 +7,9 @@ import { identityOf, parentOf } from "./node-identity"
  *
  * `move … into` and wrap membership set `container`. `pin`, reorder (`move`
  * with `before`, `after` or `index`), `promote` and `demote` keep the
- * container of the placement they replace, else the item's base parent, and
- * set only `position`.
+ * container of the item's placement that holds, else its base parent (where
+ * an `insert` or `wrap` created it, a wrapper's own target, or the parent in
+ * its address), and set only `position`.
  */
 export interface ResolvedPlacement {
   /** The identity of the node that holds the item. */
@@ -20,8 +21,8 @@ export interface ResolvedPlacement {
    * - `pin` from `pin`, where `"none"` unpins;
    * - `promoted`: `true` from `promote`, `false` from `demote`.
    *
-   * Absent after `move … into`, or when the item went back to its wrap's
-   * target with no earlier placement; the container's own order applies.
+   * Absent after `move … into`, or when no placement op holds and the item
+   * is in its base parent; the container's own order applies.
    */
   readonly position?:
     | { readonly before: string }
@@ -33,9 +34,10 @@ export interface ResolvedPlacement {
 
 /**
  * The placement an op gives the item at `address`, or undefined for an op
- * that doesn't place items. `container` is the item's current container,
- * which `pin`, reorder, `promote` and `demote` keep; without one, it is the
- * parent in the op's own target.
+ * that doesn't place items. `current` is the item's current container, which
+ * `pin`, reorder, `promote` and `demote` keep: the caller passes the
+ * container of the item's placement that holds, else its base parent. Without
+ * one, it is the parent in the op's own target.
  */
 export function placementOf(
   op: Op,

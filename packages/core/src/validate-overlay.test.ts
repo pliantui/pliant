@@ -609,6 +609,46 @@ describe("validateOverlay", () => {
       expect(resolved.skipped).toHaveLength(1)
     })
 
+    it("rejects a move into a node that doesn't exist", () => {
+      const lower = lowerOverlay("team", [
+        wrap("dashboard", "pair"),
+        { op: "remove", target: "pair" },
+      ])
+      const input = overlay([
+        { op: "move", target: "dashboard/slots/c", to: { into: "pair" } },
+        {
+          op: "move",
+          target: "dashboard/slots/c",
+          to: { into: "page/slots/v" },
+        },
+      ])
+      const validate = (baseIds?: string[]) =>
+        validateOverlay(input, {
+          layers: { overlays: [lower], surface, ...(baseIds && { baseIds }) },
+        }).error?.issues
+
+      expect(validate()).toEqual([
+        {
+          code: "custom",
+          path: ["ops", 0, "to", "into"],
+          message: "The node pair doesn't exist on this surface",
+        },
+      ])
+      expect(validate(["dashboard", "c"])?.map(({ path }) => path)).toEqual([
+        ["ops", 0, "to", "into"],
+        ["ops", 1, "to", "into"],
+      ])
+      expect(
+        resolveLayers([load(lower), load(input)], {
+          surface,
+          baseIds: ["dashboard", "c"],
+        }).unapplied.map(({ check, reason }) => [check.index, reason])
+      ).toEqual([
+        [0, "missing-container"],
+        [1, "missing-container"],
+      ])
+    })
+
     it("uses baseIds as the exact base nodes", () => {
       const lower = lowerOverlay("team", [
         { op: "hide", target: "dashboard/slots/orders" },

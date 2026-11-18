@@ -30,7 +30,6 @@ export type OpPropertyKey =
   | "layout"
   | "motion"
   | "page"
-  | "placement"
   | "presentation"
   | "shortcut"
   | "size"
@@ -49,7 +48,8 @@ export type OpPropertyKey =
 
 export interface OpProperty {
   readonly address: string
-  readonly property: OpPropertyKey
+  // An item's placement resolves apart from its properties.
+  readonly property: OpPropertyKey | "placement"
   readonly breakpoint?: Breakpoint
 }
 
@@ -57,7 +57,7 @@ export interface OpProperty {
 // with an explicit `at: "md"`.
 const defaultBreakpoint: Breakpoint = "md"
 
-function one(address: string, property: OpPropertyKey): OpProperty[] {
+function one(address: string, property: OpProperty["property"]): OpProperty[] {
   return [{ address, property }]
 }
 

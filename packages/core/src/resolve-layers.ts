@@ -8,6 +8,32 @@ import type { ResolvedPlacement } from "./placement"
 import { applyOp, createResolution, settleResolution } from "./resolution"
 import { surfaceOrder } from "./surface-order"
 
+/**
+ * Where an item sits, for every item a placement op (`move`, `pin`,
+ * `promote`, `demote`, or wrap membership) touched.
+ *
+ * It is the latest placement whose container still exists in the version it
+ * had when the item was placed there. Creating a node again, or replacing a
+ * wrap, makes a new version, so an item never returns into an earlier one.
+ * So when a wrapper is removed, or re-wrapped without an item, every item in
+ * it (listed by the wrap, or pinned, reordered or moved into it later) goes
+ * back to the placement it had just before it entered the wrapper. An item
+ * the re-wrap lists is placed by the re-wrap, which replaces any earlier pin
+ * or reorder inside the wrapper.
+ *
+ * With no placement left, the item is in its base parent with no position
+ * and no `winner`. The base parent is where an `insert` or `wrap` created
+ * the item (a wrapper's own target), else the parent in the address it was
+ * first placed from. When that parent is a node that was removed, the item
+ * sits where that node would, in turn.
+ */
+export interface ResolvedItemPlacement extends ResolvedPlacement {
+  /** The placement op that holds, absent when none does. */
+  readonly winner?: ResolvedOp
+  /** Every other placement op applied to the item, in the order applied. */
+  readonly overridden: readonly ResolvedOp[]
+}
+
 /** A valid op that applied, with the overlay it came from. */
 export interface ResolvedOp {
   readonly check: Extract<OpCheck, { status: "valid" }>
@@ -18,27 +44,9 @@ export interface ResolvedOp {
 export interface ResolvedProperty {
   /**
    * The op that decides the value. A `remove` or `removeUserItem` winner
-   * means the item is absent. Absent only on `placement`, when no placement
-   * op still holds and the item is back in its base parent.
+   * means the item is absent.
    */
-  readonly winner?: ResolvedOp
-  /**
-   * Set for `placement` only: where the item sits. It is the latest placement
-   * whose container still exists in the version it had when the item was
-   * placed there. Creating a node again, or replacing a wrap, makes a new
-   * version, so an item never returns into an earlier one; an item moved
-   * into a node that didn't exist at the time never sits there.
-   *
-   * So when a wrapper is removed, or re-wrapped without an item, every item
-   * in it (listed by the wrap, or pinned, reordered or moved into it later)
-   * goes back to the placement it had just before it entered the wrapper.
-   * An item the re-wrap lists is placed by the re-wrap, which replaces any
-   * earlier pin or reorder inside the wrapper. With no placement left, the
-   * item is in its base parent (the parent in the address it was first
-   * placed from, or an inserted node's insert target) with no position and
-   * no winner.
-   */
-  readonly placement?: ResolvedPlacement
+  readonly winner: ResolvedOp
   /**
    * Set for `layout` and `span` only: the winning scope's op at each
    * breakpoint it sets, in breakpoint order. A scope that sets any breakpoint
@@ -47,8 +55,8 @@ export interface ResolvedProperty {
   readonly breakpoints?: ReadonlyMap<Breakpoint, ResolvedOp>
   /**
    * Every other op applied to the property, in the order applied (lowest
-   * precedence first). After a removal, or when a later placement no longer
-   * holds, the winner can be an op applied before some of these.
+   * precedence first). After a removal, the winner can be an op applied
+   * before some of these.
    */
   readonly overridden: readonly ResolvedOp[]
 }
@@ -81,9 +89,15 @@ export type SkippedOp =
  * node, or a node the op itself points at. With `baseIds`, a base node is
  * exactly a listed id; without them, it is approximated as an id an earlier
  * op in the resolution order pointed at before anything created it.
+ * `missing-container` means a `move … into` names a node that doesn't exist
+ * when it applies: one that was removed, or, with `baseIds`, one that is
+ * neither listed nor created.
  */
 export type UnappliedReason =
-  "cross-layer-remove" | "id-collision" | "nothing-to-remove"
+  | "cross-layer-remove"
+  | "id-collision"
+  | "missing-container"
+  | "nothing-to-remove"
 
 /** A valid op that didn't apply, and why. */
 export interface UnappliedOp extends ResolvedOp {
@@ -127,6 +141,12 @@ export interface ResolvedLayers {
     string,
     ReadonlyMap<OpPropertyKey, ResolvedProperty>
   >
+  /**
+   * Where each item sits, by identity, for every item a placement op
+   * touched. Placement resolves apart from `properties`, since an item can
+   * end up with no op deciding it.
+   */
+  readonly placements: ReadonlyMap<string, ResolvedItemPlacement>
   /** Ops that weren't resolved, in resolution order. */
   readonly skipped: readonly SkippedOp[]
   /** Valid ops that didn't apply, in resolution order. */
@@ -179,5 +199,5 @@ export function resolveLayers(
       }
     }
   }
-  return { properties: settleResolution(state), skipped, unapplied }
+  return { ...settleResolution(state), skipped, unapplied }
 }

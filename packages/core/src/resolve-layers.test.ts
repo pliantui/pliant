@@ -85,6 +85,20 @@ function permutations<T>(items: readonly T[]): T[][] {
       )
 }
 
+function placementAt(placements: ResolvedLayers["placements"], item: string) {
+  const placed = placements.get(item)
+  return (
+    placed && {
+      winner: placed.winner,
+      overridden: placed.overridden,
+      placement: {
+        container: placed.container,
+        ...(placed.position && { position: placed.position }),
+      },
+    }
+  )
+}
+
 function get(
   properties: ResolvedLayers["properties"],
   address: string,
@@ -98,7 +112,7 @@ function winner(
   address: string,
   property: OpPropertyKey
 ) {
-  return get(properties, address, property)?.winner?.overlay
+  return get(properties, address, property)?.winner.overlay
 }
 
 const notes = "orders-table/columns/notes"
@@ -146,6 +160,7 @@ describe("resolveLayers", () => {
   it("returns nothing for no overlays", () => {
     expect(resolve([])).toEqual({
       properties: new Map(),
+      placements: new Map(),
       skipped: [],
       unapplied: [],
     })
@@ -162,15 +177,15 @@ describe("resolveLayers", () => {
       get(resolve(input).properties, notes, "visible")
 
     const resolved = visible([session, org, personal, team])
-    expect(resolved?.winner?.overlay).toBe(session)
-    expect(resolved?.winner?.check).toBe(session.ops[0])
+    expect(resolved?.winner.overlay).toBe(session)
+    expect(resolved?.winner.check).toBe(session.ops[0])
     const expected = [org, team, personal]
     expect(resolved?.overridden).toHaveLength(3)
     resolved?.overridden.forEach(({ overlay }, index) => {
       expect(overlay).toBe(expected[index])
     })
-    expect(visible([personal, team, org])?.winner?.overlay).toBe(personal)
-    expect(visible([team, org])?.winner?.overlay).toBe(team)
+    expect(visible([personal, team, org])?.winner.overlay).toBe(personal)
+    expect(visible([team, org])?.winner.overlay).toBe(team)
     expect(visible([org])?.overridden).toEqual([])
   })
 
@@ -179,7 +194,7 @@ describe("resolveLayers", () => {
     const personal = overlay("personal", [hide, show])
     const resolved = get(resolve([personal]).properties, notes, "visible")
 
-    expect(resolved?.winner?.check).toBe(personal.ops[1])
+    expect(resolved?.winner.check).toBe(personal.ops[1])
     expect(resolved?.overridden[0]?.check).toBe(personal.ops[0])
   })
 
@@ -202,13 +217,13 @@ describe("resolveLayers", () => {
         id: "01JBQ3V8Z7XKQ2M4N5P6R7S8B0",
       })
 
-      expect(visible([first, second])?.winner?.overlay).toBe(second)
-      expect(visible([second, first])?.winner?.overlay).toBe(second)
+      expect(visible([first, second])?.winner.overlay).toBe(second)
+      expect(visible([second, first])?.winner.overlay).toBe(second)
       expect(visible([first, second])?.overridden[0]?.overlay).toBe(first)
-      expect(visible([sameTimeHighId, sameTimeLowId])?.winner?.overlay).toBe(
+      expect(visible([sameTimeHighId, sameTimeLowId])?.winner.overlay).toBe(
         sameTimeHighId
       )
-      expect(visible([sameTimeLowId, sameTimeHighId])?.winner?.overlay).toBe(
+      expect(visible([sameTimeLowId, sameTimeHighId])?.winner.overlay).toBe(
         sameTimeHighId
       )
     })
@@ -220,12 +235,12 @@ describe("resolveLayers", () => {
       const ops = overlay("team", [hide], { scope: "ops" })
       const all = [sales, finance, ops]
 
-      expect(visible(all, ["sales", "finance"])?.winner?.overlay).toBe(sales)
+      expect(visible(all, ["sales", "finance"])?.winner.overlay).toBe(sales)
       expect(
         visible(all, ["sales", "finance"])?.overridden.map((op) => op.overlay)
       ).toEqual([ops, finance])
-      expect(visible(all, ["finance", "sales"])?.winner?.overlay).toBe(finance)
-      expect(visible(all.toReversed(), ["ops"])?.winner?.overlay).toBe(ops)
+      expect(visible(all, ["finance", "sales"])?.winner.overlay).toBe(finance)
+      expect(visible(all.toReversed(), ["ops"])?.winner.overlay).toBe(ops)
     })
 
     it("ranks unlisted teams by team id, then createdAt", () => {
@@ -240,14 +255,14 @@ describe("resolveLayers", () => {
         createdAt: "2026-11-05T00:00:00.000Z",
       })
 
-      expect(visible([sales, finance])?.winner?.overlay).toBe(sales)
-      expect(visible([finance, sales])?.winner?.overlay).toBe(sales)
+      expect(visible([sales, finance])?.winner.overlay).toBe(sales)
+      expect(visible([finance, sales])?.winner.overlay).toBe(sales)
       expect(
         visible([laterSales, finance, sales])?.overridden.map(
           (op) => op.overlay
         )
       ).toEqual([finance, sales])
-      expect(visible([finance, sales], ["finance"])?.winner?.overlay).toBe(
+      expect(visible([finance, sales], ["finance"])?.winner.overlay).toBe(
         finance
       )
     })
@@ -260,8 +275,8 @@ describe("resolveLayers", () => {
         createdAt: "2027-01-01T00:00:00.000Z",
       })
 
-      expect(visible([beta, alpha])?.winner?.overlay).toBe(beta)
-      expect(visible([alpha, beta])?.winner?.overlay).toBe(beta)
+      expect(visible([beta, alpha])?.winner.overlay).toBe(beta)
+      expect(visible([alpha, beta])?.winner.overlay).toBe(beta)
     })
   })
 
@@ -275,9 +290,9 @@ describe("resolveLayers", () => {
       { op: "hide", target: "dashboard/slots/y" },
       layout("stack"),
     ])
-    const { properties } = resolve([team, personal])
+    const { properties, placements } = resolve([team, personal])
 
-    expect(winner(properties, "x", "placement")).toBe(team)
+    expect(placementAt(placements, "x")?.winner?.overlay).toBe(team)
     expect(winner(properties, "y", "visible")).toBe(personal)
     expect(winner(properties, "@surface", "density")).toBe(team)
     expect(winner(properties, "dashboard", "layout")).toBe(personal)
@@ -294,7 +309,7 @@ describe("resolveLayers", () => {
         "layout"
       )
 
-      expect(resolved?.winner?.check).toBe(second.ops[0])
+      expect(resolved?.winner.check).toBe(second.ops[0])
       expect([...(resolved?.breakpoints ?? [])]).toEqual([
         ["md", { check: second.ops[0], overlay: second }],
         ["lg", { check: first.ops[0], overlay: first }],
@@ -420,20 +435,18 @@ describe("resolveLayers", () => {
         { op: "pin", target: x, where: "none" },
         { op: "demote", target: "toolbar/actions/export" },
       ])
-      const { properties } = resolve([team, personal])
+      const { placements } = resolve([team, personal])
 
-      expect(get(properties, "x", "placement")?.winner?.check).toBe(
-        personal.ops[1]
-      )
+      expect(placementAt(placements, "x")?.winner?.check).toBe(personal.ops[1])
       expect(
-        get(properties, "x", "placement")?.overridden.map(({ check }) => check)
+        placementAt(placements, "x")?.overridden.map(({ check }) => check)
       ).toEqual([team.ops[0], personal.ops[0]])
-      expect(get(properties, "y", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "y")?.placement).toEqual({
         container: "top-row",
         position: { index: 1 },
       })
       expect(
-        get(properties, "toolbar/actions/export", "placement")?.placement
+        placementAt(placements, "toolbar/actions/export")?.placement
       ).toEqual({ container: "toolbar", position: { promoted: false } })
     })
 
@@ -451,13 +464,13 @@ describe("resolveLayers", () => {
         },
         { op: "pin", target: x, where: "sticky" },
       ])
-      const { properties } = resolve([personal, team])
+      const { placements } = resolve([personal, team])
 
-      expect(get(properties, "x", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "x")?.placement).toEqual({
         container: "sidebar",
         position: { pin: "start" },
       })
-      expect(get(properties, "y", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "y")?.placement).toEqual({
         container: "dashboard",
         position: { after: "x" },
       })
@@ -468,11 +481,11 @@ describe("resolveLayers", () => {
       const personal = overlay("personal", [
         { op: "move", target: x, to: { before: "y" } },
       ])
-      const placement = get(resolve([personal]).properties, "x", "placement")
+      const placement = placementAt(resolve([personal]).placements, "x")
 
-      expect(placement?.placement?.position).toEqual({ before: "y" })
+      expect(placement?.placement.position).toEqual({ before: "y" })
       expect(Object.values(placement?.winner?.check.op ?? {})).not.toContain(
-        placement?.placement?.position
+        placement?.placement.position
       )
     })
 
@@ -491,18 +504,16 @@ describe("resolveLayers", () => {
         },
         { op: "move", target: "dashboard/slots/y", to: { index: 2 } },
       ])
-      const { properties } = resolve([team, personal])
+      const { placements } = resolve([team, personal])
 
-      expect(get(properties, "x", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "x")?.placement).toEqual({
         container: "sidebar",
       })
-      expect(get(properties, "y", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "y")?.placement).toEqual({
         container: "pair",
         position: { index: 2 },
       })
-      expect(get(properties, "pair", "inserted")).not.toHaveProperty(
-        "placement"
-      )
+      expect(placements.has("pair")).toBe(false)
     })
   })
 
@@ -526,16 +537,16 @@ describe("resolveLayers", () => {
         { op: "show", target: `page/slots/${chart}` },
         { op: "show", target: notes },
       ])
-      const { properties } = resolve([team, personal])
+      const { properties, placements } = resolve([team, personal])
 
       expect([...properties.keys()]).toEqual([
         chart,
         "top-row",
-        "orders",
         "orders-table/columns/notes",
       ])
+      expect([...placements.keys()]).toEqual([chart, "orders"])
       expect(winner(properties, "top-row", "inserted")).toBe(team)
-      expect(get(properties, chart, "visible")?.winner?.check).toBe(
+      expect(get(properties, chart, "visible")?.winner.check).toBe(
         personal.ops[1]
       )
       expect(winner(properties, notes, "visible")).toBe(personal)
@@ -551,13 +562,13 @@ describe("resolveLayers", () => {
         { op: "move", target: w1, to: { index: 0 } },
         { op: "pin", target: w1, where: "end" },
       ])
-      const { properties, unapplied } = resolve([personal, team])
+      const { properties, placements, unapplied } = resolve([personal, team])
 
       expect(unapplied).toEqual([])
-      expect(get(properties, "w1", "inserted")?.winner?.check).toBe(team.ops[0])
+      expect(get(properties, "w1", "inserted")?.winner.check).toBe(team.ops[0])
       expect(winner(properties, "w1", "span")).toBe(personal)
       expect(winner(properties, "w1", "visible")).toBe(personal)
-      expect(get(properties, "w1", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "w1")?.placement).toEqual({
         container: "dashboard",
         position: { pin: "end" },
       })
@@ -580,20 +591,20 @@ describe("resolveLayers", () => {
       const input = split
         ? [overlay("personal", [outer]), overlay("team", [inner])]
         : [overlay("personal", [inner, outer])]
-      const { properties, unapplied } = resolve(input)
+      const { properties, placements, unapplied } = resolve(input)
 
       expect(unapplied).toEqual([])
-      expect(get(properties, "inner", "inserted")?.winner?.check.op).toEqual(
+      expect(get(properties, "inner", "inserted")?.winner.check.op).toEqual(
         inner
       )
-      expect(get(properties, "outer", "inserted")?.winner?.check.op).toEqual(
+      expect(get(properties, "outer", "inserted")?.winner.check.op).toEqual(
         outer
       )
-      expect(get(properties, "inner", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "inner")?.placement).toEqual({
         container: "outer",
         position: { index: 0 },
       })
-      expect(get(properties, "a", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "a")?.placement).toEqual({
         container: "inner",
         position: { index: 0 },
       })
@@ -622,7 +633,7 @@ describe("resolveLayers", () => {
       const { properties, unapplied } = resolve([second, first])
 
       for (const property of ["derived.margin", "preset.margin"] as const) {
-        expect(get(properties, table, property)?.winner?.check).toBe(
+        expect(get(properties, table, property)?.winner.check).toBe(
           second.ops[0]
         )
       }
@@ -640,7 +651,7 @@ describe("resolveLayers", () => {
       const { properties, unapplied } = resolve([team, personal])
 
       expect(winner(properties, table, "derived.margin")).toBe(team)
-      expect(get(properties, table, "preset.margin")?.winner?.check).toBe(
+      expect(get(properties, table, "preset.margin")?.winner.check).toBe(
         personal.ops[1]
       )
       expect(unapplied).toEqual([
@@ -663,7 +674,7 @@ describe("resolveLayers", () => {
       const { properties, unapplied } = resolve([personal, team])
       const resolved = get(properties, table, "derived.margin")
 
-      expect(resolved?.winner?.check).toBe(team.ops[0])
+      expect(resolved?.winner.check).toBe(team.ops[0])
       expect(resolved?.overridden.map(({ check }) => check)).toEqual([
         personal.ops[0],
         personal.ops[1],
@@ -674,7 +685,7 @@ describe("resolveLayers", () => {
           resolve([team, personal, readd]).properties,
           table,
           "derived.margin"
-        )?.winner?.check
+        )?.winner.check
       ).toBe(readd.ops[0])
     })
 
@@ -734,7 +745,7 @@ describe("resolveLayers", () => {
       const second = overlay("team", [removeChart])
       const { properties, unapplied } = resolve([second, first])
 
-      expect(get(properties, chart, "inserted")?.winner?.check).toBe(
+      expect(get(properties, chart, "inserted")?.winner.check).toBe(
         second.ops[0]
       )
       expect(get(properties, chart, "inserted")?.overridden[0]?.check).toBe(
@@ -779,7 +790,7 @@ describe("resolveLayers", () => {
         "inserted"
       )
 
-      expect(resolved?.winner?.check).toBe(team.ops[0])
+      expect(resolved?.winner.check).toBe(team.ops[0])
       expect(resolved?.overridden.map(({ check }) => check)).toEqual([
         personal.ops[0],
         personal.ops[1],
@@ -796,9 +807,7 @@ describe("resolveLayers", () => {
       ])
       const { properties, unapplied } = resolve([team, personal])
 
-      expect(get(properties, chart, "inserted")?.winner?.check).toBe(
-        team.ops[0]
-      )
+      expect(get(properties, chart, "inserted")?.winner.check).toBe(team.ops[0])
       expect(unapplied).toEqual([
         {
           check: personal.ops[2],
@@ -814,9 +823,7 @@ describe("resolveLayers", () => {
       const personal = overlay("personal", [insertChart, removeChart])
       const { properties, unapplied } = resolve([team, personal])
 
-      expect(get(properties, chart, "inserted")?.winner?.check).toBe(
-        team.ops[1]
-      )
+      expect(get(properties, chart, "inserted")?.winner.check).toBe(team.ops[1])
       expect(unapplied).toEqual([])
     })
 
@@ -861,7 +868,7 @@ describe("resolveLayers", () => {
 
       for (const removal of [bare, slot]) {
         const { properties, unapplied } = resolve([removal, team])
-        expect(get(properties, chart, "inserted")?.winner?.check).toBe(
+        expect(get(properties, chart, "inserted")?.winner.check).toBe(
           removal.ops[0]
         )
         expect(unapplied).toEqual([])
@@ -878,11 +885,11 @@ describe("resolveLayers", () => {
       const personal = overlay("personal", [{ op: "remove", target: "pair" }])
 
       for (const removal of [bare, slot]) {
-        const { properties } = resolve([removal, team])
-        expect(get(properties, "pair", "inserted")?.winner?.check).toBe(
+        const { properties, placements } = resolve([removal, team])
+        expect(get(properties, "pair", "inserted")?.winner.check).toBe(
           removal.ops[0]
         )
-        expect(get(properties, "a", "placement")).toEqual({
+        expect(placementAt(placements, "a")).toEqual({
           placement: { container: "dashboard" },
           overridden: [{ check: team.ops[0], overlay: team }],
         })
@@ -915,21 +922,21 @@ describe("resolveLayers", () => {
         wrap("outer", ["inner", "c"]),
         { op: "remove", target: "inner" },
       ])
-      const { properties, unapplied } = resolve([personal, team])
+      const { properties, placements, unapplied } = resolve([personal, team])
 
       expect(unapplied).toEqual([])
-      expect(get(properties, "inner", "inserted")?.winner?.check).toBe(
+      expect(get(properties, "inner", "inserted")?.winner.check).toBe(
         personal.ops[2]
       )
-      expect(get(properties, "a", "placement")?.winner?.check).toBe(team.ops[0])
-      expect(get(properties, "a", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "a")?.winner?.check).toBe(team.ops[0])
+      expect(placementAt(placements, "a")?.placement).toEqual({
         container: "dashboard",
         position: { pin: "start" },
       })
       expect(
-        get(properties, "a", "placement")?.overridden.map(({ check }) => check)
+        placementAt(placements, "a")?.overridden.map(({ check }) => check)
       ).toEqual([personal.ops[0]])
-      expect(get(properties, "b", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "b")?.placement).toEqual({
         container: "dashboard",
       })
       expect(winner(properties, "outer", "inserted")).toBe(personal)
@@ -953,12 +960,10 @@ describe("resolveLayers", () => {
         moveX,
         wrap("sidebar", "pair", ["x", "y"]),
       ])
-      const { properties } = resolve([personal])
+      const { properties, placements } = resolve([personal])
 
-      expect(get(properties, "x", "placement")?.winner?.check).toBe(
-        personal.ops[1]
-      )
-      expect(get(properties, "x", "placement")?.overridden[0]?.check).toBe(
+      expect(placementAt(placements, "x")?.winner?.check).toBe(personal.ops[1])
+      expect(placementAt(placements, "x")?.overridden[0]?.check).toBe(
         personal.ops[0]
       )
       expect(properties.has("sidebar/slots/x")).toBe(false)
@@ -972,35 +977,33 @@ describe("resolveLayers", () => {
         wrap("dashboard", "pair", ["x", "y", "z"]),
         wrap("dashboard", "pair", ["z", "w"]),
       ])
-      const { properties, unapplied } = resolve([personal, team])
+      const { properties, placements, unapplied } = resolve([personal, team])
 
       expect(unapplied).toEqual([])
-      expect(get(properties, "pair", "inserted")?.winner?.check).toBe(
+      expect(get(properties, "pair", "inserted")?.winner.check).toBe(
         personal.ops[2]
       )
-      expect(get(properties, "x", "placement")?.winner?.check).toBe(team.ops[0])
-      expect(get(properties, "x", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "x")?.winner?.check).toBe(team.ops[0])
+      expect(placementAt(placements, "x")?.placement).toEqual({
         container: "dashboard",
         position: { pin: "start" },
       })
       expect(
-        get(properties, "x", "placement")?.overridden.map(({ check }) => check)
+        placementAt(placements, "x")?.overridden.map(({ check }) => check)
       ).toEqual([personal.ops[1]])
-      expect(get(properties, "y", "placement")?.winner?.check).toBe(
-        personal.ops[0]
-      )
-      expect(get(properties, "y", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "y")?.winner?.check).toBe(personal.ops[0])
+      expect(placementAt(placements, "y")?.placement).toEqual({
         container: "dashboard",
         position: { index: 1 },
       })
       expect(
-        get(properties, "y", "placement")?.overridden.map(({ check }) => check)
+        placementAt(placements, "y")?.overridden.map(({ check }) => check)
       ).toEqual([personal.ops[1]])
-      expect(get(properties, "z", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "z")?.placement).toEqual({
         container: "pair",
         position: { index: 0 },
       })
-      expect(get(properties, "w", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "w")?.placement).toEqual({
         container: "pair",
         position: { index: 1 },
       })
@@ -1035,20 +1038,18 @@ describe("resolveLayers", () => {
       ])("returns every item in the wrapper after %s", (_, inside, moved) => {
         const overlay = overlays()
         const personal = overlay("personal", [...before, inside, release])
-        const { properties, unapplied } = resolve([personal])
+        const { placements, unapplied } = resolve([personal])
 
         expect(unapplied).toEqual([])
-        expect(get(properties, "a", "placement")?.winner?.check).toBe(
+        expect(placementAt(placements, "a")?.winner?.check).toBe(
           personal.ops[0]
         )
-        expect(get(properties, "c", "placement")?.winner?.check).toBe(
+        expect(placementAt(placements, "c")?.winner?.check).toBe(
           personal.ops[1]
         )
         for (const [item, indexes] of Object.entries(moved)) {
           expect(
-            get(properties, item, "placement")?.overridden.map(
-              ({ check }) => check
-            )
+            placementAt(placements, item)?.overridden.map(({ check }) => check)
           ).toEqual(indexes.map((index) => personal.ops[index]))
         }
       })
@@ -1075,9 +1076,9 @@ describe("resolveLayers", () => {
           { op: "move", target: `${origin}/slots/c`, to: { into: "w" } },
           { op: "remove", target: "w" },
         ])
-        const { properties } = resolve([personal])
+        const { placements } = resolve([personal])
 
-        expect(get(properties, "c", "placement")).toEqual({
+        expect(placementAt(placements, "c")).toEqual({
           placement: { container: origin },
           overridden: [{ check: personal.ops[1], overlay: personal }],
         })
@@ -1091,12 +1092,10 @@ describe("resolveLayers", () => {
         { op: "pin", target: "w/slots/a", where: "end" },
         wrap("dashboard", "w", ["c", "a"]),
       ])
-      const { properties } = resolve([personal])
+      const { placements } = resolve([personal])
 
-      expect(get(properties, "a", "placement")?.winner?.check).toBe(
-        personal.ops[2]
-      )
-      expect(get(properties, "a", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "a")?.winner?.check).toBe(personal.ops[2])
+      expect(placementAt(placements, "a")?.placement).toEqual({
         container: "w",
         position: { index: 1 },
       })
@@ -1109,16 +1108,14 @@ describe("resolveLayers", () => {
         wrap("dashboard", "pair", ["a", "b"]),
         wrap("dashboard", "pair", ["b", "c"]),
       ])
-      const { properties } = resolve([personal])
+      const { placements } = resolve([personal])
 
-      expect(get(properties, "a", "placement")?.winner?.check).toBe(
-        personal.ops[0]
-      )
-      expect(get(properties, "a", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "a")?.winner?.check).toBe(personal.ops[0])
+      expect(placementAt(placements, "a")?.placement).toEqual({
         container: "dashboard",
         position: { pin: "start" },
       })
-      expect(get(properties, "b", "placement")?.placement).toEqual({
+      expect(placementAt(placements, "b")?.placement).toEqual({
         container: "pair",
         position: { index: 0 },
       })
@@ -1132,8 +1129,8 @@ describe("resolveLayers", () => {
         wrap("dashboard", "pair", ["b", "a"]),
         wrap("dashboard", "pair", ["b", "c"]),
       ])
-      const { properties } = resolve([personal])
-      const a = get(properties, "a", "placement")
+      const { placements } = resolve([personal])
+      const a = placementAt(placements, "a")
 
       expect(a?.winner?.check).toBe(personal.ops[0])
       expect(a?.placement).toEqual({
@@ -1155,13 +1152,11 @@ describe("resolveLayers", () => {
         { op: "remove", target: "outer" },
         { op: "remove", target: "dashboard/slots/inner" },
       ])
-      const { properties, unapplied } = resolve([personal])
+      const { placements, unapplied } = resolve([personal])
 
       expect(unapplied).toEqual([])
-      expect(get(properties, "c", "placement")?.winner?.check).toBe(
-        personal.ops[0]
-      )
-      expect(get(properties, "a", "placement")).toEqual({
+      expect(placementAt(placements, "c")?.winner?.check).toBe(personal.ops[0])
+      expect(placementAt(placements, "a")).toEqual({
         placement: { container: "dashboard" },
         overridden: [{ check: personal.ops[1], overlay: personal }],
       })
@@ -1180,8 +1175,8 @@ describe("resolveLayers", () => {
         to: { into },
       })
       const removeNode = (id: string) => ({ op: "remove", target: id })
-      const at = (properties: ResolvedLayers["properties"], item: string) =>
-        get(properties, item, "placement")
+      const at = (placements: ResolvedLayers["placements"], item: string) =>
+        placementAt(placements, item)
 
       it("returns an item from nested wrappers to where it came from", () => {
         const overlay = overlays()
@@ -1193,18 +1188,18 @@ describe("resolveLayers", () => {
           removeNode("outer"),
           removeNode("inner"),
         ])
-        const { properties } = resolve([personal])
+        const { placements } = resolve([personal])
 
-        expect(at(properties, "d")?.placement).toEqual({
+        expect(at(placements, "d")?.placement).toEqual({
           container: "sidebar",
         })
-        expect(at(properties, "a")?.placement).toEqual({
+        expect(at(placements, "a")?.placement).toEqual({
           container: "dashboard",
         })
-        expect(at(properties, "inner")?.placement).toEqual({
+        expect(at(placements, "inner")?.placement).toEqual({
           container: "dashboard",
         })
-        expect(at(properties, "a")?.winner).toBeUndefined()
+        expect(at(placements, "a")?.winner).toBeUndefined()
       })
 
       it("passes over a wrap version that was replaced twice", () => {
@@ -1217,9 +1212,9 @@ describe("resolveLayers", () => {
           wrap("dashboard", "w", ["c", "b"]),
           removeNode("x"),
         ])
-        const { properties } = resolve([personal])
+        const { placements } = resolve([personal])
 
-        expect(at(properties, "a")?.placement).toEqual({
+        expect(at(placements, "a")?.placement).toEqual({
           container: "dashboard",
         })
       })
@@ -1234,9 +1229,9 @@ describe("resolveLayers", () => {
           wrap("dashboard", "w", ["b", "c"]),
           removeNode("x"),
         ])
-        const { properties } = resolve([personal])
+        const { placements } = resolve([personal])
 
-        expect(at(properties, "a")).toEqual({
+        expect(at(placements, "a")).toEqual({
           placement: { container: "dashboard" },
           overridden: personal.ops
             .slice(1, 4)
@@ -1255,49 +1250,58 @@ describe("resolveLayers", () => {
           insertAt("sidebar", "x"),
           removeNode("y"),
         ])
-        const { properties, unapplied } = resolve([personal], {
+        const { placements, unapplied } = resolve([personal], {
           baseIds: ["dashboard", "sidebar", "footer", "c"],
         })
 
         expect(unapplied).toEqual([])
-        expect(at(properties, "c")?.placement).toEqual({
+        expect(at(placements, "c")?.placement).toEqual({
           container: "dashboard",
         })
-        expect(at(properties, "c")?.winner).toBeUndefined()
+        expect(at(placements, "c")?.winner).toBeUndefined()
       })
 
-      it("never places an item in a node removed before it moved there", () => {
-        const overlay = overlays()
-        const personal = overlay("personal", [
-          insertAt("sidebar", "x"),
-          removeNode("x"),
-          move("dashboard/slots/c", "x"),
-        ])
-        const { properties } = resolve([personal], {
-          baseIds: ["dashboard", "sidebar", "c"],
-        })
+      it.each([[{ baseIds: ["dashboard", "sidebar", "c"] }], [{}]])(
+        "reports a move into a node removed before it (%j)",
+        (options) => {
+          const overlay = overlays()
+          const personal = overlay("personal", [
+            insertAt("sidebar", "x"),
+            removeNode("x"),
+            move("dashboard/slots/c", "x"),
+          ])
+          const { placements, unapplied } = resolve([personal], options)
 
-        expect(at(properties, "c")).toEqual({
-          placement: { container: "dashboard" },
-          overridden: [{ check: personal.ops[2], overlay: personal }],
-        })
-      })
+          expect(unapplied).toEqual([
+            {
+              check: personal.ops[2],
+              overlay: personal,
+              reason: "missing-container",
+            },
+          ])
+          expect(placements.has("c")).toBe(false)
+        }
+      )
 
-      it("never places an item in a node that doesn't exist yet", () => {
+      it("reports a move into a node that doesn't exist yet", () => {
         const overlay = overlays()
         const personal = overlay("personal", [
           move("dashboard/slots/c", "v"),
           wrap("dashboard", "v", ["a", "b"]),
         ])
-        const { properties, unapplied } = resolve([personal], {
+        const { placements, unapplied } = resolve([personal], {
           baseIds: ["dashboard", "a", "b", "c"],
         })
 
-        expect(unapplied).toEqual([])
-        expect(at(properties, "c")?.placement).toEqual({
-          container: "dashboard",
-        })
-        expect(at(properties, "a")?.placement).toEqual({
+        expect(unapplied).toEqual([
+          {
+            check: personal.ops[0],
+            overlay: personal,
+            reason: "missing-container",
+          },
+        ])
+        expect(placements.has("c")).toBe(false)
+        expect(at(placements, "a")?.placement).toEqual({
           container: "v",
           position: { index: 0 },
         })
@@ -1313,10 +1317,140 @@ describe("resolveLayers", () => {
           insertAt("dashboard", "x"),
           removeNode("x"),
         ])
-        const { properties } = resolve([personal, team])
+        const { placements } = resolve([personal, team])
 
-        expect(at(properties, "c")?.winner?.check).toBe(team.ops[1])
-        expect(at(properties, "c")?.placement).toEqual({ container: "x" })
+        expect(at(placements, "c")?.winner?.check).toBe(team.ops[1])
+        expect(at(placements, "c")?.placement).toEqual({ container: "x" })
+      })
+
+      it("lets a move into an unknown node apply without baseIds", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [move("dashboard/slots/c", "v")])
+        const { placements, unapplied } = resolve([personal])
+
+        expect(unapplied).toEqual([])
+        expect(at(placements, "c")?.placement).toEqual({ container: "v" })
+      })
+
+      it.each([
+        [
+          "a slot's parent",
+          { op: "pin", target: "dashboard/slots/a", where: "start" },
+          "a",
+          { container: "dashboard", position: { pin: "start" } },
+        ],
+        [
+          "a column's table",
+          { op: "pin", target: "orders-table/columns/notes", where: "end" },
+          "orders-table/columns/notes",
+          { container: "orders-table", position: { pin: "end" } },
+        ],
+        [
+          "a column reorder",
+          {
+            op: "move",
+            target: "orders-table/columns/notes",
+            to: { before: "total" },
+          },
+          "orders-table/columns/notes",
+          { container: "orders-table", position: { before: "total" } },
+        ],
+        [
+          "an action's toolbar",
+          { op: "promote", target: "tb/actions/x" },
+          "tb/actions/x",
+          { container: "tb", position: { promoted: true } },
+        ],
+        [
+          "a template's slot",
+          { op: "pin", target: "card[]/slots/title", where: "start" },
+          "title",
+          { container: "card[]", position: { pin: "start" } },
+        ],
+      ])(
+        "keeps a position in %s that baseIds doesn't list",
+        (_, op, item, placement) => {
+          const overlay = overlays()
+          const personal = overlay("personal", [op])
+          const { placements } = resolve([personal], {
+            baseIds: ["a", "b", "card"],
+          })
+
+          expect(at(placements, item)?.winner?.check).toBe(personal.ops[0])
+          expect(at(placements, item)?.placement).toEqual(placement)
+        }
+      )
+
+      it("sends an item inserted into a removed wrapper where the wrapper was", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          wrap("page/slots/dashboard", "w", ["a", "b"]),
+          wrap("dashboard", "outer", ["w", "c"]),
+          insertAt("w", "y"),
+          { op: "move", target: "w/slots/y", to: { index: 0 } },
+          removeNode("w"),
+        ])
+        const { placements } = resolve([personal])
+
+        expect(at(placements, "y")).toEqual({
+          placement: { container: "outer" },
+          overridden: [{ check: personal.ops[3], overlay: personal }],
+        })
+        expect(at(placements, "a")?.placement).toEqual({
+          container: "dashboard",
+        })
+      })
+
+      it("sends an item through a chain of removed nodes", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          wrap("page/slots/dashboard", "outer", ["a", "b"]),
+          insertAt("outer", "x"),
+          insertAt("x", "y"),
+          { op: "pin", target: "x/slots/y", where: "start" },
+          removeNode("x"),
+          removeNode("outer"),
+        ])
+        const { placements } = resolve([personal])
+
+        expect(at(placements, "y")?.placement).toEqual({
+          container: "dashboard",
+        })
+      })
+
+      it("never keeps a position in a parent removed before it was set", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          insertAt("dashboard", "x"),
+          insertAt("x", "y"),
+          removeNode("x"),
+          { op: "pin", target: "x/slots/y", where: "start" },
+        ])
+        const { placements } = resolve([personal])
+
+        expect(at(placements, "y")).toEqual({
+          placement: { container: "dashboard" },
+          overridden: [{ check: personal.ops[3], overlay: personal }],
+        })
+      })
+
+      it("keeps an inserted node's own target as its base parent", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          insertAt("page/slots/dashboard", "y"),
+          { op: "pin", target: "sidebar/slots/y", where: "start" },
+          wrap("dashboard", "w", ["y", "b"]),
+          removeNode("w"),
+        ])
+        const { placements } = resolve([personal])
+
+        expect(at(placements, "y")?.placement).toEqual({
+          container: "dashboard",
+          position: { pin: "start" },
+        })
+        expect(at(placements, "b")?.placement).toEqual({
+          container: "dashboard",
+        })
       })
 
       it("takes the container of the placement that still holds", () => {
@@ -1328,9 +1462,9 @@ describe("resolveLayers", () => {
           removeNode("w"),
           { op: "pin", target: "w/slots/c", where: "end" },
         ])
-        const { properties } = resolve([personal])
+        const { placements } = resolve([personal])
 
-        expect(at(properties, "c")?.placement).toEqual({
+        expect(at(placements, "c")?.placement).toEqual({
           container: "sidebar",
           position: { pin: "end" },
         })
@@ -1344,11 +1478,9 @@ describe("resolveLayers", () => {
         moveX,
         wrap("dashboard", "pair", ["y", "z"]),
       ])
-      const { properties } = resolve([personal])
+      const { placements } = resolve([personal])
 
-      expect(get(properties, "x", "placement")?.winner?.check).toBe(
-        personal.ops[1]
-      )
+      expect(placementAt(placements, "x")?.winner?.check).toBe(personal.ops[1])
     })
 
     describe("ids", () => {
@@ -1397,7 +1529,7 @@ describe("resolveLayers", () => {
         ])
         expect(properties.has("sidebar")).toBe(true)
         expect(properties.get("orders")?.has("inserted")).toBe(false)
-        expect(properties.get("c")?.has("inserted")).toBe(false)
+        expect(properties.has("c")).toBe(false)
       })
 
       it("rejects an insert or wrap id another node has, whichever came first", () => {
@@ -1488,7 +1620,7 @@ describe("resolveLayers", () => {
         expect(unapplied.map(({ check, reason }) => [check, reason])).toEqual([
           [personal.ops[1], "id-collision"],
         ])
-        expect(get(properties, "w", "inserted")?.winner?.check).toBe(
+        expect(get(properties, "w", "inserted")?.winner.check).toBe(
           personal.ops[0]
         )
       })
@@ -1539,8 +1671,7 @@ describe("resolveLayers", () => {
           [personal.ops[2], "id-collision"],
         ])
         expect(
-          get(resolve([personal]).properties, "group", "inserted")?.winner
-            ?.check
+          get(resolve([personal]).properties, "group", "inserted")?.winner.check
         ).toBe(personal.ops[1])
       })
     })
@@ -1711,7 +1842,7 @@ describe("resolveLayers", () => {
     const team = overlay("team", [hide, { op: "setTheme", target: notes }])
     const { properties, skipped } = resolve([personal, team])
 
-    expect(properties.get(notes)?.get("visible")?.winner?.overlay).toBe(team)
+    expect(properties.get(notes)?.get("visible")?.winner.overlay).toBe(team)
     expect(properties.get(notes)?.has("label")).toBe(false)
     expect(properties.has("orders-table")).toBe(false)
     expect(
@@ -1819,16 +1950,27 @@ describe("resolveLayers", () => {
     }) =>
       `${overlay.layer}:${overlay.id}:${overlay.createdAt}:${String(check.index)}:${JSON.stringify(check.op)}`
 
-    const canonical = ({ properties, skipped, unapplied }: ResolvedLayers) => ({
+    const canonical = ({
+      properties,
+      placements,
+      skipped,
+      unapplied,
+    }: ResolvedLayers) => ({
       properties: [...properties].map(([address, node]) => [
         address,
         [...node].map(([key, property]) => [
           key,
-          property.winner && label(property.winner),
+          label(property.winner),
           property.overridden.map(label),
           [...(property.breakpoints ?? [])].map(([at, op]) => [at, label(op)]),
-          property.placement,
         ]),
+      ]),
+      placements: [...placements].map(([item, placed]) => [
+        item,
+        placed.container,
+        placed.position,
+        placed.winner && label(placed.winner),
+        placed.overridden.map(label),
       ]),
       skipped: skipped.map((op) => [label(op), op.reason]),
       unapplied: unapplied.map((op) => [label(op), op.reason]),
@@ -1848,11 +1990,11 @@ describe("resolveLayers", () => {
           }
         }
       }
-      const versionOf = (id: string) => {
+      const versionOf = (id: string, parent: string) => {
         const created = state.nodes.get(id)?.get("inserted")?.winner.op.check
           .op.op
         if (created === undefined) {
-          return state.base.has(id) ? 0 : undefined
+          return state.base.has(id) || id === parent ? 0 : undefined
         }
         return created === "insert" || created === "wrap"
           ? state.versions.get(id)
@@ -1862,12 +2004,15 @@ describe("resolveLayers", () => {
       for (const [item, placements] of state.placements) {
         const holding = placements.candidates.filter(
           ({ placement, version }) =>
-            version !== undefined && versionOf(placement.container) === version
+            version !== undefined &&
+            versionOf(placement.container, placements.origin) === version
         )
-        const settled = get(resolved.properties, item, "placement")
+        const settled = placementAt(resolved.placements, item)
         expect(settled?.winner?.check).toBe(holding.at(-1)?.op.check)
         if (settled?.winner) {
-          expect(versionOf(settled.placement?.container ?? "")).toBeDefined()
+          expect(
+            versionOf(settled.placement.container, placements.origin)
+          ).toBeDefined()
         }
       }
     }
@@ -1879,25 +2024,29 @@ describe("resolveLayers", () => {
         const options = seed % 2 === 0 ? { baseIds: ["dashboard", "a"] } : {}
         const resolved = resolve(input, options)
         const applied = new Map<OpCheck, number>()
-        for (const [address, node] of resolved.properties) {
-          const placed = node.get("placement")
-          const container = placed?.placement?.container
-          const holder =
-            container === undefined
-              ? undefined
-              : get(resolved.properties, container, "inserted")?.winner?.check
-                  .op
+        for (const [item, placed] of resolved.placements) {
+          const holder = get(resolved.properties, placed.container, "inserted")
+            ?.winner.check.op
           expect(holder?.op).not.toBe("remove")
           if (
-            placed?.winner?.check.op.op === "wrap" &&
-            placed.placement?.container === placed.winner.check.op.id
+            placed.winner?.check.op.op === "wrap" &&
+            placed.container === placed.winner.check.op.id
           ) {
             expect(holder).toBe(placed.winner.check.op)
-            expect(placed.winner.check.op.items).toContain(address)
+            expect(placed.winner.check.op.items).toContain(item)
           }
+          expect(new Set(placed.overridden).size).toBe(placed.overridden.length)
+          for (const { check } of [
+            ...(placed.winner ? [placed.winner] : []),
+            ...placed.overridden,
+          ]) {
+            applied.set(check, 1)
+          }
+        }
+        for (const node of resolved.properties.values()) {
           for (const { winner, overridden, breakpoints } of node.values()) {
             const ops = new Set([
-              ...(winner ? [winner] : []),
+              winner,
               ...overridden,
               ...(breakpoints?.values() ?? []),
             ])
@@ -2042,9 +2191,9 @@ describe("resolveLayers", () => {
         )
       )
       expect(resolved.unapplied).toEqual([])
-      expect(
-        get(resolved.properties, "x", "placement")?.overridden
-      ).toHaveLength(large * 500 - 1)
+      expect(placementAt(resolved.placements, "x")?.overridden).toHaveLength(
+        large * 500 - 1
+      )
     })
 
     it("resolves many nested wraps", () => {
@@ -2065,10 +2214,11 @@ describe("resolveLayers", () => {
         )
       )
       expect(resolved.unapplied).toEqual([])
-      expect(get(resolved.properties, "inner", "placement")?.placement).toEqual(
-        { container: "outer", position: { index: 0 } }
-      )
-      expect(get(resolved.properties, "a", "placement")?.placement).toEqual({
+      expect(placementAt(resolved.placements, "inner")?.placement).toEqual({
+        container: "outer",
+        position: { index: 0 },
+      })
+      expect(placementAt(resolved.placements, "a")?.placement).toEqual({
         container: "dashboard",
       })
     })
@@ -2092,7 +2242,7 @@ describe("resolveLayers", () => {
         )
       )
       expect(resolved.unapplied).toEqual([])
-      expect(get(resolved.properties, "a", "placement")?.placement).toEqual({
+      expect(placementAt(resolved.placements, "a")?.placement).toEqual({
         container: "dashboard",
         position: { pin: "start" },
       })
@@ -2109,7 +2259,7 @@ describe("resolveLayers", () => {
         )
       )
       expect(resolved.unapplied).toEqual([])
-      expect(get(resolved.properties, "c", "placement")?.placement).toEqual({
+      expect(placementAt(resolved.placements, "c")?.placement).toEqual({
         container: "dashboard",
       })
     })
