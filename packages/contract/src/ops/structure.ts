@@ -23,7 +23,10 @@ const movableSlotSchema = itemAddressSchema("slots", { template: false })
  * resolved, not by this schema.
  */
 const removableSchema = z.union([kebabIdSchema, itemAddressSchema("slots")], {
-  error: "Must be a slot address or the id of a node the user added",
+  error: (issue) =>
+    typeof issue.input === "string"
+      ? "Must be a slot address or the id of a node the user added"
+      : undefined,
 })
 
 const placementSchema = z.union([

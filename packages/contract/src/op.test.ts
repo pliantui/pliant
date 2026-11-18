@@ -111,13 +111,24 @@ describe("opSchema", () => {
     expect(issues[0]?.path).toEqual(path)
   })
 
-  it("reports one issue for a remove target that is neither a slot nor an id", () => {
+  const removeTargetMessage =
+    "Must be a slot address or the id of a node the user added"
+
+  it.each([
+    ["a missing remove target", {}, "Invalid input"],
+    ["a non-string remove target", { target: 5 }, "Invalid input"],
+    [
+      "a remove target that is neither a slot nor an id",
+      { target: "order-card[]" },
+      removeTargetMessage,
+    ],
+  ])("reports %s once", (_, fields, message) => {
     const issues =
-      opSchema.safeParse({ op: "remove", target: "order-card[]" }).error
-        ?.issues ?? []
+      opSchema.safeParse({ op: "remove", ...fields }).error?.issues ?? []
     expect(issues).toHaveLength(1)
     expect(issues[0]).toMatchObject({
-      message: "Must be a slot address or the id of a node the user added",
+      code: "invalid_union",
+      message,
       path: ["target"],
     })
   })
