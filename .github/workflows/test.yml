@@ -34,7 +34,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           package-manager-cache: false
-      - run: pnpm --recursive --filter=./packages/* test
+      - run: pnpm --recursive --filter=./packages/* --filter=www test
 
   zod:
     runs-on: ubuntu-latest
