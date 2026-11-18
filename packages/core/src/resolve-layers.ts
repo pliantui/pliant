@@ -8,6 +8,8 @@ import {
   type OpPropertyKey,
 } from "./op-property"
 import { orderOverlays } from "./order-overlays"
+import { scopeKeyOf } from "./overlay-scope"
+import { baseNodeIds, wrapCollides, type NodeIds } from "./wrap-ids"
 
 export interface ResolvedOp {
   readonly check: Extract<OpCheck, { status: "valid" }>
@@ -15,29 +17,50 @@ export interface ResolvedOp {
 }
 
 export interface ResolvedProperty {
-  /** The last op applied to the property. */
+  /**
+   * The op that decides the value. A `remove` or `removeUserItem` winner
+   * means the item is absent.
+   */
   readonly winner: ResolvedOp
   /**
-   * Set for `layout` and `span` only: the winning layer's op at each
-   * breakpoint it sets, in breakpoint order. A layer that sets any breakpoint
-   * replaces every breakpoint of the layers below it.
+   * Set for `layout` and `span` only: the winning scope's op at each
+   * breakpoint it sets, in breakpoint order. A scope that sets any breakpoint
+   * replaces every breakpoint set before it by another scope.
    */
   readonly breakpoints?: ReadonlyMap<Breakpoint, ResolvedOp>
-  /** The ops the winner replaced, lowest precedence first. */
+  /**
+   * Every other op applied to the property, in the order applied (lowest
+   * precedence first). After a removal, the winner can be an op applied
+   * before some of these.
+   */
   readonly overridden: readonly ResolvedOp[]
 }
 
-export interface SkippedOp {
-  readonly check: Exclude<OpCheck, { status: "valid" }>
-  readonly overlay: LoadedOverlay
-}
+/**
+ * Why an op was skipped: its check status, `duplicate-id` when an overlay
+ * earlier in the resolution order has the same id, or `surface-mismatch` when
+ * the overlay is for another surface.
+ */
+export type SkippedOp =
+  | {
+      readonly check: Exclude<OpCheck, { status: "valid" }>
+      readonly overlay: LoadedOverlay
+      readonly reason: Exclude<OpCheck["status"], "valid">
+    }
+  | {
+      readonly check: OpCheck
+      readonly overlay: LoadedOverlay
+      readonly reason: "duplicate-id" | "surface-mismatch"
+    }
 
 /**
  * Why a valid op didn't apply. `remove` and `removeUserItem` only clear what
- * the same layer added: `cross-layer-remove` means only a lower layer added
- * it, and `nothing-to-remove` means nothing was there.
+ * their own scope added: `cross-layer-remove` means another scope added it,
+ * and `nothing-to-remove` means nothing was there. `id-collision` means a
+ * `wrap` id is already used on the surface.
  */
-export type UnappliedReason = "cross-layer-remove" | "nothing-to-remove"
+export type UnappliedReason =
+  "cross-layer-remove" | "id-collision" | "nothing-to-remove"
 
 export interface UnappliedOp extends ResolvedOp {
   readonly reason: UnappliedReason
@@ -46,7 +69,8 @@ export interface UnappliedOp extends ResolvedOp {
 export interface ResolveLayersOptions {
   /**
    * Team ids, highest precedence first. Overlays from teams not listed rank
-   * below the listed ones.
+   * below the listed ones, and among themselves by ascending team id, so the
+   * later id wins.
    */
   readonly teamOrder?: readonly string[] | undefined
 }
@@ -62,124 +86,272 @@ export interface ResolvedLayers {
 
 interface Entry {
   winner: ResolvedOp
+  history: ResolvedOp[]
+  scope: string
+  // The winner before `scope` first wrote, which a removal falls back to.
+  baseline: ResolvedOp | undefined
   breakpoints?: Map<Breakpoint, ResolvedOp>
-  overridden: ResolvedOp[]
 }
 
-type Nodes = Map<string, Map<OpPropertyKey, Entry>>
+interface State {
+  nodes: Map<string, Map<OpPropertyKey, Entry>>
+  scopes: Map<LoadedOverlay, string>
+  // Container address to item id to the address of the item placed there.
+  placed: Map<string, Map<string, string>>
+  inserts: Map<string, Set<string>>
+}
 
 function isRemoval(op: Op): boolean {
   return op.op === "remove" || op.op === "removeUserItem"
 }
 
+function entryAt(state: State, address: string, property: OpPropertyKey) {
+  return state.nodes.get(address)?.get(property)
+}
+
 function write(
-  nodes: Nodes,
+  state: State,
   { address, property, breakpoint }: OpProperty,
-  resolved: ResolvedOp
+  resolved: ResolvedOp,
+  scope: string
 ): void {
-  let node = nodes.get(address)
+  let node = state.nodes.get(address)
   if (!node) {
     node = new Map()
-    nodes.set(address, node)
+    state.nodes.set(address, node)
   }
   const entry = node.get(property)
   if (!entry) {
     node.set(property, {
       winner: resolved,
-      overridden: [],
+      history: [resolved],
+      scope,
+      baseline: undefined,
       ...(breakpoint && { breakpoints: new Map([[breakpoint, resolved]]) }),
     })
     return
   }
-  if (entry.breakpoints && breakpoint) {
-    if (entry.winner.overlay.layer !== resolved.overlay.layer) {
-      entry.breakpoints.clear()
-    }
-    entry.breakpoints.set(breakpoint, resolved)
+  if (entry.scope !== scope) {
+    entry.baseline = entry.winner
+    entry.scope = scope
+    entry.breakpoints?.clear()
   }
-  entry.overridden.push(entry.winner)
+  if (breakpoint) {
+    entry.breakpoints?.set(breakpoint, resolved)
+  }
+  entry.history.push(resolved)
   entry.winner = resolved
 }
 
 function remove(
-  nodes: Nodes,
+  state: State,
   properties: readonly OpProperty[],
-  resolved: ResolvedOp
+  resolved: ResolvedOp,
+  scope: string
 ): UnappliedReason | undefined {
-  let found = false
   let applied = false
+  let foreign = false
   for (const { address, property } of properties) {
-    const entry = nodes.get(address)?.get(property)
+    const entry = entryAt(state, address, property)
     if (!entry || isRemoval(entry.winner.check.op)) {
       continue
     }
-    found = true
-    if (entry.winner.overlay.layer === resolved.overlay.layer) {
-      entry.overridden.push(entry.winner)
-      entry.winner = resolved
-      applied = true
+    if (state.scopes.get(entry.winner.overlay) !== scope) {
+      foreign = true
+      continue
     }
+    entry.history.push(resolved)
+    entry.winner = entry.baseline ?? resolved
+    applied = true
   }
-  if (applied) {
-    return undefined
-  }
-  return found ? "cross-layer-remove" : "nothing-to-remove"
+  return foreign
+    ? "cross-layer-remove"
+    : applied
+      ? undefined
+      : "nothing-to-remove"
 }
 
-function settleBreakpoints(entry: Entry): void {
-  const { breakpoints } = entry
-  if (!breakpoints) {
-    return
+function containerOf(state: State, address: string): string | undefined {
+  const op = entryAt(state, address, "placement")?.winner.check.op
+  if (op?.op === "move" && "into" in op.to) {
+    return op.to.into
   }
-  const live = new Set(breakpoints.values())
-  entry.overridden = entry.overridden.filter((op) => !live.has(op))
-  entry.breakpoints = new Map(
-    breakpointSchema.options.flatMap((breakpoint) => {
-      const op = breakpoints.get(breakpoint)
-      return op ? [[breakpoint, op] as const] : []
-    })
-  )
+  return op?.op === "wrap" ? op.id : undefined
+}
+
+// A wrapped item keeps its identity address: if a node with that id was moved
+// or wrapped into the container and still sits there, that node's address.
+function identityOf(state: State, container: string, item: string): string {
+  const placed = state.placed.get(container)?.get(item)
+  return placed !== undefined && containerOf(state, placed) === container
+    ? placed
+    : `${container}/slots/${item}`
+}
+
+function place(state: State, container: string, item: string, address: string) {
+  let items = state.placed.get(container)
+  if (!items) {
+    items = new Map()
+    state.placed.set(container, items)
+  }
+  items.set(item, address)
+}
+
+function nodeIds(state: State, base: ReadonlySet<string>): NodeIds {
+  return {
+    base,
+    wrap: (id) => {
+      const winner = entryAt(state, id, "inserted")?.winner
+      const scope = winner && state.scopes.get(winner.overlay)
+      return winner?.check.op.op === "wrap" && scope !== undefined
+        ? { scope, target: winner.check.op.target }
+        : undefined
+    },
+    isInserted: (id) =>
+      [...(state.inserts.get(id) ?? [])].some(
+        (address) =>
+          entryAt(state, address, "inserted")?.winner.check.op.op === "insert"
+      ),
+  }
+}
+
+function apply(
+  state: State,
+  ids: NodeIds,
+  resolved: ResolvedOp,
+  scope: string
+): UnappliedReason | undefined {
+  const { op } = resolved.check
+  if (isRemoval(op)) {
+    return remove(state, opProperties(op), resolved, scope)
+  }
+  if (op.op === "wrap" && wrapCollides(op, scope, ids)) {
+    return "id-collision"
+  }
+  const identities = new Map<string, string>()
+  const properties = opProperties(op, (container, item) => {
+    const address = identityOf(state, container, item)
+    identities.set(item, address)
+    return address
+  })
+  for (const property of properties) {
+    write(state, property, resolved, scope)
+  }
+  if (op.op === "move" && "into" in op.to) {
+    const item = op.target.slice(op.target.lastIndexOf("/") + 1)
+    place(state, op.to.into, item, op.target)
+  } else if (op.op === "wrap") {
+    for (const [item, address] of identities) {
+      place(state, op.id, item, address)
+    }
+  } else if (op.op === "insert") {
+    let addresses = state.inserts.get(op.node.id)
+    if (!addresses) {
+      addresses = new Set()
+      state.inserts.set(op.node.id, addresses)
+    }
+    addresses.add(`${op.target}/slots/${op.node.id}`)
+  }
+  return undefined
+}
+
+function settle(entry: Entry): ResolvedProperty {
+  const { winner, breakpoints } = entry
+  const live = new Set(breakpoints?.values() ?? [winner])
+  return {
+    winner,
+    ...(breakpoints && {
+      breakpoints: new Map(
+        breakpointSchema.options.flatMap((breakpoint) => {
+          const op = breakpoints.get(breakpoint)
+          return op ? [[breakpoint, op] as const] : []
+        })
+      ),
+    }),
+    overridden: entry.history.filter((op) => !live.has(op)),
+  }
 }
 
 /**
  * Resolves the overlays for one surface, plus the @app overlays, into a value
- * per (address, property). Layers apply org, team, personal, session; within
- * a layer, overlays apply in a fixed order (see `teamOrder`), and within an
- * overlay later ops win. Only valid ops apply: `skipped` lists the others and
- * `unapplied` lists valid removals that had nothing of their layer to remove,
- * both in the order they were met.
+ * per (address, property).
+ *
+ * Layers apply org, team, personal, session. Within a layer, overlays apply
+ * by `teamOrder` (team layer only), then ascending scope id, `createdAt` and
+ * overlay id, so the later one wins; within an overlay, later ops win.
+ *
+ * Only valid ops apply. `skipped` lists the ops that aren't valid, the ops of
+ * an overlay whose id appeared earlier in this order, and the ops of an
+ * overlay for another surface than the first non-@app overlay's. `unapplied`
+ * lists valid ops that didn't apply; a `removeUserItem` that removed part of
+ * what it names also appears there. Both lists follow the resolution order.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],
   { teamOrder = [] }: ResolveLayersOptions = {}
 ): ResolvedLayers {
-  const nodes: Nodes = new Map()
+  const ordered = orderOverlays(overlays, teamOrder)
+  const state: State = {
+    nodes: new Map(),
+    scopes: new Map(),
+    placed: new Map(),
+    inserts: new Map(),
+  }
+  const rejected = new Map<LoadedOverlay, "duplicate-id" | "surface-mismatch">()
+  const seen = new Set<string>()
+  let surface: string | undefined
+  for (const overlay of ordered) {
+    if (seen.has(overlay.id)) {
+      rejected.set(overlay, "duplicate-id")
+      continue
+    }
+    seen.add(overlay.id)
+    if (overlay.surface !== "@app") {
+      surface ??= overlay.surface
+      if (overlay.surface !== surface) {
+        rejected.set(overlay, "surface-mismatch")
+        continue
+      }
+    }
+    state.scopes.set(overlay, scopeKeyOf(overlay))
+  }
+  const ids = nodeIds(
+    state,
+    baseNodeIds(
+      ordered.flatMap((overlay) =>
+        rejected.has(overlay)
+          ? []
+          : overlay.ops.flatMap((check) =>
+              check.status === "valid" ? [check.op] : []
+            )
+      )
+    )
+  )
   const skipped: SkippedOp[] = []
   const unapplied: UnappliedOp[] = []
-  for (const overlay of orderOverlays(overlays, teamOrder)) {
+  for (const overlay of ordered) {
+    const reason = rejected.get(overlay)
+    const scope = state.scopes.get(overlay)
     for (const check of overlay.ops) {
-      if (check.status !== "valid") {
-        skipped.push({ check, overlay })
-        continue
-      }
-      const resolved = { check, overlay }
-      const properties = opProperties(check.op)
-      if (!isRemoval(check.op)) {
-        for (const property of properties) {
-          write(nodes, property, resolved)
-        }
-        continue
-      }
-      const reason = remove(nodes, properties, resolved)
       if (reason) {
-        unapplied.push({ check, overlay, reason })
+        skipped.push({ check, overlay, reason })
+      } else if (check.status !== "valid") {
+        skipped.push({ check, overlay, reason: check.status })
+      } else if (scope !== undefined) {
+        const notApplied = apply(state, ids, { check, overlay }, scope)
+        if (notApplied) {
+          unapplied.push({ check, overlay, reason: notApplied })
+        }
       }
     }
   }
-  for (const node of nodes.values()) {
-    for (const entry of node.values()) {
-      settleBreakpoints(entry)
+  const properties = new Map<string, Map<OpPropertyKey, ResolvedProperty>>()
+  for (const [address, node] of state.nodes) {
+    const settled = new Map<OpPropertyKey, ResolvedProperty>()
+    for (const [property, entry] of node) {
+      settled.set(property, settle(entry))
     }
+    properties.set(address, settled)
   }
-  return { properties: nodes, skipped, unapplied }
+  return { properties, skipped, unapplied }
 }

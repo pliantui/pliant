@@ -316,4 +316,24 @@ describe("opProperties", () => {
       { address: "page/slots/dashboard/slots/b", property: "placement" },
     ])
   })
+
+  it("asks identityOf for each wrapped item's address", () => {
+    expect(
+      opProperties(
+        {
+          op: "wrap",
+          target: "sidebar",
+          id: "pair",
+          items: ["x", "y"],
+          mode: "row",
+        },
+        (container, item) =>
+          item === "x" ? "dashboard/slots/x" : `${container}/slots/${item}`
+      )
+    ).toEqual([
+      { address: "pair", property: "inserted" },
+      { address: "dashboard/slots/x", property: "placement" },
+      { address: "sidebar/slots/y", property: "placement" },
+    ])
+  })
 })

@@ -53,6 +53,10 @@ function parentOf(address: string): string {
   return address.replace(/\/[^/]+\/[^/]+$/, "")
 }
 
+export type IdentityOf = (container: string, item: string) => string
+
+const slotOf: IdentityOf = (container, item) => `${container}/slots/${item}`
+
 function one(address: string, property: OpPropertyKey): OpProperty[] {
   return [{ address, property }]
 }
@@ -60,8 +64,13 @@ function one(address: string, property: OpPropertyKey): OpProperty[] {
 /**
  * The (address, property) pairs an op writes. `remove` and `removeUserItem`
  * list the pairs they may clear; resolution decides which ones they do.
+ * `identityOf` finds the address of a wrapped item from the wrap's target and
+ * the item's id, by default `<target>/slots/<item>`.
  */
-export function opProperties(op: Op): readonly OpProperty[] {
+export function opProperties(
+  op: Op,
+  identityOf: IdentityOf = slotOf
+): readonly OpProperty[] {
   switch (op.op) {
     case "setProp":
       return one(op.target, `props.${op.prop}`)
@@ -105,7 +114,7 @@ export function opProperties(op: Op): readonly OpProperty[] {
       return [
         { address: op.id, property: "inserted" },
         ...op.items.map((item) => ({
-          address: `${op.target}/slots/${item}`,
+          address: identityOf(op.target, item),
           property: "placement" as const,
         })),
       ]

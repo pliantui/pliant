@@ -8,11 +8,22 @@ import {
 } from "@pliantui/contract"
 
 import { checkOp, type OpCheck, type OpContext } from "./check-op"
+import { scopeKeyOf } from "./overlay-scope"
 import { ownEntries } from "./own-entries"
+import type { ResolvedLayers } from "./resolve-layers"
 import type { Result } from "./result"
 import type { WithOps } from "./with-ops"
+import { nodeIdsOf, wrapCollides, type WrapOwner } from "./wrap-ids"
 
 export type ValidatedOverlay = WithOps<Op>
+
+export interface ValidateOverlayOptions {
+  /**
+   * The resolved layers the overlay will apply on, from `resolveLayers`. When
+   * given, a `wrap` whose id is already used on the surface is invalid.
+   */
+  readonly resolved?: ResolvedLayers | undefined
+}
 
 const [overlayVariant] = overlaySchema.out.options
 const opsListSchema = overlayVariant.shape.ops
@@ -72,7 +83,42 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
   }
 }
 
-export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
+function wrapIdIssues(
+  checks: readonly OpCheck[],
+  scope: string,
+  resolved: ResolvedLayers
+): z.core.$ZodIssue[] {
+  const valid = checks.flatMap((check) =>
+    check.status === "valid" ? [{ index: check.index, op: check.op }] : []
+  )
+  const ids = nodeIdsOf(
+    resolved,
+    valid.map(({ op }) => op)
+  )
+  const own = new Map<string, WrapOwner>()
+  const withOwn = { ...ids, wrap: (id: string) => own.get(id) ?? ids.wrap(id) }
+  return valid.flatMap(({ index, op }): z.core.$ZodIssue[] => {
+    if (op.op !== "wrap") {
+      return []
+    }
+    if (wrapCollides(op, scope, withOwn)) {
+      return [
+        {
+          code: "custom",
+          path: ["ops", index, "id"],
+          message: `The id ${op.id} is already used on this surface`,
+        },
+      ]
+    }
+    own.set(op.id, { scope, target: op.target })
+    return []
+  })
+}
+
+export function validateOverlay(
+  input: unknown,
+  { resolved }: ValidateOverlayOptions = {}
+): Result<ValidatedOverlay> {
   const entries = ownEntries(input)
   const result = overlaySchema.safeParse(entries ?? input)
   const envelopeIssues = result.error?.issues ?? []
@@ -95,7 +141,14 @@ export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
       ? { ops: [], issues: [], context: {} }
       : fallbackOf(entries)
   const checks = ops.map((op, index) => checkOp(op, index, context))
-  const issues = [...envelopeIssues, ...listIssues, ...checks.flatMap(issuesOf)]
+  const issues = [
+    ...envelopeIssues,
+    ...listIssues,
+    ...checks.flatMap(issuesOf),
+    ...(result.success && resolved
+      ? wrapIdIssues(checks, scopeKeyOf(result.data), resolved)
+      : []),
+  ]
   if (!result.success || issues.length > 0) {
     return { success: false, error: new z.ZodError(issues) }
   }

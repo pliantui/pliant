@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import { overlaySchema } from "@pliantui/contract"
 
+import { loadOverlay } from "./load-overlay"
+import { resolveLayers } from "./resolve-layers"
 import { validateOverlay } from "./validate-overlay"
 
 function overlay(ops: unknown[]) {
@@ -315,5 +317,76 @@ describe("validateOverlay", () => {
 
   it("fails when the envelope is invalid", () => {
     expect(validateOverlay({ ...overlay([]), v: 2 }).success).toBe(false)
+  })
+
+  describe("with resolved layers", () => {
+    const wrap = (target: string, id: string) => ({
+      op: "wrap",
+      target,
+      id,
+      items: ["a", "b"],
+      mode: "row",
+    })
+    const resolved = (layer: string, ops: unknown[]) => {
+      const loaded = loadOverlay({
+        ...overlay(ops),
+        id: "01JBQ3V8Z7XKQ2M4N5P6R7S8A0",
+        layer,
+        ...(layer === "team" && { scope: { team: "sales" } }),
+      })
+      if (!loaded.success) {
+        throw loaded.error
+      }
+      return resolveLayers([loaded.data])
+    }
+
+    it("rejects a wrap id already used on the surface", () => {
+      const result = validateOverlay(
+        overlay([
+          { op: "hide", target: "orders-table/columns/notes" },
+          wrap("dashboard", "pair"),
+          wrap("dashboard", "orders"),
+        ]),
+        {
+          resolved: resolved("team", [
+            wrap("dashboard", "pair"),
+            { op: "hide", target: "dashboard/slots/orders" },
+          ]),
+        }
+      )
+      expect(result.error?.issues).toEqual([
+        {
+          code: "custom",
+          path: ["ops", 1, "id"],
+          message: "The id pair is already used on this surface",
+        },
+        {
+          code: "custom",
+          path: ["ops", 2, "id"],
+          message: "The id orders is already used on this surface",
+        },
+      ])
+    })
+
+    it("rejects reusing an id the overlay itself wrapped elsewhere", () => {
+      const result = validateOverlay(
+        overlay([wrap("dashboard", "pair"), wrap("sidebar", "pair")]),
+        { resolved: resolved("personal", [{ op: "hide", target: "page" }]) }
+      )
+      expect(result.error?.issues.map(({ path }) => path)).toEqual([
+        ["ops", 1, "id"],
+      ])
+    })
+
+    it("lets the same scope replace its own wrap", () => {
+      const ops = [wrap("dashboard", "pair")]
+      expect(
+        validateOverlay(overlay(ops), { resolved: resolved("personal", ops) })
+          .success
+      ).toBe(true)
+      expect(
+        validateOverlay(overlay([wrap("dashboard", "dashboard")])).success
+      ).toBe(true)
+    })
   })
 })

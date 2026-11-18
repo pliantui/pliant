@@ -12,4 +12,8 @@ export {
   type UnappliedOp,
   type UnappliedReason,
 } from "./resolve-layers"
-export { validateOverlay, type ValidatedOverlay } from "./validate-overlay"
+export {
+  validateOverlay,
+  type ValidateOverlayOptions,
+  type ValidatedOverlay,
+} from "./validate-overlay"
