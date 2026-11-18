@@ -2006,6 +2006,187 @@
       },
       "message": "Must have one sentence per op",
       "path": ["explain"]
+    },
+    {
+      "value": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          },
+          "__proto__": {
+            "layers": "garbage"
+          }
+        },
+        "source": "ai",
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "message": "Must not have a __proto__ key",
+      "path": ["basis", "__proto__"]
+    },
+    {
+      "value": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "team",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z",
+        "scope": {
+          "team": "support",
+          "__proto__": {
+            "org": "x"
+          }
+        }
+      },
+      "message": "Must not have a __proto__ key",
+      "path": ["scope", "__proto__"]
+    },
+    {
+      "value": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table",
+            "constructor": 1
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "message": "Must not have a constructor key",
+      "path": ["ops", 0, "constructor"]
+    },
+    {
+      "value": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z",
+        "prototype": 1
+      },
+      "message": "Must not have a prototype key",
+      "path": ["prototype"]
     }
   ]
 }

@@ -1,18 +1,19 @@
 import * as z from "zod"
 
 import { labelSchema } from "./label"
-import { overlaySchema } from "./overlay"
+import { overlayObjectSchema } from "./overlay"
+import { withoutReservedKeys } from "./reserved-keys"
 import { surfaceSchema } from "./surface"
 import { ulidSchema } from "./ulid"
 
-export const savedViewSchema = z
+const savedViewObjectSchema = z
   .looseObject({
     v: z.literal(1),
     id: ulidSchema,
     name: labelSchema,
     surface: surfaceSchema,
     layer: z.enum(["org", "team", "personal"]),
-    overlays: z.array(overlaySchema).max(50),
+    overlays: z.array(overlayObjectSchema).max(50),
   })
   .superRefine((view, ctx) => {
     const ids = new Set<string>()
@@ -50,5 +51,7 @@ export const savedViewSchema = z
     description:
       "A named set of overlays for one surface. Every overlay must have the view's surface and layer, the same scope.org and scope.team as the others, and a unique id. Validate each overlay as the @pliantui/contract README describes.",
   })
+
+export const savedViewSchema = withoutReservedKeys(savedViewObjectSchema)
 
 export type SavedView = z.infer<typeof savedViewSchema>

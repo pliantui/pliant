@@ -1,6 +1,7 @@
 import * as z from "zod"
 
 import { kindSchema, propNameSchema } from "./identifier"
+import { withoutReservedKeys } from "./reserved-keys"
 import { textSchema } from "./text"
 import { uniqueArray } from "./unique"
 import { propValueSchema } from "./value"
@@ -33,7 +34,7 @@ export const manifestPropSchema = z
 
 export type ManifestProp = z.infer<typeof manifestPropSchema>
 
-export const manifestSchema = z
+const manifestObjectSchema = z
   .strictObject({
     kind: kindSchema,
     version: z.int().min(1),
@@ -56,6 +57,8 @@ export const manifestSchema = z
     title: "Pliant manifest",
     description: "What a component lets users change.",
   })
+
+export const manifestSchema = withoutReservedKeys(manifestObjectSchema)
 
 export type Manifest = z.infer<typeof manifestSchema>
 
