@@ -3,20 +3,56 @@
     {
       "op": "remove",
       "target": "dashboard/slots/revenue-chart"
+    },
+    {
+      "op": "remove",
+      "target": "kpis"
+    },
+    {
+      "op": "remove",
+      "target": "abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     }
   ],
   "invalid": [
+    {
+      "op": "remove",
+      "target": "order-card[]/slots/badge"
+    },
     {
       "op": "remove",
       "target": "dashboard/slots/Revenue"
     },
     {
       "op": "remove",
-      "target": "dashboard"
+      "target": "orders-table/columns/notes"
     },
     {
       "op": "remove",
-      "target": "orders-table/columns/notes"
+      "target": "Kpis"
+    },
+    {
+      "op": "remove",
+      "target": "kpis_row"
+    },
+    {
+      "op": "remove",
+      "target": "order-card[]"
+    },
+    {
+      "op": "remove",
+      "target": "dashboard/slots"
+    },
+    {
+      "op": "remove",
+      "target": "kpis/"
+    },
+    {
+      "op": "remove",
+      "target": "@app"
+    },
+    {
+      "op": "remove",
+      "target": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ]
 }
