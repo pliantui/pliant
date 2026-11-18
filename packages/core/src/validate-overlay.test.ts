@@ -327,9 +327,9 @@ describe("validateOverlay", () => {
       items: ["a", "b"],
       mode: "row",
     })
-    const insert = (id: string) => ({
+    const insert = (id: string, target = "page") => ({
       op: "insert",
-      target: "page",
+      target,
       node: { id, kind: "chart", dataset: "orders" },
       at: { index: 0 },
     })
@@ -347,7 +347,7 @@ describe("validateOverlay", () => {
       if (!loaded.success) {
         throw loaded.error
       }
-      return resolveLayers([loaded.data])
+      return resolveLayers([loaded.data], { surface: "/orders/[id]" })
     }
 
     it("rejects a wrap id already used on the surface", () => {
@@ -399,6 +399,30 @@ describe("validateOverlay", () => {
       ).toBe(true)
     })
 
+    it("rejects an insert id already used on the surface", () => {
+      const result = validateOverlay(
+        overlay([insert("pair"), insert("orders"), insert("chart")]),
+        {
+          resolved: resolved("team", [
+            wrap("dashboard", "pair"),
+            { op: "hide", target: "dashboard/slots/orders" },
+          ]),
+        }
+      )
+      expect(result.error?.issues).toEqual([
+        {
+          code: "custom",
+          path: ["ops", 0, "node", "id"],
+          message: "The id pair is already used on this surface",
+        },
+        {
+          code: "custom",
+          path: ["ops", 1, "node", "id"],
+          message: "The id orders is already used on this surface",
+        },
+      ])
+    })
+
     it.each<[string, unknown[], unknown[], number[]]>([
       [
         "a base id only an unapplied op points at",
@@ -436,6 +460,42 @@ describe("validateOverlay", () => {
         [wrap("dashboard", "pair"), wrap("page", "pair")],
         [1],
       ],
+      [
+        "an insert over a lower wrap",
+        [wrap("dashboard", "pair")],
+        [insert("pair")],
+        [0],
+      ],
+      [
+        "an insert of a base id",
+        [{ op: "hide", target: "dashboard/slots/orders" }],
+        [insert("orders", "dashboard")],
+        [0],
+      ],
+      [
+        "an insert at another target than a lower insert",
+        [insert("chart")],
+        [insert("chart", "dashboard")],
+        [0],
+      ],
+      [
+        "a re-insert at the same target",
+        [insert("chart")],
+        [insert("chart", "shell/slots/page")],
+        [],
+      ],
+      [
+        "a wrap over its own insert, then a re-insert",
+        [{ op: "hide", target: "page" }],
+        [insert("chart"), wrap("dashboard", "chart"), insert("chart")],
+        [1],
+      ],
+      [
+        "an insert of a removed wrapper's id",
+        [wrap("page", "pair"), { op: "remove", target: "pair" }],
+        [insert("pair")],
+        [],
+      ],
     ])("agrees with resolveLayers on %s", (_, lower, ops, expected) => {
       const input = { ...overlay(ops), id: "01JBQ3V8Z7XKQ2M4N5P6R7S8B0" }
       const loaded = loadOverlay(input)
@@ -452,7 +512,8 @@ describe("validateOverlay", () => {
             [...node.values()].map(({ winner }) => winner.overlay)
           ),
           loaded.data,
-        ].filter((item, index, all) => all.indexOf(item) === index)
+        ].filter((item, index, all) => all.indexOf(item) === index),
+        { surface: "/orders/[id]" }
       )
 
       expect(validated.error?.issues.map(({ path }) => path[1]) ?? []).toEqual(

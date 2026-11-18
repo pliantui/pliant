@@ -8,21 +8,22 @@ import {
 } from "@pliantui/contract"
 
 import { checkOp, type OpCheck, type OpContext } from "./check-op"
+import type { LoadedOverlay } from "./load-overlay"
 import { scopeKeyOf } from "./overlay-scope"
 import { ownEntries } from "./own-entries"
-import type { ResolvedLayers } from "./resolve-layers"
+import { applyOp, createResolution } from "./resolution"
+import { appliedOverlaysOf, type ResolvedLayers } from "./resolve-layers"
 import type { Result } from "./result"
 import type { WithOps } from "./with-ops"
-import { collidingWraps } from "./wrap-ids"
 
 export type ValidatedOverlay = WithOps<Op>
 
 export interface ValidateOverlayOptions {
   /**
-   * The resolved layers the overlay will apply on top of, from
-   * `resolveLayers`. When given, a `wrap` whose id is already used on the
-   * surface is invalid, exactly as `resolveLayers` would find it when the
-   * overlay resolves after those layers.
+   * The resolved layers the overlay will apply on top of: the value
+   * `resolveLayers` returned. When given, an `insert` or `wrap` whose id is
+   * already used on the surface is invalid, exactly as `resolveLayers` would
+   * find it (`id-collision`) when the overlay resolves after those layers.
    */
   readonly resolved?: ResolvedLayers | undefined
 }
@@ -85,30 +86,41 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
   }
 }
 
-function wrapIdIssues(
-  checks: readonly OpCheck[],
-  scope: string,
+function idIssues(
+  overlay: LoadedOverlay,
   resolved: ResolvedLayers
 ): z.core.$ZodIssue[] {
-  const valid = checks.flatMap((check) =>
-    check.status === "valid" ? [check] : []
-  )
-  const colliding = collidingWraps(
-    resolved,
-    scope,
-    valid.map(({ op }) => op)
-  )
-  return valid.flatMap(({ index, op }): z.core.$ZodIssue[] =>
-    op.op === "wrap" && colliding.has(op)
+  const state = createResolution()
+  for (const lower of appliedOverlaysOf(resolved)) {
+    const scope = scopeKeyOf(lower)
+    for (const check of lower.ops) {
+      if (check.status === "valid") {
+        applyOp(state, { check, overlay: lower }, scope)
+      }
+    }
+  }
+  const scope = scopeKeyOf(overlay)
+  return overlay.ops.flatMap((check): z.core.$ZodIssue[] => {
+    if (
+      check.status !== "valid" ||
+      applyOp(state, { check, overlay }, scope) !== "id-collision"
+    ) {
+      return []
+    }
+    const { op, index } = check
+    return op.op === "insert" || op.op === "wrap"
       ? [
           {
             code: "custom",
-            path: ["ops", index, "id"],
-            message: `The id ${op.id} is already used on this surface`,
+            path:
+              op.op === "insert"
+                ? ["ops", index, "node", "id"]
+                : ["ops", index, "id"],
+            message: `The id ${op.op === "insert" ? op.node.id : op.id} is already used on this surface`,
           },
         ]
       : []
-  )
+  })
 }
 
 export function validateOverlay(
@@ -142,7 +154,7 @@ export function validateOverlay(
     ...listIssues,
     ...checks.flatMap(issuesOf),
     ...(result.success && resolved
-      ? wrapIdIssues(checks, scopeKeyOf(result.data), resolved)
+      ? idIssues({ ...result.data, ops: checks }, resolved)
       : []),
   ]
   if (!result.success || issues.length > 0) {

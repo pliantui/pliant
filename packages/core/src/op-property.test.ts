@@ -27,7 +27,7 @@ const cases: [Op, OpProperty[]][] = [
   ],
   [
     { op: "move", target: "dashboard/slots/revenue", to: { after: "orders" } },
-    [{ address: "dashboard/slots/revenue", property: "placement" }],
+    [{ address: "revenue", property: "placement" }],
   ],
   [
     {
@@ -53,7 +53,7 @@ const cases: [Op, OpProperty[]][] = [
     { op: "span", target: "dashboard/slots/revenue", columns: 2, at: "lg" },
     [
       {
-        address: "dashboard/slots/revenue",
+        address: "revenue",
         property: "span",
         breakpoint: "lg",
       },
@@ -66,7 +66,7 @@ const cases: [Op, OpProperty[]][] = [
       node: { id: "revenue-chart", kind: "chart", dataset: "orders" },
       at: { index: 0 },
     },
-    [{ address: "dashboard/slots/revenue-chart", property: "inserted" }],
+    [{ address: "revenue-chart", property: "inserted" }],
   ],
   [
     {
@@ -78,13 +78,13 @@ const cases: [Op, OpProperty[]][] = [
     },
     [
       { address: "top-row", property: "inserted" },
-      { address: "dashboard/slots/revenue", property: "placement" },
-      { address: "dashboard/slots/orders", property: "placement" },
+      { address: "revenue", property: "placement" },
+      { address: "orders", property: "placement" },
     ],
   ],
   [
     { op: "remove", target: "dashboard/slots/revenue-chart" },
-    [{ address: "dashboard/slots/revenue-chart", property: "inserted" }],
+    [{ address: "revenue-chart", property: "inserted" }],
   ],
   [
     { op: "setDefault", target: "ticket-form/fields/priority", value: "high" },
@@ -287,7 +287,7 @@ describe("opProperties", () => {
       ...(at === undefined ? {} : { at }),
     }
     expect(opProperties(op)).toEqual([
-      { address: "dashboard/slots/a", property: "span", breakpoint },
+      { address: "a", property: "span", breakpoint },
     ])
   })
 
@@ -297,7 +297,7 @@ describe("opProperties", () => {
         op: "setLanding",
         target: "shell/slots/app-sidebar/items/reports",
       })
-    ).toEqual([{ address: "shell/slots/app-sidebar", property: "landing" }])
+    ).toEqual([{ address: "app-sidebar", property: "landing" }])
   })
 
   it("keys a wrapper on its own id, even inside another node", () => {
@@ -312,28 +312,27 @@ describe("opProperties", () => {
       })
     ).toEqual([
       { address: "top-row", property: "inserted" },
-      { address: "page/slots/dashboard/slots/a", property: "placement" },
-      { address: "page/slots/dashboard/slots/b", property: "placement" },
+      { address: "a", property: "placement" },
+      { address: "b", property: "placement" },
     ])
   })
 
-  it("asks identityOf for each wrapped item's address", () => {
-    expect(
-      opProperties(
-        {
-          op: "wrap",
-          target: "sidebar",
-          id: "pair",
-          items: ["x", "y"],
-          mode: "row",
-        },
-        (container, item) =>
-          item === "x" ? "dashboard/slots/x" : `${container}/slots/${item}`
-      )
-    ).toEqual([
-      { address: "pair", property: "inserted" },
-      { address: "dashboard/slots/x", property: "placement" },
-      { address: "sidebar/slots/y", property: "placement" },
+  it.each([
+    ["dashboard/slots/revenue-chart", "revenue-chart"],
+    ["revenue-chart", "revenue-chart"],
+    ["page/slots/dashboard/slots/top-row", "top-row"],
+  ])("removes %s by its identity", (target, address) => {
+    expect(opProperties({ op: "remove", target })).toEqual([
+      { address, property: "inserted" },
     ])
+  })
+
+  it("keys items in other collections on their node's identity", () => {
+    expect(
+      opProperties({
+        op: "hide",
+        target: "page/slots/orders-table/columns/notes",
+      })
+    ).toEqual([{ address: "orders-table/columns/notes", property: "visible" }])
   })
 })

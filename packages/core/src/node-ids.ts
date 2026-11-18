@@ -1,46 +1,32 @@
 import type { Op } from "@pliantui/contract"
 
-export interface NodeReference {
-  readonly id: string
-  // A wrapper is only ever addressed by its id, never as a slot.
-  readonly slot: boolean
-}
-
-function referencesIn(address: string): NodeReference[] {
+function idsIn(address: string): string[] {
   if (address.startsWith("@")) {
     return []
   }
   const segments = address.split("/")
-  const references: NodeReference[] = []
-  segments.forEach((segment, index) => {
-    if (index === 0) {
-      references.push({ id: segment.replace(/\[\]$/, ""), slot: false })
-    } else if (index % 2 === 0 && segments[index - 1] === "slots") {
-      references.push({ id: segment, slot: true })
+  const ids = [segments[0]?.replace(/\[\]$/, "") ?? ""]
+  for (let index = 1; index < segments.length - 1; index += 2) {
+    const id = segments[index + 1]
+    if (segments[index] === "slots" && id !== undefined) {
+      ids.push(id)
     }
-  })
-  return references
+  }
+  return ids
 }
 
-/** The nodes an op's addresses point at, other than one it creates. */
-export function referencedNodes(op: Op): NodeReference[] {
-  const references = referencesIn(op.target)
+/**
+ * The ids of the nodes an op's addresses point at: every node on the way to
+ * its target and `move … into` destination, and a wrap's items. The id an
+ * `insert` or `wrap` creates isn't one of them.
+ */
+export function referencedNodes(op: Op): string[] {
+  const ids = idsIn(op.target)
   if (op.op === "move" && "into" in op.to) {
-    references.push(...referencesIn(op.to.into))
+    ids.push(...idsIn(op.to.into))
   }
   if (op.op === "wrap") {
-    references.push(...op.items.map((id) => ({ id, slot: true })))
+    ids.push(...op.items)
   }
-  return references
-}
-
-export function createdNodeId(op: Op): string | undefined {
-  switch (op.op) {
-    case "insert":
-      return op.node.id
-    case "wrap":
-      return op.id
-    default:
-      return undefined
-  }
+  return ids
 }

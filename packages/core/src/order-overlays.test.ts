@@ -58,7 +58,7 @@ describe("orderOverlays", () => {
   const input = [session, personal, ops, sales, acme, finance]
 
   it("orders by layer, then teamOrder, then ascending scope id", () => {
-    expectOrder(orderOverlays(input, ["ops", "finance"]), [
+    expectOrder(orderOverlays(input, ["ops", "finance"]).flat(), [
       acme,
       sales,
       finance,
@@ -66,7 +66,7 @@ describe("orderOverlays", () => {
       personal,
       session,
     ])
-    expectOrder(orderOverlays(input, []), [
+    expectOrder(orderOverlays(input, []).flat(), [
       acme,
       finance,
       ops,
@@ -77,7 +77,7 @@ describe("orderOverlays", () => {
   })
 
   it("uses a team's first place in teamOrder", () => {
-    expectOrder(orderOverlays([sales, ops], ["ops", "sales", "ops"]), [
+    expectOrder(orderOverlays([sales, ops], ["ops", "sales", "ops"]).flat(), [
       sales,
       ops,
     ])
@@ -93,7 +93,11 @@ describe("orderOverlays", () => {
     )
     const tie = overlay("personal", "C1", undefined, "2026-11-01T10:00:00Z")
 
-    expectOrder(orderOverlays([tie, later, earlier], []), [earlier, later, tie])
+    expectOrder(orderOverlays([tie, later, earlier], []).flat(), [
+      earlier,
+      later,
+      tie,
+    ])
   })
 
   it("compares createdAt below a millisecond", () => {
@@ -104,7 +108,7 @@ describe("orderOverlays", () => {
     const micro = at(".0000010", "B1")
     const milli = at(".001", "A1")
 
-    expectOrder(orderOverlays([milli, micro, nano, whole], []), [
+    expectOrder(orderOverlays([milli, micro, nano, whole], []).flat(), [
       whole,
       nano,
       micro,
@@ -119,16 +123,34 @@ describe("orderOverlays", () => {
     const late = overlay("personal", "D1", undefined, "2027-01-01T00:00:00Z")
 
     for (const order of permutations([valid, unreadable, other, late])) {
-      expectOrder(orderOverlays(order, []), [unreadable, other, valid, late])
+      expectOrder(orderOverlays(order, []).flat(), [
+        unreadable,
+        other,
+        valid,
+        late,
+      ])
     }
   })
 
-  it("orders overlays with the same id by content", () => {
+  it("groups overlays that tie on every key, ordered by content", () => {
     const first = overlay("personal", "A1")
     const second = { ...overlay("personal", "A1"), createdBy: "user_456" }
+    const later = overlay("personal", "A1", undefined, "2026-11-02T00:00:00Z")
 
-    expectOrder(orderOverlays([second, first], []), [first, second])
-    expectOrder(orderOverlays([first, second], []), [first, second])
+    for (const order of permutations([second, later, first])) {
+      const groups = orderOverlays(order, [])
+      expect(groups).toHaveLength(2)
+      expectOrder(groups[0] ?? [], [first, second])
+      expectOrder(groups[1] ?? [], [later])
+    }
+  })
+
+  it("keeps identical tied overlays in input order", () => {
+    const first = overlay("personal", "A1")
+    const twin = overlay("personal", "A1")
+
+    expectOrder(orderOverlays([twin, first], []).flat(), [twin, first])
+    expectOrder(orderOverlays([first, twin], []).flat(), [first, twin])
   })
 
   it("doesn't change the input", () => {
