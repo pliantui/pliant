@@ -603,9 +603,18 @@
           "const": "remove"
         },
         "target": {
-          "type": "string",
-          "maxLength": 256,
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/(?:(?:columns|fields|items|actions)\\/[A-Za-z][A-Za-z0-9_-]*|slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*))*\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            },
+            {
+              "type": "string",
+              "maxLength": 256,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/(?:(?:columns|fields|items|actions)\\/[A-Za-z][A-Za-z0-9_-]*|slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*))*\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            }
+          ]
         }
       },
       "required": [

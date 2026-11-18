@@ -110,4 +110,15 @@ describe("opSchema", () => {
     expect(issues).toHaveLength(1)
     expect(issues[0]?.path).toEqual(path)
   })
+
+  it("reports one issue for a remove target that is neither a slot nor an id", () => {
+    const issues =
+      opSchema.safeParse({ op: "remove", target: "order-card[]" }).error
+        ?.issues ?? []
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toMatchObject({
+      message: "Must be a slot address or the id of a node the user added",
+      path: ["target"],
+    })
+  })
 })

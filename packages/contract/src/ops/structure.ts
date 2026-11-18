@@ -16,6 +16,16 @@ import { uniqueArray } from "../unique"
 
 const movableSlotSchema = itemAddressSchema("slots", { template: false })
 
+/**
+ * A slot address, or the bare id of a node the user inserted or wrapped. A
+ * wrapper has no slot address of its own, so it's addressed by its id. Whether
+ * a bare id names a node the user added is checked when the overlay is
+ * resolved, not by this schema.
+ */
+const removableSchema = z.union([kebabIdSchema, itemAddressSchema("slots")], {
+  error: "Must be a slot address or the id of a node the user added",
+})
+
 const placementSchema = z.union([
   z.strictObject({ before: itemIdSchema }),
   z.strictObject({ after: itemIdSchema }),
@@ -135,6 +145,6 @@ export const structureOpSchemas = {
   ]),
   remove: z.strictObject({
     op: z.literal("remove"),
-    target: itemAddressSchema("slots"),
+    target: removableSchema,
   }),
 }
