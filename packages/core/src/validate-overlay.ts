@@ -13,14 +13,16 @@ import { ownEntries } from "./own-entries"
 import type { ResolvedLayers } from "./resolve-layers"
 import type { Result } from "./result"
 import type { WithOps } from "./with-ops"
-import { nodeIdsOf, wrapCollides, type WrapOwner } from "./wrap-ids"
+import { collidingWraps } from "./wrap-ids"
 
 export type ValidatedOverlay = WithOps<Op>
 
 export interface ValidateOverlayOptions {
   /**
-   * The resolved layers the overlay will apply on, from `resolveLayers`. When
-   * given, a `wrap` whose id is already used on the surface is invalid.
+   * The resolved layers the overlay will apply on top of, from
+   * `resolveLayers`. When given, a `wrap` whose id is already used on the
+   * surface is invalid, exactly as `resolveLayers` would find it when the
+   * overlay resolves after those layers.
    */
   readonly resolved?: ResolvedLayers | undefined
 }
@@ -89,30 +91,24 @@ function wrapIdIssues(
   resolved: ResolvedLayers
 ): z.core.$ZodIssue[] {
   const valid = checks.flatMap((check) =>
-    check.status === "valid" ? [{ index: check.index, op: check.op }] : []
+    check.status === "valid" ? [check] : []
   )
-  const ids = nodeIdsOf(
+  const colliding = collidingWraps(
     resolved,
+    scope,
     valid.map(({ op }) => op)
   )
-  const own = new Map<string, WrapOwner>()
-  const withOwn = { ...ids, wrap: (id: string) => own.get(id) ?? ids.wrap(id) }
-  return valid.flatMap(({ index, op }): z.core.$ZodIssue[] => {
-    if (op.op !== "wrap") {
-      return []
-    }
-    if (wrapCollides(op, scope, withOwn)) {
-      return [
-        {
-          code: "custom",
-          path: ["ops", index, "id"],
-          message: `The id ${op.id} is already used on this surface`,
-        },
-      ]
-    }
-    own.set(op.id, { scope, target: op.target })
-    return []
-  })
+  return valid.flatMap(({ index, op }): z.core.$ZodIssue[] =>
+    op.op === "wrap" && colliding.has(op)
+      ? [
+          {
+            code: "custom",
+            path: ["ops", index, "id"],
+            message: `The id ${op.id} is already used on this surface`,
+          },
+        ]
+      : []
+  )
 }
 
 export function validateOverlay(

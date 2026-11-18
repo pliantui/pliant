@@ -327,6 +327,16 @@ describe("validateOverlay", () => {
       items: ["a", "b"],
       mode: "row",
     })
+    const insert = (id: string) => ({
+      op: "insert",
+      target: "page",
+      node: { id, kind: "chart", dataset: "orders" },
+      at: { index: 0 },
+    })
+    const remove = (id: string) => ({
+      op: "remove",
+      target: `page/slots/${id}`,
+    })
     const resolved = (layer: string, ops: unknown[]) => {
       const loaded = loadOverlay({
         ...overlay(ops),
@@ -387,6 +397,75 @@ describe("validateOverlay", () => {
       expect(
         validateOverlay(overlay([wrap("dashboard", "dashboard")])).success
       ).toBe(true)
+    })
+
+    it.each<[string, unknown[], unknown[], number[]]>([
+      [
+        "a base id only an unapplied op points at",
+        [{ op: "remove", target: "dashboard/slots/foo" }],
+        [wrap("page", "foo")],
+        [0],
+      ],
+      [
+        "an id the overlay inserts first",
+        [{ op: "hide", target: "page" }],
+        [insert("chart"), wrap("page", "chart")],
+        [1],
+      ],
+      [
+        "an id the overlay inserts and removes",
+        [{ op: "hide", target: "page" }],
+        [insert("chart"), remove("chart"), wrap("page", "chart")],
+        [],
+      ],
+      [
+        "a lower insert the overlay re-inserts and removes",
+        [insert("chart")],
+        [insert("chart"), remove("chart"), wrap("page", "chart")],
+        [2],
+      ],
+      [
+        "another scope's wrap",
+        [wrap("dashboard", "pair")],
+        [wrap("dashboard", "pair"), wrap("page", "free")],
+        [0],
+      ],
+      [
+        "its own wrap at two targets",
+        [{ op: "hide", target: "page" }],
+        [wrap("dashboard", "pair"), wrap("page", "pair")],
+        [1],
+      ],
+    ])("agrees with resolveLayers on %s", (_, lower, ops, expected) => {
+      const input = { ...overlay(ops), id: "01JBQ3V8Z7XKQ2M4N5P6R7S8B0" }
+      const loaded = loadOverlay(input)
+      if (!loaded.success) {
+        throw loaded.error
+      }
+      const below = resolved("team", lower)
+      const validated = validateOverlay(input, { resolved: below })
+      const resolvedAfter = resolveLayers(
+        [
+          ...below.skipped.map(({ overlay }) => overlay),
+          ...below.unapplied.map(({ overlay }) => overlay),
+          ...[...below.properties.values()].flatMap((node) =>
+            [...node.values()].map(({ winner }) => winner.overlay)
+          ),
+          loaded.data,
+        ].filter((item, index, all) => all.indexOf(item) === index)
+      )
+
+      expect(validated.error?.issues.map(({ path }) => path[1]) ?? []).toEqual(
+        expected
+      )
+      expect(
+        resolvedAfter.unapplied
+          .filter(
+            ({ overlay, reason }) =>
+              overlay === loaded.data && reason === "id-collision"
+          )
+          .map(({ check }) => check.index)
+      ).toEqual(expected)
     })
   })
 })

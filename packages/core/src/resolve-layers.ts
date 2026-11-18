@@ -98,11 +98,25 @@ interface State {
   scopes: Map<LoadedOverlay, string>
   // Container address to item id to the address of the item placed there.
   placed: Map<string, Map<string, string>>
-  inserts: Map<string, Set<string>>
+  // Inserted node id to how many addresses hold it as their live insert.
+  liveInserts: Map<string, number>
 }
 
 function isRemoval(op: Op): boolean {
   return op.op === "remove" || op.op === "removeUserItem"
+}
+
+function countInsert(state: State, { check }: ResolvedOp, delta: number) {
+  if (check.op.op === "insert") {
+    const { id } = check.op.node
+    state.liveInserts.set(id, (state.liveInserts.get(id) ?? 0) + delta)
+  }
+}
+
+function setWinner(state: State, entry: Entry, winner: ResolvedOp): void {
+  countInsert(state, entry.winner, -1)
+  countInsert(state, winner, 1)
+  entry.winner = winner
 }
 
 function entryAt(state: State, address: string, property: OpPropertyKey) {
@@ -129,6 +143,7 @@ function write(
       baseline: undefined,
       ...(breakpoint && { breakpoints: new Map([[breakpoint, resolved]]) }),
     })
+    countInsert(state, resolved, 1)
     return
   }
   if (entry.scope !== scope) {
@@ -140,7 +155,7 @@ function write(
     entry.breakpoints?.set(breakpoint, resolved)
   }
   entry.history.push(resolved)
-  entry.winner = resolved
+  setWinner(state, entry, resolved)
 }
 
 function remove(
@@ -161,7 +176,7 @@ function remove(
       continue
     }
     entry.history.push(resolved)
-    entry.winner = entry.baseline ?? resolved
+    setWinner(state, entry, entry.baseline ?? resolved)
     applied = true
   }
   return foreign
@@ -207,11 +222,7 @@ function nodeIds(state: State, base: ReadonlySet<string>): NodeIds {
         ? { scope, target: winner.check.op.target }
         : undefined
     },
-    isInserted: (id) =>
-      [...(state.inserts.get(id) ?? [])].some(
-        (address) =>
-          entryAt(state, address, "inserted")?.winner.check.op.op === "insert"
-      ),
+    isInserted: (id) => (state.liveInserts.get(id) ?? 0) > 0,
   }
 }
 
@@ -244,13 +255,6 @@ function apply(
     for (const [item, address] of identities) {
       place(state, op.id, item, address)
     }
-  } else if (op.op === "insert") {
-    let addresses = state.inserts.get(op.node.id)
-    if (!addresses) {
-      addresses = new Set()
-      state.inserts.set(op.node.id, addresses)
-    }
-    addresses.add(`${op.target}/slots/${op.node.id}`)
   }
   return undefined
 }
@@ -295,17 +299,12 @@ export function resolveLayers(
     nodes: new Map(),
     scopes: new Map(),
     placed: new Map(),
-    inserts: new Map(),
+    liveInserts: new Map(),
   }
   const rejected = new Map<LoadedOverlay, "duplicate-id" | "surface-mismatch">()
   const seen = new Set<string>()
   let surface: string | undefined
   for (const overlay of ordered) {
-    if (seen.has(overlay.id)) {
-      rejected.set(overlay, "duplicate-id")
-      continue
-    }
-    seen.add(overlay.id)
     if (overlay.surface !== "@app") {
       surface ??= overlay.surface
       if (overlay.surface !== surface) {
@@ -313,6 +312,11 @@ export function resolveLayers(
         continue
       }
     }
+    if (seen.has(overlay.id)) {
+      rejected.set(overlay, "duplicate-id")
+      continue
+    }
+    seen.add(overlay.id)
     state.scopes.set(overlay, scopeKeyOf(overlay))
   }
   const ids = nodeIds(

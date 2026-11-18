@@ -70,17 +70,16 @@ export function baseNodeIds(ops: Iterable<Op>): Set<string> {
   return base
 }
 
-/**
- * The node ids in resolved layers, plus those the given ops point at, for
- * checking a new overlay's wrap ids.
- */
-export function nodeIdsOf(
-  { properties }: ResolvedLayers,
+function nodeIdsOf(
+  { properties, unapplied }: ResolvedLayers,
   ops: readonly Op[]
 ): NodeIds {
   const wraps = new Map<string, WrapOwner>()
   const inserted = new Set<string>()
-  const applied = new Set<Op>(ops)
+  const applied = new Set<Op>([
+    ...ops,
+    ...unapplied.map(({ check }) => check.op),
+  ])
   for (const node of properties.values()) {
     for (const { winner, overridden, breakpoints } of node.values()) {
       for (const { check } of [
@@ -106,4 +105,52 @@ export function nodeIdsOf(
     wrap: (id) => wraps.get(id),
     isInserted: (id) => inserted.has(id),
   }
+}
+
+/**
+ * The wraps among `ops`, one overlay's ops in order, whose ids
+ * `resolveLayers` would find taken when the overlay resolves after
+ * `resolved`.
+ */
+export function collidingWraps(
+  resolved: ResolvedLayers,
+  scope: string,
+  ops: readonly Op[]
+): Set<Op> {
+  const ids = nodeIdsOf(resolved, ops)
+  const ownWraps = new Map<string, WrapOwner>()
+  const ownInserts = new Map<string, string>()
+  const ownInsertCounts = new Map<string, number>()
+  const countInsert = (id: string, delta: number) => {
+    ownInsertCounts.set(id, (ownInsertCounts.get(id) ?? 0) + delta)
+  }
+  const withOwn: NodeIds = {
+    base: ids.base,
+    wrap: (id) => ownWraps.get(id) ?? ids.wrap(id),
+    isInserted: (id) =>
+      ids.isInserted(id) || (ownInsertCounts.get(id) ?? 0) > 0,
+  }
+  const colliding = new Set<Op>()
+  for (const op of ops) {
+    if (op.op === "insert") {
+      const address = `${op.target}/slots/${op.node.id}`
+      if (!ownInserts.has(address)) {
+        ownInserts.set(address, op.node.id)
+        countInsert(op.node.id, 1)
+      }
+    } else if (op.op === "remove") {
+      const removed = ownInserts.get(op.target)
+      if (removed !== undefined) {
+        ownInserts.delete(op.target)
+        countInsert(removed, -1)
+      }
+    } else if (op.op === "wrap") {
+      if (wrapCollides(op, scope, withOwn)) {
+        colliding.add(op)
+      } else {
+        ownWraps.set(op.id, { scope, target: op.target })
+      }
+    }
+  }
+  return colliding
 }

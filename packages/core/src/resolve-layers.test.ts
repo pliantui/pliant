@@ -103,6 +103,13 @@ const preset = (id: string) => ({
   filters: [{ field: "status", operator: "eq", value: "open" }],
 })
 const removeItem = (id: string) => ({ op: "removeUserItem", target: table, id })
+const wrapOp = (target: string, id: string) => ({
+  op: "wrap",
+  target,
+  id,
+  items: ["a", "b"],
+  mode: "row",
+})
 const layout = (mode: string, at?: string) => ({
   op: "setLayout",
   target: "dashboard",
@@ -614,6 +621,26 @@ describe("resolveLayers", () => {
       ])
     })
 
+    it("doesn't remove the lower layer's node it fell back to", () => {
+      const overlay = overlays()
+      const team = overlay("team", [insertChart])
+      const personal = overlay("personal", [
+        insertChart,
+        removeChart,
+        removeChart,
+      ])
+      const { properties, unapplied } = resolveLayers([team, personal])
+
+      expect(get(properties, chart, "inserted")?.winner.check).toBe(team.ops[0])
+      expect(unapplied).toEqual([
+        {
+          check: personal.ops[2],
+          overlay: personal,
+          reason: "cross-layer-remove",
+        },
+      ])
+    })
+
     it("falls back to a lower layer's own removal", () => {
       const overlay = overlays()
       const team = overlay("team", [insertChart, removeChart])
@@ -828,6 +855,20 @@ describe("resolveLayers", () => {
       ).toBe(winner(resolveLayers([twin, team]).properties, notes, "visible"))
     })
 
+    it("doesn't count an overlay for another surface as a duplicate", () => {
+      const overlay = overlays()
+      const id = "01JBQ3V8Z7XKQ2M4N5P6R7S8ZZ"
+      const org = overlay("org", [hide])
+      const other = overlay("team", [hide], { id, surface: "/invoices" })
+      const personal = overlay("personal", [show], { id })
+      const { properties, skipped } = resolveLayers([personal, other, org])
+
+      expect(winner(properties, notes, "visible")).toBe(personal)
+      expect(skipped).toEqual([
+        { check: other.ops[0], overlay: other, reason: "surface-mismatch" },
+      ])
+    })
+
     it("skips overlays for another surface", () => {
       const overlay = overlays()
       const team = overlay("team", [hide])
@@ -880,72 +921,131 @@ describe("resolveLayers", () => {
     expect(skipped[0]?.overlay).toBe(team)
   })
 
+  // Wall-clock budgets flake under load, so these compare 4n ops against n:
+  // linear work grows about 4 times, quadratic work about 16 times.
   describe("in linear time", () => {
-    const repeat = (layer: Layer, ops: unknown[]) => {
+    const small = 8
+    const large = 32
+
+    const repeat = (
+      count: number,
+      layer: Layer,
+      opAt: (index: number) => unknown
+    ) => {
       const overlay = overlays()
-      return Array.from({ length: 40 }, () =>
+      return Array.from({ length: count }, (_, overlayIndex) =>
         overlay(
           layer,
-          Array.from({ length: 500 }, (_, index) => ops[index % ops.length])
+          Array.from({ length: 500 }, (_, index) =>
+            opAt(overlayIndex * 500 + index)
+          )
         )
       )
     }
 
+    // Date.now() is coarse, so each sample averages runs over at least 50 ms.
+    const fastest = (input: LoadedOverlay[]) => {
+      resolveLayers(input)
+      let best = Infinity
+      for (let sample = 0; sample < 3; sample++) {
+        const start = Date.now()
+        let runs = 0
+        while (Date.now() - start < 50) {
+          resolveLayers(input)
+          runs++
+        }
+        best = Math.min(best, (Date.now() - start) / runs)
+      }
+      return best
+    }
+
+    const expectLinear = (layer: Layer, opAt: (index: number) => unknown) => {
+      const smallInput = repeat(small, layer, opAt)
+      const largeInput = repeat(large, layer, opAt)
+      let ratio = Infinity
+      for (let attempt = 0; attempt < 3 && ratio >= 8; attempt++) {
+        ratio = fastest(largeInput) / fastest(smallInput)
+      }
+      expect(ratio).toBeLessThan(8)
+      return resolveLayers(largeInput)
+    }
+
+    const cycle =
+      (...ops: unknown[]) =>
+      (index: number) =>
+        ops[index % ops.length]
+
     it("resolves many ops on one property", () => {
-      const input = repeat("personal", [hide])
-      const start = Date.now()
-      const resolved = get(resolveLayers(input).properties, notes, "visible")
-      expect(Date.now() - start).toBeLessThan(1000)
-      expect(resolved?.overridden).toHaveLength(19_999)
+      const resolved = expectLinear("personal", cycle(hide))
+      expect(
+        get(resolved.properties, notes, "visible")?.overridden
+      ).toHaveLength(large * 500 - 1)
     })
 
     it("resolves many layout ops across breakpoints", () => {
-      const input = repeat("team", [layout("grid", "lg"), layout("row")])
-      const start = Date.now()
-      const resolved = get(
-        resolveLayers(input).properties,
-        "dashboard",
-        "layout"
+      const resolved = expectLinear(
+        "team",
+        cycle(layout("grid", "lg"), layout("row"))
       )
-      expect(Date.now() - start).toBeLessThan(1000)
-      expect(resolved?.breakpoints?.size).toBe(2)
-      expect(resolved?.overridden).toHaveLength(19_998)
+      const property = get(resolved.properties, "dashboard", "layout")
+      expect(property?.breakpoints?.size).toBe(2)
+      expect(property?.overridden).toHaveLength(large * 500 - 2)
     })
 
     it("resolves many removals", () => {
-      const input = repeat("personal", [
-        derived("margin"),
-        removeItem("margin"),
-      ])
-      const start = Date.now()
-      const resolved = resolveLayers(input)
-      expect(Date.now() - start).toBeLessThan(1000)
+      const resolved = expectLinear(
+        "personal",
+        cycle(derived("margin"), removeItem("margin"))
+      )
       expect(resolved.unapplied).toEqual([])
       expect(
         get(resolved.properties, table, "derived.margin")?.overridden
-      ).toHaveLength(19_999)
+      ).toHaveLength(large * 500 - 1)
     })
 
     it("resolves many wraps of moved items", () => {
       const x = "dashboard/slots/x"
-      const input = repeat("personal", [
-        { op: "move", target: x, to: { into: "sidebar" } },
-        {
-          op: "wrap",
-          target: "sidebar",
-          id: "pair",
-          items: ["x", "y"],
-          mode: "row",
-        },
-      ])
-      const start = Date.now()
-      const resolved = resolveLayers(input)
-      expect(Date.now() - start).toBeLessThan(1000)
+      const resolved = expectLinear(
+        "personal",
+        cycle(
+          { op: "move", target: x, to: { into: "sidebar" } },
+          {
+            op: "wrap",
+            target: "sidebar",
+            id: "pair",
+            items: ["x", "y"],
+            mode: "row",
+          }
+        )
+      )
       expect(resolved.unapplied).toEqual([])
       expect(get(resolved.properties, x, "placement")?.overridden).toHaveLength(
-        19_999
+        large * 500 - 1
       )
       expect(resolved.properties.has("sidebar/slots/x")).toBe(false)
+    })
+
+    it("checks wrap ids against many removed inserts", () => {
+      const target = (index: number) => `t${String(Math.floor(index / 3))}`
+      const resolved = expectLinear("personal", (index) => {
+        switch (index % 3) {
+          case 0:
+            return {
+              op: "insert",
+              target: target(index),
+              node: { id: "c", kind: "chart", dataset: "orders" },
+              at: { index: 0 },
+            }
+          case 1:
+            return { op: "remove", target: `${target(index)}/slots/c` }
+          default:
+            return wrapOp("page", "c")
+        }
+      })
+      expect(resolved.unapplied).toEqual([])
+      expect(winner(resolved.properties, "c", "inserted")?.layer).toBe(
+        "personal"
+      )
     })
   })
 })
