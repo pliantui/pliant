@@ -6,6 +6,7 @@ const isCI = Boolean(process.env["CI"])
 export default defineConfig({
   testDir: "./e2e",
   forbidOnly: isCI,
+  workers: isCI ? 1 : "50%",
   retries: isCI ? 2 : 0,
   reporter: isCI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {

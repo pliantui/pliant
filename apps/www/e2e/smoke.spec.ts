@@ -1,34 +1,36 @@
-import { expect, test } from "@playwright/test"
+import { test as base, expect } from "@playwright/test"
 
-test.describe("smoke", () => {
-  const errors: string[] = []
-
-  test.beforeEach(({ page }) => {
-    errors.length = 0
+const test = base.extend<{ errors: string[] }>({
+  errors: async ({ page }, provide) => {
+    const errors: string[] = []
     page.on("console", (message) => {
       if (message.type() === "error") errors.push(message.text())
     })
     page.on("pageerror", (error) => errors.push(error.message))
-  })
+    await provide(errors)
+  },
+})
 
-  test.afterEach(() => {
-    expect(errors).toEqual([])
-  })
+test("renders the home page", async ({ page, errors }) => {
+  await page.goto("/")
+  await page.waitForLoadState("networkidle")
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Pliant" })
+  ).toBeVisible()
+  await expect(page.getByRole("link", { name: "Read the docs" })).toBeVisible()
+  expect(errors).toEqual([])
+})
 
-  test("renders the home page", async ({ page }) => {
-    await page.goto("/")
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Pliant" })
-    ).toBeVisible()
-    await expect(
-      page.getByRole("link", { name: "Read the docs" })
-    ).toBeVisible()
-  })
+test("renders a docs page", async ({ page, errors }) => {
+  await page.goto("/docs")
+  await page.waitForLoadState("networkidle")
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Introduction" })
+  ).toBeVisible()
+  expect(errors).toEqual([])
+})
 
-  test("renders a docs page", async ({ page }) => {
-    await page.goto("/docs")
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Introduction" })
-    ).toBeVisible()
-  })
+test("serves the registry index", async ({ request }) => {
+  const response = await request.get("/r/registry.json")
+  expect(response.status()).toBe(200)
 })

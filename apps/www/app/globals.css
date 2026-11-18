@@ -1,16 +1,13 @@
 @import "tailwindcss";
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
 /*
  * Fumadocs keeps its own neutral palette (fumadocs-ui/css/shadcn.css would
- * recolor the docs). shadcn's base layer (border-border, bg-background) is
- * left out so it does not override Fumadocs' defaults.
+ * recolor the docs). shadcn's base layer (border-border, bg-background,
+ * outline-ring/50) is left out; Fumadocs' base already sets borders and body
+ * colors.
  */
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
