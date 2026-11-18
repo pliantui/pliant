@@ -4,6 +4,8 @@ import { join } from "node:path"
 import type { LanguageModelMiddleware } from "ai"
 import * as z from "zod"
 
+import { MissingRecordingError } from "./missing-recording-error"
+
 type WrapGenerate = NonNullable<LanguageModelMiddleware["wrapGenerate"]>
 type GenerateResult = Awaited<ReturnType<WrapGenerate>>
 type CallOptions = Parameters<WrapGenerate>[0]["params"]
@@ -15,16 +17,9 @@ type CallOptions = Parameters<WrapGenerate>[0]["params"]
  *
  * @experimental
  */
-export interface Recordings {
+export interface RecordingOptions {
   mode: "record" | "replay"
   directory: string
-}
-
-export class MissingRecordingError extends Error {
-  constructor(key: string) {
-    super(`No recorded answer for this ask (${key})`)
-    this.name = "MissingRecordingError"
-  }
 }
 
 const contentSchema = z.union([
@@ -149,13 +144,24 @@ function isMissing(error: unknown) {
 }
 
 /**
- * Records model answers to JSON files keyed by `recordingKey`, or replays them,
- * following the AI SDK's caching middleware pattern.
+ * Records model answers to JSON files keyed by a hash of the model, the prompt
+ * and the tools, or replays them without calling the model, following the AI
+ * SDK's caching middleware pattern. For development and tests: it needs
+ * Node.js, and recording writes every ask to disk.
+ *
+ * ```ts
+ * const model = wrapLanguageModel({
+ *   model: anthropic("claude-haiku-5-5"),
+ *   middleware: recordingMiddleware({ mode: "replay", directory: "recordings" }),
+ * })
+ * ```
+ *
+ * @experimental
  */
 export function recordingMiddleware({
   mode,
   directory,
-}: Recordings): LanguageModelMiddleware {
+}: RecordingOptions): LanguageModelMiddleware {
   return {
     specificationVersion: "v4",
     wrapGenerate: async ({ doGenerate, params, model }) => {

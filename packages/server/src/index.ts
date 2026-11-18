@@ -9,4 +9,3 @@ export {
   createPliantHandler,
   type PliantHandlerConfig,
 } from "./create-pliant-handler"
-export { type Recordings } from "./recording-middleware"

@@ -1,6 +1,7 @@
 import { mkdtemp, readdir, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { wrapLanguageModel } from "ai"
 import { MockLanguageModelV4 } from "ai/test"
 import { afterEach, describe, expect, it } from "vitest"
 
@@ -10,6 +11,7 @@ import {
   createPliantHandler,
   type PliantHandlerConfig,
 } from "./create-pliant-handler"
+import { recordingMiddleware } from "./recording-middleware"
 
 type Generate = Awaited<ReturnType<MockLanguageModelV4["doGenerate"]>>
 
@@ -84,7 +86,7 @@ function post(body: unknown, init: RequestInit = {}): Request {
 }
 
 function handlerFor(
-  model: MockLanguageModelV4,
+  model: PliantHandlerConfig["model"],
   config: Partial<PliantHandlerConfig> = {}
 ) {
   return createPliantHandler({
@@ -302,6 +304,14 @@ describe("createPliantHandler", () => {
   it.each<[string, Request, number]>([
     ["a GET", new Request("http://localhost/api/pliant"), 405],
     ["a body that isn't JSON", post("{"), 400],
+    [
+      "an empty body",
+      new Request("http://localhost/api/pliant", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+      }),
+      400,
+    ],
     ["an invalid ask", post({ ...ask, target: "Orders Table" }), 400],
     [
       "a prompt over 500 characters",
@@ -384,6 +394,7 @@ describe("createPliantHandler", () => {
   it("makes overlay ids that validate by default", async () => {
     const handler = createPliantHandler({
       model: mockModel(answer(sortByValue)),
+      getUser: () => "anonymous",
     })
     const body = await read(await handler(post(ask)))
 
@@ -391,6 +402,39 @@ describe("createPliantHandler", () => {
       /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/
     )
     expect(body.status === "ok" && body.overlay.createdBy).toBe("anonymous")
+  })
+
+  it("answers 500 when getUser throws", async () => {
+    const errors: unknown[] = []
+    const response = await handlerFor(mockModel(answer(sortByValue)), {
+      getUser: () => {
+        throw new Error("Session store down")
+      },
+      onError: (error) => errors.push(error),
+    })(post(ask))
+
+    expect(response.status).toBe(500)
+    expect(await read(response)).toEqual({
+      status: "error",
+      message: "Couldn't answer this ask",
+    })
+    expect(errors).toHaveLength(1)
+  })
+
+  it("lists each explain sentence once", async () => {
+    const model = mockModel(
+      answer([
+        "setVisible",
+        { items: ["id", "notes"], visible: false, explain: "Hid two columns." },
+      ])
+    )
+    const body = await read(await handlerFor(model)(post(ask)))
+
+    expect(body.status === "ok" && body.explain).toEqual(["Hid two columns."])
+    expect(body.status === "ok" && body.overlay.explain).toEqual([
+      "Hid two columns.",
+      "Hid two columns.",
+    ])
   })
 
   it("prefers a clarifying question over changes in the same answer", async () => {
@@ -427,9 +471,12 @@ describe("createPliantHandler", () => {
       directory = await mkdtemp(join(tmpdir(), "pliant-recordings-"))
       const recorder = mockModel(answer(sortByValue))
       const recorded = await read(
-        await handlerFor(recorder, {
-          recordings: { mode: "record", directory },
-        })(post(ask))
+        await handlerFor(
+          wrapLanguageModel({
+            model: recorder,
+            middleware: recordingMiddleware({ mode: "record", directory }),
+          })
+        )(post(ask))
       )
       expect(await readdir(directory)).toHaveLength(1)
 
@@ -437,9 +484,12 @@ describe("createPliantHandler", () => {
         doGenerate: () => Promise.reject(new Error("Must not be called")),
       })
       const replayed = await read(
-        await handlerFor(replayer, {
-          recordings: { mode: "replay", directory },
-        })(post(ask))
+        await handlerFor(
+          wrapLanguageModel({
+            model: replayer,
+            middleware: recordingMiddleware({ mode: "replay", directory }),
+          })
+        )(post(ask))
       )
 
       expect(replayed).toEqual(recorded)
@@ -448,9 +498,12 @@ describe("createPliantHandler", () => {
 
     it("fails plainly when a replayed ask has no recording", async () => {
       directory = await mkdtemp(join(tmpdir(), "pliant-recordings-"))
-      const response = await handlerFor(mockModel(answer(sortByValue)), {
-        recordings: { mode: "replay", directory },
-      })(post(ask))
+      const response = await handlerFor(
+        wrapLanguageModel({
+          model: mockModel(answer(sortByValue)),
+          middleware: recordingMiddleware({ mode: "replay", directory }),
+        })
+      )(post(ask))
 
       expect(response.status).toBe(500)
       expect(await read(response)).toMatchObject({

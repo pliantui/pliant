@@ -1,6 +1,28 @@
 import { describe, expect, it } from "vitest"
 
+import type { AskContext } from "./ask-request"
 import { isOutOfScope } from "./out-of-scope"
+
+const empty: AskContext = {
+  manifest: {
+    kind: "data-table",
+    version: 1,
+    description: "A table of customers",
+    capabilities: { data: true },
+  },
+}
+
+const customers: AskContext = {
+  ...empty,
+  collection: {
+    name: "columns",
+    items: [
+      { id: "name", label: "Name" },
+      { id: "contactEmail", label: "Email" },
+    ],
+  },
+  fields: [{ id: "refund", label: "Refund   due", type: "number" }],
+}
 
 describe("isOutOfScope", () => {
   it.each([
@@ -12,7 +34,7 @@ describe("isOutOfScope", () => {
     "  Approve   the overdue orders",
     "charge the pending customers",
   ])("catches %j", (prompt) => {
-    expect(isOutOfScope(prompt)).toBe(true)
+    expect(isOutOfScope(prompt, empty)).toBe(true)
   })
 
   it.each([
@@ -36,6 +58,17 @@ describe("isOutOfScope", () => {
     "cancel that",
     "notify me about overdue orders",
   ])("leaves %j to the model", (prompt) => {
-    expect(isOutOfScope(prompt)).toBe(false)
+    expect(isOutOfScope(prompt, empty)).toBe(false)
+  })
+
+  it.each([
+    "email to the front",
+    "Email first",
+    "refund first",
+    "refund due, highest first",
+    "Refund Due on the left",
+  ])("leaves %j to the model when it names an item or field", (prompt) => {
+    expect(isOutOfScope(prompt, empty)).toBe(true)
+    expect(isOutOfScope(prompt, customers)).toBe(false)
   })
 })

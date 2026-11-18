@@ -4,7 +4,8 @@ import { overlaySchema } from "@pliantui/contract"
 
 /**
  * The answer to an ask. `ok` carries a session-layer overlay to preview and
- * one sentence per op; nothing is saved until the user keeps it.
+ * the sentences that explain it, each once (the overlay keeps one per op);
+ * nothing is saved until the user keeps it.
  *
  * @experimental
  */

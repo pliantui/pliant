@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs"
-import { Server } from "@modelcontextprotocol/sdk/server/index.js"
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   CallToolRequestSchema,
@@ -15,12 +15,12 @@ if (file === undefined) {
 }
 const tools = JSON.parse(readFileSync(file, "utf8")) as Tool[]
 
-// The tools arrive as JSON Schema, which only the low-level server accepts.
-// eslint-disable-next-line @typescript-eslint/no-deprecated
-const server = new Server(
+const { server } = new McpServer(
   { name: "pliant", version: "0.0.0" },
   { capabilities: { tools: {} } }
 )
+// The tools arrive as JSON Schema, which `registerTool` doesn't take, so they
+// are served through the underlying server's handlers.
 server.setRequestHandler(ListToolsRequestSchema, () => ({ tools }))
 server.setRequestHandler(CallToolRequestSchema, () => ({
   content: [{ type: "text", text: "ok" }],

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { anthropic } from "@ai-sdk/anthropic"
+import { wrapLanguageModel } from "ai"
 import { MockLanguageModelV4 } from "ai/test"
 import * as z from "zod"
 
@@ -12,6 +13,7 @@ import {
   createPliantHandler,
   type PliantHandlerConfig,
 } from "@pliantui/server"
+import { recordingMiddleware } from "@pliantui/server/recordings"
 
 // Records the demo asks. By default it uses `claude -p` (headless Claude Code)
 // as a stand-in for the API, because there is no API key yet; `--api` records
@@ -260,8 +262,11 @@ function model(): PliantHandlerConfig["model"] {
 }
 
 const handler = createPliantHandler({
-  model: model(),
-  recordings: { mode: "record", directory },
+  model: wrapLanguageModel({
+    model: model(),
+    middleware: recordingMiddleware({ mode: "record", directory }),
+  }),
+  getUser: () => "anonymous",
   timeout: 120_000,
 })
 

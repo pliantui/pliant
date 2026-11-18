@@ -161,7 +161,11 @@ function interpret(
   }
   return {
     done: true,
-    response: { status: "ok", overlay: result.data, explain },
+    response: {
+      status: "ok",
+      overlay: result.data,
+      explain: [...new Set(explain)],
+    },
   }
 }
 

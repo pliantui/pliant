@@ -1,16 +1,12 @@
-import { wrapLanguageModel, type LanguageModel } from "ai"
+import type { LanguageModel } from "ai"
 
 import { formatError } from "@pliantui/core"
 
 import { answerAsk } from "./answer-ask"
 import { askRequestSchema } from "./ask-request"
 import type { AskResponse } from "./ask-response"
+import { MissingRecordingError } from "./missing-recording-error"
 import { isOutOfScope, outOfScopeMessage } from "./out-of-scope"
-import {
-  MissingRecordingError,
-  recordingMiddleware,
-  type Recordings,
-} from "./recording-middleware"
 import { ulid } from "./ulid"
 
 declare const __PLIANT_CORE_VERSION__: string
@@ -22,16 +18,11 @@ export interface PliantHandlerConfig {
   /** Any AI SDK language model, for example `anthropic("claude-haiku-5-5")`. */
   model: Exclude<LanguageModel, string>
   /**
-   * Returns the id of the signed-in user, or `null` to answer 401. Defaults to
-   * `"anonymous"`, so add your own auth and rate limits before exposing the
-   * endpoint.
+   * Returns the id of the signed-in user, or `null` to answer 401. To allow
+   * anonymous asks, return a fixed id such as `"anonymous"`, and add rate
+   * limits before exposing the endpoint.
    */
-  getUser?: (request: Request) => string | null | Promise<string | null>
-  /**
-   * Record model answers to JSON files, or replay them without a model. For
-   * development and tests: recording writes every ask to disk.
-   */
-  recordings?: Recordings
+  getUser: (request: Request) => string | null | Promise<string | null>
   /** Most tool calls the model may make in one answer. Defaults to 8. */
   maxToolCalls?: number
   /** Milliseconds allowed for each model call. Defaults to 15000. */
@@ -92,7 +83,9 @@ async function readJson(
   const text =
     length > maxBodyBytes
       ? undefined
-      : await readBody(request.body ?? new ReadableStream())
+      : request.body
+        ? await readBody(request.body)
+        : ""
   if (text === undefined) {
     return { success: false, response: error("The request is too large", 413) }
   }
@@ -106,39 +99,31 @@ async function readJson(
 /**
  * Creates a route handler that answers asks: it validates the request, turns
  * the ask into ops with the configured model, validates them as a
- * session-layer overlay and returns it for preview. It works anywhere a
- * Web `Request` handler does, such as a Next.js route:
+ * session-layer overlay and returns it for preview. It uses only Web APIs, so
+ * it works anywhere a Web `Request` handler does, such as a Next.js route on
+ * the Node.js or edge runtime:
  *
  * ```ts
- * export const POST = createPliantHandler({ model: anthropic("claude-haiku-5-5") })
+ * export const POST = createPliantHandler({
+ *   model: anthropic("claude-haiku-5-5"),
+ *   getUser: async (request) => (await auth(request))?.userId ?? null,
+ * })
  * ```
  *
  * @experimental The request and response shapes may change in any release.
  */
 export function createPliantHandler(config: PliantHandlerConfig) {
   const {
-    getUser = () => "anonymous",
+    getUser,
     maxToolCalls = 8,
     timeout = 15_000,
     now = () => new Date(),
     generateId = () => ulid(now().getTime()),
     onError,
   } = config
-  const model = config.recordings
-    ? wrapLanguageModel({
-        model: config.model,
-        middleware: recordingMiddleware(config.recordings),
-      })
-    : config.model
+  const { model } = config
 
-  return async function handler(request: Request): Promise<Response> {
-    if (request.method !== "POST") {
-      return error("Use POST", 405)
-    }
-    const user = await getUser(request)
-    if (user === null) {
-      return error("Sign in to ask", 401)
-    }
+  async function answer(request: Request, user: string): Promise<Response> {
     const body = await readJson(request)
     if (!body.success) {
       return body.response
@@ -147,11 +132,11 @@ export function createPliantHandler(config: PliantHandlerConfig) {
     if (!ask.success) {
       return error(formatError(ask.error), 400)
     }
-    if (isOutOfScope(ask.data.prompt)) {
+    if (isOutOfScope(ask.data.prompt, ask.data.context)) {
       return respond({ status: "unavailable", reason: outOfScopeMessage })
     }
     try {
-      const answer = await answerAsk(ask.data, {
+      const result = await answerAsk(ask.data, {
         model,
         user,
         coreVersion: __PLIANT_CORE_VERSION__,
@@ -161,15 +146,33 @@ export function createPliantHandler(config: PliantHandlerConfig) {
         timeout,
         signal: request.signal,
       })
-      return respond(answer, answer.status === "error" ? 422 : 200)
+      return respond(result, result.status === "error" ? 422 : 200)
     } catch (cause) {
       if (request.signal.aborted) {
-        return error("The request was aborted", 499)
+        throw cause
       }
       onError?.(cause)
       return cause instanceof MissingRecordingError
         ? error(cause.message, 500)
         : error("The model couldn't answer this ask", 502)
+    }
+  }
+
+  return async function handler(request: Request): Promise<Response> {
+    if (request.method !== "POST") {
+      return error("Use POST", 405)
+    }
+    try {
+      const user = await getUser(request)
+      return user === null
+        ? error("Sign in to ask", 401)
+        : await answer(request, user)
+    } catch (cause) {
+      if (request.signal.aborted) {
+        return error("The request was aborted", 499)
+      }
+      onError?.(cause)
+      return error("Couldn't answer this ask", 500)
     }
   }
 }
