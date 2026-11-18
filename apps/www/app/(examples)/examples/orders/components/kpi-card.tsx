@@ -1,3 +1,5 @@
+import { useId } from "react"
+
 import {
   Card,
   CardDescription,
@@ -7,25 +9,24 @@ import {
 } from "@/components/ui/card"
 
 export function KpiCard({
-  id,
   label,
   value,
   definition,
 }: {
-  id: string
   label: string
   value: string
   definition: string
 }) {
+  const labelId = useId()
+
   return (
     <Card
-      id={id}
       role="group"
-      aria-label={label}
+      aria-labelledby={labelId}
       className="gap-2 border-border py-4"
     >
       <CardHeader>
-        <CardDescription>{label}</CardDescription>
+        <CardDescription id={labelId}>{label}</CardDescription>
         <CardTitle className="text-2xl font-semibold tabular-nums">
           {value}
         </CardTitle>

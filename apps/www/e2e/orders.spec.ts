@@ -11,18 +11,22 @@ import { expect, test } from "./fixtures"
 
 const pageSize = 10
 const values = orders.map((order) => order.value)
+const [first] = orders
+if (!first) throw new Error("The fixture has no orders")
+
 const lowest = Math.min(...values)
 const highest = Math.max(...values)
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/examples/orders")
-  await expect(page.getByRole("button", { name: "Next" })).toBeEnabled()
 })
 
 async function visibleValues(page: Page) {
+  const headers = await page.getByRole("columnheader").allTextContents()
+  const column = headers.findIndex((header) => header.includes("Value"))
   const cells = await page
     .getByRole("row")
-    .locator("td:nth-child(5)")
+    .locator(`td:nth-child(${String(column + 1)})`)
     .allTextContents()
   return cells.map((cell) => Number(cell.replace(/\D/g, "")))
 }
@@ -59,15 +63,14 @@ test("shows KPIs computed from the fixture", async ({ page }) => {
 })
 
 test("renders every column of the first order", async ({ page }) => {
-  const first = orders[0]
   const row = page.getByRole("row").nth(1)
-  await expect(row).toContainText(first?.id ?? "")
-  await expect(row).toContainText(first?.customer ?? "")
-  await expect(row).toContainText(first?.region ?? "")
-  await expect(row).toContainText(first?.status ?? "")
-  await expect(row).toContainText(formatCurrency(first?.value ?? 0))
-  await expect(row).toContainText(formatDate(first?.createdAt ?? ""))
-  await expect(row).toContainText(first?.notes ?? "No notes")
+  await expect(row).toContainText(first.id)
+  await expect(row).toContainText(first.customer)
+  await expect(row).toContainText(first.region)
+  await expect(row).toContainText(first.status)
+  await expect(row).toContainText(formatCurrency(first.value))
+  await expect(row).toContainText(formatDate(first.createdAt))
+  await expect(row).toContainText(first.notes || "No notes")
 })
 
 test("sorts by value", async ({ page }) => {

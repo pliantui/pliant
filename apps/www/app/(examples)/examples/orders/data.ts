@@ -64,8 +64,11 @@ function mulberry32(seed: number) {
 
 function generateOrders(seed: number): Order[] {
   const random = mulberry32(seed)
-  const pick = <T>(items: readonly T[]): T =>
-    items[Math.floor(random() * items.length)] as T
+  const pick = <T>(items: readonly T[]): T => {
+    const item = items[Math.floor(random() * items.length)]
+    if (item === undefined) throw new Error("Cannot pick from an empty list")
+    return item
+  }
 
   return Array.from({ length: orderCount }, (_, index) => {
     const createdAt = new Date(

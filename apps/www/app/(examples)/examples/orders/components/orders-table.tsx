@@ -1,5 +1,6 @@
 "use client"
 
+import { useId } from "react"
 import { useTable } from "@tanstack/react-table"
 import { ChevronDown } from "lucide-react"
 
@@ -20,23 +21,25 @@ import {
 } from "@/components/ui/table"
 
 import type { Order } from "../data"
+import { formatNumber } from "../format"
 import { columns } from "./columns"
 import { features } from "./data-table-features"
 
 const ariaSort = { asc: "ascending", desc: "descending" } as const
 
 export function OrdersTable({ data }: { data: Order[] }) {
+  const titleId = useId()
   const table = useTable({ features, data, columns })
   const { pageIndex, pageSize } = table.state.pagination
   const rowCount = table.getRowCount()
   const range = rowCount
-    ? `${String(pageIndex * pageSize + 1)}–${String(Math.min((pageIndex + 1) * pageSize, rowCount))} of ${String(rowCount)}`
+    ? `${formatNumber(pageIndex * pageSize + 1)}–${formatNumber(Math.min((pageIndex + 1) * pageSize, rowCount))} of ${formatNumber(rowCount)}`
     : "0 of 0"
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 id="orders-table-title" className="text-lg font-semibold">
+        <h2 id={titleId} className="text-lg font-semibold">
           All orders
         </h2>
         <DropdownMenu>
@@ -64,7 +67,7 @@ export function OrdersTable({ data }: { data: Order[] }) {
         </DropdownMenu>
       </div>
       <div className="overflow-hidden rounded-lg border border-border">
-        <Table aria-labelledby="orders-table-title">
+        <Table aria-labelledby={titleId}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="border-border">
