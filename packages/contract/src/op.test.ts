@@ -110,4 +110,31 @@ describe("opSchema", () => {
     expect(issues).toHaveLength(1)
     expect(issues[0]?.path).toEqual(path)
   })
+
+  const removeTargetMessage =
+    "Must be a slot address or the id of a node the user added"
+
+  it.each([
+    ["a missing remove target", {}, "Invalid input"],
+    ["a non-string remove target", { target: 5 }, "Invalid input"],
+    [
+      "a remove target that is neither a slot nor an id",
+      { target: "order-card[]" },
+      removeTargetMessage,
+    ],
+    [
+      "a remove target in a template slot",
+      { target: "order-card[]/slots/badge" },
+      removeTargetMessage,
+    ],
+  ])("reports %s once", (_, fields, message) => {
+    const issues =
+      opSchema.safeParse({ op: "remove", ...fields }).error?.issues ?? []
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toMatchObject({
+      code: "invalid_union",
+      message,
+      path: ["target"],
+    })
+  })
 })
