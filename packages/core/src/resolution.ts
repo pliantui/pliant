@@ -43,8 +43,9 @@ interface Placements {
   // has moved on to another version never holds again, so it is dropped.
   readonly candidates: Placed[]
   // The item's container before any op placed it: where an op created it,
-  // else the parent in the address it was first placed from.
-  readonly origin: string
+  // else the parent in the address it was first placed from. Creating the
+  // item again resets it.
+  origin: string
 }
 
 /** The state of a resolution, which ops apply to one at a time in order. */
@@ -102,6 +103,14 @@ function liveNode(state: Resolution, id: string): Contribution | undefined {
   return winner && !isRemoval(winner.op.check.op) ? winner : undefined
 }
 
+function isRemoved(state: Resolution, id: string): boolean {
+  return entryAt(state, id, "inserted") !== undefined && !liveNode(state, id)
+}
+
+// Where an item with no placement that holds sits when every node above it
+// is gone: the surface itself.
+const surfaceRoot = "@surface"
+
 /**
  * The version of the node `id` as a container, or undefined while it doesn't
  * exist: a node an op created is live until it is removed, and a base node
@@ -116,7 +125,9 @@ function versionOf(
   if (entryAt(state, id, "inserted")) {
     return liveNode(state, id) ? state.versions.get(id) : undefined
   }
-  return state.base.has(id) || id === parent ? 0 : undefined
+  return state.base.has(id) || id === parent || id === surfaceRoot
+    ? 0
+    : undefined
 }
 
 function holds(
@@ -145,6 +156,48 @@ function currentPlacement(
   return top
 }
 
+function baseParentOf(state: Resolution, id: string): string | undefined {
+  return state.createdIn.get(id) ?? state.placements.get(id)?.origin
+}
+
+/**
+ * The container an item sits in when no placement of its own holds: its
+ * base parent, or, when that node was removed, where that node sits, up the
+ * chain (pending the owner's ruling). With no node left in the chain, as in a
+ * cycle of removed nodes, it is the surface. `memo` maps removed nodes to the
+ * container their items go to, so a resolved chain is walked once.
+ */
+function baseContainer(
+  state: Resolution,
+  id: string,
+  memo: Map<string, string>
+): string | undefined {
+  let node = baseParentOf(state, id)
+  const path: string[] = []
+  const seen = new Set<string>()
+  while (
+    node !== undefined &&
+    isRemoved(state, node) &&
+    !memo.has(node) &&
+    !seen.has(node)
+  ) {
+    seen.add(node)
+    path.push(node)
+    node =
+      currentPlacement(state, state.placements.get(node))?.placement
+        .container ?? baseParentOf(state, node)
+  }
+  if (node === undefined) {
+    return undefined
+  }
+  const container =
+    memo.get(node) ?? (isRemoved(state, node) ? surfaceRoot : node)
+  for (const removed of path) {
+    memo.set(removed, container)
+  }
+  return container
+}
+
 function place(
   state: Resolution,
   op: Op,
@@ -166,7 +219,7 @@ function place(
     op,
     address,
     currentPlacement(state, placements)?.placement.container ??
-      placements.origin
+      baseContainer(state, address, new Map())
   )
   if (placement) {
     placements.history.push(resolved)
@@ -179,13 +232,21 @@ function place(
 }
 
 // A `move … into` a node that doesn't exist yet, or was removed, needs
-// updating (spec 5.4 rule 3), pending the owner's ruling. Without `baseIds`
-// an unknown id counts as a base node, so only a removed one is missing.
+// updating (spec 5.4 rule 3), pending the owner's ruling. A node exists when
+// it is a base node, created and live, or the moved item's own base parent.
+// Without `baseIds` an unknown id counts as a base node, so only a removed
+// one is missing.
 function missingContainer(state: Resolution, op: Op): boolean {
+  if (op.op !== "move" || !("into" in op.to)) {
+    return false
+  }
+  const item = identityOf(op.target)
   return (
-    op.op === "move" &&
-    "into" in op.to &&
-    versionOf(state, identityOf(op.to.into)) === undefined
+    versionOf(
+      state,
+      identityOf(op.to.into),
+      baseParentOf(state, item) ?? parentOf(op.target)
+    ) === undefined
   )
 }
 
@@ -306,6 +367,13 @@ export function applyOp(
       return "id-collision"
     }
     const id = op.op === "insert" ? op.node.id : op.id
+    // A node created again starts over where it is created: nothing that
+    // placed an earlier one holds.
+    const placements = state.placements.get(id)
+    if (placements && !liveNode(state, id)) {
+      placements.candidates.length = 0
+      placements.origin = identityOf(op.target)
+    }
     // A new node, or a wrap with a new item set, is a new container: nothing
     // placed in an earlier one holds in it. Another scope's insert at the
     // same target is the same node, so it keeps its version.
@@ -344,47 +412,16 @@ function settle({ winner, breakpoints, history }: Entry): ResolvedProperty {
   }
 }
 
-/**
- * The containers items resolve to. An item in no placement that holds sits
- * in its base parent; when that parent is a node that was removed, it sits
- * where that node would, recursively (pending the owner's ruling). Memoized,
- * so each node is resolved once.
- */
-function containers(state: Resolution) {
-  const resolved = new Map<string, string>()
-  const containerOf = (id: string): string | undefined => {
-    const known = resolved.get(id)
-    if (known !== undefined) {
-      return known
-    }
-    const placements = state.placements.get(id)
-    const current = currentPlacement(state, placements)
-    const parent = state.createdIn.get(id) ?? placements?.origin
-    if (current || parent === undefined) {
-      return current?.placement.container
-    }
-    // A container cycle stops at the node itself.
-    resolved.set(id, parent)
-    const removed =
-      entryAt(state, parent, "inserted") !== undefined &&
-      !liveNode(state, parent)
-    const container = (removed ? containerOf(parent) : undefined) ?? parent
-    resolved.set(id, container)
-    return container
-  }
-  return containerOf
-}
-
 function settlePlacement(
   state: Resolution,
   address: string,
   placements: Placements,
-  containerOf: (id: string) => string | undefined
+  memo: Map<string, string>
 ): ResolvedItemPlacement {
   const current = currentPlacement(state, placements)
   if (!current) {
     return {
-      container: containerOf(address) ?? placements.origin,
+      container: baseContainer(state, address, memo) ?? placements.origin,
       overridden: placements.history,
     }
   }
@@ -407,10 +444,23 @@ export function settleResolution(state: Resolution): {
     }
     properties.set(address, settled)
   }
-  const containerOf = containers(state)
+  const memo = new Map<string, string>()
   const placements = new Map<string, ResolvedItemPlacement>()
   for (const [address, item] of state.placements) {
-    placements.set(address, settlePlacement(state, address, item, containerOf))
+    placements.set(address, settlePlacement(state, address, item, memo))
+  }
+  // A node an op created in a node that is now gone has moved, even though
+  // no placement op touched it.
+  for (const [id, parent] of state.createdIn) {
+    const container = baseContainer(state, id, memo)
+    if (
+      !placements.has(id) &&
+      liveNode(state, id) &&
+      isRemoved(state, parent) &&
+      container !== undefined
+    ) {
+      placements.set(id, { container, overridden: [] })
+    }
   }
   return { properties, placements }
 }

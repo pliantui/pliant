@@ -46,9 +46,9 @@ export interface ValidateOverlayOptions {
    * When given, the overlay must be for `layers.surface` or `@app`, and an
    * `insert` or `wrap` whose id is already used on the surface, or a
    * `move … into` a node that doesn't exist, is invalid, exactly as
-   * `resolveLayers` would report it (`id-collision`, `missing-container`). Throws a
-   * `TypeError` when `layers.surface` isn't a string or `layers.baseIds`
-   * isn't an array, whatever the input.
+   * `resolveLayers` would report it (`id-collision`, `missing-container`).
+   * Throws a `TypeError` when `layers.surface` isn't a string or
+   * `layers.baseIds` isn't an array, whatever the input.
    */
   readonly layers?: ValidateOverlayLayers | undefined
 }

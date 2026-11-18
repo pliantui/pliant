@@ -1323,6 +1323,42 @@ describe("resolveLayers", () => {
         expect(at(placements, "c")?.placement).toEqual({ container: "x" })
       })
 
+      it("counts the moved item's own base parent as existing", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          move("dashboard/slots/a", "sidebar"),
+          move("sidebar/slots/a", "dashboard"),
+        ])
+        const { placements, unapplied } = resolve([personal], {
+          baseIds: ["a", "sidebar"],
+        })
+
+        expect(unapplied).toEqual([])
+        expect(at(placements, "a")?.winner?.check).toBe(personal.ops[1])
+        expect(at(placements, "a")?.placement).toEqual({
+          container: "dashboard",
+        })
+      })
+
+      it("takes the base parent from the first op that placed the item", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          move("dashboard/slots/c", "sidebar"),
+          { op: "pin", target: "sidebar/slots/c", where: "start" },
+        ])
+        const { placements, unapplied } = resolve([personal], {
+          baseIds: ["c"],
+        })
+
+        expect(unapplied.map(({ reason }) => reason)).toEqual([
+          "missing-container",
+        ])
+        expect(at(placements, "c")?.placement).toEqual({
+          container: "sidebar",
+          position: { pin: "start" },
+        })
+      })
+
       it("lets a move into an unknown node apply without baseIds", () => {
         const overlay = overlays()
         const personal = overlay("personal", [move("dashboard/slots/c", "v")])
@@ -1418,21 +1454,207 @@ describe("resolveLayers", () => {
         })
       })
 
-      it("never keeps a position in a parent removed before it was set", () => {
+      it("keeps a position set after its parent was removed", () => {
         const overlay = overlays()
         const personal = overlay("personal", [
           insertAt("dashboard", "x"),
           insertAt("x", "y"),
           removeNode("x"),
-          { op: "pin", target: "x/slots/y", where: "start" },
+          { op: "pin", target: "dashboard/slots/y", where: "start" },
         ])
         const { placements } = resolve([personal])
 
         expect(at(placements, "y")).toEqual({
-          placement: { container: "dashboard" },
+          winner: { check: personal.ops[3], overlay: personal },
+          placement: { container: "dashboard", position: { pin: "start" } },
+          overridden: [],
+        })
+      })
+
+      it.each([
+        [
+          "a pin",
+          { op: "pin", target: "sidebar/slots/y", where: "start" },
+          "dashboard",
+          "dashboard",
+        ],
+        [
+          "a move",
+          { op: "move", target: "sidebar/slots/y", to: { into: "dashboard" } },
+          "sidebar",
+          "sidebar",
+        ],
+      ])(
+        "starts a node created again over, after %s of the earlier one",
+        (_, place, again, container) => {
+          const overlay = overlays()
+          const personal = overlay("personal", [
+            insertAt("sidebar", "y"),
+            place,
+            removeNode("y"),
+            insertAt(again, "y"),
+          ])
+          const { placements } = resolve([personal], {
+            baseIds: ["sidebar", "dashboard"],
+          })
+
+          expect(at(placements, "y")).toEqual({
+            placement: { container },
+            overridden: [{ check: personal.ops[1], overlay: personal }],
+          })
+        }
+      )
+
+      it("keeps a position in where a node was created, even unlisted", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          insertAt("sidebar", "y"),
+          { op: "pin", target: "dashboard/slots/y", where: "start" },
+          removeNode("y"),
+          insertAt("footer", "y"),
+          { op: "pin", target: "dashboard/slots/y", where: "end" },
+        ])
+        const { placements } = resolve([personal], { baseIds: ["dashboard"] })
+
+        expect(at(placements, "y")).toEqual({
+          winner: { check: personal.ops[4], overlay: personal },
+          placement: { container: "footer", position: { pin: "end" } },
+          overridden: [{ check: personal.ops[1], overlay: personal }],
+        })
+      })
+
+      it("keeps a position in an unlisted node an item was created in", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          insertAt("sidebar", "y"),
+          { op: "pin", target: "dashboard/slots/y", where: "start" },
+        ])
+        const { placements } = resolve([personal], { baseIds: ["dashboard"] })
+
+        expect(at(placements, "y")?.winner?.check).toBe(personal.ops[1])
+        expect(at(placements, "y")?.placement).toEqual({
+          container: "sidebar",
+          position: { pin: "start" },
+        })
+      })
+
+      it("keeps a position on the surface once every parent is gone", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          insertAt("aa", "bb"),
+          insertAt("bb", "aa"),
+          insertAt("aa", "y"),
+          removeNode("aa"),
+          removeNode("bb"),
+          { op: "pin", target: "aa/slots/y", where: "start" },
+        ])
+        const { placements } = resolve([personal], { baseIds: ["x"] })
+
+        expect(at(placements, "y")?.winner?.check).toBe(personal.ops[5])
+        expect(at(placements, "y")?.placement).toEqual({
+          container: "@surface",
+          position: { pin: "start" },
+        })
+      })
+
+      it("keeps a live wrapper's placement when it is re-wrapped", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          wrap("dashboard", "w", ["a", "b"]),
+          move("dashboard/slots/w", "sidebar"),
+          wrap("dashboard", "w", ["b", "c"]),
+        ])
+        const { placements } = resolve([personal])
+
+        expect(at(placements, "w")?.winner?.check).toBe(personal.ops[1])
+        expect(at(placements, "w")?.placement).toEqual({ container: "sidebar" })
+      })
+
+      it("lists a node whose parent was removed, even with no placement op", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          wrap("dashboard", "w", ["a", "b"]),
+          insertAt("w", "y"),
+          removeNode("w"),
+        ])
+        const { placements } = resolve([personal])
+
+        expect(placements.get("y")).toEqual({
+          container: "dashboard",
+          overridden: [],
+        })
+      })
+
+      it("stops at the first live node up a chain of removed ones", () => {
+        const overlay = overlays()
+        const ops = [
+          insertAt("dashboard", "w1"),
+          insertAt("w1", "w2"),
+          insertAt("w2", "w3"),
+          insertAt("w3", "y"),
+          removeNode("w3"),
+        ]
+        const one = resolve([overlay("personal", ops)])
+        const two = resolve([overlay("personal", [...ops, removeNode("w2")])])
+
+        expect(one.placements.get("y")?.container).toBe("w2")
+        expect(two.placements.get("y")?.container).toBe("w1")
+        expect(two.placements.has("w3")).toBe(false)
+      })
+
+      it("puts an item on the surface when its removed parents form a cycle", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          insertAt("aa", "bb"),
+          insertAt("bb", "aa"),
+          insertAt("aa", "y"),
+          { op: "move", target: "aa/slots/y", to: { index: 0 } },
+          removeNode("aa"),
+          removeNode("bb"),
+        ])
+        const { placements, unapplied } = resolve([personal], {
+          baseIds: ["x"],
+        })
+
+        expect(unapplied).toEqual([])
+        expect(at(placements, "y")).toEqual({
+          placement: { container: "@surface" },
           overridden: [{ check: personal.ops[3], overlay: personal }],
         })
       })
+
+      it(
+        "walks a chain of 100,000 removed nodes without throwing",
+        () => {
+          const depth = 100_000
+          const ops: unknown[] = [insertAt("dashboard", "n0")]
+          for (let level = 1; level < depth; level++) {
+            ops.push(insertAt(`n${String(level - 1)}`, `n${String(level)}`))
+          }
+          ops.push(insertAt(`n${String(depth - 1)}`, "y"))
+          for (let level = depth - 1; level >= 0; level--) {
+            ops.push(removeNode(`n${String(level)}`))
+          }
+          const digits = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+          const input = Array.from(
+            { length: Math.ceil(ops.length / 500) },
+            (_, index) =>
+              overlayWith(
+                "personal",
+                ops.slice(index * 500, index * 500 + 500),
+                {
+                  id: `01JBQ3V8Z7XKQ2M4N5P6R7S8${digits[Math.floor(index / 32)] ?? ""}${digits[index % 32] ?? ""}`,
+                }
+              )
+          )
+
+          expect(resolve(input).placements.get("y")?.container).toBe(
+            "dashboard"
+          )
+        },
+        // Loading 400 overlays takes a few seconds on a busy machine.
+        60_000
+      )
 
       it("keeps an inserted node's own target as its base parent", () => {
         const overlay = overlays()
@@ -2117,29 +2339,42 @@ describe("resolveLayers", () => {
     }
 
     // Date.now() is coarse, so each sample averages runs over at least 50 ms.
-    const fastest = (input: LoadedOverlay[]) => {
-      resolve(input)
-      let best = Infinity
-      for (let sample = 0; sample < 3; sample++) {
-        const start = Date.now()
-        let runs = 0
-        while (Date.now() - start < 50) {
-          resolve(input)
-          runs++
-        }
-        best = Math.min(best, (Date.now() - start) / runs)
+    const sample = (run: () => void) => {
+      const start = Date.now()
+      let runs = 0
+      while (Date.now() - start < 50) {
+        run()
+        runs++
       }
-      return best
+      return (Date.now() - start) / runs
+    }
+
+    // Timing flakes under load, so small and large runs alternate, each keeps
+    // its fastest sample, and a slow attempt is retried. Linear work grows
+    // about 4 times; quadratic work about 16 times, well above the bound.
+    const expectLinearRuns = (small: () => void, large: () => void) => {
+      small()
+      large()
+      let ratio = Infinity
+      for (let attempt = 0; attempt < 5 && ratio >= 10; attempt++) {
+        let fastestSmall = Infinity
+        let fastestLarge = Infinity
+        for (let round = 0; round < 3; round++) {
+          fastestSmall = Math.min(fastestSmall, sample(small))
+          fastestLarge = Math.min(fastestLarge, sample(large))
+        }
+        ratio = fastestLarge / fastestSmall
+      }
+      expect(ratio).toBeLessThan(10)
     }
 
     const expectLinear = (layer: Layer, opAt: (index: number) => unknown) => {
       const smallInput = repeat(small, layer, opAt)
       const largeInput = repeat(large, layer, opAt)
-      let ratio = Infinity
-      for (let attempt = 0; attempt < 3 && ratio >= 8; attempt++) {
-        ratio = fastest(largeInput) / fastest(smallInput)
-      }
-      expect(ratio).toBeLessThan(8)
+      expectLinearRuns(
+        () => resolve(smallInput),
+        () => resolve(largeInput)
+      )
       return resolve(largeInput)
     }
 
@@ -2262,6 +2497,43 @@ describe("resolveLayers", () => {
       expect(placementAt(resolved.placements, "c")?.placement).toEqual({
         container: "dashboard",
       })
+    })
+
+    it("resolves many items under a chain of removed nodes", () => {
+      const digits = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+      const insertAt = (target: string, id: string) => ({
+        op: "insert",
+        target,
+        node: { id, kind: "chart", dataset: "orders" },
+        at: { index: 0 },
+      })
+      const chain = (size: number) => {
+        const ops: unknown[] = [insertAt("dashboard", "n0")]
+        for (let level = 1; level < size; level++) {
+          ops.push(insertAt(`n${String(level - 1)}`, `n${String(level)}`))
+        }
+        for (let item = 0; item < size; item++) {
+          ops.push(insertAt(`n${String(size - 1)}`, `y${String(item)}`))
+        }
+        for (let level = size - 1; level >= 0; level--) {
+          ops.push({ op: "remove", target: `n${String(level)}` })
+        }
+        return Array.from({ length: Math.ceil(ops.length / 500) }, (_, index) =>
+          overlayWith("personal", ops.slice(index * 500, index * 500 + 500), {
+            id: `01JBQ3V8Z7XKQ2M4N5P6R7S8${digits[Math.floor(index / 32)] ?? ""}${digits[index % 32] ?? ""}`,
+          })
+        )
+      }
+      const smallInput = chain(1000)
+      const largeInput = chain(4000)
+
+      expectLinearRuns(
+        () => resolve(smallInput),
+        () => resolve(largeInput)
+      )
+      const { placements } = resolve(largeInput)
+      expect(placements.get("y0")?.container).toBe("dashboard")
+      expect(placements.size).toBe(4000)
     })
 
     it("checks ids against many removed inserts and wrappers", () => {

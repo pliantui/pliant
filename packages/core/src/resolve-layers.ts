@@ -10,7 +10,8 @@ import { surfaceOrder } from "./surface-order"
 
 /**
  * Where an item sits, for every item a placement op (`move`, `pin`,
- * `promote`, `demote`, or wrap membership) touched.
+ * `promote`, `demote`, or wrap membership) touched, and for every live node
+ * an op created in a node that was removed since.
  *
  * It is the latest placement whose container still exists in the version it
  * had when the item was placed there. Creating a node again, or replacing a
@@ -23,9 +24,13 @@ import { surfaceOrder } from "./surface-order"
  *
  * With no placement left, the item is in its base parent with no position
  * and no `winner`. The base parent is where an `insert` or `wrap` created
- * the item (a wrapper's own target), else the parent in the address it was
- * first placed from. When that parent is a node that was removed, the item
- * sits where that node would, in turn.
+ * the item (a wrapper's own target), else the parent in the address of the
+ * first op that placed it, in resolution order: if a team pins
+ * `sidebar/slots/a` and a personal overlay pins `dashboard/slots/a`, `a` stays
+ * in `sidebar`. A node created again starts over in its new base parent.
+ * When the base parent is a node that was removed, the item sits where that
+ * node would, up the chain; with no live node left, as in a cycle of removed
+ * nodes, it sits on `@surface`.
  */
 export interface ResolvedItemPlacement extends ResolvedPlacement {
   /** The placement op that holds, absent when none does. */
@@ -155,7 +160,8 @@ export interface ResolvedLayers {
 
 /**
  * Resolves the overlays for one surface, plus the @app overlays, into a value
- * per (identity, property).
+ * per (identity, property) in `properties`, and where each placed item sits
+ * in `placements`.
  *
  * Layers apply org, team, personal, session. Within a layer, overlays apply
  * by `teamOrder` (team layer only), then ascending scope id, `createdAt` and

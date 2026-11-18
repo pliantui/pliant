@@ -649,6 +649,21 @@ describe("validateOverlay", () => {
       ])
     })
 
+    it("accepts a move into the item's own base parent", () => {
+      expect(
+        validateOverlay(
+          overlay([
+            {
+              op: "move",
+              target: "dashboard/slots/a",
+              to: { into: "dashboard" },
+            },
+          ]),
+          { layers: { overlays: [], surface, baseIds: ["a"] } }
+        ).success
+      ).toBe(true)
+    })
+
     it("uses baseIds as the exact base nodes", () => {
       const lower = lowerOverlay("team", [
         { op: "hide", target: "dashboard/slots/orders" },

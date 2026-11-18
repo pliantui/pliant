@@ -48,7 +48,8 @@ export type OpPropertyKey =
 
 export interface OpProperty {
   readonly address: string
-  // An item's placement resolves apart from its properties.
+  // An item's placement resolves apart from its properties, into
+  // `ResolvedLayers.placements`; "placement" never reaches `properties`.
   readonly property: OpPropertyKey | "placement"
   readonly breakpoint?: Breakpoint
 }

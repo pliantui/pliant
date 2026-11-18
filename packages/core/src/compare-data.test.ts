@@ -10,19 +10,33 @@ function nested(depth: number, leaf: unknown): unknown {
   return value
 }
 
-// Date.now() is coarse, so each sample averages runs over at least 50 ms.
-function fastest(run: () => void): number {
-  let best = Infinity
-  for (let sample = 0; sample < 3; sample++) {
-    const start = Date.now()
-    let runs = 0
-    while (Date.now() - start < 50) {
-      run()
-      runs++
-    }
-    best = Math.min(best, (Date.now() - start) / runs)
+// Counts every read compareData makes, so linearity is measured in steps,
+// not time.
+function countedNested(depth: number) {
+  let reads = 0
+  const handler: ProxyHandler<object> = {
+    get(target, key, receiver) {
+      reads++
+      const value: unknown = Reflect.get(target, key, receiver)
+      return value
+    },
+    ownKeys(target) {
+      reads++
+      return Reflect.ownKeys(target)
+    },
   }
-  return best
+  let value: unknown = 1
+  for (let level = 0; level < depth; level++) {
+    value = new Proxy(level % 2 === 0 ? [value] : { next: value }, handler)
+  }
+  return { value, reads: () => reads }
+}
+
+function readsToCompare(depth: number): number {
+  const a = countedNested(depth)
+  const b = countedNested(depth)
+  compareData(a.value, b.value)
+  return a.reads() + b.reads()
 }
 
 describe("compareData", () => {
@@ -75,16 +89,12 @@ describe("compareData", () => {
     expect(compareData(nested(100_000, 1), nested(99_999, 1))).not.toBe(0)
   })
 
-  // Comparing 4n levels against n: linear work grows about 4 times.
-  it("compares nested values in linear time", () => {
-    const small = [nested(25_000, 1), nested(25_000, 1)] as const
-    const large = [nested(100_000, 1), nested(100_000, 1)] as const
-    let ratio = Infinity
-    for (let attempt = 0; attempt < 3 && ratio >= 8; attempt++) {
-      ratio =
-        fastest(() => compareData(...large)) /
-        fastest(() => compareData(...small))
-    }
-    expect(ratio).toBeLessThan(8)
+  // Comparing 4n levels against n: linear work reads about 4 times as much,
+  // quadratic work about 16 times.
+  it("compares nested values in linear steps", () => {
+    const ratio = readsToCompare(100_000) / readsToCompare(25_000)
+
+    expect(ratio).toBeGreaterThan(3)
+    expect(ratio).toBeLessThan(5)
   })
 })

@@ -2,6 +2,14 @@ import type { Op } from "@pliantui/contract"
 
 import { identityOf, parentOf } from "./node-identity"
 
+/** An item's position in its container; see `ResolvedPlacement.position`. */
+export type PlacementPosition =
+  | { readonly before: string }
+  | { readonly after: string }
+  | { readonly index: number }
+  | { readonly pin: "start" | "end" | "sticky" | "none" }
+  | { readonly promoted: boolean }
+
 /**
  * Where an item sits: the node that holds it and its position there.
  *
@@ -24,12 +32,7 @@ export interface ResolvedPlacement {
    * Absent after `move … into`, or when no placement op holds and the item
    * is in its base parent; the container's own order applies.
    */
-  readonly position?:
-    | { readonly before: string }
-    | { readonly after: string }
-    | { readonly index: number }
-    | { readonly pin: "start" | "end" | "sticky" | "none" }
-    | { readonly promoted: boolean }
+  readonly position?: PlacementPosition
 }
 
 /**
