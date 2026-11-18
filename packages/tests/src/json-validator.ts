@@ -85,6 +85,20 @@ const opName = /^[a-z][A-Za-z0-9]*$/
 const target = /^(?:[a-z][A-Za-z0-9_\-[\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$/
 const slotTarget = /\/slots\/[^/]+$/
 
+const reservedKeys = new Set(["__proto__", "constructor", "prototype"])
+
+function hasReservedKey(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(hasReservedKey)
+  }
+  if (isObject(value)) {
+    return Object.entries(value).some(
+      ([key, child]) => reservedKeys.has(key) || hasReservedKey(child)
+    )
+  }
+  return false
+}
+
 function values(value: unknown): unknown[] {
   if (Array.isArray(value)) {
     return [value, ...value.flatMap(values)]
@@ -193,6 +207,7 @@ function hasMatchingExplain(overlay: Json) {
 
 export function isOverlayValid(overlay: unknown) {
   return (
+    !hasReservedKey(overlay) &&
     validateOverlayJson(overlay) &&
     isObject(overlay) &&
     hasMatchingExplain(overlay)
@@ -220,7 +235,7 @@ export function isImportValid(overlay: unknown) {
 }
 
 export function isSavedViewValid(view: unknown) {
-  if (!validateSavedViewJson(view) || !isObject(view)) {
+  if (hasReservedKey(view) || !validateSavedViewJson(view) || !isObject(view)) {
     return false
   }
   const overlays: unknown[] = Array.isArray(view["overlays"])
@@ -249,7 +264,11 @@ export function isSavedViewValid(view: unknown) {
 }
 
 export function isManifestValid(manifest: unknown) {
-  if (!validateManifestJson(manifest) || !isObject(manifest)) {
+  if (
+    hasReservedKey(manifest) ||
+    !validateManifestJson(manifest) ||
+    !isObject(manifest)
+  ) {
     return false
   }
   const capabilities = manifest["capabilities"]
