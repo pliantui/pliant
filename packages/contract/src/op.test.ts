@@ -122,6 +122,11 @@ describe("opSchema", () => {
       { target: "order-card[]" },
       removeTargetMessage,
     ],
+    [
+      "a remove target in a template slot",
+      { target: "order-card[]/slots/badge" },
+      removeTargetMessage,
+    ],
   ])("reports %s once", (_, fields, message) => {
     const issues =
       opSchema.safeParse({ op: "remove", ...fields }).error?.issues ?? []
