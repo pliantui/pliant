@@ -96,6 +96,23 @@ async function readJson(
   }
 }
 
+function isAborted(request: Request) {
+  return request.signal.aborted
+}
+
+// The AI SDK aborts a call that runs past `timeout` with a TimeoutError, which
+// providers and retries may wrap.
+function isTimeout(cause: unknown, depth = 0): boolean {
+  if (!(cause instanceof Error) || depth > 3) {
+    return false
+  }
+  if (cause.name === "TimeoutError") {
+    return true
+  }
+  const lastError: unknown = "lastError" in cause ? cause.lastError : undefined
+  return isTimeout(cause.cause, depth + 1) || isTimeout(lastError, depth + 1)
+}
+
 /**
  * Creates a route handler that answers asks: it validates the request, turns
  * the ask into ops with the configured model, validates them as a
@@ -135,6 +152,9 @@ export function createPliantHandler(config: PliantHandlerConfig) {
     if (isOutOfScope(ask.data.prompt, ask.data.context)) {
       return respond({ status: "unavailable", reason: outOfScopeMessage })
     }
+    if (request.signal.aborted) {
+      return error("The request was aborted", 499)
+    }
     try {
       const result = await answerAsk(ask.data, {
         model,
@@ -148,12 +168,16 @@ export function createPliantHandler(config: PliantHandlerConfig) {
       })
       return respond(result, result.status === "error" ? 422 : 200)
     } catch (cause) {
-      if (request.signal.aborted) {
+      // The signal can abort while the model runs, after the check above.
+      if (isAborted(request)) {
         throw cause
       }
       onError?.(cause)
-      return cause instanceof MissingRecordingError
-        ? error(cause.message, 500)
+      if (cause instanceof MissingRecordingError) {
+        return error(cause.message, 500)
+      }
+      return isTimeout(cause)
+        ? error("The model took too long to answer", 504)
         : error("The model couldn't answer this ask", 502)
     }
   }

@@ -391,6 +391,36 @@ describe("createPliantHandler", () => {
     expect(errors).toHaveLength(0)
   })
 
+  it("answers an already aborted request without calling the model", async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const model = mockModel(answer(sortByValue))
+    const response = await handlerFor(model)(
+      post(ask, { signal: controller.signal })
+    )
+
+    expect(response.status).toBe(499)
+    expect(model.doGenerateCalls).toHaveLength(0)
+  })
+
+  it("answers 504 when the model times out", async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: ({ abortSignal }) =>
+        new Promise((_, reject) => {
+          abortSignal?.addEventListener("abort", () => {
+            reject(new DOMException("Timed out", "TimeoutError"))
+          })
+        }),
+    })
+    const response = await handlerFor(model, { timeout: 20 })(post(ask))
+
+    expect(response.status).toBe(504)
+    expect(await read(response)).toEqual({
+      status: "error",
+      message: "The model took too long to answer",
+    })
+  })
+
   it("makes overlay ids that validate by default", async () => {
     const handler = createPliantHandler({
       model: mockModel(answer(sortByValue)),

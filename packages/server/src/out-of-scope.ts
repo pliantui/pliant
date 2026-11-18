@@ -32,13 +32,17 @@ function escape(text: string) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
-function mentionsTarget(ask: string, { collection, fields }: AskContext) {
+// A data verb can also be an item's or field's name ("email first" on a
+// table with an Email column), so an ask that starts with one is left to
+// the model. A name later in the ask ("email this customer") is the object of
+// the verb, so it doesn't count.
+function startsWithName(ask: string, { collection, fields }: AskContext) {
   const names = [...(collection?.items ?? []), ...(fields ?? [])].flatMap(
     ({ id, label }) => (label === undefined ? [id] : [id, label])
   )
   return names.some((name) =>
     new RegExp(
-      `(?:^|\\W)${escape(name.toLowerCase().replace(/\s+/g, " "))}(?:\\W|$)`
+      `^${politeness}${escape(name.toLowerCase().replace(/\s+/g, " "))}(?:\\W|$)`
     ).test(ask)
   )
 }
@@ -46,13 +50,14 @@ function mentionsTarget(ask: string, { collection, fields }: AskContext) {
 /**
  * A conservative check for asks that change data rather than the view, such as
  * "delete the cancelled orders" or "email this customer". It only matches a
- * leading data verb, and never when the ask mentions a part of the view or
- * one of the target's items or fields ("email first" on a table with an Email
- * column), so anything it lets through still reaches the model.
+ * leading data verb. It lets through asks that mention a part of the view
+ * ("delete the notes column") or start with the name of one of the target's
+ * items or fields ("email first" or "refund due, highest first" on a table
+ * with Email and Refund due columns), so those still reach the model.
  */
 export function isOutOfScope(prompt: string, context: AskContext) {
   const ask = prompt.toLowerCase().replace(/\s+/g, " ").trim()
   return (
-    dataVerb.test(ask) && !viewNoun.test(ask) && !mentionsTarget(ask, context)
+    dataVerb.test(ask) && !viewNoun.test(ask) && !startsWithName(ask, context)
   )
 }

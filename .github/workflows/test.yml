@@ -74,8 +74,12 @@ jobs:
       # The server's floor is higher than contract's and core's, because the
       # AI SDK needs Zod 4.1.8.
       - run: pnpm build:packages
-      - run: pnpm --filter @pliantui/server add --save-dev zod@4.1.8
+      # Every package gets 4.1.8, as in an app at the server's floor.
+      - run: >-
+          pnpm --filter @pliantui/contract --filter @pliantui/core
+          --filter @pliantui/server add --save-dev zod@4.1.8
       - run: pnpm --filter @pliantui/server test
+      # `ai`'s own declarations reference Node.js types, hence --types node.
       - run: >-
           pnpm --filter @pliantui/server
           exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false

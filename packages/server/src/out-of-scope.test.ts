@@ -24,6 +24,28 @@ const customers: AskContext = {
   fields: [{ id: "refund", label: "Refund   due", type: "number" }],
 }
 
+const orders: AskContext = {
+  ...empty,
+  collection: {
+    name: "columns",
+    items: [
+      { id: "customer", label: "Customer" },
+      { id: "region", label: "Region" },
+    ],
+  },
+}
+
+const metrics: AskContext = {
+  ...empty,
+  collection: {
+    name: "slots",
+    items: [
+      { id: "orders", label: "Orders" },
+      { id: "overdue", label: "Overdue" },
+    ],
+  },
+}
+
 describe("isOutOfScope", () => {
   it.each([
     "delete the cancelled orders",
@@ -71,4 +93,16 @@ describe("isOutOfScope", () => {
     expect(isOutOfScope(prompt, empty)).toBe(true)
     expect(isOutOfScope(prompt, customers)).toBe(false)
   })
+
+  it.each<[string, AskContext]>([
+    ["email this customer", orders],
+    ["please delete the region", orders],
+    ["delete the cancelled orders", metrics],
+    ["approve the overdue orders", metrics],
+  ])(
+    "catches %j when an item or field is only its object",
+    (prompt, context) => {
+      expect(isOutOfScope(prompt, context)).toBe(true)
+    }
+  )
 })
