@@ -38,3 +38,10 @@ CLAUDE.local.md
 .idea
 .fleet
 .vscode
+
+# registry build output
+apps/www/public/r
+
+# playwright
+apps/www/playwright-report
+apps/www/test-results

@@ -2,10 +2,11 @@
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["tsconfig.json", "eslint.config.mjs"],
   "globalEnv": ["NODE_ENV"],
+  "globalPassThroughEnv": ["CI"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "public/r/**"]
     },
     "dev": {
       "cache": false,

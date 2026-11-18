@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --port 4000",
-    "build": "next build",
+    "build": "pnpm registry:build && next build",
+    "registry:build": "shadcn build",
     "start": "next start --port 4000",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "next typegen && eslint --max-warnings 0 .",
-    "lint:fix": "next typegen && eslint . --fix"
+    "lint:fix": "next typegen && eslint . --fix",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "fumadocs-core": "^16.19.0",
@@ -20,6 +22,7 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/postcss": "^4.3.5",
     "@types/mdx": "^2.0.14",
     "@types/node": "~22.12.0",
@@ -29,6 +32,7 @@
     "eslint-config-next": "^16.4.6",
     "globals": "^17.14.0",
     "postcss": "^8.5.32",
+    "shadcn": "^4.23.0",
     "tailwindcss": "^4.3.5",
     "typescript": "~6.0.3"
   }
