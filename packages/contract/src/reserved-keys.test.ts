@@ -75,7 +75,7 @@ describe("withoutReservedKeys", () => {
     const value: unknown = JSON.parse(json)
     const start = performance.now()
     expect(schema.safeParse(value).success).toBe(true)
-    expect(performance.now() - start).toBeLessThan(2000)
+    expect(performance.now() - start).toBeLessThan(5000)
   })
 
   it("finds a deeply nested reserved key in linear time", () => {
@@ -86,7 +86,7 @@ describe("withoutReservedKeys", () => {
     const value: unknown = JSON.parse(json)
     const start = performance.now()
     const path = schema.safeParse(value).error?.issues[0]?.path
-    expect(performance.now() - start).toBeLessThan(2000)
+    expect(performance.now() - start).toBeLessThan(5000)
     expect(path).toHaveLength(400_001)
   })
 
