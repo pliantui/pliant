@@ -32,9 +32,12 @@ interface Entry {
 interface Placed {
   readonly op: ResolvedOp
   readonly placement: ResolvedPlacement
-  // The container's version when the op placed the item, or undefined when
-  // the container didn't exist.
+  // The container's version when the op placed the item. It can be undefined
+  // only when the placement follows the base, which doesn't use it.
   readonly version: number | undefined
+  // Set when the op applied while the item's base parent was removed: the
+  // item is positioned in whatever its base parent resolves to at the end.
+  readonly followsBase?: true
 }
 
 interface Placements {
@@ -125,18 +128,16 @@ function versionOf(
   if (entryAt(state, id, "inserted")) {
     return liveNode(state, id) ? state.versions.get(id) : undefined
   }
-  return state.base.has(id) || id === parent || id === surfaceRoot
-    ? 0
-    : undefined
+  return state.base.has(id) || id === parent ? 0 : undefined
 }
 
 function holds(
   state: Resolution,
   { origin }: Placements,
-  { placement, version }: Placed
+  { placement, version, followsBase }: Placed
 ): boolean {
   return (
-    version !== undefined &&
+    followsBase === true ||
     versionOf(state, placement.container, origin) === version
   )
 }
@@ -183,9 +184,11 @@ function baseContainer(
   ) {
     seen.add(node)
     path.push(node)
+    const held = currentPlacement(state, state.placements.get(node))
     node =
-      currentPlacement(state, state.placements.get(node))?.placement
-        .container ?? baseParentOf(state, node)
+      held && !held.followsBase
+        ? held.placement.container
+        : baseParentOf(state, node)
   }
   if (node === undefined) {
     return undefined
@@ -215,11 +218,18 @@ function place(
     }
     state.placements.set(address, placements)
   }
+  const sets = op.op === "wrap" || (op.op === "move" && "into" in op.to)
+  const held = sets ? undefined : currentPlacement(state, placements)
+  const parent = baseParentOf(state, address)
+  const followsBase =
+    !sets &&
+    (held
+      ? held.followsBase === true
+      : parent !== undefined && isRemoved(state, parent))
   const placement = placementOf(
     op,
     address,
-    currentPlacement(state, placements)?.placement.container ??
-      baseContainer(state, address, new Map())
+    held && !held.followsBase ? held.placement.container : parent
   )
   if (placement) {
     placements.history.push(resolved)
@@ -227,16 +237,25 @@ function place(
       op: resolved,
       placement,
       version: versionOf(state, placement.container, placements.origin),
+      ...(followsBase && { followsBase }),
     })
   }
 }
 
-// A `move … into` a node that doesn't exist yet, or was removed, needs
-// updating (spec 5.4 rule 3), pending the owner's ruling. A node exists when
-// it is a base node, created and live, or the moved item's own base parent.
+// A `move … into`, `insert` or `wrap` whose container doesn't exist yet, or
+// was removed, needs updating (spec 5.4 rule 3), pending the owner's ruling.
+// A node exists when it is a base node, created and live, or the item's own
+// base parent.
 // Without `baseIds` an unknown id counts as a base node, so only a removed
 // one is missing.
 function missingContainer(state: Resolution, op: Op): boolean {
+  if (op.op === "insert" || op.op === "wrap") {
+    const id = op.op === "insert" ? op.node.id : op.id
+    return (
+      versionOf(state, identityOf(op.target), baseParentOf(state, id)) ===
+      undefined
+    )
+  }
   if (op.op !== "move" || !("into" in op.to)) {
     return false
   }
@@ -366,6 +385,9 @@ export function applyOp(
     if (collides(state, op, scope)) {
       return "id-collision"
     }
+    if (missingContainer(state, op)) {
+      return "missing-container"
+    }
     const id = op.op === "insert" ? op.node.id : op.id
     // A node created again starts over where it is created: nothing that
     // placed an earlier one holds.
@@ -383,7 +405,7 @@ export function applyOp(
     state.created.add(id)
     state.createdIn.set(id, identityOf(op.target))
   }
-  if (missingContainer(state, op)) {
+  if (op.op === "move" && missingContainer(state, op)) {
     return "missing-container"
   }
   for (const { address, property, breakpoint } of opProperties(op)) {
@@ -427,6 +449,9 @@ function settlePlacement(
   }
   return {
     ...current.placement,
+    ...(current.followsBase && {
+      container: baseContainer(state, address, memo) ?? placements.origin,
+    }),
     winner: current.op,
     overridden: placements.history.filter((op) => op !== current.op),
   }

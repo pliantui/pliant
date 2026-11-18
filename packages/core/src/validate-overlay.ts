@@ -145,12 +145,16 @@ function layerIssues(
     }
     const reason = applyOp(state, { check, overlay }, scope)
     const { op, index } = check
-    if (reason === "missing-container" && op.op === "move" && "into" in op.to) {
+    if (reason === "missing-container") {
+      const into = op.op === "move" && "into" in op.to ? op.to.into : undefined
       return [
         {
           code: "custom",
-          path: ["ops", index, "to", "into"],
-          message: `The node ${op.to.into} doesn't exist on this surface`,
+          path:
+            into === undefined
+              ? ["ops", index, "target"]
+              : ["ops", index, "to", "into"],
+          message: `The node ${into ?? op.target} doesn't exist on this surface`,
         },
       ]
     }

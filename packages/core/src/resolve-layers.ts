@@ -31,6 +31,13 @@ import { surfaceOrder } from "./surface-order"
  * When the base parent is a node that was removed, the item sits where that
  * node would, up the chain; with no live node left, as in a cycle of removed
  * nodes, it sits on `@surface`.
+ *
+ * A `pin`, reorder, `promote` or `demote` applied while the item has no
+ * placement that holds and its base parent is a removed node follows the
+ * base: it always holds, and positions the item wherever its base parent
+ * chain resolves once every op has applied, even if that changes later
+ * (pending the owner's ruling). Later position ops on the item follow the
+ * base too, until a `move … into` or wrap places it.
  */
 export interface ResolvedItemPlacement extends ResolvedPlacement {
   /** The placement op that holds, absent when none does. */
@@ -94,9 +101,10 @@ export type SkippedOp =
  * node, or a node the op itself points at. With `baseIds`, a base node is
  * exactly a listed id; without them, it is approximated as an id an earlier
  * op in the resolution order pointed at before anything created it.
- * `missing-container` means a `move … into` names a node that doesn't exist
- * when it applies: one that was removed, or, with `baseIds`, one that is
- * neither listed nor created.
+ * `missing-container` means a `move … into` names a node, or an `insert` or
+ * `wrap` targets one, that doesn't exist when it applies: one that was
+ * removed, or, with `baseIds`, one that is neither listed, created, nor the
+ * item's own base parent.
  */
 export type UnappliedReason =
   | "cross-layer-remove"

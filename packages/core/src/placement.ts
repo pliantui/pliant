@@ -2,7 +2,7 @@ import type { Op } from "@pliantui/contract"
 
 import { identityOf, parentOf } from "./node-identity"
 
-/** An item's position in its container; see `ResolvedPlacement.position`. */
+/** An item's position in its container; see `ResolvedItemPlacement.position`. */
 export type PlacementPosition =
   | { readonly before: string }
   | { readonly after: string }
@@ -17,7 +17,9 @@ export type PlacementPosition =
  * with `before`, `after` or `index`), `promote` and `demote` keep the
  * container of the item's placement that holds, else its base parent (where
  * an `insert` or `wrap` created it, a wrapper's own target, or the parent in
- * its address), and set only `position`.
+ * its address), and set only `position`. When that base parent was removed,
+ * the container is wherever the removed node's chain resolves at the end
+ * (see `ResolvedItemPlacement`).
  */
 export interface ResolvedPlacement {
   /** The identity of the node that holds the item. */
@@ -39,8 +41,9 @@ export interface ResolvedPlacement {
  * The placement an op gives the item at `address`, or undefined for an op
  * that doesn't place items. `current` is the item's current container, which
  * `pin`, reorder, `promote` and `demote` keep: the caller passes the
- * container of the item's placement that holds, else its base parent. Without
- * one, it is the parent in the op's own target.
+ * container of the item's placement that holds, else its base parent, which
+ * stands in for the end of a removed-parent chain when the placement follows
+ * the base. Without one, it is the parent in the op's own target.
  */
 export function placementOf(
   op: Op,

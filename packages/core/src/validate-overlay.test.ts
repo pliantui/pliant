@@ -664,6 +664,26 @@ describe("validateOverlay", () => {
       ).toBe(true)
     })
 
+    it("rejects an insert or wrap into a node that doesn't exist", () => {
+      const result = validateOverlay(
+        overlay([insert("x", "nowhere"), wrap("sidebar", "pair")]),
+        { layers: { overlays: [], surface, baseIds: ["dashboard"] } }
+      )
+
+      expect(result.error?.issues).toEqual([
+        {
+          code: "custom",
+          path: ["ops", 0, "target"],
+          message: "The node nowhere doesn't exist on this surface",
+        },
+        {
+          code: "custom",
+          path: ["ops", 1, "target"],
+          message: "The node sidebar doesn't exist on this surface",
+        },
+      ])
+    })
+
     it("uses baseIds as the exact base nodes", () => {
       const lower = lowerOverlay("team", [
         { op: "hide", target: "dashboard/slots/orders" },
@@ -672,12 +692,16 @@ describe("validateOverlay", () => {
 
       expect(
         validateOverlay(input, {
-          layers: { overlays: [lower], surface, baseIds: ["dashboard"] },
+          layers: {
+            overlays: [lower],
+            surface,
+            baseIds: ["dashboard", "page"],
+          },
         }).success
       ).toBe(true)
       expect(
         validateOverlay(input, {
-          layers: { overlays: [lower], surface, baseIds: ["fresh"] },
+          layers: { overlays: [lower], surface, baseIds: ["fresh", "page"] },
         }).error?.issues.map(({ path }) => path)
       ).toEqual([["ops", 1, "node", "id"]])
       expect(
