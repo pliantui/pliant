@@ -32,15 +32,17 @@ export interface ResolvedPlacement {
 }
 
 /**
- * The placement an op gives the item at `address`, on top of the item's
- * `current` placement, or undefined for an op that doesn't place items.
+ * The placement an op gives the item at `address`, or undefined for an op
+ * that doesn't place items. `container` is the item's current container,
+ * which `pin`, reorder, `promote` and `demote` keep; without one, it is the
+ * parent in the op's own target.
  */
 export function placementOf(
   op: Op,
   address: string,
-  current: ResolvedPlacement | undefined
+  current: string | undefined
 ): ResolvedPlacement | undefined {
-  const container = current?.container ?? parentOf(op.target)
+  const container = current ?? parentOf(op.target)
   switch (op.op) {
     case "wrap":
       return {

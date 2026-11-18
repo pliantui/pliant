@@ -739,6 +739,12 @@ describe("validateOverlay", () => {
             layers: { overlays: [], surface, baseIds: "x" },
           })
         ).toThrow(TypeError)
+        expect(() =>
+          validateOverlay(input, {
+            // @ts-expect-error The layers are plain data, so baseIds is an array.
+            layers: { overlays: [], surface, baseIds: new Set(["x"]) },
+          })
+        ).toThrow(TypeError)
       }
     })
   })

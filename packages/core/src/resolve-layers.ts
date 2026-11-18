@@ -18,21 +18,25 @@ export interface ResolvedOp {
 export interface ResolvedProperty {
   /**
    * The op that decides the value. A `remove` or `removeUserItem` winner
-   * means the item is absent. On `placement`, a `wrap` or `remove` winner
-   * can also be the op that sent the item back from its wrap (see
-   * `placement`).
+   * means the item is absent. Absent only on `placement`, when no placement
+   * op still holds and the item is back in its base parent.
    */
-  readonly winner: ResolvedOp
+  readonly winner?: ResolvedOp
   /**
-   * Set for `placement` only: where the item sits.
+   * Set for `placement` only: where the item sits. It is the latest placement
+   * whose container still exists in the version it had when the item was
+   * placed there. Creating a node again, or replacing a wrap, makes a new
+   * version, so an item never returns into an earlier one; an item moved
+   * into a node that didn't exist at the time never sits there.
    *
-   * When a wrapper is removed, or re-wrapped without an item, every item in
-   * it (listed by the wrap, or pinned, reordered or moved into it later)
-   * goes back to the placement it had just before it entered the wrapper,
-   * passing over placements in nodes that are gone. With no such placement,
-   * it goes back to the wrap's target with no position, and the re-wrap or
-   * the removal is the winner. An item the re-wrap lists is placed by the
-   * re-wrap, which replaces any earlier pin or reorder inside the wrapper.
+   * So when a wrapper is removed, or re-wrapped without an item, every item
+   * in it (listed by the wrap, or pinned, reordered or moved into it later)
+   * goes back to the placement it had just before it entered the wrapper.
+   * An item the re-wrap lists is placed by the re-wrap, which replaces any
+   * earlier pin or reorder inside the wrapper. With no placement left, the
+   * item is in its base parent (the parent in the address it was first
+   * placed from, or an inserted node's insert target) with no position and
+   * no winner.
    */
   readonly placement?: ResolvedPlacement
   /**
@@ -43,8 +47,8 @@ export interface ResolvedProperty {
   readonly breakpoints?: ReadonlyMap<Breakpoint, ResolvedOp>
   /**
    * Every other op applied to the property, in the order applied (lowest
-   * precedence first). After a removal, the winner can be an op applied
-   * before some of these.
+   * precedence first). After a removal, or when a later placement no longer
+   * holds, the winner can be an op applied before some of these.
    */
   readonly overridden: readonly ResolvedOp[]
 }

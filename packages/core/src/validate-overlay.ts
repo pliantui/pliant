@@ -11,7 +11,7 @@ import { checkOp, type OpCheck, type OpContext } from "./check-op"
 import { loadOverlay, type LoadedOverlay } from "./load-overlay"
 import { scopeKeyOf } from "./overlay-scope"
 import { ownEntries } from "./own-entries"
-import { applyOp, checkBaseIds, createResolution } from "./resolution"
+import { applyOp, createResolution } from "./resolution"
 import type { Result } from "./result"
 import { checkSurface, surfaceOrder } from "./surface-order"
 import type { WithOps } from "./with-ops"
@@ -167,7 +167,9 @@ export function validateOverlay(
 ): Result<ValidatedOverlay> {
   if (layers) {
     checkSurface(layers.surface)
-    checkBaseIds(layers.baseIds)
+    if (layers.baseIds !== undefined && !Array.isArray(layers.baseIds)) {
+      throw new TypeError("layers.baseIds must be an array of node ids")
+    }
   }
   const entries = ownEntries(input)
   const result = overlaySchema.safeParse(entries ?? input)
