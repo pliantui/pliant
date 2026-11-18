@@ -15,6 +15,7 @@ export {
 } from "./resolve-layers"
 export {
   validateOverlay,
+  type ValidateOverlayLayers,
   type ValidateOverlayOptions,
   type ValidatedOverlay,
 } from "./validate-overlay"

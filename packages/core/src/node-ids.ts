@@ -5,7 +5,9 @@ function idsIn(address: string): string[] {
     return []
   }
   const segments = address.split("/")
-  const ids = [segments[0]?.replace(/\[\]$/, "") ?? ""]
+  // A template id keeps its "[]": templates can't hold inserts or wraps, so
+  // it never matches an id they create.
+  const ids = [segments[0] ?? ""]
   for (let index = 1; index < segments.length - 1; index += 2) {
     const id = segments[index + 1]
     if (segments[index] === "slots" && id !== undefined) {

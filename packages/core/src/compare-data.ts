@@ -1,4 +1,12 @@
-type Pair = readonly [object, object]
+interface Frame {
+  readonly a: object
+  readonly b: object
+  readonly left: readonly unknown[]
+  readonly right: readonly unknown[]
+  // The result once every child pair is equal: the difference in length.
+  readonly tail: number
+  index: number
+}
 
 function isPlainObject(value: object): boolean {
   const prototype: unknown = Object.getPrototypeOf(value)
@@ -28,30 +36,40 @@ function rankOf(value: unknown): number {
   }
 }
 
+function compareOrdered<T extends string | number | bigint | boolean>(
+  a: T,
+  b: T
+): number {
+  return a < b ? -1 : a > b ? 1 : 0
+}
+
 function compareScalars(a: unknown, b: unknown): number {
   if (typeof a === "number" && typeof b === "number") {
-    if (Number.isNaN(a) || Number.isNaN(b)) {
-      return Number.isNaN(a) ? -1 : 1
-    }
+    return Number.isNaN(a) || Number.isNaN(b)
+      ? Number.isNaN(a)
+        ? -1
+        : 1
+      : compareOrdered(a, b)
   }
-  if (
-    (typeof a === "number" && typeof b === "number") ||
-    (typeof a === "bigint" && typeof b === "bigint") ||
-    (typeof a === "string" && typeof b === "string") ||
-    (typeof a === "boolean" && typeof b === "boolean")
-  ) {
-    return a < b ? -1 : a > b ? 1 : 0
+  if (typeof a === "bigint" && typeof b === "bigint") {
+    return compareOrdered(a, b)
+  }
+  if (typeof a === "string" && typeof b === "string") {
+    return compareOrdered(a, b)
+  }
+  if (typeof a === "boolean" && typeof b === "boolean") {
+    return compareOrdered(a, b)
   }
   return Number.NaN
 }
 
-function compareLists(
-  a: readonly unknown[],
-  b: readonly unknown[],
-  stack: Pair[]
-): number {
+function sortedEntries(value: object): [string, unknown][] {
+  return Object.entries(value).sort(([a], [b]) => compareOrdered(a, b))
+}
+
+function compareKeys(a: readonly string[], b: readonly string[]): number {
   for (let index = 0; index < Math.min(a.length, b.length); index++) {
-    const order = compareWith(a[index], b[index], stack)
+    const order = compareOrdered(a[index] ?? "", b[index] ?? "")
     if (order !== 0) {
       return order
     }
@@ -59,11 +77,26 @@ function compareLists(
   return a.length - b.length
 }
 
-function sortedEntries(value: object): [string, unknown][] {
-  return Object.entries(value).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+class Path {
+  readonly #pairs = new Map<object, Set<object>>()
+
+  has(a: object, b: object): boolean {
+    return this.#pairs.get(a)?.has(b) ?? false
+  }
+
+  add(a: object, b: object): void {
+    const right = this.#pairs.get(a) ?? new Set()
+    right.add(b)
+    this.#pairs.set(a, right)
+  }
+
+  delete(a: object, b: object): void {
+    this.#pairs.get(a)?.delete(b)
+  }
 }
 
-function compareWith(a: unknown, b: unknown, stack: Pair[]): number {
+// A number settles the pair; a frame lists the child pairs still to compare.
+function open(a: unknown, b: unknown, path: Path): number | Frame {
   if (Object.is(a, b)) {
     return 0
   }
@@ -81,35 +114,28 @@ function compareWith(a: unknown, b: unknown, stack: Pair[]): number {
     return compareScalars(a, b)
   }
   // A pair already being compared is assumed equal, which ends a cycle.
-  if (stack.some(([x, y]) => x === a && y === b)) {
+  if (path.has(a, b)) {
     return 0
   }
-  stack.push([a, b])
-  const order =
-    Array.isArray(a) && Array.isArray(b)
-      ? compareLists(a, b, stack)
-      : compareEntries(sortedEntries(a), sortedEntries(b), stack)
-  stack.pop()
-  return order
-}
-
-function compareEntries(
-  a: readonly [string, unknown][],
-  b: readonly [string, unknown][],
-  stack: Pair[]
-): number {
-  const keys = compareLists(
-    a.map(([key]) => key),
-    b.map(([key]) => key),
-    stack
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return { a, b, left: a, right: b, tail: a.length - b.length, index: 0 }
+  }
+  const left = sortedEntries(a)
+  const right = sortedEntries(b)
+  const keys = compareKeys(
+    left.map(([key]) => key),
+    right.map(([key]) => key)
   )
   return keys !== 0
     ? keys
-    : compareLists(
-        a.map(([, value]) => value),
-        b.map(([, value]) => value),
-        stack
-      )
+    : {
+        a,
+        b,
+        left: left.map(([, value]) => value),
+        right: right.map(([, value]) => value),
+        tail: 0,
+        index: 0,
+      }
 }
 
 /**
@@ -117,8 +143,31 @@ function compareEntries(
  * keys and values whatever their key order, and scalars by value. It is 0
  * exactly when the two are structurally equal. Values that aren't data, such
  * as functions or class instances, are equal only to themselves and have no
- * order: two different ones compare as NaN. Cycles and BigInt never throw.
+ * order: two different ones compare as NaN. It never throws, whatever the
+ * depth, cycles or BigInt values, and takes time linear in the values' size.
  */
 export function compareData(a: unknown, b: unknown): number {
-  return compareWith(a, b, [])
+  const path = new Path()
+  const frames: Frame[] = []
+  let next = open(a, b, path)
+  for (;;) {
+    if (typeof next !== "number") {
+      frames.push(next)
+      path.add(next.a, next.b)
+    } else if (next !== 0) {
+      return next
+    }
+    const frame = frames.at(-1)
+    if (!frame) {
+      return 0
+    }
+    if (frame.index < Math.min(frame.left.length, frame.right.length)) {
+      const index = frame.index++
+      next = open(frame.left[index], frame.right[index], path)
+    } else {
+      frames.pop()
+      path.delete(frame.a, frame.b)
+      next = frame.tail
+    }
+  }
 }

@@ -13,6 +13,12 @@ const userItemKinds = [
 
 type UserItemKind = (typeof userItemKinds)[number]
 
+/**
+ * A property an op writes on a node or item. Keyed families carry their key
+ * after a dot: `collapse.<item>`, `filter.<field>`, `format.<field>`,
+ * `props.<prop>`, and `<kind>.<id>` for each user item kind (`derived`,
+ * `aggregate`, `highlight`, `sortOption`, `filterControl`, `preset`).
+ */
 export type OpPropertyKey =
   | "chart"
   | "default"

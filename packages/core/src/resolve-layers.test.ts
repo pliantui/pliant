@@ -908,6 +908,9 @@ describe("resolveLayers", () => {
         container: "dashboard",
         position: { pin: "start" },
       })
+      expect(
+        get(properties, "a", "placement")?.overridden.map(({ check }) => check)
+      ).toEqual([personal.ops[0], personal.ops[2]])
       expect(get(properties, "b", "placement")?.placement).toEqual({
         container: "dashboard",
       })
@@ -965,6 +968,12 @@ describe("resolveLayers", () => {
       expect(get(properties, "y", "placement")?.winner.check).toBe(
         personal.ops[2]
       )
+      expect(
+        get(properties, "x", "placement")?.overridden.map(({ check }) => check)
+      ).toEqual([personal.ops[1], personal.ops[2]])
+      expect(
+        get(properties, "y", "placement")?.overridden.map(({ check }) => check)
+      ).toEqual([personal.ops[0], personal.ops[1]])
       expect(get(properties, "y", "placement")?.placement).toEqual({
         container: "dashboard",
       })
@@ -1067,6 +1076,35 @@ describe("resolveLayers", () => {
           [team.ops[4], "id-collision"],
           [personal.ops[2], "id-collision"],
         ])
+      })
+
+      it("rejects a re-wrap that lists its own id", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          wrap("dashboard", "w", ["a", "b"]),
+          wrap("dashboard", "w", ["w", "c"]),
+        ])
+        const { properties, unapplied } = resolve([personal])
+
+        expect(unapplied.map(({ check, reason }) => [check, reason])).toEqual([
+          [personal.ops[1], "id-collision"],
+        ])
+        expect(get(properties, "w", "inserted")?.winner.check).toBe(
+          personal.ops[0]
+        )
+      })
+
+      it("doesn't take an id from a template", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          { op: "hide", target: "card[]" },
+          insert("dashboard", "card"),
+        ])
+        const { properties, unapplied } = resolve([personal])
+
+        expect(unapplied).toEqual([])
+        expect(properties.has("card[]")).toBe(true)
+        expect(winner(properties, "card", "inserted")).toBe(personal)
       })
 
       it("lets an insert replace one at the same target from another scope", () => {
@@ -1182,6 +1220,35 @@ describe("resolveLayers", () => {
         expect(skipped).toEqual(results[0]?.skipped)
         expect(skipped.at(-1)?.overlay).toBe(later)
       }
+    })
+
+    it("compares deeply nested contents of tied overlays", () => {
+      const overlay = overlays()
+      const deep = (leaf: number) => {
+        let value: unknown = leaf
+        for (let level = 0; level < 8000; level++) {
+          value = [value]
+        }
+        return value
+      }
+      const tied = (leaf: number) => ({
+        ...overlay("team", [hide], { id }),
+        extra: deep(leaf),
+      })
+      const same = [tied(1), tied(1)]
+      const different = [tied(1), tied(2)]
+
+      expect(resolve(same).skipped).toHaveLength(1)
+      expect(resolve(different).skipped).toHaveLength(2)
+    })
+
+    it("throws when the surface isn't a string", () => {
+      const overlay = overlays()
+
+      expect(() =>
+        // @ts-expect-error JavaScript callers can leave the surface out.
+        resolveLayers([overlay("team", [hide])], {})
+      ).toThrow(TypeError)
     })
 
     it("doesn't count an overlay for another surface as a duplicate", () => {

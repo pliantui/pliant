@@ -50,7 +50,7 @@ export function placementOf(
     case "move":
       return "into" in op.to
         ? { container: identityOf(op.to.into) }
-        : { container, position: op.to }
+        : { container, position: { ...op.to } }
     case "pin":
       return { container, position: { pin: op.where } }
     case "promote":

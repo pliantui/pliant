@@ -87,13 +87,13 @@ function write(
 }
 
 /**
- * Sends the items of `wrap` that `keep` doesn't list, and that the wrap still
- * places, back to their placement before their wrap's scope wrote it.
+ * Sends the items `wrap` still places back to their placement from before the
+ * wrap's scope wrote it. Items a replacing wrap lists already have it as their
+ * winner, so they stay.
  */
 function release(
   state: Resolution,
   wrap: ResolvedOp,
-  keep: ReadonlySet<string>,
   cause: Contribution
 ): void {
   const { op } = wrap.check
@@ -102,7 +102,7 @@ function release(
   }
   for (const item of op.items) {
     const entry = entryAt(state, item, "placement")
-    if (keep.has(item) || entry?.winner.op !== wrap) {
+    if (entry?.winner.op !== wrap) {
       continue
     }
     entry.history.push(cause.op)
@@ -133,7 +133,7 @@ function remove(
     entry.history.push(removal.op)
     entry.winner = entry.baseline ?? removal
     if (property === "inserted") {
-      release(state, removed, new Set(), removal)
+      release(state, removed, removal)
     }
     applied = true
   }
@@ -226,7 +226,7 @@ export function applyOp(
   } else if (op.op === "wrap") {
     state.created.add(op.id)
     if (replaced) {
-      release(state, replaced, new Set(op.items), contribution)
+      release(state, replaced, contribution)
     }
   }
   return undefined

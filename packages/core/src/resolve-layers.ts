@@ -1,14 +1,14 @@
 import type { Breakpoint } from "@pliantui/contract"
 
 import type { OpCheck } from "./check-op"
-import { compareData } from "./compare-data"
 import type { LoadedOverlay } from "./load-overlay"
 import type { OpPropertyKey } from "./op-property"
-import { contentOf, orderOverlays } from "./order-overlays"
 import { scopeKeyOf } from "./overlay-scope"
 import type { ResolvedPlacement } from "./placement"
 import { applyOp, createResolution, settleResolution } from "./resolution"
+import { surfaceOrder } from "./surface-order"
 
+/** A valid op that applied, with the overlay it came from. */
 export interface ResolvedOp {
   readonly check: Extract<OpCheck, { status: "valid" }>
   readonly overlay: LoadedOverlay
@@ -74,6 +74,7 @@ export type SkippedOp =
 export type UnappliedReason =
   "cross-layer-remove" | "id-collision" | "nothing-to-remove"
 
+/** A valid op that didn't apply, and why. */
 export interface UnappliedOp extends ResolvedOp {
   readonly reason: UnappliedReason
 }
@@ -109,52 +110,6 @@ export interface ResolvedLayers {
   readonly unapplied: readonly UnappliedOp[]
 }
 
-type Rejection = "duplicate-id" | "surface-mismatch"
-
-// The overlays each result applied, in order, so `validateOverlay` can apply
-// an overlay on top exactly as resolution would.
-const applied = new WeakMap<ResolvedLayers, readonly LoadedOverlay[]>()
-
-/** The overlays `resolved` applied, in resolution order. */
-export function appliedOverlaysOf(
-  resolved: ResolvedLayers
-): readonly LoadedOverlay[] {
-  return applied.get(resolved) ?? []
-}
-
-function rejectionsOf(
-  groups: readonly (readonly LoadedOverlay[])[],
-  surface: string
-): Map<LoadedOverlay, Rejection> {
-  const rejected = new Map<LoadedOverlay, Rejection>()
-  const seen = new Set<string>()
-  for (const group of groups) {
-    const matching = group.filter(
-      (overlay) => overlay.surface === surface || overlay.surface === "@app"
-    )
-    for (const overlay of group) {
-      if (!matching.includes(overlay)) {
-        rejected.set(overlay, "surface-mismatch")
-      }
-    }
-    const [first, ...rest] = matching
-    if (!first) {
-      continue
-    }
-    const content = contentOf(first)
-    const ambiguous = rest.some(
-      (overlay) => compareData(content, contentOf(overlay)) !== 0
-    )
-    for (const overlay of matching) {
-      if (overlay !== first || ambiguous || seen.has(overlay.id)) {
-        rejected.set(overlay, "duplicate-id")
-      }
-    }
-    seen.add(first.id)
-  }
-  return rejected
-}
-
 /**
  * Resolves the overlays for one surface, plus the @app overlays, into a value
  * per (identity, property).
@@ -171,23 +126,22 @@ function rejectionsOf(
  * are all skipped. `unapplied` lists valid ops that didn't apply; a
  * `removeUserItem` that removed part of what it names also appears there.
  * Both lists follow the resolution order.
+ *
+ * Throws a `TypeError` when `surface` isn't a string.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],
   { surface, teamOrder = [] }: ResolveLayersOptions
 ): ResolvedLayers {
-  const groups = orderOverlays(overlays, teamOrder)
-  const rejected = rejectionsOf(groups, surface)
   const state = createResolution()
-  const accepted: LoadedOverlay[] = []
   const skipped: SkippedOp[] = []
   const unapplied: UnappliedOp[] = []
-  for (const overlay of groups.flat()) {
-    const reason = rejected.get(overlay)
+  for (const { overlay, reason } of surfaceOrder(
+    overlays,
+    surface,
+    teamOrder
+  )) {
     const scope = scopeKeyOf(overlay)
-    if (!reason) {
-      accepted.push(overlay)
-    }
     for (const check of overlay.ops) {
       if (reason) {
         skipped.push({ check, overlay, reason })
@@ -201,11 +155,5 @@ export function resolveLayers(
       }
     }
   }
-  const result = {
-    properties: settleResolution(state),
-    skipped,
-    unapplied,
-  }
-  applied.set(result, accepted)
-  return result
+  return { properties: settleResolution(state), skipped, unapplied }
 }

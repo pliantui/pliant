@@ -8,24 +8,41 @@ import {
 } from "@pliantui/contract"
 
 import { checkOp, type OpCheck, type OpContext } from "./check-op"
-import type { LoadedOverlay } from "./load-overlay"
+import { loadOverlay, type LoadedOverlay } from "./load-overlay"
 import { scopeKeyOf } from "./overlay-scope"
 import { ownEntries } from "./own-entries"
 import { applyOp, createResolution } from "./resolution"
-import { appliedOverlaysOf, type ResolvedLayers } from "./resolve-layers"
 import type { Result } from "./result"
+import { surfaceOrder } from "./surface-order"
 import type { WithOps } from "./with-ops"
 
 export type ValidatedOverlay = WithOps<Op>
 
+/** The layers an overlay will apply on top of, as plain data. */
+export interface ValidateOverlayLayers {
+  /**
+   * The saved overlays below the new one, as stored: what `loadOverlay`
+   * reads. Overlays that don't load are left out, as they can't be resolved
+   * either. An overlay with the new overlay's id is left out too, since the
+   * new overlay replaces it.
+   */
+  readonly overlays: readonly unknown[]
+  /** The surface the layers resolve for, as in `resolveLayers`. */
+  readonly surface: string
+  /** Team ids, highest precedence first, as in `resolveLayers`. */
+  readonly teamOrder?: readonly string[] | undefined
+}
+
 export interface ValidateOverlayOptions {
   /**
-   * The resolved layers the overlay will apply on top of: the value
-   * `resolveLayers` returned. When given, an `insert` or `wrap` whose id is
-   * already used on the surface is invalid, exactly as `resolveLayers` would
-   * find it (`id-collision`) when the overlay resolves after those layers.
+   * The layers the overlay will apply on top of. The overlay is validated as
+   * if it applied last, after all of them, so pass only the layers below it.
+   * When given, the overlay must be for `layers.surface` or `@app`, and an
+   * `insert` or `wrap` whose id is already used on the surface is invalid,
+   * exactly as `resolveLayers` would report it (`id-collision`). Throws a
+   * `TypeError` when `layers.surface` isn't a string.
    */
-  readonly resolved?: ResolvedLayers | undefined
+  readonly layers?: ValidateOverlayLayers | undefined
 }
 
 const [overlayVariant] = overlaySchema.out.options
@@ -86,15 +103,29 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
   }
 }
 
-function idIssues(
+function layerIssues(
   overlay: LoadedOverlay,
-  resolved: ResolvedLayers
+  { overlays, surface, teamOrder = [] }: ValidateOverlayLayers
 ): z.core.$ZodIssue[] {
+  const below = overlays.flatMap((input) => {
+    const loaded = loadOverlay(input)
+    return loaded.success && loaded.data.id !== overlay.id ? [loaded.data] : []
+  })
+  const ordered = surfaceOrder(below, surface, teamOrder)
+  if (overlay.surface !== surface && overlay.surface !== "@app") {
+    return [
+      {
+        code: "custom",
+        path: ["surface"],
+        message: `Must be ${surface} or @app, the surface of the layers`,
+      },
+    ]
+  }
   const state = createResolution()
-  for (const lower of appliedOverlaysOf(resolved)) {
+  for (const { overlay: lower, reason } of ordered) {
     const scope = scopeKeyOf(lower)
     for (const check of lower.ops) {
-      if (check.status === "valid") {
+      if (!reason && check.status === "valid") {
         applyOp(state, { check, overlay: lower }, scope)
       }
     }
@@ -125,7 +156,7 @@ function idIssues(
 
 export function validateOverlay(
   input: unknown,
-  { resolved }: ValidateOverlayOptions = {}
+  { layers }: ValidateOverlayOptions = {}
 ): Result<ValidatedOverlay> {
   const entries = ownEntries(input)
   const result = overlaySchema.safeParse(entries ?? input)
@@ -153,8 +184,8 @@ export function validateOverlay(
     ...envelopeIssues,
     ...listIssues,
     ...checks.flatMap(issuesOf),
-    ...(result.success && resolved
-      ? idIssues({ ...result.data, ops: checks }, resolved)
+    ...(result.success && layers
+      ? layerIssues({ ...result.data, ops: checks }, layers)
       : []),
   ]
   if (!result.success || issues.length > 0) {
