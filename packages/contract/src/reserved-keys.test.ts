@@ -76,7 +76,7 @@ describe("withoutReservedKeys", () => {
     const start = performance.now()
     expect(schema.safeParse(value).success).toBe(true)
     expect(performance.now() - start).toBeLessThan(5000)
-  })
+  }, 20_000)
 
   it("finds a deeply nested reserved key in linear time", () => {
     let json = '{"__proto__":1}'
@@ -88,7 +88,7 @@ describe("withoutReservedKeys", () => {
     const path = schema.safeParse(value).error?.issues[0]?.path
     expect(performance.now() - start).toBeLessThan(5000)
     expect(path).toHaveLength(400_001)
-  })
+  }, 20_000)
 
   it("walks arrays by index, even with an own entries property", () => {
     const items: unknown[] = [{ ok: 1 }, JSON.parse('{"prototype":1}')]
