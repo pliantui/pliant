@@ -61,3 +61,27 @@ jobs:
           pnpm --recursive --filter @pliantui/contract --filter @pliantui/core
           exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false
           --module preserve --moduleResolution bundler dist/index.d.ts
+
+  zod-server:
+    runs-on: ubuntu-latest
+    name: pnpm test (server, zod 4.1.8)
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      # The server's floor is higher than contract's and core's, because the
+      # AI SDK needs Zod 4.1.8.
+      - run: pnpm build:packages
+      # Every package gets 4.1.8, as in an app at the server's floor.
+      - run: >-
+          pnpm --filter @pliantui/contract --filter @pliantui/core
+          --filter @pliantui/server add --save-dev zod@4.1.8
+      - run: pnpm --filter @pliantui/server test
+      # `ai`'s own declarations reference Node.js types, hence --types node.
+      - run: >-
+          pnpm --filter @pliantui/server
+          exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false
+          --types node --module preserve --moduleResolution bundler
+          dist/index.d.ts dist/recordings.d.ts

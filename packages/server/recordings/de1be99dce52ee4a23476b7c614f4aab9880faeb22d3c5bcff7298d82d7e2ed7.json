@@ -1,0 +1,33 @@
+{
+  "key": "de1be99dce52ee4a23476b7c614f4aab9880faeb22d3c5bcff7298d82d7e2ed7",
+  "provider": "anthropic.messages",
+  "modelId": "claude-haiku-5-5",
+  "recordedAt": "2026-11-18T23:05:43.710Z",
+  "source": "claude -p (headless Claude Code)",
+  "model": "claude-haiku-5-5",
+  "standIn": true,
+  "note": "not the production API path; re-record before teaser, launch video or P3 evals (https://github.com/pliantui/pliant/issues/24)",
+  "cliVersion": "2.1.29 (Claude Code)",
+  "result": {
+    "content": [
+      {
+        "type": "tool-call",
+        "toolCallId": "toolu_01YUnN9sdZ4hiEGksD4oXESz",
+        "toolName": "setVisible",
+        "input": "{\"items\":[\"average-order-value\"],\"visible\":false,\"explain\":\"Hid the Average order value card from the key metrics row.\"}"
+      },
+      {
+        "type": "text",
+        "text": "I hid the Average order value card in the key metrics row."
+      }
+    ],
+    "finishReason": {
+      "unified": "tool-calls"
+    },
+    "usage": {
+      "inputTokens": {},
+      "outputTokens": {}
+    },
+    "warnings": []
+  }
+}
