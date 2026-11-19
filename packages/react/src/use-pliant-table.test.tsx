@@ -164,17 +164,20 @@ function setup(
 
 const column = (id: string) => `${tableId}/columns/${id}`
 
-const aiSort = (field: string, dir: "asc" | "desc") => ({
+const aiAnswer = (ops: Op[]) => ({
   v: 1,
   id: "01KAB0000000000000000000S1",
   surface,
   layer: "session",
-  ops: [{ op: "setSort", target: tableId, sort: [{ field, dir }] }],
+  ops,
   basis: { contract: 1, core: "0.0.0", manifests: {} },
   source: "ai",
   createdBy: "user-1",
   createdAt: "2026-11-19T00:00:00.000Z",
 })
+
+const aiSort = (field: string, dir: "asc" | "desc") =>
+  aiAnswer([{ op: "setSort", target: tableId, sort: [{ field, dir }] }])
 
 beforeEach(() => {
   localStorage.clear()
@@ -628,6 +631,76 @@ describe("usePliantTable edge cases", () => {
     expect(t.table.state.sorting).toEqual([{ id: "customer", desc: false }])
   })
 
+  describe.each(["discard", "lockIn"] as const)(
+    "after a preview ends with %s",
+    (end) => {
+      function finish(t: ReturnType<typeof setup>) {
+        act(() => {
+          if (end === "discard") {
+            t.store.discard()
+          } else {
+            expect(t.store.lockIn().success).toBe(true)
+          }
+        })
+      }
+
+      it("keeps a sort clicked during it, and takes later clicks", () => {
+        const t = setup()
+        act(() => {
+          t.store.preview(aiSort("value", "desc"))
+        })
+        act(() => {
+          t.table.getColumn("customer")?.toggleSorting(false)
+        })
+        finish(t)
+        expect(t.table.state.sorting).toEqual([{ id: "customer", desc: false }])
+        expect(t.winner(tableId, "sort")?.overlay.layer).toBe("personal")
+        act(() => {
+          t.table.getColumn("status")?.toggleSorting(true)
+        })
+        expect(t.table.state.sorting).toEqual([{ id: "status", desc: true }])
+      })
+
+      it("keeps a column shown during it, and takes later clicks", () => {
+        const t = setup()
+        act(() => {
+          t.store.preview(aiAnswer([{ op: "hide", target: column("status") }]))
+        })
+        expect(t.table.getColumn("status")?.getIsVisible()).toBe(false)
+        act(() => {
+          t.table.getColumn("status")?.toggleVisibility(true)
+        })
+        finish(t)
+        expect(t.table.getColumn("status")?.getIsVisible()).toBe(true)
+        act(() => {
+          t.table.getColumn("status")?.toggleVisibility(false)
+        })
+        expect(t.table.getColumn("status")?.getIsVisible()).toBe(false)
+      })
+
+      it("keeps a column dragged during it, and takes later drags", () => {
+        const t = setup()
+        act(() => {
+          t.store.preview(
+            aiAnswer([
+              { op: "move", target: column("value"), to: { index: 0 } },
+            ])
+          )
+        })
+        act(() => {
+          t.table.setColumnOrder(["id", "customer", "value", "status"])
+        })
+        finish(t)
+        const order = () => t.table.getAllLeafColumns().map(({ id }) => id)
+        expect(order()).toEqual(["id", "customer", "value", "status"])
+        act(() => {
+          t.table.setColumnOrder(["status", "id", "customer", "value"])
+        })
+        expect(order()).toEqual(["status", "id", "customer", "value"])
+      })
+    }
+  )
+
   it("keeps ready out of the table's options", () => {
     const t = setup()
     expect(Object.keys(t.table.options)).not.toContain("ready")
@@ -718,6 +791,74 @@ describe("usePliantTable with state rebuilt every render", () => {
     })
     expect(harness.sorting).toEqual([{ id: "value", desc: true }])
     expect(saved).toEqual([])
+  })
+})
+
+describe("usePliantTable with state rebuilt with dates", () => {
+  it("settles on a date range filter rebuilt every render", () => {
+    const renders = vi.fn()
+    function Table() {
+      renders()
+      const table = useTable(
+        usePliantTable(
+          {
+            features,
+            data,
+            columns,
+            state: {
+              columnFilters: [
+                {
+                  id: "value",
+                  value: [new Date("2026-01-01"), new Date("2026-02-01")],
+                },
+              ],
+            },
+            onColumnFiltersChange: () => undefined,
+          },
+          { id: tableId }
+        )
+      )
+      return <output>{table.getRowModel().rows.length}</output>
+    }
+    render(
+      <PliantRoot surface={surface} storage={memoryAdapter().storage}>
+        <Table />
+      </PliantRoot>
+    )
+    expect(renders.mock.calls.length).toBeLessThan(10)
+  })
+
+  it("stops syncing state that differs on every render", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    let tick = 0
+    function Table() {
+      const [, rerender] = useState(0)
+      tick++
+      const table = useTable(
+        usePliantTable(
+          {
+            features,
+            data,
+            columns,
+            state: { sorting: [{ id: "value", desc: tick % 2 === 0 }] },
+            onSortingChange: () => {
+              rerender((count) => count + 1)
+            },
+          },
+          { id: tableId }
+        )
+      )
+      return <output>{table.getRowModel().rows.length}</output>
+    }
+    render(
+      <PliantRoot surface={surface} storage={memoryAdapter().storage}>
+        <Table />
+      </PliantRoot>
+    )
+    expect(screen.getByRole("status").textContent).toBe(String(data.length))
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("changes on every render")
+    )
   })
 })
 

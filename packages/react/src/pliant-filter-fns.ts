@@ -99,6 +99,19 @@ export function rawFilterValueOf(value: unknown): FilterValue | undefined {
 const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/
 const dateTime = /^\d{4}-\d{2}-\d{2}T/
 
+// Midnight in the viewer's zone, or `undefined` for a day that doesn't
+// exist (`2026-02-31`). `setFullYear` keeps years before 100 as they are.
+function midnight(year: number, month: number, day: number) {
+  const date = new Date(0)
+  date.setFullYear(year, month - 1, day)
+  date.setHours(0, 0, 0, 0)
+  return date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+    ? date
+    : undefined
+}
+
 /**
  * A date as the milliseconds it covers, `[start, end)`: an instant covers
  * one, and a date without a time (`2026-03-01`) covers that calendar day in
@@ -115,14 +128,14 @@ function spanOf(value: unknown): readonly [number, number] | undefined {
   }
   const day = dateOnly.exec(value)
   if (day) {
-    const [year, month, date] = day.slice(1).map(Number)
-    if (year === undefined || month === undefined || date === undefined) {
+    const [year = 0, month = 0, date = 0] = day.slice(1).map(Number)
+    const start = midnight(year, month, date)
+    if (!start) {
       return undefined
     }
-    return [
-      new Date(year, month - 1, date).getTime(),
-      new Date(year, month - 1, date + 1).getTime(),
-    ]
+    const end = new Date(start)
+    end.setDate(end.getDate() + 1)
+    return [start.getTime(), end.getTime()]
   }
   const time = dateTime.test(value) ? Date.parse(value) : Number.NaN
   return Number.isNaN(time) ? undefined : [time, time + 1]
@@ -130,39 +143,33 @@ function spanOf(value: unknown): readonly [number, number] | undefined {
 
 /**
  * How a cell compares with a filter value: negative before it, 0 equal, or
- * positive after it, and `undefined` when they don't compare.
- * - Dates (a `Date`, or ISO text in a cell or a filter) compare by the time
- *   they cover, so a day equals every instant in it. A number compares with
- *   a date as milliseconds.
- * - A number compares with a number, or with numeric text.
+ * positive after it, and `undefined` when they don't compare. It reads both
+ * sides the same way:
+ * - Dates (a `Date`, or ISO text) compare by the time they cover, so a day
+ *   equals every instant in it, and with a number as milliseconds.
+ * - A number compares with a number or numeric text.
  * - Text compares with text by code unit, case-sensitively, as SQL does by
  *   default, and booleans only for equality.
  */
 function compare(cell: unknown, value: Scalar): number | undefined {
-  const cellSpan = spanOf(cell)
-  if (cellSpan) {
-    const valueSpan =
-      typeof value === "number" ? ([value, value + 1] as const) : spanOf(value)
-    if (!valueSpan) {
+  const cellDate = spanOf(cell)
+  const valueDate = spanOf(value)
+  if (cellDate || valueDate) {
+    const asSpan = (side: unknown) =>
+      typeof side === "number" ? ([side, side + 1] as const) : undefined
+    const left = cellDate ?? asSpan(cell)
+    const right = valueDate ?? asSpan(value)
+    if (!left || !right) {
       return undefined
     }
-    return cellSpan[1] <= valueSpan[0]
-      ? -1
-      : cellSpan[0] >= valueSpan[1]
-        ? 1
-        : 0
+    return left[1] <= right[0] ? -1 : left[0] >= right[1] ? 1 : 0
   }
-  if (typeof cell === "number") {
-    const number = numberOf(value)
-    return Number.isNaN(cell) || number === undefined
-      ? undefined
-      : cell - number
+  if (typeof cell === "number" || typeof value === "number") {
+    const left = numberOf(cell)
+    const right = numberOf(value)
+    return left === undefined || right === undefined ? undefined : left - right
   }
   if (typeof cell === "string" && typeof value === "string") {
-    const valueSpan = spanOf(value)
-    if (valueSpan) {
-      return undefined
-    }
     return cell < value ? -1 : cell > value ? 1 : 0
   }
   return typeof cell === "boolean" && cell === value ? 0 : undefined
@@ -181,7 +188,7 @@ function text(cell: unknown) {
  * - A missing value (`null` or `undefined`) passes only `isNull`, as in SQL,
  *   so `neq` and every comparison leave it out.
  * - `eq`, `neq` and `in` compare as `compare` does, case-sensitively, as SQL
- *   does by default. Values that don't compare (text with a number, for
+ *   does by default. Values that don't compare (words with a number, for
  *   example) are never equal, so `neq` keeps them.
  * - `contains` and `startsWith` match text case-insensitively, as most
  *   search boxes do; a number matches as its digits.

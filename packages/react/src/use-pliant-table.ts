@@ -14,11 +14,7 @@ import {
 } from "@tanstack/react-table"
 
 import { itemIdSchema, type Op } from "@pliantui/contract"
-import {
-  compareData,
-  diffTableState,
-  type CompiledTableState,
-} from "@pliantui/core"
+import { diffTableState, type CompiledTableState } from "@pliantui/core"
 
 import {
   isLocalSlice,
@@ -30,6 +26,7 @@ import { useLayerStore } from "./pliant-context"
 import { pliantFilterFn } from "./pliant-filter-fns"
 import { withPliantFeatures } from "./pliant-table-features"
 import { propertiesOf } from "./property-keys"
+import { isSameState } from "./same-state"
 import { createDerived, createTableCache } from "./table-cache"
 import { tableColumnsOf } from "./table-columns"
 import { filtersToSave, presentFilters, type RawFilter } from "./table-filters"
@@ -89,6 +86,9 @@ const slices: readonly Slice[] = [
   "pagination",
 ]
 
+// How many renders in a row may sync the developer's state.
+const maxSyncs = 25
+
 function read(source: unknown, key: string): unknown {
   return typeof source === "object" && source !== null
     ? Reflect.get(source, key)
@@ -109,7 +109,7 @@ function objectOf(value: unknown): object {
 }
 
 function same(a: unknown, b: unknown) {
-  return compareData(a, b) === 0
+  return isSameState(a, b)
 }
 
 function warnInDevelopment(message: string) {
@@ -198,11 +198,13 @@ export function usePliantTable<
     seen: Partial<Record<Slice, unknown>>
     warned: Set<string>
     reported: WeakSet<object>
+    syncs: number
   }>({
     sent: {},
     seen: { ...base },
     warned: new Set(),
     reported: new WeakSet(),
+    syncs: 0,
   })
 
   const allColumns = tableColumnsOf(options.columns, options.defaultColumn)
@@ -228,6 +230,7 @@ export function usePliantTable<
     id,
     compileOptions.columns,
     compileOptions.sizeLimits,
+    compileOptions.defaultSizes,
   ])
   const ownFilters = JSON.stringify(
     allColumns.map((column) => [
@@ -303,7 +306,9 @@ export function usePliantTable<
         isLocal
       )
       saved = filters
-      setRawFilters(raws)
+      setRawFilters((current) =>
+        isSameState([...current], [...raws]) ? current : raws
+      )
     } else if (invalid.length > 0 && isLocalSlice(slice)) {
       const split = splitLocal(slice, value, isLocal)
       saved = split.saved
@@ -325,6 +330,7 @@ export function usePliantTable<
   }
 
   function change(slice: Slice, updater: Updater<unknown>) {
+    sync.current.syncs = 0
     const current = () => shownOf(compile(store.getResolved()))[slice]
     commit(slice, functionalUpdate(updater, current()))
     const callback = callbackOf(options, slice)
@@ -360,9 +366,16 @@ export function usePliantTable<
     }
   })
 
+  // State that differs on every render (a new sort each time, say) would
+  // sync forever, so syncing stops after many syncs in a row without a
+  // change from the table, until the next one.
   useLayoutEffect(() => {
     const developerState = read(options, "state")
     const { sent, seen } = sync.current
+    if (sync.current.syncs > maxSyncs) {
+      return
+    }
+    let synced = false
     for (const slice of slices) {
       const theirs = read(developerState, slice)
       if (theirs === undefined) {
@@ -371,6 +384,7 @@ export function usePliantTable<
       if (!same(theirs, seen[slice])) {
         seen[slice] = theirs
         if (!same(theirs, sent[slice])) {
+          synced = true
           commit(slice, theirs)
           continue
         }
@@ -378,9 +392,16 @@ export function usePliantTable<
       const ours = shown[slice]
       const callback = callbackOf(options, slice)
       if (callback && !same(ours, sent[slice]) && !same(ours, theirs)) {
+        synced = true
         sent[slice] = ours
         callback(ours)
       }
+    }
+    sync.current.syncs = synced ? sync.current.syncs + 1 : 0
+    if (sync.current.syncs > maxSyncs) {
+      warnInDevelopment(
+        `Pliant: the state passed to ${id} changes on every render, so Pliant stopped syncing it. Pass state that changes only when the table's does.`
+      )
     }
   })
 

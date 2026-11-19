@@ -1,6 +1,7 @@
-import { compareData, type FilterValue } from "@pliantui/core"
+import type { FilterValue } from "@pliantui/core"
 
 import { filterValueOf, rawFilterValueOf } from "./pliant-filter-fns"
+import { isSameState } from "./same-state"
 import { customValueOf, type TableColumn } from "./table-columns"
 
 export interface ColumnFilter {
@@ -37,7 +38,7 @@ export function presentFilters(
   const dropped: ColumnFilter[] = []
   for (const filter of filters) {
     const raw = raws.get(filter.id)
-    if (raw?.value && compareData(raw.value, filter.value) === 0) {
+    if (raw?.value && isSameState(raw.value, filter.value)) {
       shown.push(raw.entry)
       continue
     }
@@ -82,7 +83,7 @@ export function filtersToSave(
     if (typeof id !== "string") {
       continue
     }
-    if (before.has(id) && compareData(before.get(id), raw) === 0) {
+    if (before.has(id) && isSameState(before.get(id), raw)) {
       if (holding.has(id)) {
         filters.push({ id, value: holding.get(id) })
       }

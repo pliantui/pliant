@@ -23,10 +23,11 @@ describe("matchesFilter", () => {
     expect(matchesFilter(0, { operator: "isNull" })).toBe(false)
   })
 
-  it("compares values of the same type", () => {
+  it("compares values that compare, numbers with numeric text", () => {
     expect(matchesFilter(5, { operator: "eq", value: 5 })).toBe(true)
-    expect(matchesFilter("5", { operator: "eq", value: 5 })).toBe(false)
-    expect(matchesFilter("5", { operator: "neq", value: 5 })).toBe(true)
+    expect(matchesFilter("5", { operator: "eq", value: 5 })).toBe(true)
+    expect(matchesFilter("five", { operator: "eq", value: 5 })).toBe(false)
+    expect(matchesFilter("five", { operator: "neq", value: 5 })).toBe(true)
     expect(matchesFilter(5, { operator: "eq", value: "5" })).toBe(true)
     expect(matchesFilter(12, { operator: "gt", value: "9" })).toBe(true)
     expect(matchesFilter("Paid", { operator: "eq", value: "paid" })).toBe(false)
@@ -191,6 +192,42 @@ describe("dates", () => {
         value: "2026-03-01",
       })
     ).toBe(false)
+  })
+
+  it("reads dates before year 100 and leaves out days that don't exist", () => {
+    expect(
+      matchesFilter(new Date(new Date(0).setFullYear(50, 0, 1)), {
+        operator: "eq",
+        value: "0050-01-01",
+      })
+    ).toBe(true)
+    expect(
+      matchesFilter(new Date(2026, 2, 3), {
+        operator: "eq",
+        value: "2026-02-31",
+      })
+    ).toBe(false)
+    expect(
+      matchesFilter(new Date(2026, 2, 3), {
+        operator: "neq",
+        value: "2026-02-31",
+      })
+    ).toBe(true)
+  })
+
+  it("compares both ways alike", () => {
+    const time = new Date("2026-03-01T12:00:00Z")
+    expect(
+      matchesFilter(time.getTime(), {
+        operator: "eq",
+        value: time.toISOString(),
+      })
+    ).toBe(true)
+    expect(matchesFilter(time, { operator: "eq", value: time.getTime() })).toBe(
+      true
+    )
+    expect(matchesFilter("12", { operator: "gt", value: 9 })).toBe(true)
+    expect(matchesFilter(12, { operator: "gt", value: "9" })).toBe(true)
   })
 
   it("compares ISO text as dates, not as text", () => {

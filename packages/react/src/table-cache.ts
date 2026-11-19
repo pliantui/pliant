@@ -1,10 +1,11 @@
 import {
-  compareData,
   compileTableState,
   type CompiledTableState,
   type CompileTableStateOptions,
   type ResolvedLayers,
 } from "@pliantui/core"
+
+import { isSameState } from "./same-state"
 
 /**
  * Remembers a table's last compiled state, so each render, snapshot and
@@ -59,7 +60,7 @@ export function createDerived<T>() {
     last = {
       inputs,
       value:
-        last !== undefined && compareData(last.value, value) === 0
+        last !== undefined && isSameState(last.value, value)
           ? last.value
           : value,
     }
