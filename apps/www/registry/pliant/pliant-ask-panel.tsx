@@ -135,6 +135,20 @@ async function requestAnswer(
       }
 }
 
+// The docked panel covers the lower part of a small screen, so the node
+// being changed is brought to the top, where its preview shows.
+function showTarget(id: string) {
+  const reduceMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches
+  document
+    .querySelector(`[data-pliant-id="${CSS.escape(id)}"]`)
+    ?.scrollIntoView({
+      block: "start",
+      behavior: reduceMotion ? "auto" : "smooth",
+    })
+}
+
 function unique(sentences: readonly string[] | undefined) {
   return [...new Set(sentences)]
 }
@@ -155,8 +169,11 @@ function sessionNote(ops: readonly Op[]) {
  * while it is open. It covers what is under it, so the app must make room:
  * the panel has `data-slot="pliant-ask-panel"` while it is open, so a
  * layout can add padding with, for example,
- * `sm:has-[[data-slot=pliant-ask-panel]]:pr-96`. Escape closes it while
- * focus is inside it. Closing it cancels an ask in progress but keeps the
+ * `sm:has-[[data-slot=pliant-ask-panel]]:pr-96` and
+ * `max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh]`. When a preview
+ * shows, the target (found by its `data-pliant-id`) is scrolled to the top
+ * of the page, and on small screens the suggestions hide until it ends.
+ * Focus stays where it was. Escape closes it while focus is inside it. Closing it cancels an ask in progress but keeps the
  * preview, which the trigger then marks with `data-preview`. The prompt is
  * kept when the target changes, so the same ask can go to another target.
  *
@@ -323,6 +340,9 @@ function PliantAskPanel({
     request.current = null
     if (answer.status === "ok") {
       const result = store.preview(answer.overlay)
+      if (result.success) {
+        showTarget(target.id)
+      }
       setState(
         result.success
           ? { status: "idle" }
@@ -588,7 +608,10 @@ function PliantAskPanel({
             <div
               role="group"
               aria-label="Suggestions"
-              className="flex flex-wrap gap-2 p-4"
+              className={cn(
+                "flex flex-wrap gap-2 p-4",
+                previewing && "max-sm:hidden"
+              )}
             >
               {target.suggestions.map((suggestion) => (
                 <Button

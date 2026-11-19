@@ -34,6 +34,10 @@ function panel(page: Page) {
   return page.getByRole("complementary", { name: "Ask" })
 }
 
+function scrollerOf(page: Page) {
+  return node(page).getByRole("region", { name: "All orders" })
+}
+
 async function load(page: Page) {
   await page.goto(surface)
   await expect(node(page)).not.toHaveAttribute("data-pliant-pending")
@@ -56,6 +60,7 @@ function isDescending(values: readonly number[]) {
 }
 
 async function pointAtTable(page: Page) {
+  await node(page).scrollIntoViewIfNeeded()
   await page.keyboard.down("Alt")
   const box = page
     .locator('[data-slot="pliant-point-mode"]')
@@ -141,7 +146,7 @@ const asks: readonly Ask[] = [
         "data-pinned",
         "start"
       )
-      const scroller = table(page).locator("..")
+      const scroller = scrollerOf(page)
       await scroller.evaluate((element) => {
         element.scrollLeft = element.scrollWidth
       })
@@ -149,8 +154,10 @@ const asks: readonly Ask[] = [
         await scroller.evaluate((element) => element.scrollLeft)
       ).toBeGreaterThan(0)
       const pinned = await header(page, "Order").boundingBox()
-      const view = await scroller.boundingBox()
-      expect(pinned?.x).toBe(view?.x)
+      const start = await scroller.evaluate(
+        (element) => element.getBoundingClientRect().left + element.clientLeft
+      )
+      expect(pinned?.x).toBe(start)
       await scroller.evaluate((element) => {
         element.scrollLeft = 0
       })
@@ -193,7 +200,7 @@ async function showsBase(page: Page) {
 test.describe("asking about the table", () => {
   // Narrow enough that the table scrolls sideways, panel open or not, so a
   // pinned column has somewhere to stay.
-  test.use({ viewport: { width: 1024, height: 900 } })
+  test.use({ viewport: { width: 800, height: 900 } })
 
   for (const { suggestion, explain, shows } of asks) {
     test(`previews and locks in "${suggestion}"`, async ({ page, errors }) => {
@@ -295,4 +302,50 @@ test("keeps the page for the session only", async ({
   await load(tab)
   await expect(node(tab).getByText(`1–10 of ${total} orders`)).toBeVisible()
   expect(errors).toEqual([])
+})
+
+test("fits the table next to the open panel at 1440px", async ({
+  page,
+  errors,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await load(page)
+  await page.getByRole("button", { name: "Ask" }).click()
+  await expect(panel(page)).toBeVisible()
+
+  expect(
+    await scrollerOf(page).evaluate(
+      (element) => element.scrollWidth - element.clientWidth
+    )
+  ).toBe(0)
+  expect(errors).toEqual([])
+})
+
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test("shows a table preview above the docked panel", async ({
+    page,
+    errors,
+  }) => {
+    await load(page)
+    await ask(page, "put customer before order")
+    await expect(panel(page).getByRole("status")).toContainText(
+      "Moved Customer column before Order."
+    )
+
+    const customer = header(page, "Customer")
+    await expect(customer).toBeInViewport({ ratio: 1 })
+    await expect
+      .poll(async () => {
+        const box = await customer.boundingBox()
+        const sheet = await panel(page).boundingBox()
+        return box && sheet ? box.y + box.height <= sheet.y : false
+      })
+      .toBe(true)
+    await expect(
+      panel(page).getByRole("group", { name: "Suggestions" })
+    ).toBeHidden()
+    expect(errors).toEqual([])
+  })
 })

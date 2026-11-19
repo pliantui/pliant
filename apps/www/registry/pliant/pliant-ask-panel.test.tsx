@@ -332,6 +332,36 @@ describe("PliantAskPanel", () => {
     expect(screen.getByRole("button", { name: "Lock in" })).toBeTruthy()
   })
 
+  it("scrolls the target into view when a preview shows, keeping focus", async () => {
+    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView")
+    await renderPanel()
+    answer(okAnswer)
+    prompt().focus()
+
+    await ask()
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(scrollIntoView.mock.contexts[0]).toBe(
+      document.querySelector('[data-pliant-id="key-metrics"]')
+    )
+    expect(scrollIntoView.mock.calls[0]?.[0]).toMatchObject({
+      block: "start",
+    })
+    expect(document.activeElement).toBe(prompt())
+    scrollIntoView.mockRestore()
+  })
+
+  it("doesn't scroll when there's nothing to preview", async () => {
+    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView")
+    await renderPanel()
+    answer({ status: "clarify", question: "Which card?" })
+
+    await ask()
+
+    expect(scrollIntoView).not.toHaveBeenCalled()
+    scrollIntoView.mockRestore()
+  })
+
   it("sends the ask about the default target", async () => {
     await renderPanel({ defaultTarget: "orders-table" })
     answer({ status: "clarify", question: "Which column?" })

@@ -71,12 +71,16 @@ export const columns = columnHelper.columns([
     cell: ({ row }) => formatDate(row.original.createdAt),
   }),
   columnHelper.accessor("notes", {
-    size: 330,
+    size: 220,
     meta: { label: "Notes" },
     enableSorting: false,
     header: ({ column }) => column.columnDef.meta?.label,
     cell: ({ row }) =>
-      row.original.notes || (
+      row.original.notes ? (
+        <div className="truncate" title={row.original.notes}>
+          {row.original.notes}
+        </div>
+      ) : (
         <>
           <span aria-hidden className="text-muted-foreground">
             —

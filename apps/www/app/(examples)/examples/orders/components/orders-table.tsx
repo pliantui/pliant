@@ -29,6 +29,11 @@ import { features, type DataTableFeatures } from "./data-table-features"
 
 const ariaSort = { asc: "ascending", desc: "descending" } as const
 
+// Pinned cells need a solid background to cover what scrolls under them,
+// with the row's hover tint layered on top so hovered rows stay even.
+const pinnedClassName =
+  "data-pinned:bg-background [tr:hover>&]:data-pinned:bg-linear-to-r [tr:hover>&]:data-pinned:from-muted/50 [tr:hover>&]:data-pinned:to-muted/50"
+
 function getColumnStyles(
   column: Column<DataTableFeatures, Order>
 ): CSSProperties {
@@ -45,7 +50,9 @@ function getColumnStyles(
       : isFirstEnd
         ? "inset 1px 0 var(--border)"
         : undefined,
-    width: column.getSize(),
+    // The last column takes the room the others leave, so the table fills
+    // its container; `minWidth` on the table keeps its size as a minimum.
+    width: column.getIsLastColumn() ? undefined : column.getSize(),
   }
 }
 
@@ -96,11 +103,18 @@ export function OrdersTable({ data }: { data: Order[] }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="w-fit max-w-full overflow-hidden rounded-lg border border-border">
+      {/* The region scrolls instead of the table's own container, so it can
+      take focus and scroll from the keyboard. */}
+      <div
+        role="region"
+        aria-labelledby={titleId}
+        tabIndex={0}
+        className="overflow-x-auto rounded-lg border border-border outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_[data-slot=table-container]]:overflow-visible"
+      >
         <Table
           aria-labelledby={titleId}
-          className="table-fixed"
-          style={{ width: table.getTotalSize() }}
+          className="w-full table-fixed"
+          style={{ minWidth: table.getTotalSize() }}
         >
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -112,7 +126,7 @@ export function OrdersTable({ data }: { data: Order[] }) {
                       key={header.id}
                       aria-sort={sorted ? ariaSort[sorted] : undefined}
                       data-pinned={header.column.getIsPinned() || undefined}
-                      className="data-pinned:bg-background"
+                      className={pinnedClassName}
                       style={getColumnStyles(header.column)}
                     >
                       {header.isPlaceholder ? null : (
@@ -132,7 +146,7 @@ export function OrdersTable({ data }: { data: Order[] }) {
                     <TableCell
                       key={cell.id}
                       data-pinned={cell.column.getIsPinned() || undefined}
-                      className="truncate data-pinned:bg-background"
+                      className={pinnedClassName}
                       style={getColumnStyles(cell.column)}
                     >
                       <table.FlexRender cell={cell} />
