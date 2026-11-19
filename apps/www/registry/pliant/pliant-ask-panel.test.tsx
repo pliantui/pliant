@@ -129,11 +129,11 @@ function answer(body: unknown, status = 200) {
   fetchMock.mockResolvedValueOnce(Response.json(body, { status }))
 }
 
-async function renderPanel(
+function page(
   props: Partial<React.ComponentProps<typeof PliantAskPanel>> = {},
   layers: StorageAdapter = storage
 ) {
-  const view = render(
+  return (
     <PliantRoot surface={surface} storage={layers}>
       <Store />
       <Table />
@@ -153,6 +153,13 @@ async function renderPanel(
       />
     </PliantRoot>
   )
+}
+
+async function renderPanel(
+  props: Partial<React.ComponentProps<typeof PliantAskPanel>> = {},
+  layers: StorageAdapter = storage
+) {
+  const view = render(page(props, layers))
   await settle()
   return view
 }
@@ -227,6 +234,9 @@ describe("PliantAskPanel", () => {
 
   it("only sends contexts the server accepts", () => {
     expectTypeOf<PliantAskContext>().toExtend<AskContext>()
+    expectTypeOf<keyof PliantAskContext["manifest"]["capabilities"]>().toExtend<
+      keyof AskContext["manifest"]["capabilities"]
+    >()
   })
 
   it("falls back to the first target when the default isn't one", async () => {
@@ -562,6 +572,23 @@ describe("PliantAskPanel", () => {
     expect(signal?.aborted).toBe(true)
     expect(status()).toBe("Cancelled.")
     expect(screen.getByRole("button", { name: "Send" })).toBeTruthy()
+  })
+
+  it("cancels the ask when its parent closes it", async () => {
+    const { rerender } = await renderPanel({ open: true })
+    let signal: AbortSignal | null | undefined
+    fetchMock.mockImplementationOnce((_input, init) => {
+      signal = init?.signal
+      return new Promise(() => undefined)
+    })
+    await ask()
+
+    rerender(page({ open: false }))
+    expect(signal?.aborted).toBe(true)
+
+    rerender(page({ open: true }))
+    await settle()
+    expect(status()).toBe("Cancelled.")
   })
 
   it("keeps the preview when it closes and marks the trigger", async () => {

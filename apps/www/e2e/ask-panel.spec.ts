@@ -132,6 +132,23 @@ for (const width of [1024, 1440]) {
         })
       ).toBe(true)
     }
+    const spills = await region(page)
+      .locator('[data-slot="card-title"]')
+      .evaluateAll((titles) =>
+        titles.flatMap((title) => {
+          const header = title.closest('[data-slot="card-header"]')
+          if (!header) {
+            return [title.textContent]
+          }
+          const style = getComputedStyle(header)
+          const content =
+            header.clientWidth -
+            parseFloat(style.paddingLeft) -
+            parseFloat(style.paddingRight)
+          return title.scrollWidth > content ? [title.textContent] : []
+        })
+      )
+    expect(spills).toHaveLength(0)
     expect(errors).toEqual([])
   })
 }

@@ -207,6 +207,21 @@ function PliantAskPanel({
     []
   )
 
+  const [wasOpen, setWasOpen] = React.useState(isOpen)
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen)
+    if (!isOpen && state.status === "asking") {
+      setState({ status: "cancelled" })
+    }
+  }
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      request.current?.abort()
+      request.current = null
+    }
+  }, [isOpen])
+
   React.useEffect(() => {
     if (isOpen && focusOnOpen.current) {
       focusOnOpen.current = false
@@ -226,11 +241,6 @@ function PliantAskPanel({
   }
 
   function close() {
-    if (request.current) {
-      request.current.abort()
-      request.current = null
-      setState({ status: "cancelled" })
-    }
     const hadFocus = panelRef.current?.contains(document.activeElement)
     setOpen(false)
     if (hadFocus) {
