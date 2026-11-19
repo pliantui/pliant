@@ -15,30 +15,28 @@ import type { Inferred, ValueType } from "./expression-types"
 import type { Result } from "./result"
 
 /**
- * A dataset field as the expression checker reads it.
+ * A dataset field as the expression checker reads it. A `currency` field's
+ * unit is its currency code, a `percent` field's unit is `percent`, and a
+ * `number` or `integer` field can declare a unit.
  *
  * @experimental
  */
-export interface ExpressionField {
-  readonly type:
-    | "string"
-    | "text"
-    | "number"
-    | "integer"
-    | "currency"
-    | "percent"
-    | "boolean"
-    | "date"
-    | "datetime"
-    | "enum"
-    | "id"
-    | "url"
-    | "email"
-  /** The currency code of a `currency` field, which is its unit. */
-  readonly currency?: string | undefined
-  /** A unit the developer declares on a `number` or `integer` field. */
-  readonly unit?: string | undefined
-}
+export type ExpressionField =
+  | { readonly type: "currency"; readonly currency: string }
+  | { readonly type: "number" | "integer"; readonly unit?: string | undefined }
+  | {
+      readonly type:
+        | "string"
+        | "text"
+        | "percent"
+        | "boolean"
+        | "date"
+        | "datetime"
+        | "enum"
+        | "id"
+        | "url"
+        | "email"
+    }
 
 /**
  * The type of an expression's value.
@@ -46,30 +44,58 @@ export interface ExpressionField {
  * @experimental
  */
 export interface ExpressionType {
-  /** `null` when the value is always null, as for `{ value: null }`. */
-  readonly type: ValueType | "null"
+  readonly type: ValueType
   /** The unit of a number: a currency code, `percent`, or a declared unit. */
   readonly unit?: string
 }
+
+/**
+ * What expressions are checked against.
+ *
+ * @experimental
+ */
+export interface ExpressionCheckerOptions {
+  /** The dataset's fields, by id. */
+  readonly fields: Readonly<Record<string, ExpressionField>>
+  /**
+   * The derived fields a `ref` can name, by id, one per id as they apply. An
+   * item that overrides another replaces it here, so an item that refs its
+   * own id resolves to its own entry, which is a circular reference, not to
+   * the item it overrides.
+   */
+  readonly derived?: Readonly<Record<string, Expression>> | undefined
+  /** The aggregates a `ref` can name, by id, as for `derived`. */
+  readonly aggregates?: Readonly<Record<string, Expression>> | undefined
+}
+
+/**
+ * `row` checks a derived field's expression, which can't use aggregate
+ * functions. `aggregate` checks an aggregate's expression, which reads fields
+ * and derived fields only inside aggregate functions and can't use window
+ * functions.
+ *
+ * @experimental
+ */
+export type ExpressionKind = "row" | "aggregate"
+
+/**
+ * Checks one expression. Referenced items are checked once and remembered
+ * for later calls.
+ *
+ * @experimental
+ */
+export type ExpressionChecker = (
+  expression: Expression,
+  kind: ExpressionKind
+) => Result<ExpressionType>
 
 /**
  * What `checkExpression` checks an expression against.
  *
  * @experimental
  */
-export interface CheckExpressionOptions {
-  /**
-   * `row` for a derived field, which can't use aggregate functions.
-   * `aggregate` for an aggregate, which reads fields and derived fields only
-   * inside aggregate functions and can't use window functions.
-   */
-  readonly kind: "row" | "aggregate"
-  /** The dataset's fields, by id. */
-  readonly fields: Readonly<Record<string, ExpressionField>>
-  /** The derived fields a `ref` can name, by id. */
-  readonly derived?: Readonly<Record<string, Expression>> | undefined
-  /** The aggregates a `ref` can name, by id. */
-  readonly aggregates?: Readonly<Record<string, Expression>> | undefined
+export interface CheckExpressionOptions extends ExpressionCheckerOptions {
+  readonly kind: ExpressionKind
 }
 
 type ItemKind = "derived" | "aggregate"
@@ -86,10 +112,17 @@ type Resolved =
   | { readonly type: Inferred; readonly window: boolean }
   | { readonly cause: string; readonly cycle: boolean }
 
+interface Item {
+  readonly kind: ItemKind
+  readonly id: string
+  readonly expression: Expression
+}
+
 interface Context {
-  readonly options: CheckExpressionOptions
+  readonly options: ExpressionCheckerOptions
   readonly resolved: Record<ItemKind, Map<string, Resolved | "checking">>
-  readonly stack: { kind: ItemKind; id: string }[]
+  /** The items being checked, each one referenced by the item before it. */
+  readonly stack: Item[]
 }
 
 interface Issue {
@@ -104,6 +137,8 @@ interface Walk {
   readonly issues: Issue[]
   /** Whether the expression uses a window function, directly or by `ref`. */
   window: boolean
+  /** The first referenced item that isn't checked yet. */
+  pending: Item | undefined
 }
 
 const valueTypes: Record<ExpressionField["type"], ValueType> = {
@@ -142,15 +177,15 @@ function definitionOf({ options }: Context, kind: ItemKind, id: string) {
   return lookup(kind === "derived" ? options.derived : options.aggregates, id)
 }
 
-function unitOf({ type, currency, unit }: ExpressionField) {
-  switch (type) {
+function unitOf(field: ExpressionField) {
+  switch (field.type) {
     case "currency":
-      return currency
+      return field.currency
     case "percent":
       return "percent"
     case "number":
     case "integer":
-      return unit
+      return field.unit
     default:
       return undefined
   }
@@ -172,10 +207,6 @@ function inferField(
   path: readonly PropertyKey[],
   scope: Scope
 ) {
-  if (id.includes(".")) {
-    fail(walk, path, `Dotted paths like ${id} are reserved for relations`)
-    return undefined
-  }
   const field = lookup(walk.context.options.fields, id)
   if (!field) {
     fail(walk, path, `Unknown field ${id}`)
@@ -194,47 +225,56 @@ function inferField(
 function checkTree(
   context: Context,
   expression: Expression,
-  kind: CheckExpressionOptions["kind"]
+  kind: ExpressionKind
 ) {
-  const walk: Walk = { context, issues: [], window: false }
+  const walk: Walk = { context, issues: [], window: false, pending: undefined }
   const type = infer(walk, expression, [], {
     level: kind === "row" ? "row" : "group",
   })
-  return { type, issues: walk.issues, window: walk.window }
+  if (type?.type === "null") {
+    fail(walk, [], "Must have a type, not null")
+  }
+  return { ...walk, type }
 }
 
-function resolve(
-  context: Context,
-  kind: ItemKind,
-  id: string,
-  expression: Expression
+function resolvedOf(
+  type: Inferred | undefined,
+  issues: readonly Issue[],
+  window: boolean
 ): Resolved {
-  const resolved = context.resolved[kind]
-  const known = resolved.get(id)
-  if (known === "checking") {
-    const start = context.stack.findIndex(
-      (entry) => entry.kind === kind && entry.id === id
+  if (type && type.type !== "null" && issues.length === 0) {
+    return { type: { type: type.type, unit: type.unit }, window }
+  }
+  return { cause: issues[0]?.cause ?? "Invalid expression", cycle: false }
+}
+
+// Items are checked from an explicit stack rather than by recursion, so a
+// long chain of refs can't overflow the call stack. An item that refs an
+// unchecked item is set aside until that item is checked, then checked again.
+function resolveItems(context: Context, first: Item) {
+  const { stack } = context
+  context.resolved[first.kind].set(first.id, "checking")
+  stack.push(first)
+  for (let item = stack.at(-1); item; item = stack.at(-1)) {
+    const { type, issues, window, pending } = checkTree(
+      context,
+      item.expression,
+      item.kind === "derived" ? "row" : "aggregate"
     )
-    const cycle = [...context.stack.slice(start).map((entry) => entry.id), id]
-    return { cause: `Circular reference: ${cycle.join(" → ")}`, cycle: true }
+    if (pending) {
+      context.resolved[pending.kind].set(pending.id, "checking")
+      stack.push(pending)
+    } else {
+      context.resolved[item.kind].set(item.id, resolvedOf(type, issues, window))
+      stack.pop()
+    }
   }
-  if (known) {
-    return known
-  }
-  resolved.set(id, "checking")
-  context.stack.push({ kind, id })
-  const { type, issues, window } = checkTree(
-    context,
-    expression,
-    kind === "derived" ? "row" : "aggregate"
-  )
-  context.stack.pop()
-  const result: Resolved =
-    type && issues.length === 0
-      ? { type: { type: type.type, unit: type.unit }, window }
-      : { cause: issues[0]?.cause ?? `${id} is invalid`, cycle: false }
-  resolved.set(id, result)
-  return result
+}
+
+function cycleOf({ stack }: Context, kind: ItemKind, id: string): Resolved {
+  const start = stack.findIndex((item) => item.kind === kind && item.id === id)
+  const cycle = [...stack.slice(start).map((item) => item.id), id]
+  return { cause: `Circular reference: ${cycle.join(" → ")}`, cycle: true }
 }
 
 function misplacedMessage(id: string, scope: Scope) {
@@ -254,10 +294,6 @@ function inferRef(
   path: readonly PropertyKey[],
   scope: Scope
 ) {
-  if (id.includes(".")) {
-    fail(walk, path, `Dotted paths like ${id} are reserved for relations`)
-    return undefined
-  }
   const { context } = walk
   const kind = scope.level === "group" ? "aggregate" : "derived"
   const expression = definitionOf(context, kind, id)
@@ -272,7 +308,12 @@ function inferRef(
     )
     return undefined
   }
-  const resolved = resolve(context, kind, id, expression)
+  const known = context.resolved[kind].get(id)
+  if (known === undefined) {
+    walk.pending ??= { kind, id, expression }
+    return undefined
+  }
+  const resolved = known === "checking" ? cycleOf(context, kind, id) : known
   if ("cause" in resolved) {
     const { cause, cycle } = resolved
     fail(walk, path, cycle ? cause : `${id} is invalid: ${cause}`, cause)
@@ -363,41 +404,64 @@ function infer(
 }
 
 /**
- * Type-checks an expression against the function catalog and the dataset's
- * fields, and returns the type of its value. A `ref` names a derived field
- * where a row value is expected and an aggregate where a group value is, and
- * is checked in turn, so a reference cycle or a reference to an invalid item
- * is an issue at the `ref`. Issue paths point into the expression.
+ * Creates a checker that shares its work across expressions: each referenced
+ * derived field and aggregate is checked once, however many expressions
+ * reference it. Use it to check every item of a view; the options must not
+ * change while it's in use.
  *
  * @experimental
  */
-export function checkExpression(
-  expression: Expression,
-  options: CheckExpressionOptions
-): Result<ExpressionType> {
+export function createExpressionChecker(
+  options: ExpressionCheckerOptions
+): ExpressionChecker {
   const context: Context = {
     options,
     resolved: { derived: new Map(), aggregate: new Map() },
     stack: [],
   }
-  const { type, issues } = checkTree(context, expression, options.kind)
-  if (type && issues.length === 0) {
+  return (expression, kind) => {
+    let result = checkTree(context, expression, kind)
+    while (result.pending) {
+      resolveItems(context, result.pending)
+      result = checkTree(context, expression, kind)
+    }
+    const { type, issues } = result
+    if (type && type.type !== "null" && issues.length === 0) {
+      return {
+        success: true,
+        data:
+          type.unit === undefined
+            ? { type: type.type }
+            : { type: type.type, unit: type.unit },
+      }
+    }
     return {
-      success: true,
-      data:
-        type.unit === undefined
-          ? { type: type.type }
-          : { type: type.type, unit: type.unit },
+      success: false,
+      error: new z.ZodError(
+        issues.map(({ path, message }) => ({
+          code: "custom",
+          path: [...path],
+          message,
+        }))
+      ),
     }
   }
-  return {
-    success: false,
-    error: new z.ZodError(
-      issues.map(({ path, message }) => ({
-        code: "custom",
-        path: [...path],
-        message,
-      }))
-    ),
-  }
+}
+
+/**
+ * Type-checks an expression against the function catalog and the dataset's
+ * fields, and returns the type of its value. A `ref` names a derived field
+ * where a row value is expected and an aggregate where a group value is, and
+ * is checked in turn, so a circular reference or a reference to an invalid
+ * item is an issue at the `ref`. Issue paths point into the expression. To
+ * check many expressions against the same items, use
+ * `createExpressionChecker`.
+ *
+ * @experimental
+ */
+export function checkExpression(
+  expression: Expression,
+  { kind, ...options }: CheckExpressionOptions
+): Result<ExpressionType> {
+  return createExpressionChecker(options)(expression, kind)
 }

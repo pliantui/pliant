@@ -32,6 +32,11 @@ export function literalType(text: string): "date" | "datetime" | undefined {
   return day !== undefined && isCalendarDate(day) ? "datetime" : undefined
 }
 
+/** Whether the text is written as a date or datetime, valid or not. */
+export function looksLikeDate(text: string) {
+  return datePattern.test(text) || datetimePattern.test(text)
+}
+
 export function unifyTypes(a: ValueType, b: ValueType): ValueType | undefined {
   if (a === b) {
     return a

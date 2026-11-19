@@ -4,6 +4,7 @@ import type { Expression } from "@pliantui/contract"
 
 import {
   checkExpression,
+  createExpressionChecker,
   type CheckExpressionOptions,
   type ExpressionField,
 } from "./check-expression"
@@ -85,14 +86,6 @@ describe("checkExpression", () => {
       expect(row(field(id)).data).toEqual(type)
     })
 
-    it("ignores a unit declared on a field that isn't a number", () => {
-      expect(
-        row(field("label"), {
-          fields: { label: { type: "string", unit: "kg" } },
-        }).data
-      ).toEqual({ type: "string" })
-    })
-
     it("rejects an unknown field at its path", () => {
       expect(issues(row(fn("abs", field("missing"))))).toEqual([
         {
@@ -108,21 +101,6 @@ describe("checkExpression", () => {
         "Unknown field constructor",
       ])
     })
-
-    it("rejects dotted paths, which are reserved for relations", () => {
-      expect(
-        messages(
-          row(field("customer.region"), {
-            fields: { ...fields, "customer.region": { type: "string" } },
-          })
-        )
-      ).toEqual([
-        "Dotted paths like customer.region are reserved for relations",
-      ])
-      expect(messages(row(ref("items.total")))).toEqual([
-        "Dotted paths like items.total are reserved for relations",
-      ])
-    })
   })
 
   describe("value", () => {
@@ -132,9 +110,14 @@ describe("checkExpression", () => {
       [-3, { type: "integer" }],
       [3.5, { type: "number" }],
       [true, { type: "boolean" }],
-      [null, { type: "null" }],
     ] as const)("types the literal %j", (literal, type) => {
       expect(row(value(literal)).data).toEqual(type)
+    })
+
+    it("rejects a bare null, which has no type", () => {
+      expect(issues(row(value(null)))).toEqual([
+        { code: "custom", path: [], message: "Must have a type, not null" },
+      ])
     })
 
     it("keeps a string literal that looks like a date a string", () => {
@@ -287,6 +270,63 @@ describe("checkExpression", () => {
           })
         )
       ).toEqual(["outer uses a window function, which can't be nested in rank"])
+    })
+  })
+
+  describe("long reference chains", () => {
+    function chain(length: number) {
+      return Object.fromEntries(
+        Array.from({ length }, (_, index) => [
+          `d${String(index)}`,
+          index === 0
+            ? field("price")
+            : fn("add", ref(`d${String(index - 1)}`), value(1)),
+        ])
+      )
+    }
+
+    it("resolves a 5,000-item chain without overflowing the stack", () => {
+      expect(row(ref("d4999"), { derived: chain(5000) }).data).toEqual({
+        type: "number",
+        unit: "USD",
+      })
+    })
+
+    it("reports a cycle at the end of a long chain", () => {
+      const derived = { ...chain(500), d0: ref("d499") }
+      expect(messages(row(ref("d10"), { derived }))?.[0]).toMatch(
+        /^d10 is invalid: Circular reference: d10 → d9 → .* → d11 → d10$/
+      )
+    })
+
+    it("resolves a 2,000-item diamond where every item refs 16 others", () => {
+      const derived = Object.fromEntries(
+        Array.from({ length: 2000 }, (_, index) => [
+          `d${String(index)}`,
+          index < 16
+            ? field("qty")
+            : fn(
+                "coalesce",
+                ...Array.from({ length: 16 }, (_, offset) =>
+                  ref(`d${String(index - 1 - offset)}`)
+                )
+              ),
+        ])
+      )
+      expect(row(ref("d1999"), { derived }).data).toEqual({ type: "integer" })
+    })
+
+    it("shares checked items across expressions with createExpressionChecker", () => {
+      const derived = chain(2000)
+      const check = createExpressionChecker({ fields, derived })
+      const results = Object.values(derived).map((expression) =>
+        check(expression, "row")
+      )
+      expect(results.every(({ success }) => success)).toBe(true)
+      expect(check(fn("sum", ref("d1999")), "aggregate").data).toEqual({
+        type: "number",
+        unit: "USD",
+      })
     })
   })
 
@@ -443,7 +483,7 @@ describe("checkExpression", () => {
         {
           code: "custom",
           path: ["args", 1],
-          message: "Must be an integer to match argument 1, not string",
+          message: "Must be an integer to match `a`, not string",
         },
       ])
     })
@@ -454,7 +494,7 @@ describe("checkExpression", () => {
       ).toEqual({ type: "number" })
       expect(
         messages(row(fn("in", field("region"), value("north"), value(3))))
-      ).toEqual(["Must be a string to match argument 1, not integer"])
+      ).toEqual(["Must be a string to match `x`, not integer"])
     })
 
     it("reads a string literal as a date where one is expected", () => {
@@ -476,9 +516,18 @@ describe("checkExpression", () => {
       ).toEqual({ type: "datetime" })
     })
 
+    it.each(["2023-02-29", "2024-13-01", "2024-04-31T10:00:00Z"])(
+      "rejects the invalid calendar date %s",
+      (text) => {
+        const message = `${JSON.stringify(text)} isn't a valid date`
+        expect(messages(row(fn("gt", field("shipped"), value(text))))).toEqual([
+          message,
+        ])
+        expect(messages(row(fn("age", value(text))))).toEqual([message])
+      }
+    )
+
     it.each([
-      "2023-02-29",
-      "2024-13-01",
       "24-01-01",
       "2024-01-01T10:00Z",
       "2024-01-01T10:00:00",
@@ -487,7 +536,7 @@ describe("checkExpression", () => {
       "2024-01-01 10:00:00Z",
     ])("rejects %s where a date is expected", (text) => {
       expect(messages(row(fn("gt", field("shipped"), value(text))))).toEqual([
-        "Must be a date as YYYY-MM-DD or a datetime as ISO 8601 with seconds and an offset to match argument 1",
+        "Must be a date as YYYY-MM-DD or a datetime as ISO 8601 with seconds and an offset to match `a`",
       ])
       expect(messages(row(fn("age", value(text))))).toEqual([
         "Must be a date as YYYY-MM-DD or a datetime as ISO 8601 with seconds and an offset",
@@ -508,36 +557,17 @@ describe("checkExpression", () => {
         "Must be a number, not string",
       ])
       expect(messages(row(fn("eq", field("qty"), value("1"))))).toEqual([
-        "Must be an integer to match argument 1, not string",
+        "Must be an integer to match `a`, not string",
       ])
     })
   })
 
   describe("null literals", () => {
-    it("fit any argument", () => {
+    it("fit a like group with a typed member, and take its type", () => {
       expect(row(fn("add", field("price"), value(null))).data).toEqual({
         type: "number",
         unit: "USD",
       })
-      expect(row(fn("concat", value(null), field("name"))).data).toEqual({
-        type: "string",
-      })
-      expect(row(fn("isNull", value(null))).data).toEqual({ type: "boolean" })
-    })
-
-    it("give a group of only nulls the null type", () => {
-      expect(row(fn("add", value(null), value(null))).data).toEqual({
-        type: "null",
-      })
-      expect(
-        row(fn("if", field("active"), value(null), value(null))).data
-      ).toEqual({ type: "null" })
-      expect(row(fn("mul", value(null), value(null))).data).toEqual({
-        type: "null",
-      })
-    })
-
-    it("take the type of the rest of their group", () => {
       expect(
         row(fn("if", field("active"), value(null), field("placed"))).data
       ).toEqual({ type: "date" })
@@ -545,6 +575,56 @@ describe("checkExpression", () => {
         type: "number",
         unit: "USD",
       })
+      expect(
+        row(fn("in", field("region"), value("north"), value(null))).data
+      ).toEqual({ type: "boolean" })
+    })
+
+    it("don't fit a like group without a typed member", () => {
+      expect(messages(row(fn("add", value(null), value(null))))).toEqual([
+        "Must be a number, not null",
+        "Must be a number, not null",
+      ])
+      expect(
+        messages(row(fn("if", field("active"), value(null), value(null))))
+      ).toEqual([
+        "Must be a number, string, boolean, date or datetime, not null",
+        "Must be a number, string, boolean, date or datetime, not null",
+      ])
+    })
+
+    it.each([
+      [
+        fn("if", value(null), value(1), value(2)),
+        "Must be a boolean, not null",
+      ],
+      [fn("not", value(null)), "Must be a boolean, not null"],
+      [fn("floor", value(null)), "Must be a number, not null"],
+      [fn("concat", value(null), field("name")), "Must be a string, not null"],
+      [fn("mul", value(null), field("qty")), "Must be a number, not null"],
+      [
+        fn("isNull", value(null)),
+        "Must be a number, string, boolean, date or datetime, not null",
+      ],
+    ])(
+      "don't fit an argument outside a like group: %j",
+      (expression, message) => {
+        expect(messages(row(expression))).toEqual([message])
+      }
+    )
+
+    it("don't fit an aggregate's argument", () => {
+      expect(messages(aggregate(fn("sum", value(null))))).toEqual([
+        "Must be a number, not null",
+      ])
+    })
+
+    it("make a derived field that is only null invalid", () => {
+      expect(
+        messages(
+          row(fn("age", ref("nothing")), { derived: { nothing: value(null) } })
+        )
+      ).toEqual(["nothing is invalid: Must have a type, not null"])
     })
   })
 
@@ -577,9 +657,6 @@ describe("checkExpression", () => {
       })
       expect(row(fn("mul", field("qty"), value(0.5))).data).toEqual({
         type: "number",
-      })
-      expect(row(fn("mul", value(null), field("qty"))).data).toEqual({
-        type: "integer",
       })
     })
 
@@ -615,15 +692,15 @@ describe("checkExpression", () => {
         {
           code: "custom",
           path: ["args", 1],
-          message: "Must be in USD to match argument 1, not EUR",
+          message: "Must be in USD to match `a`, not EUR",
         },
       ])
       expect(
         messages(row(fn("between", field("weight"), value(1), field("price"))))
-      ).toEqual(["Must be in kg to match argument 1, not USD"])
+      ).toEqual(["Must be in kg to match `x`, not USD"])
       expect(
         messages(row(fn("gt", field("discount"), field("price"))))
-      ).toEqual(["Must be in percent to match argument 1, not USD"])
+      ).toEqual(["Must be in percent to match `a`, not USD"])
     })
 
     it.each([
@@ -639,19 +716,12 @@ describe("checkExpression", () => {
     })
 
     it.each([
-      ["price", "fee"],
-      ["price", "cost"],
-      ["weight", "price"],
-    ])("can't multiply %s by %s", (a, b) => {
-      const [unitA, unitB] = [a, b].map(
-        (id) => fields[id]?.unit ?? fields[id]?.currency
-      )
+      ["price", "fee", "Can't multiply USD by EUR"],
+      ["price", "cost", "Can't multiply USD by USD"],
+      ["weight", "price", "Can't multiply kg by USD"],
+    ])("can't multiply %s by %s", (a, b, message) => {
       expect(issues(row(fn("mul", field(a), field(b))))).toEqual([
-        {
-          code: "custom",
-          path: [],
-          message: `Can't multiply ${String(unitA)} by ${String(unitB)}`,
-        },
+        { code: "custom", path: [], message },
       ])
     })
 

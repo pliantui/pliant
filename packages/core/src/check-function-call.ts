@@ -10,6 +10,7 @@ import {
   describeTypes,
   fitsTypes,
   literalType,
+  looksLikeDate,
   unifyTypes,
   type Inferred,
   type ValueType,
@@ -21,11 +22,20 @@ export type Report = (path: readonly PropertyKey[], message: string) => void
 
 interface Member {
   readonly index: number
+  /** The name of the argument in the catalog. */
+  readonly name: string
   readonly inferred: Inferred
 }
 
 interface Group {
-  readonly type: ValueType | "null"
+  readonly allowed: readonly ValueType[]
+  /** Whether other arguments are `like` this one. */
+  readonly joined: boolean
+  readonly members: Member[]
+}
+
+interface Unified {
+  readonly type: ValueType
   readonly unit: string | undefined
 }
 
@@ -148,37 +158,50 @@ function groupKey(params: readonly Param[], param: Param, index: number) {
     : root.name
 }
 
+function dateLiteralMessage(text: string, suffix: string) {
+  return looksLikeDate(text)
+    ? `${JSON.stringify(text)} isn't a valid date`
+    : `Must be ${dateFormats}${suffix}`
+}
+
+/**
+ * Unifies the arguments of one group: an argument on its own, or arguments
+ * joined by `like`. A null literal fits only a `like` group with a typed
+ * member, whose type it takes.
+ */
 function unifyGroup(
-  allowed: readonly ValueType[],
-  members: readonly Member[],
+  { allowed, joined, members }: Group,
   path: readonly PropertyKey[],
   report: Report
-): Group | undefined {
+): Unified | undefined {
   const failed: number[] = []
   let type: ValueType | undefined
-  let anchor = 0
+  let anchor = ""
   const literals: Member[] = []
+  const nulls: Member[] = []
   const acceptsDates = allowed.includes("date") || allowed.includes("datetime")
   const fail = (index: number, message: string) => {
     report([...path, "args", index], message)
     failed.push(index)
   }
   for (const member of members) {
-    const { index, inferred } = member
+    const { index, name, inferred } = member
     if (inferred.type === "null") {
+      nulls.push(member)
       continue
     }
     if (inferred.literal !== undefined && allowed.includes("string")) {
       literals.push(member)
       continue
     }
-    const own =
-      inferred.literal === undefined || !acceptsDates
-        ? inferred.type
-        : literalType(inferred.literal)
-    if (own === undefined) {
-      fail(index, `Must be ${dateFormats}`)
-      continue
+    let own = inferred.type
+    if (inferred.literal !== undefined && acceptsDates) {
+      const read = literalType(inferred.literal)
+      if (read === undefined) {
+        fail(index, dateLiteralMessage(inferred.literal, ""))
+        continue
+      }
+      own = read
     }
     if (!fitsTypes(own, allowed)) {
       fail(index, `Must be ${describeTypes(allowed)}, not ${own}`)
@@ -186,89 +209,88 @@ function unifyGroup(
     }
     if (type === undefined) {
       type = own
-      anchor = index
+      anchor = name
       continue
     }
     const unified = unifyTypes(type, own)
     if (unified === undefined) {
       fail(
         index,
-        `Must be ${describeTypes([type])} to match argument ${String(anchor + 1)}, not ${own}`
+        `Must be ${describeTypes([type])} to match \`${anchor}\`, not ${own}`
       )
       continue
     }
     type = unified
   }
   for (const { index, inferred } of literals) {
+    const literal = inferred.literal ?? ""
     if (type === undefined || type === "string") {
       type = "string"
       continue
     }
-    const own = literalType(inferred.literal ?? "")
+    const own = literalType(literal)
     const unified = own && unifyTypes(type, own)
     if (unified) {
       type = unified
     } else if (type === "date" || type === "datetime") {
-      fail(
-        index,
-        `Must be ${dateFormats} to match argument ${String(anchor + 1)}`
-      )
+      fail(index, dateLiteralMessage(literal, ` to match \`${anchor}\``))
     } else {
       fail(
         index,
-        `Must be ${describeTypes([type])} to match argument ${String(anchor + 1)}, not string`
+        `Must be ${describeTypes([type])} to match \`${anchor}\`, not string`
       )
     }
   }
+  if (!joined || type === undefined) {
+    for (const { index } of nulls) {
+      fail(index, `Must be ${describeTypes(allowed)}, not null`)
+    }
+  }
   let unit: string | undefined
-  let unitAnchor = 0
-  for (const { index, inferred } of members) {
+  let unitAnchor = ""
+  for (const { index, name, inferred } of members) {
     if (inferred.unit === undefined) {
       continue
     }
     if (unit === undefined) {
       unit = inferred.unit
-      unitAnchor = index
+      unitAnchor = name
     } else if (inferred.unit !== unit) {
       fail(
         index,
-        `Must be in ${unit} to match argument ${String(unitAnchor + 1)}, not ${inferred.unit}`
+        `Must be in ${unit} to match \`${unitAnchor}\`, not ${inferred.unit}`
       )
     }
   }
-  return failed.length === 0 ? { type: type ?? "null", unit } : undefined
+  return failed.length === 0 && type !== undefined ? { type, unit } : undefined
 }
 
 function unitName(unit: string | undefined) {
   return unit ?? "a number without a unit"
 }
 
-function joinTypes(types: readonly (ValueType | "null")[]) {
-  let joined: ValueType | "null" | undefined = "null"
-  for (const type of types) {
-    if (joined === undefined || type === "null") {
-      continue
-    }
-    joined = joined === "null" ? type : unifyTypes(joined, type)
-  }
-  return joined
+function joinTypes([first, ...rest]: readonly (ValueType | undefined)[]) {
+  return rest.reduce<ValueType | undefined>(
+    (joined, type) => joined && type && unifyTypes(joined, type),
+    first
+  )
 }
 
-type GroupOf = (argName: string) => Group
+type GroupOf = (argName: string) => Unified | undefined
 
 function returnType(
   { args, returns }: FunctionDefinition,
   nodes: readonly Expression[],
   groupOf: GroupOf
-): ValueType | "null" | undefined {
+): ValueType | undefined {
   if (typeof returns === "string") {
     return returns
   }
   if ("like" in returns) {
-    return groupOf(returns.like).type
+    return groupOf(returns.like)?.type
   }
   if ("join" in returns) {
-    return joinTypes(returns.join.map((argName) => groupOf(argName).type))
+    return joinTypes(returns.join.map((argName) => groupOf(argName)?.type))
   }
   const index = args.findIndex(({ name }) => name === returns.integerWhenZero)
   const node = nodes[index]
@@ -282,12 +304,12 @@ function unitOf(
   groupOf: GroupOf
 ): string | undefined | { error: string } {
   if (typeof unit === "object") {
-    return groupOf(unit.like).unit
+    return groupOf(unit.like)?.unit
   }
   if (unit !== "product" && unit !== "quotient") {
     return unit === "percent" ? "percent" : undefined
   }
-  const [a, b] = args.map(({ name }) => groupOf(name).unit)
+  const [a, b] = args.map(({ name }) => groupOf(name)?.unit)
   const result = unit === "product" ? productUnit(a, b) : quotientUnit(a, b)
   if (result !== null) {
     return result
@@ -314,7 +336,12 @@ export function checkFunctionCall({
     return undefined
   }
   let valid = true
-  const members = new Map<string, { root: Param; members: Member[] }>()
+  const joined = new Set(
+    params.flatMap((param) =>
+      rootOf(params, param) === param ? [] : [rootOf(params, param).name]
+    )
+  )
+  const groups = new Map<string, Group>()
   nodes.forEach((node, index) => {
     const param = params[Math.min(index, params.length - 1)]
     const inferred = args[index]
@@ -331,24 +358,21 @@ export function checkFunctionCall({
       valid = false
       return
     }
+    const root = rootOf(params, param)
     const key = groupKey(params, param, index)
-    const group = members.get(key) ?? {
-      root: rootOf(params, param),
+    const group = groups.get(key) ?? {
+      allowed: allowedTypes(root),
+      joined: joined.has(root.name),
       members: [],
     }
-    group.members.push({ index, inferred })
-    members.set(key, group)
+    group.members.push({ index, name: param.name, inferred })
+    groups.set(key, group)
   })
-  const groups = new Map<string, Group>()
-  for (const [key, group] of members) {
-    const unified = unifyGroup(
-      allowedTypes(group.root),
-      group.members,
-      path,
-      report
-    )
-    if (unified) {
-      groups.set(key, unified)
+  const unified = new Map<string, Unified>()
+  for (const [key, group] of groups) {
+    const result = unifyGroup(group, path, report)
+    if (result) {
+      unified.set(key, result)
     } else {
       valid = false
     }
@@ -358,10 +382,8 @@ export function checkFunctionCall({
   }
   const groupOf: GroupOf = (argName) => {
     const param = params.find((candidate) => candidate.name === argName)
-    const group = param && groups.get(rootOf(params, param).name)
-    return group ?? { type: "null", unit: undefined }
+    return param && unified.get(rootOf(params, param).name)
   }
-
   const type = returnType(definition, nodes, groupOf)
   if (type === undefined) {
     report(path, `The arguments of ${name} must have matching types`)
