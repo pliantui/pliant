@@ -187,6 +187,10 @@ function PliantAskPanel({
   target?: string | undefined
   /** The id of the target picked first. Defaults to the first target. */
   defaultTarget?: string
+  /**
+   * Called with the id of the target the user picks in the picker. A
+   * controlled parent applies it by passing it back as `target`.
+   */
   onTargetChange?: (target: string) => void
   /** The prompt's placeholder. */
   placeholder?: string
@@ -248,15 +252,20 @@ function PliantAskPanel({
     }
   }
 
-  // The last target the picker set, to tell the parent's own changes apart.
+  // The target the picker just set, to tell the parent's own changes apart.
+  // It lasts one render: a parent that takes the pick applies it in that
+  // render, and one that rejects it must not hide a later change of its own
+  // to the same target.
   const [pickerTarget, setPickerTarget] = React.useState<string>()
   const [seenTargetProp, setSeenTargetProp] = React.useState(targetProp)
   if (seenTargetProp !== targetProp) {
     setSeenTargetProp(targetProp)
-    setPickerTarget(undefined)
     if (isOpen && targetProp !== pickerTarget) {
       setFocusRequest((count) => count + 1)
     }
+  }
+  if (pickerTarget !== undefined) {
+    setPickerTarget(undefined)
   }
 
   React.useLayoutEffect(() => {

@@ -123,6 +123,23 @@ async function holdAlt() {
   await wait(300)
 }
 
+async function pressShortcut() {
+  const shortcut = new KeyboardEvent("keydown", {
+    key: ".",
+    ctrlKey: true,
+    bubbles: true,
+    cancelable: true,
+  })
+  fireEvent(document.activeElement ?? document.body, shortcut)
+  await wait()
+  return shortcut
+}
+
+async function releaseAlt() {
+  fireEvent.keyUp(document.body, { key: "Alt" })
+  await wait()
+}
+
 beforeEach(() => {
   vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
     function (this: Element) {
@@ -134,6 +151,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  document.body.style.pointerEvents = ""
 })
 
 describe("PliantPointMode", () => {
@@ -356,6 +374,59 @@ describe("PliantPointMode", () => {
       expect(shortcut.defaultPrevented).toBe(false)
     }
   )
+
+  it.each([
+    ["a listbox", { role: "listbox" }],
+    ["a menu", { role: "menu" }],
+    ["a modal dialog", { role: "dialog", "aria-modal": "true" }],
+  ])(
+    "ignores Alt and the shortcut while focus is in %s",
+    async (_, attributes) => {
+      const other = document.createElement("div")
+      for (const [name, value] of Object.entries(attributes)) {
+        other.setAttribute(name, value)
+      }
+      const item = document.createElement("button")
+      other.append(item)
+      document.body.append(other)
+      renderPage()
+      item.focus()
+
+      await holdAlt()
+      expect(layer()).toBeNull()
+      await releaseAlt()
+      const shortcut = await pressShortcut()
+      expect(layer()).toBeNull()
+      expect(shortcut.defaultPrevented).toBe(false)
+
+      other.remove()
+      await pressShortcut()
+      expect(layer()).not.toBeNull()
+    }
+  )
+
+  it("ignores Alt and the shortcut while a modal layer turns off pointer events", async () => {
+    renderPage()
+    document.body.style.pointerEvents = "none"
+
+    await holdAlt()
+    expect(layer()).toBeNull()
+    await releaseAlt()
+    const shortcut = await pressShortcut()
+    expect(layer()).toBeNull()
+    expect(shortcut.defaultPrevented).toBe(false)
+
+    document.body.style.pointerEvents = ""
+    await holdAlt()
+    expect(layer()).not.toBeNull()
+  })
+
+  it("keeps its outlines clickable under a modal layer", async () => {
+    renderPage()
+    await enterWithToggle()
+
+    expect(layer()?.classList.contains("pointer-events-auto")).toBe(true)
+  })
 
   it("works with Alt while focus is on a checkbox", async () => {
     renderPage()
@@ -667,6 +738,35 @@ describe("PliantPointMode", () => {
     expect(
       screen
         .getAllByRole("button", { name: "Point" })
+        .map((button) => button.getAttribute("aria-pressed"))
+    ).toEqual(["true", "false"])
+  })
+
+  it("doesn't start from Alt in one instance while another is on", async () => {
+    render(
+      <>
+        <PliantPointMode targets={targets} onPick={() => undefined} />
+        <PliantPointMode targets={targets} onPick={() => undefined} />
+        <div data-pliant-id="orders-table" data-top="200" />
+      </>
+    )
+    const [first] = screen.getAllByRole("button", { name: "Point" })
+    if (first) {
+      fireEvent.click(first)
+    }
+    await wait()
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+
+    await holdAlt()
+
+    expect(
+      document.querySelectorAll('[data-slot="pliant-point-mode"]')
+    ).toHaveLength(1)
+    expect(
+      screen
+        .getAllByRole("button", { name: "Point", hidden: true })
         .map((button) => button.getAttribute("aria-pressed"))
     ).toEqual(["true", "false"])
   })

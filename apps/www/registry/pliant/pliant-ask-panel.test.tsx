@@ -737,6 +737,29 @@ describe("PliantAskPanel", () => {
     expect(document.activeElement).not.toBe(prompt())
   })
 
+  it("focuses the prompt when its parent sets a target it rejected from the picker", async () => {
+    const onTargetChange = vi.fn()
+    const { rerender } = await renderPanel({
+      target: "key-metrics",
+      onTargetChange,
+    })
+    const picker = screen.getByRole("combobox", { name: "Change" })
+
+    fireEvent.keyDown(picker, { key: "Enter" })
+    await settle()
+    fireEvent.click(screen.getByRole("option", { name: "Orders table" }))
+    await settle()
+    expect(onTargetChange).toHaveBeenCalledWith("orders-table")
+    expect(picker.textContent).toBe("Key metrics")
+    screen.getByRole("button", { name: "Close" }).focus()
+
+    rerender(page({ target: "orders-table", onTargetChange }))
+    await settle()
+
+    expect(picker.textContent).toBe("Orders table")
+    expect(document.activeElement).toBe(prompt())
+  })
+
   it("cancels an ask when its parent changes the target", async () => {
     const { rerender } = await renderPanel({ target: "key-metrics" })
     const pending = pendingAnswer()
@@ -768,6 +791,9 @@ describe("PliantAskPanel", () => {
 
   it.each([
     ["the target changes", { target: "orders-table" }],
+    // A smoke check only: the mounted Select makes React flush passive
+    // effects early, so this row would still pass if closing aborted the ask
+    // in a passive effect. The target row is the one that guards the gap.
     ["it closes", { open: false }],
   ])(
     "never previews an answer that lands right after %s outside an event",
