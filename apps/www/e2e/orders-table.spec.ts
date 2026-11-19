@@ -225,6 +225,24 @@ test.describe("asking about the table", () => {
     })
   }
 
+  test("sizes the last column too", async ({ page, errors }) => {
+    await load(page)
+    for (const name of ["Region", "Status", "Value", "Created", "Notes"]) {
+      await page.getByRole("button", { name: "Columns" }).click()
+      await page.getByRole("menuitemcheckbox", { name }).click()
+      await expect(header(page, name)).toHaveCount(0)
+    }
+    expect(await headers(page)).toEqual(["Order", "Customer"])
+
+    await ask(page, "make the customer column 240 pixels wide")
+
+    await expect(panel(page).getByRole("status")).toContainText(
+      "Set the Customer column width to 240 pixels."
+    )
+    expect((await header(page, "Customer").boundingBox())?.width).toBe(240)
+    expect(errors).toEqual([])
+  })
+
   test("asks what nicer means", async ({ page, errors }) => {
     await load(page)
     await ask(page, "make it nicer")

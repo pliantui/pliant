@@ -50,9 +50,7 @@ function getColumnStyles(
       : isFirstEnd
         ? "inset 1px 0 var(--border)"
         : undefined,
-    // The last column takes the room the others leave, so the table fills
-    // its container; `minWidth` on the table keeps its size as a minimum.
-    width: column.getIsLastColumn() ? undefined : column.getSize(),
+    width: column.getSize(),
   }
 }
 
@@ -111,9 +109,12 @@ export function OrdersTable({ data }: { data: Order[] }) {
         tabIndex={0}
         className="overflow-x-auto rounded-lg border border-border outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_[data-slot=table-container]]:overflow-visible"
       >
+        {/* Every column keeps its size, and an empty filler cell at the end
+        of each row takes the room left over, so the table fills its
+        container. */}
         <Table
           aria-labelledby={titleId}
-          className="w-full table-fixed"
+          className="table-fixed"
           style={{ minWidth: table.getTotalSize() }}
         >
           <TableHeader>
@@ -135,6 +136,7 @@ export function OrdersTable({ data }: { data: Order[] }) {
                     </TableHead>
                   )
                 })}
+                <TableHead aria-hidden className="p-0" />
               </TableRow>
             ))}
           </TableHeader>
@@ -152,12 +154,13 @@ export function OrdersTable({ data }: { data: Order[] }) {
                       <table.FlexRender cell={cell} />
                     </TableCell>
                   ))}
+                  <TableCell aria-hidden className="p-0" />
                 </TableRow>
               ))
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={table.getVisibleLeafColumns().length}
+                  colSpan={table.getVisibleLeafColumns().length + 1}
                   className="h-24 text-center"
                 >
                   No results.

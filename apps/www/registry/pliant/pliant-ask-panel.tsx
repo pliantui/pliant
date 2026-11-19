@@ -135,18 +135,27 @@ async function requestAnswer(
       }
 }
 
-// The docked panel covers the lower part of a small screen, so the node
-// being changed is brought to the top, where its preview shows.
-function showTarget(id: string) {
+// Docked at the bottom of a small screen, the panel can cover the node
+// being changed, so its preview wouldn't show. The node is brought to the
+// top then, unless it already fits above the panel or starts near the top
+// of the room left there. Elsewhere the page is left where the user put it.
+function showTarget(id: string, panel: HTMLElement | null) {
+  const node = document.querySelector(`[data-pliant-id="${CSS.escape(id)}"]`)
+  if (!node || !panel || !window.matchMedia("(width < 40rem)").matches) {
+    return
+  }
+  const room = panel.getBoundingClientRect().top
+  const { top, bottom } = node.getBoundingClientRect()
+  if (top >= 0 && (bottom <= room || top <= room / 3)) {
+    return
+  }
   const reduceMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)"
   ).matches
-  document
-    .querySelector(`[data-pliant-id="${CSS.escape(id)}"]`)
-    ?.scrollIntoView({
-      block: "start",
-      behavior: reduceMotion ? "auto" : "smooth",
-    })
+  node.scrollIntoView({
+    block: "start",
+    behavior: reduceMotion ? "instant" : "smooth",
+  })
 }
 
 function unique(sentences: readonly string[] | undefined) {
@@ -170,11 +179,13 @@ function sessionNote(ops: readonly Op[]) {
  * the panel has `data-slot="pliant-ask-panel"` while it is open, so a
  * layout can add padding with, for example,
  * `sm:has-[[data-slot=pliant-ask-panel]]:pr-96` and
- * `max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh]`. When a preview
- * shows, the target (found by its `data-pliant-id`) is scrolled to the top
- * of the page, and on small screens the suggestions hide until it ends.
- * Focus stays where it was. Escape closes it while focus is inside it. Closing it cancels an ask in progress but keeps the
- * preview, which the trigger then marks with `data-preview`. The prompt is
+ * `max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh]`. On small screens,
+ * where it covers the lower part of the page, a preview scrolls the target
+ * (found by its `data-pliant-id`) to the top unless it already shows above
+ * the panel, and the suggestions hide until the preview ends; focus stays
+ * where it was. Escape closes it while focus is inside it. Closing it
+ * cancels an ask in progress but keeps the preview, which the trigger then
+ * marks with `data-preview`. The prompt is
  * kept when the target changes, so the same ask can go to another target.
  *
  * The target can be controlled with `target` and `onTargetChange`, so a
@@ -341,7 +352,7 @@ function PliantAskPanel({
     if (answer.status === "ok") {
       const result = store.preview(answer.overlay)
       if (result.success) {
-        showTarget(target.id)
+        showTarget(target.id, panelRef.current)
       }
       setState(
         result.success

@@ -332,36 +332,6 @@ describe("PliantAskPanel", () => {
     expect(screen.getByRole("button", { name: "Lock in" })).toBeTruthy()
   })
 
-  it("scrolls the target into view when a preview shows, keeping focus", async () => {
-    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView")
-    await renderPanel()
-    answer(okAnswer)
-    prompt().focus()
-
-    await ask()
-
-    expect(scrollIntoView).toHaveBeenCalledTimes(1)
-    expect(scrollIntoView.mock.contexts[0]).toBe(
-      document.querySelector('[data-pliant-id="key-metrics"]')
-    )
-    expect(scrollIntoView.mock.calls[0]?.[0]).toMatchObject({
-      block: "start",
-    })
-    expect(document.activeElement).toBe(prompt())
-    scrollIntoView.mockRestore()
-  })
-
-  it("doesn't scroll when there's nothing to preview", async () => {
-    const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView")
-    await renderPanel()
-    answer({ status: "clarify", question: "Which card?" })
-
-    await ask()
-
-    expect(scrollIntoView).not.toHaveBeenCalled()
-    scrollIntoView.mockRestore()
-  })
-
   it("sends the ask about the default target", async () => {
     await renderPanel({ defaultTarget: "orders-table" })
     answer({ status: "clarify", question: "Which column?" })
@@ -915,5 +885,116 @@ describe("PliantAskPanel", () => {
 
     expect(status()).toBe("<img src=x onerror=alert(1)>")
     expect(document.querySelector("img")).toBeNull()
+  })
+})
+
+describe("PliantAskPanel on a small screen", () => {
+  const scrollIntoView = vi.fn<Element["scrollIntoView"]>()
+
+  function screenSize({
+    small,
+    reduceMotion = false,
+  }: {
+    small: boolean
+    reduceMotion?: boolean
+  }) {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      media: query,
+      matches: query.includes("reduced-motion") ? reduceMotion : small,
+    }))
+  }
+
+  function layout({ target, panel }: { target: number; panel: number }) {
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: Element) {
+        const top = this.matches('[data-slot="pliant-ask-panel"]')
+          ? panel
+          : this.matches('[data-pliant-id="key-metrics"]')
+            ? target
+            : 0
+        return DOMRect.fromRect({ y: top, height: 200 })
+      }
+    )
+  }
+
+  beforeEach(() => {
+    vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(
+      scrollIntoView
+    )
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    scrollIntoView.mockReset()
+  })
+
+  it("scrolls the target above the docked panel when a preview shows", async () => {
+    screenSize({ small: true })
+    layout({ target: 600, panel: 340 })
+    await renderPanel()
+    answer(okAnswer)
+    prompt().focus()
+
+    await ask()
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
+    expect(scrollIntoView.mock.contexts[0]).toBe(
+      document.querySelector('[data-pliant-id="key-metrics"]')
+    )
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: "start",
+      behavior: "smooth",
+    })
+    expect(document.activeElement).toBe(prompt())
+  })
+
+  it("scrolls instantly when motion is reduced", async () => {
+    screenSize({ small: true, reduceMotion: true })
+    layout({ target: 600, panel: 340 })
+    await renderPanel()
+    answer(okAnswer)
+
+    await ask()
+
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      block: "start",
+      behavior: "instant",
+    })
+  })
+
+  it("doesn't scroll a target that already shows above the panel", async () => {
+    screenSize({ small: true })
+    layout({ target: 40, panel: 340 })
+    await renderPanel()
+    answer(okAnswer)
+
+    await ask()
+
+    expect(scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it("doesn't scroll beside the panel on a larger screen", async () => {
+    screenSize({ small: false })
+    layout({ target: 600, panel: 0 })
+    await renderPanel()
+    answer(okAnswer)
+
+    await ask()
+
+    expect(scrollIntoView).not.toHaveBeenCalled()
+  })
+
+  it("doesn't scroll without a preview", async () => {
+    screenSize({ small: true })
+    layout({ target: 600, panel: 340 })
+    await renderPanel()
+
+    answer({ status: "error", message: "Something went wrong." })
+    await ask()
+    answer({ status: "ok", overlay: { not: "an overlay" } })
+    await ask()
+
+    expect(status()).toContain("The answer couldn't be previewed")
+    expect(scrollIntoView).not.toHaveBeenCalled()
   })
 })
