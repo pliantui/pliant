@@ -330,6 +330,32 @@ describe("createLayerStore", () => {
       expect(saved.map(({ ops }) => ops)).toEqual([[width("total", 200)]])
     })
 
+    it("reports the same failure once while retrying", () => {
+      const onError = vi.fn()
+      const save = vi.fn<StorageAdapter["save"]>(() => {
+        throw new Error("newer data")
+      })
+      const store = createLayerStore({
+        surface,
+        onError,
+        storage: { load: () => ({}), save },
+      })
+      store.connect()
+      store.actions.applyOps("personal", [width("total", 200)])
+      store.flush()
+      store.flush()
+      store.flush()
+      expect(save).toHaveBeenCalledTimes(3)
+      expect(onError).toHaveBeenCalledTimes(1)
+
+      save.mockImplementationOnce(() => {
+        throw new Error("quota")
+      })
+      store.flush()
+      expect(onError).toHaveBeenCalledTimes(2)
+      expect(onError).toHaveBeenLastCalledWith(new Error("quota"))
+    })
+
     it("saves a rejected async save again on the next flush", async () => {
       const onError = vi.fn()
       const save = vi
@@ -469,7 +495,7 @@ describe("createLayerStore", () => {
           explain: ["Widen the total column"],
         },
       })
-      expect(result.success && result.overlay.id).not.toBe(answer.id)
+      expect(result.success && result.overlay?.id).not.toBe(answer.id)
       expect(saved.map(({ ops }) => ops)).toEqual([
         [width("status", 100)],
         [width("total", 320)],
@@ -516,6 +542,7 @@ describe("createLayerStore", () => {
       expect(result).toMatchObject({
         success: true,
         overlay: { layer: "personal", ops: [width("total", 320)] },
+        keptInSession: [page],
       })
       expect(saved).toMatchObject([
         { ops: [width("total", 320)], explain: ["Widen the total column"] },
@@ -534,12 +561,51 @@ describe("createLayerStore", () => {
         ops: [{ op: "setPage", target: "orders-table", index: 2 }],
       })
 
-      expect(store.actions.lockIn()).toMatchObject({
+      expect(store.actions.lockIn()).toEqual({
         success: true,
-        overlay: { layer: "session" },
+        overlay: null,
+        keptInSession: [{ op: "setPage", target: "orders-table", index: 2 }],
       })
       expect(saved).toEqual([])
       expect(store.getPreview()).toBeNull()
+    })
+
+    it("keeps ops that depend on the session layer in it", async () => {
+      const { store, saved } = setup()
+      store.registerNodes(["dashboard", "a", "b", "c"])
+      await Promise.resolve()
+      store.actions.applyOps("session", [
+        opSchema.parse({
+          op: "wrap",
+          target: "dashboard",
+          id: "box",
+          items: ["a", "b"],
+          mode: "row",
+        }),
+      ])
+      const move = opSchema.parse({
+        op: "move",
+        target: "dashboard/slots/c",
+        to: { into: "box" },
+      })
+      store.actions.preview({
+        ...answer,
+        ops: [width("total", 320), move],
+        explain: ["Widen the total column", "Move c into the box"],
+      })
+      expect(store.getResolved().placements.get("c")?.container).toBe("box")
+
+      const result = store.actions.lockIn()
+      expect(result).toMatchObject({
+        success: true,
+        overlay: { ops: [width("total", 320)] },
+        keptInSession: [move],
+      })
+      expect(saved.map(({ ops }) => ops)).toEqual([[width("total", 320)]])
+      const resolved = store.getResolved()
+      expect(resolved.placements.get("c")?.container).toBe("box")
+      expect(resolved.unapplied).toEqual([])
+      expect(widthOf(resolved, "total")).toBe(320)
     })
 
     it("has nothing to lock in without a preview", () => {
@@ -612,6 +678,61 @@ describe("createLayerStore", () => {
       })
       expect(widthOf(store.getResolved(), "total")).toBe(240)
     })
+
+    it.each([
+      ["rejects", "first"],
+      ["resolves", "first"],
+      ["rejects", "last"],
+    ] as const)(
+      "ignores a stale load that %s, settling %s",
+      async (outcome, order) => {
+        const { store, load } = asyncSetup()
+        let settleStale: () => void = () => undefined
+        load.mockReturnValueOnce(
+          new Promise((resolve, reject) => {
+            settleStale = () => {
+              if (outcome === "rejects") {
+                reject(new Error("stale"))
+              } else {
+                resolve({})
+              }
+            }
+          })
+        )
+        let settleCurrent: () => void = () => undefined
+        load.mockReturnValueOnce(
+          new Promise((resolve) => {
+            settleCurrent = () => {
+              resolve({
+                personal: [
+                  personalOverlay("01KAB0000000000000000000P1", [
+                    width("total", 240),
+                  ]),
+                ],
+              })
+            }
+          })
+        )
+        store.connect()
+        store.actions.reload()
+        if (order === "first") {
+          settleStale()
+          await Promise.resolve()
+          settleCurrent()
+        } else {
+          settleCurrent()
+          await vi.waitFor(() => {
+            expect(store.getStatus()).toEqual({ status: "ready" })
+          })
+          settleStale()
+        }
+        await Promise.resolve()
+        await Promise.resolve()
+
+        expect(store.getStatus()).toEqual({ status: "ready" })
+        expect(widthOf(store.getResolved(), "total")).toBe(240)
+      }
+    )
 
     it("reports a load that throws", () => {
       const store = createLayerStore({

@@ -47,7 +47,18 @@ function PliantSurfaceRoot({
   useLayoutEffect(() => {
     store.setTeamOrder(teamOrder)
   }, [store, teamOrder])
-  useLayoutEffect(() => store.connect(), [store])
+  const [, setConnected] = useState(false)
+  useLayoutEffect(() => {
+    // Hooks subscribe to the store in passive effects, after this one, so
+    // they would miss what connecting loads. An update from a layout effect
+    // makes React render again before the browser paints.
+    const unsubscribe = store.subscribe(() => {
+      setConnected(true)
+    })
+    const disconnect = store.connect()
+    unsubscribe()
+    return disconnect
+  }, [store])
   return <PliantContext value={store}>{children}</PliantContext>
 }
 

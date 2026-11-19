@@ -1,4 +1,4 @@
-import { StrictMode, type ReactNode } from "react"
+import { StrictMode, useEffect, useLayoutEffect, type ReactNode } from "react"
 import {
   act,
   cleanup,
@@ -6,7 +6,7 @@ import {
   renderHook,
   screen,
 } from "@testing-library/react"
-import { hydrateRoot } from "react-dom/client"
+import { createRoot, hydrateRoot } from "react-dom/client"
 import { renderToString } from "react-dom/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -397,21 +397,47 @@ describe("PliantRoot", () => {
     expect(stores.size).toBe(2)
   })
 
-  it("is ready with a synchronous adapter before the first paint", () => {
-    const statuses: string[] = []
+  it("is ready with a synchronous adapter before the first paint", async () => {
+    const actEnvironment: unknown = Reflect.get(
+      globalThis,
+      "IS_REACT_ACT_ENVIRONMENT"
+    )
+    Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", false)
+    const commits: string[] = []
     function Status() {
       const { status } = usePliantStatus()
-      statuses.push(status)
+      useLayoutEffect(() => {
+        commits.push(`layout:${status}`)
+        if (status === "loading") {
+          // The browser can't paint before the current task's microtasks.
+          queueMicrotask(() => {
+            commits.push("microtask")
+          })
+        }
+      })
+      useEffect(() => {
+        commits.push(`passive:${status}`)
+      })
       return <output>{status}</output>
     }
-    render(
-      <PliantRoot surface={surface} storage={memoryAdapter().storage}>
-        <Status />
-      </PliantRoot>
-    )
+    const root = createRoot(document.createElement("div"))
+    try {
+      root.render(
+        <PliantRoot surface={surface} storage={memoryAdapter().storage}>
+          <Status />
+        </PliantRoot>
+      )
+      await vi.waitFor(() => {
+        expect(commits).toContain("passive:ready")
+      })
 
-    expect(screen.getByRole("status").textContent).toBe("ready")
-    expect(statuses).toEqual(["loading", "ready"])
+      expect(commits.indexOf("layout:ready")).toBeLessThan(
+        commits.indexOf("microtask")
+      )
+    } finally {
+      root.unmount()
+      Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", actEnvironment)
+    }
   })
 
   it("re-renders a selector only when its result changes", () => {
