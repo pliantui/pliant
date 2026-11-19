@@ -64,7 +64,7 @@ describe("POST /api/pliant", () => {
     expect(await response.json()).toEqual({
       status: "unavailable",
       reason:
-        "This demo only answers its recorded asks. Try: put the overdue card first; hide the average order value card; show the cards in a two-column grid.",
+        "This demo only answers its recorded asks. Try one of the suggestions.",
     })
   })
 })

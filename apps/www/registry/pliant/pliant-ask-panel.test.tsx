@@ -8,7 +8,15 @@ import {
   screen,
   within,
 } from "@testing-library/react"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+  vi,
+} from "vitest"
 
 import {
   PliantRoot,
@@ -17,8 +25,13 @@ import {
   type PliantStore,
   type StorageAdapter,
 } from "@pliantui/react"
+import type { AskContext } from "@pliantui/server"
 
-import { PliantAskPanel, type PliantAskTarget } from "./pliant-ask-panel"
+import {
+  PliantAskPanel,
+  type PliantAskContext,
+  type PliantAskTarget,
+} from "./pliant-ask-panel"
 import { PliantRegion } from "./pliant-region"
 
 const surface = "/dashboard"
@@ -188,8 +201,13 @@ afterEach(() => {
 })
 
 describe("PliantAskPanel", () => {
-  it("labels its controls and focuses the prompt when it opens", async () => {
-    await renderPanel()
+  it("labels its controls and focuses the prompt when opened", async () => {
+    await renderPanel({ defaultOpen: false })
+    const trigger = screen.getByRole("button", { name: "Ask" })
+    expect(trigger.getAttribute("type")).toBe("button")
+
+    fireEvent.click(trigger)
+    await settle()
 
     expect(screen.getByRole("complementary", { name: "Ask" })).toBeTruthy()
     expect(screen.getByRole("combobox", { name: "Change" }).textContent).toBe(
@@ -198,6 +216,17 @@ describe("PliantAskPanel", () => {
     expect(document.activeElement).toBe(prompt())
     expect(prompt().getAttribute("maxlength")).toBe("500")
     expect(prompt().getAttribute("placeholder")).toBe("Describe a change")
+  })
+
+  it("doesn't take focus when it starts open", async () => {
+    await renderPanel()
+
+    expect(screen.getByRole("complementary", { name: "Ask" })).toBeTruthy()
+    expect(document.activeElement).toBe(document.body)
+  })
+
+  it("only sends contexts the server accepts", () => {
+    expectTypeOf<PliantAskContext>().toExtend<AskContext>()
   })
 
   it("falls back to the first target when the default isn't one", async () => {
@@ -320,7 +349,9 @@ describe("PliantAskPanel", () => {
       expect(store?.preview(okAnswer.overlay).success).toBe(true)
     })
 
-    fireEvent.click(screen.getByRole("button", { name: "Ask" }))
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ask (preview active)" })
+    )
     await settle()
 
     expect(status()).toContain("Moved the Overdue card to the first position.")
@@ -335,6 +366,17 @@ describe("PliantAskPanel", () => {
 
     expect(status()).toBe("Which card should go first?")
     expect(order()).toEqual(["revenue", "orders", "overdue"])
+  })
+
+  it("shows an unavailable answer in muted text", async () => {
+    await renderPanel()
+    answer({ status: "unavailable", reason: "No tool can do that." })
+
+    await ask()
+
+    expect(screen.getByText("No tool can do that.").className).toContain(
+      "text-muted-foreground"
+    )
   })
 
   it.each([
@@ -494,6 +536,52 @@ describe("PliantAskPanel", () => {
 
     expect(screen.queryByRole("complementary")).toBeNull()
     expect(document.activeElement).toBe(trigger)
+  })
+
+  it("doesn't close on Escape while an IME is composing", async () => {
+    await renderPanel()
+
+    fireEvent.keyDown(prompt(), { key: "Escape", isComposing: true })
+
+    expect(screen.getByRole("complementary", { name: "Ask" })).toBeTruthy()
+  })
+
+  it("cancels the ask when it closes", async () => {
+    await renderPanel()
+    let signal: AbortSignal | null | undefined
+    fetchMock.mockImplementationOnce((_input, init) => {
+      signal = init?.signal
+      return new Promise(() => undefined)
+    })
+    await ask()
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }))
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }))
+    await settle()
+
+    expect(signal?.aborted).toBe(true)
+    expect(status()).toBe("Cancelled.")
+    expect(screen.getByRole("button", { name: "Send" })).toBeTruthy()
+  })
+
+  it("keeps the preview when it closes and marks the trigger", async () => {
+    await renderPanel()
+    answer(okAnswer)
+    await ask()
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }))
+
+    expect(order()).toEqual(["overdue", "revenue", "orders"])
+    const trigger = screen.getByRole("button", {
+      name: "Ask (preview active)",
+    })
+    expect(trigger.hasAttribute("data-preview")).toBe(true)
+    expect(trigger.getAttribute("data-state")).toBe("closed")
+
+    fireEvent.click(trigger)
+    await settle()
+
+    expect(screen.getByRole("button", { name: "Lock in" })).toBeTruthy()
   })
 
   it("keeps the page outside it usable", async () => {

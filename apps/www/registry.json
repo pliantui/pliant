@@ -50,8 +50,7 @@
           "type": "registry:component",
           "target": "@components/pliant/pliant-ask-panel.tsx"
         }
-      ],
-      "devDependencies": ["@pliantui/server"]
+      ]
     }
   ]
 }

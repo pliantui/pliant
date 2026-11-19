@@ -13,7 +13,6 @@ import {
   usePreview,
   type PliantStore,
 } from "@pliantui/react"
-import type { AskContext } from "@pliantui/server"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -46,17 +45,54 @@ type Op = Extract<
   { success: true }
 >["keptInSession"][number]
 
+type PliantAskCapability =
+  | "label"
+  | "hideable"
+  | "slots"
+  | "layout"
+  | "insertable"
+  | "form"
+  | "presentation"
+  | "nav"
+  | "actions"
+  | "data"
+
 /**
- * A node users can ask about: its address, a label for the picker, and the
- * context the server needs to answer (`askContextSchema` in
- * `@pliantui/server`): its manifest, the items it holds and, for data, the
- * fields it can sort and filter by. Never rows. `suggestions` are asks shown
- * as chips that fill in the prompt.
+ * What the server needs to know about a node, as `askContextSchema` in
+ * `@pliantui/server` checks it: its manifest, the items it holds and, for
+ * data, the fields it can sort by and its current sort. Never rows. A subset
+ * of the server's `AskContext`, kept here so the panel doesn't depend on the
+ * server package (see https://github.com/pliantui/pliant/issues/48).
+ */
+interface PliantAskContext {
+  manifest: {
+    kind: string
+    version: number
+    description: string
+    capabilities: Partial<Record<PliantAskCapability, boolean>>
+  }
+  collection?: {
+    name: "columns" | "slots"
+    items: { id: string; label?: string; hidden?: boolean }[]
+  }
+  fields?: {
+    id: string
+    label?: string
+    type: "text" | "number" | "date" | "boolean" | "enum"
+    values?: string[]
+  }[]
+  sort?: { field: string; dir: "asc" | "desc" }[]
+}
+
+/**
+ * A node users can ask about: its address, a label for the picker, its
+ * context, and optional `suggestions`, asks shown as chips that fill in the
+ * prompt.
  */
 interface PliantAskTarget {
   id: string
   label: string
-  context: AskContext
+  context: PliantAskContext
   suggestions?: readonly string[]
 }
 
@@ -65,6 +101,7 @@ type AskState =
   | { status: "asking" }
   | { status: "clarify"; question: string }
   | { status: "failed"; message: string }
+  | { status: "unavailable"; reason: string }
   | { status: "cancelled" }
   | { status: "discarded" }
   | { status: "locked"; keptInSession: readonly Op[] }
@@ -113,9 +150,15 @@ function sessionNote(ops: readonly Op[]) {
  * is previewed on the page, and nothing is saved until the user locks it in.
  * Use it inside a `PliantRoot`; it sends the root's surface with each ask.
  *
- * The panel is a non-modal complementary region docked to the side (to the
- * bottom on small screens), so the page and its preview stay usable while it
- * is open. Escape closes it while focus is inside it.
+ * The panel is a non-modal complementary region fixed to the right edge (to
+ * the bottom on small screens), so the page and its preview stay usable
+ * while it is open. It covers what is under it, so the app must make room:
+ * the panel has `data-slot="pliant-ask-panel"` while it is open, so a
+ * layout can add padding with, for example,
+ * `sm:has-[[data-slot=pliant-ask-panel]]:pr-96`. Escape closes it while
+ * focus is inside it. Closing it cancels an ask in progress but keeps the
+ * preview, which the trigger then marks with `data-preview`. The prompt is
+ * kept when the target changes, so the same ask can go to another target.
  */
 function PliantAskPanel({
   endpoint,
@@ -150,6 +193,7 @@ function PliantAskPanel({
   const [prompt, setPrompt] = React.useState("")
   const [state, setState] = React.useState<AskState>({ status: "idle" })
   const request = React.useRef<AbortController | null>(null)
+  const focusOnOpen = React.useRef(false)
   const promptRef = React.useRef<HTMLTextAreaElement>(null)
   const triggerRef = React.useRef<HTMLButtonElement>(null)
   const panelRef = React.useRef<HTMLElement>(null)
@@ -164,7 +208,8 @@ function PliantAskPanel({
   )
 
   React.useEffect(() => {
-    if (isOpen) {
+    if (isOpen && focusOnOpen.current) {
+      focusOnOpen.current = false
       promptRef.current?.focus()
     }
   }, [isOpen])
@@ -181,6 +226,11 @@ function PliantAskPanel({
   }
 
   function close() {
+    if (request.current) {
+      request.current.abort()
+      request.current = null
+      setState({ status: "cancelled" })
+    }
     const hadFocus = panelRef.current?.contains(document.activeElement)
     setOpen(false)
     if (hadFocus) {
@@ -225,7 +275,7 @@ function PliantAskPanel({
     } else if (answer.status === "clarify") {
       setState({ status: "clarify", question: answer.question })
     } else if (answer.status === "unavailable") {
-      setState({ status: "failed", message: answer.reason })
+      setState({ status: "unavailable", reason: answer.reason })
     } else {
       setState({ status: "failed", message: answer.message })
     }
@@ -255,6 +305,7 @@ function PliantAskPanel({
   }
 
   const explain = asking ? [] : unique(preview?.explain)
+  const previewing = preview !== null
 
   return (
     <>
@@ -262,18 +313,26 @@ function PliantAskPanel({
         ref={triggerRef}
         aria-expanded={isOpen}
         aria-controls={isOpen ? `${id}-panel` : undefined}
+        data-state={isOpen ? "open" : "closed"}
+        data-preview={previewing ? "" : undefined}
         onClick={() => {
           if (isOpen) {
             close()
           } else {
+            focusOnOpen.current = true
             setOpen(true)
           }
         }}
       >
         {trigger ?? (
-          <Button variant="outline" size="sm">
+          <Button type="button" variant="outline" size="sm">
             <SparklesIcon />
             Ask
+            {previewing && !isOpen && (
+              <span className="size-2 rounded-full bg-primary">
+                <span className="sr-only">(preview active)</span>
+              </span>
+            )}
           </Button>
         )}
       </Slot.Root>
@@ -283,10 +342,12 @@ function PliantAskPanel({
           id={`${id}-panel`}
           aria-labelledby={`${id}-title`}
           data-slot="pliant-ask-panel"
-          className="animate-in slide-in-from-bottom sm:slide-in-from-right fixed inset-x-0 bottom-0 z-50 flex max-h-[60dvh] flex-col gap-4 overflow-y-auto border-t bg-background shadow-lg sm:inset-y-0 sm:right-0 sm:left-auto sm:max-h-none sm:w-full sm:max-w-sm sm:border-t-0 sm:border-l"
+          data-state="open"
+          className="animate-in slide-in-from-bottom sm:slide-in-from-right fixed inset-x-0 bottom-0 z-50 flex max-h-[60dvh] flex-col overflow-y-auto border-t bg-background shadow-lg sm:inset-y-0 sm:right-0 sm:left-auto sm:max-h-none sm:w-full sm:max-w-sm sm:border-t-0 sm:border-l"
           onKeyDown={(event) => {
             if (
               event.key === "Escape" &&
+              !event.nativeEvent.isComposing &&
               event.target instanceof Node &&
               event.currentTarget.contains(event.target)
             ) {
@@ -317,7 +378,7 @@ function PliantAskPanel({
             </Button>
           </div>
           <form
-            className="flex flex-col gap-4 px-4"
+            className="flex flex-col gap-4 p-4"
             onSubmit={(event) => {
               event.preventDefault()
               void ask()
@@ -327,7 +388,10 @@ function PliantAskPanel({
               <Label htmlFor={`${id}-target`}>Change</Label>
               <Select
                 value={target?.id ?? ""}
-                onValueChange={setTargetId}
+                onValueChange={(next) => {
+                  setTargetId(next)
+                  setState({ status: "idle" })
+                }}
                 disabled={asking}
               >
                 <SelectTrigger id={`${id}-target`} className="w-full">
@@ -374,30 +438,6 @@ function PliantAskPanel({
                 Enter to send, Shift+Enter for a new line.
               </p>
             </div>
-            {target?.suggestions && target.suggestions.length > 0 && (
-              <div
-                role="group"
-                aria-label="Suggestions"
-                className="flex flex-wrap gap-2"
-              >
-                {target.suggestions.map((suggestion) => (
-                  <Button
-                    key={suggestion}
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="h-auto py-1 text-left whitespace-normal"
-                    disabled={asking}
-                    onClick={() => {
-                      setPrompt(suggestion)
-                      promptRef.current?.focus()
-                    }}
-                  >
-                    {suggestion}
-                  </Button>
-                ))}
-              </div>
-            )}
             <div className="flex justify-end gap-2">
               {asking && (
                 <Button type="button" variant="outline" onClick={cancel}>
@@ -410,7 +450,14 @@ function PliantAskPanel({
               </Button>
             </div>
           </form>
-          <div className="flex flex-col gap-3 px-4 pb-4">
+          {/* Sticky, so an answer shows without scrolling the docked panel. */}
+          <div
+            className={cn(
+              "sticky bottom-0 flex flex-col gap-3 bg-background px-4",
+              (asking || state.status !== "idle" || previewing) &&
+                "border-y py-4"
+            )}
+          >
             <div
               role="status"
               aria-live="polite"
@@ -424,6 +471,9 @@ function PliantAskPanel({
                 </>
               )}
               {!asking && state.status === "clarify" && <p>{state.question}</p>}
+              {!asking && state.status === "unavailable" && (
+                <p className="text-muted-foreground">{state.reason}</p>
+              )}
               {!asking && state.status === "failed" && (
                 <p className="text-destructive">{state.message}</p>
               )}
@@ -455,7 +505,7 @@ function PliantAskPanel({
                 </div>
               )}
             </div>
-            {preview && !asking && (
+            {previewing && !asking && (
               <div className="flex gap-2">
                 <Button type="button" onClick={lockIn}>
                   Lock in
@@ -466,10 +516,34 @@ function PliantAskPanel({
               </div>
             )}
           </div>
+          {target?.suggestions && target.suggestions.length > 0 && (
+            <div
+              role="group"
+              aria-label="Suggestions"
+              className="flex flex-wrap gap-2 p-4"
+            >
+              {target.suggestions.map((suggestion) => (
+                <Button
+                  key={suggestion}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-auto py-1 text-left whitespace-normal"
+                  disabled={asking}
+                  onClick={() => {
+                    setPrompt(suggestion)
+                    promptRef.current?.focus()
+                  }}
+                >
+                  {suggestion}
+                </Button>
+              ))}
+            </div>
+          )}
         </aside>
       )}
     </>
   )
 }
 
-export { PliantAskPanel, type PliantAskTarget }
+export { PliantAskPanel, type PliantAskContext, type PliantAskTarget }

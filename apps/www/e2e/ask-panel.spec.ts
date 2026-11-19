@@ -78,28 +78,69 @@ test("drops the preview on Discard", async ({ page, errors }) => {
   expect(errors).toEqual([])
 })
 
-test("asks a suggestion about the orders table", async ({ page, errors }) => {
+test("asks a suggestion", async ({ page, errors }) => {
   const panel = await openPanel(page)
-  await panel.getByRole("combobox", { name: "Change" }).click()
-  await page.getByRole("option", { name: "Orders table" }).click()
   await panel
     .getByRole("group", { name: "Suggestions" })
-    .getByRole("button", { name: "make it nicer" })
+    .getByRole("button", { name: "hide the average order value card" })
     .click()
   await expect(panel.getByRole("textbox", { name: "Ask" })).toBeFocused()
   await page.keyboard.press("Enter")
 
   await expect(panel.getByRole("status")).toContainText(
-    "What would make the orders table nicer for you"
+    "Hid the Average order value card"
   )
   expect(errors).toEqual([])
 })
+
+test("closes the target picker, not the panel, on Escape", async ({
+  page,
+  errors,
+}) => {
+  const panel = await openPanel(page)
+  await panel.getByRole("combobox", { name: "Change" }).click()
+  await expect(page.getByRole("listbox")).toBeVisible()
+
+  await page.keyboard.press("Escape")
+
+  await expect(page.getByRole("listbox")).toBeHidden()
+  await expect(panel).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+for (const width of [1024, 1440]) {
+  test(`leaves its trigger and the cards uncovered at ${String(width)}px`, async ({
+    page,
+    errors,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await askAboutKeyMetrics(
+      page,
+      "put the overdue card first",
+      "Moved the Overdue card to the first position."
+    )
+
+    for (const locator of [
+      page.getByRole("button", { name: "Ask" }),
+      ...(await region(page).getByRole("group").all()),
+    ]) {
+      expect(
+        await locator.evaluate((element) => {
+          const { x, y, width, height } = element.getBoundingClientRect()
+          const hit = document.elementFromPoint(x + width / 2, y + height / 2)
+          return hit !== null && element.contains(hit)
+        })
+      ).toBe(true)
+    }
+    expect(errors).toEqual([])
+  })
+}
 
 test("lists the recorded asks for any other ask", async ({ page, errors }) => {
   const panel = await askAboutKeyMetrics(
     page,
     "Put the overdue card first",
-    "This demo only answers its recorded asks. Try: put the overdue card first;"
+    "This demo only answers its recorded asks. Try one of the suggestions."
   )
 
   await expect(panel.getByRole("button", { name: "Lock in" })).toBeHidden()
@@ -153,8 +194,11 @@ test("doesn't trap focus or take Escape from the page", async ({
   await trigger.focus()
   await page.keyboard.press("Tab")
   await expect(panel.getByRole("button", { name: "Close" })).toBeFocused()
-  await panel.getByRole("textbox", { name: "Ask" }).fill("hide the notes")
-  await panel.getByRole("button", { name: "Send" }).focus()
+  await panel
+    .getByRole("group", { name: "Suggestions" })
+    .getByRole("button")
+    .last()
+    .focus()
   await page.keyboard.press("Tab")
   await expect(panel.getByRole("button", { name: "Close" })).not.toBeFocused()
   expect(
@@ -177,11 +221,13 @@ test("docks to the bottom on small screens, keeping the cards in view", async ({
   errors,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await askAboutKeyMetrics(
+  const asked = await askAboutKeyMetrics(
     page,
     "put the overdue card first",
     "Moved the Overdue card to the first position."
   )
+  await expect(asked.getByRole("status")).toBeInViewport({ ratio: 1 })
+  await expect(asked.getByRole("button", { name: "Lock in" })).toBeInViewport()
 
   const panel = await page
     .getByRole("complementary", { name: "Ask" })
