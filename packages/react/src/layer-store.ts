@@ -158,6 +158,8 @@ export interface LayerStore {
   readonly setOnError: (onError: ((error: unknown) => void) | undefined) => void
   readonly connect: () => () => void
   readonly flush: () => void
+  /** Reports an error to `onError`, or `console.error` without one. */
+  readonly report: (error: unknown) => void
 }
 
 export const loadingStatus: PliantStatus = { status: "loading" }
@@ -934,5 +936,6 @@ export function createLayerStore({
     },
     connect,
     flush,
+    report,
   }
 }
