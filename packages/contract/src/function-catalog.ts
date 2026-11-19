@@ -6,6 +6,18 @@ interface SameAs {
   readonly like: string
 }
 
+type Returns =
+  | ValueType
+  | SameAs
+  | {
+      /** The unified type of these arguments, which needn't share a group. */
+      readonly join: readonly string[]
+    }
+  | {
+      /** `integer` when this constant argument is 0, otherwise `number`. */
+      readonly integerWhenZero: string
+    }
+
 interface FunctionArg {
   readonly name: string
   /**
@@ -40,14 +52,11 @@ export interface FunctionDefinition {
    */
   readonly kind: "row" | "aggregate" | "window"
   readonly args: readonly FunctionArg[]
-  readonly returns: ValueType | SameAs
+  readonly returns: Returns
   /**
-   * The unit of a number result. `none` has no unit, `percent` is a fraction
-   * shown as a percentage, and `like` takes the unit of an argument's group.
-   * `product` takes the unit of the one argument that has one, and fails type
-   * checking when both do. `quotient` takes the dividend's unit when the
-   * divisor has none, has no unit when both have the same one, and fails type
-   * checking otherwise. Percent counts as no unit in products and quotients.
+   * The unit of a number result: `none`, `percent` (a fraction shown as a
+   * percentage), `like` (the unit of an argument's group), or the unit rules
+   * of multiplication (`product`) and division (`quotient`).
    */
   readonly unit: "none" | "percent" | "product" | "quotient" | SameAs
   /**
@@ -66,28 +75,40 @@ export interface FunctionDefinition {
   readonly describe: string
 }
 
-type Definition = Omit<FunctionDefinition, "kind" | "nulls" | "mergeable">
+type Definition = Pick<
+  FunctionDefinition,
+  "args" | "returns" | "unit" | "describe"
+>
 
 const comparable = ["number", "string", "date", "datetime"] as const
 const anyType = ["number", "string", "boolean", "date", "datetime"] as const
 const dates = ["date", "datetime"] as const
 
+function define(
+  kind: FunctionDefinition["kind"],
+  { args, returns, unit, describe }: Definition,
+  nulls: FunctionDefinition["nulls"],
+  mergeable: FunctionDefinition["mergeable"]
+): FunctionDefinition {
+  return { kind, args, returns, unit, nulls, mergeable, describe }
+}
+
 function rowFunction(
   definition: Definition,
   nulls: "propagate" | "custom" = "propagate"
 ): FunctionDefinition {
-  return { kind: "row", nulls, mergeable: null, ...definition }
+  return define("row", definition, nulls, null)
 }
 
 function aggregate(
   definition: Definition,
   mergeable: readonly Summary[] | null
 ): FunctionDefinition {
-  return { kind: "aggregate", nulls: "skip", mergeable, ...definition }
+  return define("aggregate", definition, "skip", mergeable)
 }
 
 function windowFunction(definition: Definition): FunctionDefinition {
-  return { kind: "window", nulls: "skip", mergeable: null, ...definition }
+  return define("window", definition, "skip", null)
 }
 
 function comparison(describe: string): FunctionDefinition {
@@ -149,9 +170,9 @@ function ranking(describe: string): FunctionDefinition {
       {
         name: "order",
         type: "string",
-        values: ["desc", "asc"],
         optional: true,
         default: "desc",
+        values: ["desc", "asc"],
       },
     ],
     returns: "integer",
@@ -184,7 +205,7 @@ const builtins = {
       { name: "a", type: "number" },
       { name: "b", type: "number" },
     ],
-    returns: "number",
+    returns: { join: ["a", "b"] },
     unit: "product",
     describe: "a times b.",
   }),
@@ -215,7 +236,7 @@ const builtins = {
         range: [0, 10],
       },
     ],
-    returns: "number",
+    returns: { integerWhenZero: "digits" },
     unit: { like: "x" },
     describe:
       "x rounded to digits decimal places, halves away from zero, applied to the shortest decimal that represents x, so round(1.005, 2) is 1.01.",
@@ -450,7 +471,7 @@ const builtins = {
     returns: "integer",
     unit: "none",
     describe:
-      "The whole units from the date of start to the date of end, negative when end is earlier. Weeks are 7 days, truncated toward zero. Months count the largest n for which start moved by n months, clamped to the month's last day, doesn't pass end (Jan 31 to Feb 28 is 1); years are those months divided by 12, truncated toward zero.",
+      "The whole units from the date of start to the date of end. Days are calendar days, and weeks are days divided by 7, truncated toward zero. Months are the largest n for which start moved n months, clamped to the month's last day, doesn't pass end (Jan 31 to Feb 28 is 1), and years are months divided by 12, truncated toward zero. When end is before start, the result is minus dateDiff(end, start, unit).",
   }),
   datePart: rowFunction({
     args: [
@@ -602,7 +623,7 @@ const builtins = {
     null
   ),
   mode: pick(
-    "The most frequent value of x; on a tie, the smallest. Null when there are no values."
+    "The most frequent value of x; on a tie, the smallest, with false before true. Null when there are no values."
   ),
   distinctCount: aggregate(
     {
@@ -650,20 +671,23 @@ const builtins = {
 
 export type FunctionName = keyof typeof builtins
 
-export const functionCatalog: Readonly<
-  Record<FunctionName, FunctionDefinition>
-> = builtins
-
-/** Rules that hold for every function, published with the catalog. */
-export const functionRules = [
-  "Numbers are IEEE 754 doubles, currency included. An integer is a number without a fractional part and is accepted wherever a number is. A number literal is an integer when it has no fractional part.",
-  "A NaN or infinite value, read or computed, is null.",
-  "Strings compare and sort by Unicode code point, case included. Lengths and positions count code points.",
-  "Dates and datetimes are read in the dataset's time zone. A date compared with a datetime is the start of that day there.",
-  "Arguments joined by like form a group. Their types unify: integer with number gives number, date with datetime gives datetime, and a null literal fits any type. Their units must match, and a value without a unit fits any unit.",
-  "A string literal fits a date as YYYY-MM-DD and a datetime as an ISO 8601 date-time with seconds and a Z or ±hh:mm offset. The type checker rejects any other string there.",
-  "A number's unit is its field's currency, its format's unit, or percent for a percent field. Other numbers and literals have none.",
-  "Arguments of aggregate and window functions are row expressions: they can't contain aggregate or window functions. Row functions can combine aggregates, as in div(sum(a), sum(b)).",
-  "A window function's partition is the row's group when the table is grouped, otherwise every row after filters. Display order is the table's current sort, then the order rows arrive in.",
-  "Every implementation, SQL included, must give these results exactly, even where its own functions differ.",
-]
+export const functionCatalog: {
+  /** Rules that hold for every function. */
+  readonly rules: readonly string[]
+  readonly functions: Readonly<Record<FunctionName, FunctionDefinition>>
+} = {
+  rules: [
+    "Numbers are IEEE 754 doubles, currency included. An integer is a number without a fractional part and is accepted wherever a number is. A number literal without a fractional part is an integer.",
+    "A NaN or infinite value, read or computed, is null.",
+    "Strings compare and sort by Unicode code point, case included. Lengths and positions count code points.",
+    "Dates and datetimes are read in the dataset's time zone, and datetimes have millisecond precision. A date compared with a datetime is the start of that day there.",
+    "Arguments joined by like form a group. Their types unify: integer with number gives number, date with datetime gives datetime, and a null literal fits any type. Their units must match, and a value without a unit fits any unit.",
+    "A string literal fits a date as YYYY-MM-DD and a datetime as an ISO 8601 date-time with seconds, optional milliseconds, and a Z or ±hh:mm offset. The type checker rejects any other string there.",
+    "A number's unit comes only from its dataset field: its currency, percent for a percent field, or a unit the developer declares on the field. Formats never change units. Other numbers and literals have none.",
+    "In a product, a factor without a unit takes the other factor's unit, a percent of a unit is that unit (a percent of a price is a price), a percent of a percent is a percent, and two other units fail type checking. In a quotient, dividing by the dividend's own unit, percent included, gives no unit; dividing by a number without a unit or by a percent keeps the dividend's unit; any other divisor with a unit fails type checking.",
+    "Arguments of aggregate and window functions are row expressions: they can't contain aggregate or window functions. Row functions can combine aggregates, as in div(sum(a), sum(b)).",
+    "A window function's partition is the row's group when the table is grouped, otherwise every row after filters. Display order is the table's current sort, with ties and an unsorted table in the order of the dataset's row key.",
+    "Implementations must give these results exactly, except that a floating-point result of an aggregate or window function may differ from the exact result by at most 1e-9 × S. S is the sum of |x| for sum, sumIf, runningSum and share's total; the largest |x| for mean, median, percentile and zScore's mean; and its square for variance and variancePop. Standard deviations may differ by the square root of their variance's allowance. An implementation that can't meet this for a function mustn't compile it, so the function covers loaded rows only.",
+  ],
+  functions: builtins,
+}

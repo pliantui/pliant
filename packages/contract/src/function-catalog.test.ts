@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import {
-  functionCatalog,
-  functionRules,
-  type FunctionDefinition,
-} from "./function-catalog"
+import { functionCatalog, type FunctionDefinition } from "./function-catalog"
 import { functionNameSchema } from "./identifier"
 
 type Arg = FunctionDefinition["args"][number]
@@ -90,19 +86,40 @@ function problems({ args, returns, unit }: FunctionDefinition): string[] {
   if (args.some((arg) => arg.variadic) && args.some((arg) => arg.optional)) {
     found.push("has both optional and variadic arguments")
   }
+  let returnsNumber = returns === "number"
   if (typeof returns === "object") {
-    refersBack(returns.like, "returns")
+    if ("like" in returns) {
+      refersBack(returns.like, "returns")
+    } else if ("join" in returns) {
+      returnsNumber = true
+      for (const name of returns.join) {
+        const arg = args.find((candidate) => candidate.name === name)
+        if (!arg || arg.variadic || !isNumeric(arg.type)) {
+          found.push(`returns joins ${name}, which isn't a fixed number`)
+        }
+      }
+    } else {
+      returnsNumber = true
+      const arg = args.find(
+        (candidate) => candidate.name === returns.integerWhenZero
+      )
+      if (!arg?.constant || !isNumeric(arg.type)) {
+        found.push(
+          `returns depends on ${returns.integerWhenZero}, which isn't a constant number`
+        )
+      }
+    }
   }
   if (typeof unit === "object") {
     refersBack(unit.like, "unit")
-  } else if (unit !== "none" && returns !== "number") {
+  } else if (unit !== "none" && !returnsNumber) {
     found.push(`has a ${unit} unit but doesn't return a number`)
   }
   return found
 }
 
 describe("functionCatalog", () => {
-  it.each(Object.entries(functionCatalog))(
+  it.each(Object.entries(functionCatalog.functions))(
     "%s is well-formed",
     (name, definition) => {
       expect(functionNameSchema.safeParse(name).success).toBe(true)
@@ -128,6 +145,29 @@ describe("functionCatalog", () => {
       }
     }
   )
+
+  it("reports returns that depend on the wrong arguments", () => {
+    const args = [
+      { name: "a", type: "string" },
+      { name: "b", type: "number", variadic: true },
+    ] as const
+    const base = {
+      kind: "row",
+      args,
+      unit: "none",
+      nulls: "propagate",
+      mergeable: null,
+      describe: "Broken.",
+    } as const
+    expect(problems({ ...base, returns: { join: ["a", "b", "c"] } })).toEqual([
+      "returns joins a, which isn't a fixed number",
+      "returns joins b, which isn't a fixed number",
+      "returns joins c, which isn't a fixed number",
+    ])
+    expect(problems({ ...base, returns: { integerWhenZero: "b" } })).toEqual([
+      "returns depends on b, which isn't a constant number",
+    ])
+  })
 
   it("reports every problem in a malformed definition", () => {
     expect(
@@ -164,10 +204,39 @@ describe("functionCatalog", () => {
     ])
   })
 
+  it("states every rule as sentences", () => {
+    for (const rule of functionCatalog.rules) {
+      expect(rule).toMatch(/^\S.*\.$/)
+    }
+  })
+
   it("matches the published file", async () => {
+    const functions = Object.fromEntries(
+      Object.entries(functionCatalog.functions).map(([name, definition]) => [
+        name,
+        {
+          kind: definition.kind,
+          args: definition.args.map((arg) => ({
+            name: arg.name,
+            type: arg.type,
+            optional: arg.optional,
+            default: arg.default,
+            variadic: arg.variadic,
+            constant: arg.constant,
+            range: arg.range,
+            values: arg.values,
+          })),
+          returns: definition.returns,
+          unit: definition.unit,
+          nulls: definition.nulls,
+          mergeable: definition.mergeable,
+          describe: definition.describe,
+        },
+      ])
+    )
     await expect(
       `${JSON.stringify(
-        { contract: 1, rules: functionRules, functions: functionCatalog },
+        { contract: 1, rules: functionCatalog.rules, functions },
         null,
         2
       )}\n`

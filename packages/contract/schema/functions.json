@@ -1,22 +1,21 @@
 {
   "contract": 1,
   "rules": [
-    "Numbers are IEEE 754 doubles, currency included. An integer is a number without a fractional part and is accepted wherever a number is. A number literal is an integer when it has no fractional part.",
+    "Numbers are IEEE 754 doubles, currency included. An integer is a number without a fractional part and is accepted wherever a number is. A number literal without a fractional part is an integer.",
     "A NaN or infinite value, read or computed, is null.",
     "Strings compare and sort by Unicode code point, case included. Lengths and positions count code points.",
-    "Dates and datetimes are read in the dataset's time zone. A date compared with a datetime is the start of that day there.",
+    "Dates and datetimes are read in the dataset's time zone, and datetimes have millisecond precision. A date compared with a datetime is the start of that day there.",
     "Arguments joined by like form a group. Their types unify: integer with number gives number, date with datetime gives datetime, and a null literal fits any type. Their units must match, and a value without a unit fits any unit.",
-    "A string literal fits a date as YYYY-MM-DD and a datetime as an ISO 8601 date-time with seconds and a Z or ±hh:mm offset. The type checker rejects any other string there.",
-    "A number's unit is its field's currency, its format's unit, or percent for a percent field. Other numbers and literals have none.",
+    "A string literal fits a date as YYYY-MM-DD and a datetime as an ISO 8601 date-time with seconds, optional milliseconds, and a Z or ±hh:mm offset. The type checker rejects any other string there.",
+    "A number's unit comes only from its dataset field: its currency, percent for a percent field, or a unit the developer declares on the field. Formats never change units. Other numbers and literals have none.",
+    "In a product, a factor without a unit takes the other factor's unit, a percent of a unit is that unit (a percent of a price is a price), a percent of a percent is a percent, and two other units fail type checking. In a quotient, dividing by the dividend's own unit, percent included, gives no unit; dividing by a number without a unit or by a percent keeps the dividend's unit; any other divisor with a unit fails type checking.",
     "Arguments of aggregate and window functions are row expressions: they can't contain aggregate or window functions. Row functions can combine aggregates, as in div(sum(a), sum(b)).",
-    "A window function's partition is the row's group when the table is grouped, otherwise every row after filters. Display order is the table's current sort, then the order rows arrive in.",
-    "Every implementation, SQL included, must give these results exactly, even where its own functions differ."
+    "A window function's partition is the row's group when the table is grouped, otherwise every row after filters. Display order is the table's current sort, with ties and an unsorted table in the order of the dataset's row key.",
+    "Implementations must give these results exactly, except that a floating-point result of an aggregate or window function may differ from the exact result by at most 1e-9 × S. S is the sum of |x| for sum, sumIf, runningSum and share's total; the largest |x| for mean, median, percentile and zScore's mean; and its square for variance and variancePop. Standard deviations may differ by the square root of their variance's allowance. An implementation that can't meet this for a function mustn't compile it, so the function covers loaded rows only."
   ],
   "functions": {
     "add": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -35,12 +34,12 @@
       "unit": {
         "like": "a"
       },
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "a plus b."
     },
     "sub": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -59,12 +58,12 @@
       "unit": {
         "like": "a"
       },
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "a minus b."
     },
     "mul": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -75,14 +74,19 @@
           "type": "number"
         }
       ],
-      "returns": "number",
+      "returns": {
+        "join": [
+          "a",
+          "b"
+        ]
+      },
       "unit": "product",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "a times b."
     },
     "div": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -95,12 +99,12 @@
       ],
       "returns": "number",
       "unit": "quotient",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "a divided by b, or null when b is 0."
     },
     "abs": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -113,12 +117,12 @@
       "unit": {
         "like": "x"
       },
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "The absolute value of x."
     },
     "round": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -136,16 +140,18 @@
           ]
         }
       ],
-      "returns": "number",
+      "returns": {
+        "integerWhenZero": "digits"
+      },
       "unit": {
         "like": "x"
       },
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "x rounded to digits decimal places, halves away from zero, applied to the shortest decimal that represents x, so round(1.005, 2) is 1.01."
     },
     "floor": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -156,12 +162,12 @@
       "unit": {
         "like": "x"
       },
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "The largest integer not greater than x."
     },
     "ceil": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -172,12 +178,12 @@
       "unit": {
         "like": "x"
       },
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "The smallest integer not less than x."
     },
     "min2": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -201,12 +207,12 @@
       "unit": {
         "like": "a"
       },
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "The smaller of a and b, or null when either is null."
     },
     "max2": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -230,12 +236,12 @@
       "unit": {
         "like": "a"
       },
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "The larger of a and b, or null when either is null."
     },
     "clamp": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -260,12 +266,12 @@
       "unit": {
         "like": "x"
       },
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "x limited to the range from low to high, or null when low is greater than high."
     },
     "percentChange": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "from",
@@ -280,12 +286,12 @@
       ],
       "returns": "number",
       "unit": "percent",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "(to - from) divided by the absolute value of from, so a rise is positive even from a negative base. Null when from is 0."
     },
     "if": {
       "kind": "row",
-      "nulls": "custom",
-      "mergeable": null,
       "args": [
         {
           "name": "condition",
@@ -314,12 +320,12 @@
       "unit": {
         "like": "then"
       },
+      "nulls": "custom",
+      "mergeable": null,
       "describe": "then when condition is true, otherwise else. A null condition picks else."
     },
     "and": {
       "kind": "row",
-      "nulls": "custom",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -333,12 +339,12 @@
       ],
       "returns": "boolean",
       "unit": "none",
+      "nulls": "custom",
+      "mergeable": null,
       "describe": "True when every argument is true. False when any is false, even if others are null; otherwise null."
     },
     "or": {
       "kind": "row",
-      "nulls": "custom",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -352,12 +358,12 @@
       ],
       "returns": "boolean",
       "unit": "none",
+      "nulls": "custom",
+      "mergeable": null,
       "describe": "True when any argument is true, even if others are null. False when every one is false; otherwise null."
     },
     "not": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -366,12 +372,12 @@
       ],
       "returns": "boolean",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "True when x is false, false when x is true."
     },
     "eq": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -392,12 +398,12 @@
       ],
       "returns": "boolean",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "True when a equals b."
     },
     "neq": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -418,12 +424,12 @@
       ],
       "returns": "boolean",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "True when a doesn't equal b."
     },
     "gt": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -443,12 +449,12 @@
       ],
       "returns": "boolean",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "True when a is greater than b."
     },
     "gte": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -468,12 +474,12 @@
       ],
       "returns": "boolean",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "True when a is greater than or equal to b."
     },
     "lt": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -493,12 +499,12 @@
       ],
       "returns": "boolean",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "True when a is less than b."
     },
     "lte": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -518,12 +524,12 @@
       ],
       "returns": "boolean",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "True when a is less than or equal to b."
     },
     "between": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -549,12 +555,12 @@
       ],
       "returns": "boolean",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "True when x is from low to high, both included. False when low is greater than high."
     },
     "in": {
       "kind": "row",
-      "nulls": "custom",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -576,12 +582,12 @@
       ],
       "returns": "boolean",
       "unit": "none",
+      "nulls": "custom",
+      "mergeable": null,
       "describe": "True when x equals one of values, otherwise false. Null when x is null; null values never match. Takes at most 15 values, by the 16-argument limit."
     },
     "isNull": {
       "kind": "row",
-      "nulls": "custom",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -596,12 +602,12 @@
       ],
       "returns": "boolean",
       "unit": "none",
+      "nulls": "custom",
+      "mergeable": null,
       "describe": "True when x is null, otherwise false."
     },
     "coalesce": {
       "kind": "row",
-      "nulls": "custom",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -627,12 +633,12 @@
       "unit": {
         "like": "x"
       },
+      "nulls": "custom",
+      "mergeable": null,
       "describe": "The first argument that isn't null, or null when all are."
     },
     "concat": {
       "kind": "row",
-      "nulls": "custom",
-      "mergeable": null,
       "args": [
         {
           "name": "a",
@@ -646,12 +652,12 @@
       ],
       "returns": "string",
       "unit": "none",
+      "nulls": "custom",
+      "mergeable": null,
       "describe": "The arguments joined into one string, with null arguments as empty strings. Never null."
     },
     "lower": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "text",
@@ -660,12 +666,12 @@
       ],
       "returns": "string",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "text in lowercase, by Unicode's default case mapping."
     },
     "upper": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "text",
@@ -674,12 +680,12 @@
       ],
       "returns": "string",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "text in uppercase, by Unicode's default case mapping."
     },
     "length": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "text",
@@ -688,12 +694,12 @@
       ],
       "returns": "integer",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "The number of code points in text."
     },
     "contains": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "text",
@@ -706,12 +712,12 @@
       ],
       "returns": "boolean",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "True when search occurs in text."
     },
     "startsWith": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "text",
@@ -724,12 +730,12 @@
       ],
       "returns": "boolean",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "True when text starts with search."
     },
     "left": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "text",
@@ -742,12 +748,12 @@
       ],
       "returns": "string",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "The first count code points of text: all of it when count is longer, and an empty string when count is 0 or less."
     },
     "right": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "text",
@@ -760,12 +766,12 @@
       ],
       "returns": "string",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "The last count code points of text: all of it when count is longer, and an empty string when count is 0 or less."
     },
     "dateDiff": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "start",
@@ -794,12 +800,12 @@
       ],
       "returns": "integer",
       "unit": "none",
-      "describe": "The whole units from the date of start to the date of end, negative when end is earlier. Weeks are 7 days, truncated toward zero. Months count the largest n for which start moved by n months, clamped to the month's last day, doesn't pass end (Jan 31 to Feb 28 is 1); years are those months divided by 12, truncated toward zero."
+      "nulls": "propagate",
+      "mergeable": null,
+      "describe": "The whole units from the date of start to the date of end. Days are calendar days, and weeks are days divided by 7, truncated toward zero. Months are the largest n for which start moved n months, clamped to the month's last day, doesn't pass end (Jan 31 to Feb 28 is 1), and years are months divided by 12, truncated toward zero. When end is before start, the result is minus dateDiff(end, start, unit)."
     },
     "datePart": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "date",
@@ -823,12 +829,12 @@
       ],
       "returns": "integer",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "One part of the date: the calendar year, quarter (1 to 4), month (1 to 12), ISO 8601 week number (1 to 53, so Dec 31, 2024 is in week 1 while its year is 2024), weekday (1 for Monday to 7 for Sunday) or day of the month."
     },
     "dateTrunc": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "date",
@@ -851,12 +857,12 @@
       ],
       "returns": "date",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "The first day of the unit that contains the date. Weeks start on Monday."
     },
     "addDays": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "date",
@@ -874,21 +880,21 @@
         "like": "date"
       },
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "date moved by days calendar days, keeping the wall-clock time of a datetime."
     },
     "today": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [],
       "returns": "date",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "The current date in the time zone of the layer that defines the expression: the dataset's for org and team, the viewer's for personal and session."
     },
     "age": {
       "kind": "row",
-      "nulls": "propagate",
-      "mergeable": null,
       "args": [
         {
           "name": "date",
@@ -900,14 +906,12 @@
       ],
       "returns": "integer",
       "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
       "describe": "dateDiff(date, today(), years)."
     },
     "count": {
       "kind": "aggregate",
-      "nulls": "skip",
-      "mergeable": [
-        "count"
-      ],
       "args": [
         {
           "name": "x",
@@ -923,14 +927,14 @@
       ],
       "returns": "integer",
       "unit": "none",
-      "describe": "count(x) is the number of rows where x isn't null; count() is the number of rows."
-    },
-    "countIf": {
-      "kind": "aggregate",
       "nulls": "skip",
       "mergeable": [
         "count"
       ],
+      "describe": "count(x) is the number of rows where x isn't null; count() is the number of rows."
+    },
+    "countIf": {
+      "kind": "aggregate",
       "args": [
         {
           "name": "condition",
@@ -939,14 +943,14 @@
       ],
       "returns": "integer",
       "unit": "none",
+      "nulls": "skip",
+      "mergeable": [
+        "count"
+      ],
       "describe": "The number of rows where condition is true."
     },
     "sum": {
       "kind": "aggregate",
-      "nulls": "skip",
-      "mergeable": [
-        "sum"
-      ],
       "args": [
         {
           "name": "x",
@@ -959,14 +963,14 @@
       "unit": {
         "like": "x"
       },
-      "describe": "The sum of x, or 0 when there are no values."
-    },
-    "sumIf": {
-      "kind": "aggregate",
       "nulls": "skip",
       "mergeable": [
         "sum"
       ],
+      "describe": "The sum of x, or 0 when there are no values."
+    },
+    "sumIf": {
+      "kind": "aggregate",
       "args": [
         {
           "name": "x",
@@ -983,58 +987,58 @@
       "unit": {
         "like": "x"
       },
+      "nulls": "skip",
+      "mergeable": [
+        "sum"
+      ],
       "describe": "The sum of x over rows where condition is true, or 0 when there are none."
     },
     "mean": {
       "kind": "aggregate",
+      "args": [
+        {
+          "name": "x",
+          "type": "number"
+        }
+      ],
+      "returns": "number",
+      "unit": {
+        "like": "x"
+      },
       "nulls": "skip",
       "mergeable": [
         "count",
         "mean"
       ],
-      "args": [
-        {
-          "name": "x",
-          "type": "number"
-        }
-      ],
-      "returns": "number",
-      "unit": {
-        "like": "x"
-      },
       "describe": "The arithmetic mean of x, or null when there are no values."
     },
     "min": {
       "kind": "aggregate",
+      "args": [
+        {
+          "name": "x",
+          "type": [
+            "number",
+            "string",
+            "date",
+            "datetime"
+          ]
+        }
+      ],
+      "returns": {
+        "like": "x"
+      },
+      "unit": {
+        "like": "x"
+      },
       "nulls": "skip",
       "mergeable": [
         "min"
       ],
-      "args": [
-        {
-          "name": "x",
-          "type": [
-            "number",
-            "string",
-            "date",
-            "datetime"
-          ]
-        }
-      ],
-      "returns": {
-        "like": "x"
-      },
-      "unit": {
-        "like": "x"
-      },
       "describe": "The smallest value of x, or null when there are no values."
     },
     "max": {
       "kind": "aggregate",
-      "nulls": "skip",
-      "mergeable": [
-        "max"
-      ],
       "args": [
         {
           "name": "x",
@@ -1052,16 +1056,14 @@
       "unit": {
         "like": "x"
       },
+      "nulls": "skip",
+      "mergeable": [
+        "max"
+      ],
       "describe": "The largest value of x, or null when there are no values."
     },
     "variance": {
       "kind": "aggregate",
-      "nulls": "skip",
-      "mergeable": [
-        "count",
-        "mean",
-        "m2"
-      ],
       "args": [
         {
           "name": "x",
@@ -1070,16 +1072,16 @@
       ],
       "returns": "number",
       "unit": "none",
+      "nulls": "skip",
+      "mergeable": [
+        "count",
+        "mean",
+        "m2"
+      ],
       "describe": "The sample variance of x (dividing by n - 1), or null with fewer than 2 values."
     },
     "stddev": {
       "kind": "aggregate",
-      "nulls": "skip",
-      "mergeable": [
-        "count",
-        "mean",
-        "m2"
-      ],
       "args": [
         {
           "name": "x",
@@ -1090,16 +1092,16 @@
       "unit": {
         "like": "x"
       },
-      "describe": "The sample standard deviation of x (dividing by n - 1), or null with fewer than 2 values."
-    },
-    "variancePop": {
-      "kind": "aggregate",
       "nulls": "skip",
       "mergeable": [
         "count",
         "mean",
         "m2"
       ],
+      "describe": "The sample standard deviation of x (dividing by n - 1), or null with fewer than 2 values."
+    },
+    "variancePop": {
+      "kind": "aggregate",
       "args": [
         {
           "name": "x",
@@ -1108,16 +1110,16 @@
       ],
       "returns": "number",
       "unit": "none",
-      "describe": "The population variance of x (dividing by n), or null when there are no values."
-    },
-    "stddevPop": {
-      "kind": "aggregate",
       "nulls": "skip",
       "mergeable": [
         "count",
         "mean",
         "m2"
       ],
+      "describe": "The population variance of x (dividing by n), or null when there are no values."
+    },
+    "stddevPop": {
+      "kind": "aggregate",
       "args": [
         {
           "name": "x",
@@ -1128,12 +1130,16 @@
       "unit": {
         "like": "x"
       },
+      "nulls": "skip",
+      "mergeable": [
+        "count",
+        "mean",
+        "m2"
+      ],
       "describe": "The population standard deviation of x (dividing by n), or null when there are no values."
     },
     "median": {
       "kind": "aggregate",
-      "nulls": "skip",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -1144,12 +1150,12 @@
       "unit": {
         "like": "x"
       },
+      "nulls": "skip",
+      "mergeable": null,
       "describe": "percentile(x, 0.5)."
     },
     "percentile": {
       "kind": "aggregate",
-      "nulls": "skip",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -1169,12 +1175,12 @@
       "unit": {
         "like": "x"
       },
+      "nulls": "skip",
+      "mergeable": null,
       "describe": "The p quantile of x: with the n values sorted, the value at position p × (n - 1) counting from 0, interpolated linearly between neighbours. Null when there are no values."
     },
     "mode": {
       "kind": "aggregate",
-      "nulls": "skip",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -1193,12 +1199,12 @@
       "unit": {
         "like": "x"
       },
-      "describe": "The most frequent value of x; on a tie, the smallest. Null when there are no values."
+      "nulls": "skip",
+      "mergeable": null,
+      "describe": "The most frequent value of x; on a tie, the smallest, with false before true. Null when there are no values."
     },
     "distinctCount": {
       "kind": "aggregate",
-      "nulls": "skip",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -1213,12 +1219,12 @@
       ],
       "returns": "integer",
       "unit": "none",
+      "nulls": "skip",
+      "mergeable": null,
       "describe": "The number of distinct values of x."
     },
     "first": {
       "kind": "aggregate",
-      "nulls": "skip",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -1237,12 +1243,12 @@
       "unit": {
         "like": "x"
       },
+      "nulls": "skip",
+      "mergeable": null,
       "describe": "The value of x in the group's first row with one, in display order. Null when there are no values."
     },
     "last": {
       "kind": "aggregate",
-      "nulls": "skip",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -1261,12 +1267,12 @@
       "unit": {
         "like": "x"
       },
+      "nulls": "skip",
+      "mergeable": null,
       "describe": "The value of x in the group's last row with one, in display order. Null when there are no values."
     },
     "rank": {
       "kind": "window",
-      "nulls": "skip",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -1280,22 +1286,22 @@
         {
           "name": "order",
           "type": "string",
+          "optional": true,
+          "default": "desc",
           "values": [
             "desc",
             "asc"
-          ],
-          "optional": true,
-          "default": "desc"
+          ]
         }
       ],
       "returns": "integer",
       "unit": "none",
+      "nulls": "skip",
+      "mergeable": null,
       "describe": "1 plus the number of rows in the partition whose x comes before this row's, largest first unless order is asc. Ties share a rank and leave gaps (1, 2, 2, 4)."
     },
     "denseRank": {
       "kind": "window",
-      "nulls": "skip",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -1309,22 +1315,22 @@
         {
           "name": "order",
           "type": "string",
+          "optional": true,
+          "default": "desc",
           "values": [
             "desc",
             "asc"
-          ],
-          "optional": true,
-          "default": "desc"
+          ]
         }
       ],
       "returns": "integer",
       "unit": "none",
+      "nulls": "skip",
+      "mergeable": null,
       "describe": "1 plus the number of distinct values of x in the partition that come before this row's, largest first unless order is asc. Ties share a rank without gaps (1, 2, 2, 3)."
     },
     "runningSum": {
       "kind": "window",
-      "nulls": "skip",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -1337,12 +1343,12 @@
       "unit": {
         "like": "x"
       },
+      "nulls": "skip",
+      "mergeable": null,
       "describe": "The sum of x over the partition's rows up to and including this one, one row at a time in display order, so tied rows get different sums."
     },
     "share": {
       "kind": "window",
-      "nulls": "skip",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -1351,12 +1357,12 @@
       ],
       "returns": "number",
       "unit": "percent",
+      "nulls": "skip",
+      "mergeable": null,
       "describe": "x divided by the sum of x over the partition, or null when that sum is 0."
     },
     "zScore": {
       "kind": "window",
-      "nulls": "skip",
-      "mergeable": null,
       "args": [
         {
           "name": "x",
@@ -1365,6 +1371,8 @@
       ],
       "returns": "number",
       "unit": "none",
+      "nulls": "skip",
+      "mergeable": null,
       "describe": "(x - mean) divided by the sample standard deviation over the partition, or null when the deviation is 0 or there are fewer than 2 values."
     }
   }

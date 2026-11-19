@@ -32,13 +32,16 @@ A saved view also needs every overlay to have the view's `surface` and `layer`, 
 
 ## Function catalog
 
-`functions.json` is `{ "contract": 1, "rules": [...], "functions": { [name]: { kind, args, returns, unit, nulls, mergeable, describe } } }`. `rules` hold for every function. Names and documented semantics don't change within contract 1: a different behaviour gets a new name, and the only exception is a fix where a function's output contradicted its documented semantics. New functions and fields may be added, so ignore keys you don't know.
+`functions.json` is `{ "contract": 1, "rules": [...], "functions": { [name]: { kind, args, returns, unit, nulls, mergeable, describe } } }`, and `functionCatalog` holds the same `rules` and `functions`. The `rules` hold for every function. Names and documented semantics don't change within contract 1: a different behaviour gets a new name, and the only exception is a fix where a function's output contradicted its documented semantics. New functions and fields may be added, so ignore keys you don't know.
 
 - `kind` is `row`, `aggregate` or `window`.
 - Each `args` entry has a `name` and a `type`. It may be `optional` (only trailing arguments, with the `default` it takes when left out, if any), `variadic` (only the last argument; one or more values), `constant` (a `{ value }` node, within `range` when given), or list `values` (a `{ value }` node holding one of those strings).
-- A `type` is `number`, `integer`, `string`, `boolean`, `date` or `datetime`, a list of those, or `{ "like": "<argument>" }`, which joins an earlier argument's group. Integer fields are `integer`; number, currency and percent fields are `number`; string, text, enum, id, url and email fields are strings.
-- `unit` is the unit of a number result: `none`, `percent`, `like` an argument's group, `product` (the unit of the one factor that has one; both having one is a type error) or `quotient` (the dividend's unit when the divisor has none, no unit when both have the same one, otherwise a type error). Percent counts as no unit in products and quotients.
+- A `type` is `number`, `integer`, `string`, `boolean`, `date` or `datetime`, a list of those, or `{ "like": "<argument>" }`, which joins an earlier argument's group. Integer fields are `integer`; number, currency and percent fields are `number`; string, text, enum, id, url and email fields are `string`.
+- `returns` is a type, `{ "like": "<argument>" }` for the type of that argument's group, `{ "join": [...] }` for the unified type of separate number arguments (integer only when all of them are), or `{ "integerWhenZero": "<argument>" }` for `integer` when that constant is 0 and `number` otherwise.
+- `unit` is the unit of a number result: `none`, `percent`, `{ "like": "<argument>" }`, or the `product` and `quotient` rules in `rules`. It decides a derived value's unit; decimals and date styles are inherited as `addDerived` describes.
 - `nulls` is `propagate` (a null argument makes the result null), `skip` (null values are left out, and window functions give their rows null) or `custom` (as `describe` says).
 - `mergeable` lists the summary an aggregate merges from, or is `null`. `count` and `sum` add, `min` and `max` keep the extreme, and `mean` and `m2` merge with `count` by Chan's parallel algorithm. Whether a value covers all rows or only loaded ones also depends on the mode and the server adapter.
+
+A SQL translation must give the same results as `rules` and `describe` say, even where the dialect's own functions differ. Where the database raises an error on floating-point overflow instead of returning an infinity, the translation must guard against it or not compile the function.
 
 The `in` function takes at most 15 values, because a function takes at most 16 arguments. The 100-value limit is for the `in` filter operator.
