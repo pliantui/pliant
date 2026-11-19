@@ -278,6 +278,41 @@ describe("PliantRegion", () => {
     expect(screen.getByRole("button", { name: "Orders 2" })).toBeTruthy()
   })
 
+  it("points the trigger at the entries it controls", async () => {
+    await renderRegion([
+      {
+        op: "collapse",
+        target: "key-metrics",
+        items: ["orders", "overdue"],
+        into: "more",
+      },
+    ])
+
+    const controls = screen
+      .getByRole("button", { name: "More" })
+      .getAttribute("aria-controls")
+      ?.split(" ")
+      .map((id) => document.getElementById(id)?.getAttribute("data-pliant-id"))
+    expect(controls).toEqual(["orders", "overdue"])
+  })
+
+  it("moves focus to the trigger when an op collapses the focused entry", async () => {
+    await renderRegion()
+    screen.getByRole("button", { name: "Orders 0" }).focus()
+
+    apply({
+      op: "collapse",
+      target: "key-metrics",
+      items: ["orders"],
+      into: "more",
+      label: "More metrics",
+    })
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "More metrics" })
+    )
+  })
+
   it("lays out collapsed slots in place, with the container's layout", async () => {
     await renderRegion(
       [
@@ -382,7 +417,7 @@ describe("PliantRegion", () => {
     )
 
     expect(html).toBe(
-      '<div data-slot="pliant-region" data-pliant-id="key-metrics" data-pliant-pending="" class="grid gap-4"><!--&--><div data-pliant-id="revenue" style="display:contents">Revenue</div><!--/&--></div>'
+      '<div data-slot="pliant-region" data-pliant-id="key-metrics" data-pliant-pending="" class="grid gap-4"><!--&--><div id="_R_0_revenue" data-pliant-id="revenue" style="display:contents">Revenue</div><!--/&--></div>'
     )
   })
 

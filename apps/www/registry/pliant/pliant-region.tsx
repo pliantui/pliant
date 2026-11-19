@@ -290,10 +290,12 @@ type Slots = Readonly<Record<string, React.ReactNode>>
 function RegionNode({
   entry,
   slots,
+  domId,
   closed = false,
 }: {
   entry: RegionEntry
   slots: Slots
+  domId: string
   closed?: boolean
 }) {
   const mode = entry.visible && !closed ? "visible" : "hidden"
@@ -301,6 +303,7 @@ function RegionNode({
     return (
       <PliantActivity mode={mode}>
         <div
+          id={domId}
           data-pliant-id={entry.id}
           data-pliant-pinned={entry.pinned}
           className={cn(
@@ -319,6 +322,7 @@ function RegionNode({
   return (
     <PliantActivity mode={mode}>
       <div
+        id={domId}
         data-pliant-id={entry.id}
         data-pliant-pinned={entry.pinned}
         className={spanClassName(entry.span, "childSpan")}
@@ -339,11 +343,15 @@ function RegionNode({
 type CollapseKind = NonNullable<RegionEntry["collapsed"]>["into"]
 
 function CollapseTrigger({
+  id,
+  controls,
   into,
   label,
   open,
   onOpenChange,
 }: {
+  id: string
+  controls: string
   into: CollapseKind
   label: string | undefined
   open: boolean
@@ -351,10 +359,12 @@ function CollapseTrigger({
 }) {
   return (
     <Button
+      id={id}
       type="button"
       variant="ghost"
       size="sm"
       aria-expanded={open}
+      aria-controls={controls}
       data-pliant-collapse={into}
       className="col-span-full -ml-2.5 self-start justify-self-start"
       onClick={() => {
@@ -385,7 +395,9 @@ type RegionItem =
 
 // Collapsed entries follow a trigger at the place of the first one, as
 // siblings of the other entries: moving them into a disclosure element would
-// remount them, losing their state.
+// remount them, losing their state. They stay in the same parent, but not in
+// their resolved order: an entry between two collapsed ones comes after the
+// group.
 function itemsOf(entries: readonly RegionEntry[]) {
   const items: RegionItem[] = []
   const groups = new Map<string, RegionItem[]>()
@@ -422,6 +434,14 @@ function itemsOf(entries: readonly RegionEntry[]) {
   )
 }
 
+function domIdOf(baseId: string, node: string) {
+  return `${baseId}${node}`
+}
+
+function triggerIdOf(baseId: string, collapse: string) {
+  return `${baseId}collapse-${encodeURIComponent(collapse)}`
+}
+
 function RegionEntries({
   entries,
   slots,
@@ -430,20 +450,56 @@ function RegionEntries({
   slots: Slots
 }) {
   const [open, setOpen] = React.useState<ReadonlySet<string>>(new Set())
+  const baseId = React.useId()
+  const items = itemsOf(entries)
+  const closed = items.flatMap((item) =>
+    item.kind === "entry" &&
+    item.collapse !== undefined &&
+    !open.has(item.collapse)
+      ? [`${item.entry.id}\t${item.collapse}`]
+      : []
+  )
+  const closedKey = closed.join("\n")
+
+  // Focus would be lost in an entry an op just collapsed, so it moves to the
+  // entry's trigger.
+  React.useLayoutEffect(() => {
+    const active = document.activeElement
+    if (!active || closedKey === "") {
+      return
+    }
+    for (const line of closedKey.split("\n")) {
+      const [node = "", collapse = ""] = line.split("\t")
+      if (document.getElementById(domIdOf(baseId, node))?.contains(active)) {
+        document.getElementById(triggerIdOf(baseId, collapse))?.focus()
+        return
+      }
+    }
+  }, [baseId, closedKey])
+
   return (
     <>
-      {itemsOf(entries).map((item) =>
+      {items.map((item) =>
         item.kind === "entry" ? (
           <RegionNode
             key={item.entry.id}
             entry={item.entry}
             slots={slots}
+            domId={domIdOf(baseId, item.entry.id)}
             closed={item.collapse !== undefined && !open.has(item.collapse)}
           />
         ) : (
           item.visible && (
             <CollapseTrigger
               key={`collapse:${item.collapse}`}
+              id={triggerIdOf(baseId, item.collapse)}
+              controls={items
+                .flatMap((other) =>
+                  other.kind === "entry" && other.collapse === item.collapse
+                    ? [domIdOf(baseId, other.entry.id)]
+                    : []
+                )
+                .join(" ")}
               into={item.into}
               label={item.label}
               open={open.has(item.collapse)}
