@@ -89,11 +89,14 @@ describe("per-row addresses", () => {
     ])
   })
 
-  it("reports a reserved address over the length limit only as reserved", () => {
+  it("reports a reserved address over the length limit as reserved first", () => {
     const value = `order-card[${"k".repeat(300)}]`
-    expect(issuesOf(addressSchema, value)).toEqual([
-      expect.objectContaining({ code: "custom", params: reserved }),
-    ])
+    const [first, ...rest] = issuesOf(addressSchema, value)
+    expect(first).toEqual(
+      expect.objectContaining({ code: "custom", params: reserved })
+    )
+    // Older Zod 4 releases run length checks even after an aborting issue.
+    expect(rest).toHaveLength("explicitlyAborted" in z.core.util ? 0 : 1)
   })
 
   it.each([
