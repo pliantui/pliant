@@ -737,6 +737,35 @@ describe("PliantAskPanel", () => {
     expect(document.activeElement).not.toBe(prompt())
   })
 
+  it("doesn't move focus when its parent applies a pick later", async () => {
+    const onTargetChange = vi.fn()
+    let applyLater: (target: string) => void = () => undefined
+    function Deferred() {
+      const [target, setTarget] = React.useState("key-metrics")
+      React.useLayoutEffect(() => {
+        applyLater = setTarget
+      }, [])
+      return page({ target, onTargetChange })
+    }
+    render(<Deferred />)
+    await settle()
+    const picker = screen.getByRole("combobox", { name: "Change" })
+
+    fireEvent.keyDown(picker, { key: "Enter" })
+    await settle()
+    fireEvent.click(screen.getByRole("option", { name: "Orders table" }))
+    await settle()
+    expect(onTargetChange).toHaveBeenCalledWith("orders-table")
+    expect(picker.textContent).toBe("Key metrics")
+    act(() => {
+      applyLater("orders-table")
+    })
+    await settle()
+
+    expect(picker.textContent).toBe("Orders table")
+    expect(document.activeElement).not.toBe(prompt())
+  })
+
   it("focuses the prompt when its parent sets a target it rejected from the picker", async () => {
     const onTargetChange = vi.fn()
     const { rerender } = await renderPanel({

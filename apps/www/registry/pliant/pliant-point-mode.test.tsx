@@ -151,7 +151,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
-  document.body.style.pointerEvents = ""
+  document.body.replaceChildren()
+  document.body.removeAttribute("style")
 })
 
 describe("PliantPointMode", () => {
@@ -376,13 +377,14 @@ describe("PliantPointMode", () => {
   )
 
   it.each([
-    ["a listbox", { role: "listbox" }],
-    ["a menu", { role: "menu" }],
-    ["a modal dialog", { role: "dialog", "aria-modal": "true" }],
+    ["a listbox", "div", { role: "listbox" }],
+    ["a menu", "div", { role: "menu" }],
+    ["a modal dialog", "div", { role: "dialog", "aria-modal": "true" }],
+    ["an open dialog", "dialog", { open: "" }],
   ])(
     "ignores Alt and the shortcut while focus is in %s",
-    async (_, attributes) => {
-      const other = document.createElement("div")
+    async (_, tag, attributes) => {
+      const other = document.createElement(tag)
       for (const [name, value] of Object.entries(attributes)) {
         other.setAttribute(name, value)
       }
@@ -404,6 +406,64 @@ describe("PliantPointMode", () => {
       expect(layer()).not.toBeNull()
     }
   )
+
+  it("ignores Alt and the shortcut while a modal dialog is open elsewhere", async () => {
+    const modal = document.createElement("div")
+    modal.setAttribute("role", "dialog")
+    modal.setAttribute("aria-modal", "true")
+    document.body.append(modal)
+    renderPage()
+
+    await holdAlt()
+    expect(layer()).toBeNull()
+    await releaseAlt()
+    const shortcut = await pressShortcut()
+    expect(layer()).toBeNull()
+    expect(shortcut.defaultPrevented).toBe(false)
+
+    modal.remove()
+    await pressShortcut()
+    expect(layer()).not.toBeNull()
+  })
+
+  it("ignores Alt and the shortcut while a native modal dialog is open", async () => {
+    const dialog = document.createElement("dialog")
+    document.body.append(dialog)
+    dialog.showModal()
+    // happy-dom opens a dialog with `showModal` but doesn't match `:modal`.
+    vi.spyOn(dialog, "matches").mockImplementation(
+      (selector) => selector === ":modal"
+    )
+    renderPage()
+
+    await holdAlt()
+    expect(layer()).toBeNull()
+    await releaseAlt()
+    await pressShortcut()
+    expect(layer()).toBeNull()
+
+    dialog.remove()
+    await pressShortcut()
+    expect(layer()).not.toBeNull()
+  })
+
+  it("doesn't start when a layer opens while Alt is held", async () => {
+    renderPage()
+
+    fireEvent.keyDown(document.body, { key: "Alt", altKey: true })
+    await wait(100)
+    document.body.style.pointerEvents = "none"
+    await wait(250)
+
+    expect(layer()).toBeNull()
+    const release = new KeyboardEvent("keyup", {
+      key: "Alt",
+      bubbles: true,
+      cancelable: true,
+    })
+    fireEvent(document.body, release)
+    expect(release.defaultPrevented).toBe(false)
+  })
 
   it("ignores Alt and the shortcut while a modal layer turns off pointer events", async () => {
     renderPage()

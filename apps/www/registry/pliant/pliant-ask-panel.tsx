@@ -189,7 +189,8 @@ function PliantAskPanel({
   defaultTarget?: string
   /**
    * Called with the id of the target the user picks in the picker. A
-   * controlled parent applies it by passing it back as `target`.
+   * controlled parent applies it by passing it back as `target`, right away
+   * or later, as after a navigation, and focus stays on the picker.
    */
   onTargetChange?: (target: string) => void
   /** The prompt's placeholder. */
@@ -252,20 +253,18 @@ function PliantAskPanel({
     }
   }
 
-  // The target the picker just set, to tell the parent's own changes apart.
-  // It lasts one render: a parent that takes the pick applies it in that
-  // render, and one that rejects it must not hide a later change of its own
-  // to the same target.
+  // The target the picker last set, to tell the parent's own changes apart.
+  // A parent may apply the pick later, so it is kept until `target` changes
+  // or focus leaves the picker, as it does when pointing at the page; a pick
+  // the parent rejected must not hide a later change of its own.
   const [pickerTarget, setPickerTarget] = React.useState<string>()
   const [seenTargetProp, setSeenTargetProp] = React.useState(targetProp)
   if (seenTargetProp !== targetProp) {
     setSeenTargetProp(targetProp)
+    setPickerTarget(undefined)
     if (isOpen && targetProp !== pickerTarget) {
       setFocusRequest((count) => count + 1)
     }
-  }
-  if (pickerTarget !== undefined) {
-    setPickerTarget(undefined)
   }
 
   React.useLayoutEffect(() => {
@@ -457,7 +456,13 @@ function PliantAskPanel({
                 }}
                 disabled={asking}
               >
-                <SelectTrigger id={`${id}-target`} className="w-full">
+                <SelectTrigger
+                  id={`${id}-target`}
+                  className="w-full"
+                  onBlur={() => {
+                    setPickerTarget(undefined)
+                  }}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
