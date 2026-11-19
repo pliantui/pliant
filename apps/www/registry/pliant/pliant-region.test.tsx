@@ -313,6 +313,23 @@ describe("PliantRegion", () => {
     )
   })
 
+  it("moves focus to the trigger of a label with tabs and newlines", async () => {
+    await renderRegion()
+    screen.getByRole("button", { name: "Orders 0" }).focus()
+
+    apply({
+      op: "collapse",
+      target: "key-metrics",
+      items: ["orders"],
+      into: "more",
+      label: "a\tb\nc",
+    })
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "a\tb\nc" })
+    )
+  })
+
   it("lays out collapsed slots in place, with the container's layout", async () => {
     await renderRegion(
       [
