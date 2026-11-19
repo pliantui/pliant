@@ -5,6 +5,17 @@ import { functionNameSchema } from "./identifier"
 
 type Arg = FunctionDefinition["args"][number]
 
+const argKeys = [
+  "name",
+  "type",
+  "optional",
+  "default",
+  "variadic",
+  "constant",
+  "range",
+  "values",
+] as const satisfies readonly (keyof Arg)[]
+
 function isNumeric(type: Arg["type"]) {
   return type === "number" || type === "integer"
 }
@@ -210,22 +221,23 @@ describe("functionCatalog", () => {
     }
   })
 
+  it("publishes every argument key", () => {
+    for (const { args } of Object.values(functionCatalog.functions)) {
+      for (const arg of args) {
+        expect(argKeys).toEqual(expect.arrayContaining(Object.keys(arg)))
+      }
+    }
+  })
+
   it("matches the published file", async () => {
     const functions = Object.fromEntries(
       Object.entries(functionCatalog.functions).map(([name, definition]) => [
         name,
         {
           kind: definition.kind,
-          args: definition.args.map((arg) => ({
-            name: arg.name,
-            type: arg.type,
-            optional: arg.optional,
-            default: arg.default,
-            variadic: arg.variadic,
-            constant: arg.constant,
-            range: arg.range,
-            values: arg.values,
-          })),
+          args: definition.args.map((arg) =>
+            Object.fromEntries(argKeys.map((key) => [key, arg[key]]))
+          ),
           returns: definition.returns,
           unit: definition.unit,
           nulls: definition.nulls,
