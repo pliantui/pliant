@@ -1,3 +1,9 @@
+export {
+  checkExpression,
+  type CheckExpressionOptions,
+  type ExpressionField,
+  type ExpressionType,
+} from "./check-expression"
 export { type OpCheck } from "./check-op"
 export {
   compileTableState,
