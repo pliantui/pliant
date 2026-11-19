@@ -426,6 +426,68 @@ describe("resolveLayers", () => {
     ).toBe(team.ops[0])
   })
 
+  describe("collapse into none", () => {
+    const collapse = (items: string[], into: string) => ({
+      op: "collapse",
+      target: "dashboard",
+      items,
+      into,
+    })
+
+    it("undoes a lower layer's collapse of only the listed items", () => {
+      const overlay = overlays()
+      const org = overlay("org", [collapse(["a", "b"], "more")])
+      const personal = overlay("personal", [collapse(["a"], "none")])
+      const { properties } = resolve([org, personal])
+
+      expect(
+        get(properties, "dashboard", "collapse.a")?.winner.check.op
+      ).toMatchObject({ into: "none" })
+      expect(
+        get(properties, "dashboard", "collapse.a")?.overridden.map(
+          ({ check }) => check
+        )
+      ).toEqual([org.ops[0]])
+      expect(winner(properties, "dashboard", "collapse.b")).toBe(org)
+    })
+
+    it("loses to a higher layer's collapse", () => {
+      const overlay = overlays()
+      const team = overlay("team", [collapse(["a"], "none")])
+      const personal = overlay("personal", [collapse(["a"], "tabs")])
+      const { properties } = resolve([personal, team])
+
+      expect(winner(properties, "dashboard", "collapse.a")).toBe(personal)
+      expect(
+        get(properties, "dashboard", "collapse.a")?.overridden.map(
+          ({ check }) => check
+        )
+      ).toEqual([team.ops[0]])
+    })
+
+    it("replaces an earlier collapse in the same scope", () => {
+      const overlay = overlays()
+      const personal = overlay("personal", [
+        collapse(["a", "b"], "accordion"),
+        collapse(["b"], "none"),
+        collapse(["a"], "more"),
+      ])
+      const { properties } = resolve([personal])
+
+      expect(get(properties, "dashboard", "collapse.b")?.winner.check).toBe(
+        personal.ops[1]
+      )
+      expect(
+        get(properties, "dashboard", "collapse.b")?.overridden.map(
+          ({ check }) => check
+        )
+      ).toEqual([personal.ops[0]])
+      expect(get(properties, "dashboard", "collapse.a")?.winner.check).toBe(
+        personal.ops[2]
+      )
+    })
+  })
+
   describe("placement", () => {
     const x = "dashboard/slots/x"
 

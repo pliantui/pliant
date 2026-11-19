@@ -36,6 +36,8 @@ const placementSchema = z.union([
   z.strictObject({ index: z.int().min(0) }),
 ])
 
+const collapseItemsSchema = uniqueArray(itemIdSchema).min(1).max(32)
+
 const flowLayoutShape = {
   mode: z.enum(["stack", "row"]),
   align: layoutAlignSchema.optional(),
@@ -80,13 +82,26 @@ export const structureOpSchemas = {
         })
       }
     }),
-  collapse: z.strictObject({
-    op: z.literal("collapse"),
-    target: nodeAddressSchema(),
-    items: uniqueArray(itemIdSchema).min(1).max(32),
-    into: z.enum(["more", "accordion", "tabs"]),
-    label: labelSchema.optional(),
-  }),
+  /**
+   * `into: "none"` undoes a lower layer's collapse of the listed items, as
+   * `pin` with `where: "none"` does for a pin. Nothing is collapsed, so it
+   * takes no `label`.
+   */
+  collapse: z.discriminatedUnion("into", [
+    z.strictObject({
+      op: z.literal("collapse"),
+      target: nodeAddressSchema(),
+      items: collapseItemsSchema,
+      into: z.enum(["more", "accordion", "tabs"]),
+      label: labelSchema.optional(),
+    }),
+    z.strictObject({
+      op: z.literal("collapse"),
+      target: nodeAddressSchema(),
+      items: collapseItemsSchema,
+      into: z.literal("none"),
+    }),
+  ]),
   pin: z.strictObject({
     op: z.literal("pin"),
     target: itemAddressSchema(),

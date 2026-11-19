@@ -169,47 +169,85 @@
       "additionalProperties": false
     },
     {
-      "type": "object",
-      "properties": {
-        "op": {
-          "type": "string",
-          "const": "collapse"
-        },
-        "target": {
-          "type": "string",
-          "maxLength": 256,
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
-        },
-        "items": {
-          "minItems": 1,
-          "maxItems": 32,
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/itemId"
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "collapse"
+            },
+            "target": {
+              "type": "string",
+              "maxLength": 256,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
+            },
+            "items": {
+              "minItems": 1,
+              "maxItems": 32,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/itemId"
+              },
+              "uniqueItems": true
+            },
+            "into": {
+              "type": "string",
+              "enum": [
+                "more",
+                "accordion",
+                "tabs"
+              ]
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
           },
-          "uniqueItems": true
+          "required": [
+            "op",
+            "target",
+            "items",
+            "into"
+          ],
+          "additionalProperties": false
         },
-        "into": {
-          "type": "string",
-          "enum": [
-            "more",
-            "accordion",
-            "tabs"
-          ]
-        },
-        "label": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 80
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "collapse"
+            },
+            "target": {
+              "type": "string",
+              "maxLength": 256,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)*$"
+            },
+            "items": {
+              "minItems": 1,
+              "maxItems": 32,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/itemId"
+              },
+              "uniqueItems": true
+            },
+            "into": {
+              "type": "string",
+              "const": "none"
+            }
+          },
+          "required": [
+            "op",
+            "target",
+            "items",
+            "into"
+          ],
+          "additionalProperties": false
         }
-      },
-      "required": [
-        "op",
-        "target",
-        "items",
-        "into"
-      ],
-      "additionalProperties": false
+      ]
     },
     {
       "type": "object",
