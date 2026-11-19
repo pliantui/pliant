@@ -142,6 +142,70 @@ test("ignores Alt while typing in another field", async ({ page, errors }) => {
   expect(errors).toEqual([])
 })
 
+test("waits for the ask panel's target picker to close", async ({
+  page,
+  errors,
+}) => {
+  await load(page)
+  await page.getByRole("button", { name: "Ask" }).click()
+  const picker = page.getByRole("combobox", { name: "Change" })
+  const listbox = page.getByRole("listbox")
+
+  await picker.click()
+  await expect(listbox).toBeVisible()
+  await page.keyboard.press("ControlOrMeta+Period")
+  await expect(layer(page)).toBeHidden()
+  await page.keyboard.down("Alt")
+  await page.waitForTimeout(500)
+  await expect(layer(page)).toBeHidden()
+  await page.keyboard.up("Alt")
+  await expect(listbox).toBeVisible()
+
+  await page.keyboard.press("Escape")
+  await expect(listbox).toBeHidden()
+  await expect(picker).toBeFocused()
+  await page.keyboard.press("ControlOrMeta+Period")
+  await expect(keyMetricsBox(page)).toBeFocused()
+  await page.keyboard.press("Escape")
+  await expect(layer(page)).toBeHidden()
+  await expect(picker).toBeFocused()
+  await page.keyboard.down("Alt")
+  await expect(keyMetricsBox(page)).toBeVisible()
+  await page.keyboard.up("Alt")
+  await expect(layer(page)).toBeHidden()
+  expect(errors).toEqual([])
+})
+
+test("waits for a native modal dialog to close", async ({ page, errors }) => {
+  await load(page)
+  await page.evaluate(() => {
+    const dialog = document.createElement("dialog")
+    dialog.setAttribute("aria-label", "Settings")
+    dialog.innerHTML = "<button>Done</button>"
+    document.body.append(dialog)
+    dialog.showModal()
+  })
+  const dialog = page.getByRole("dialog", { name: "Settings" })
+  await expect(dialog.getByRole("button", { name: "Done" })).toBeFocused()
+
+  await page.keyboard.press("ControlOrMeta+Period")
+  await expect(layer(page)).toBeHidden()
+  await page.keyboard.down("Alt")
+  await page.waitForTimeout(500)
+  await expect(layer(page)).toBeHidden()
+  await page.keyboard.up("Alt")
+
+  await page.keyboard.press("Escape")
+  await expect(dialog).toBeHidden()
+  await page.keyboard.down("Alt")
+  await expect(keyMetricsBox(page)).toBeVisible()
+  await page.keyboard.up("Alt")
+  await expect(layer(page)).toBeHidden()
+  await page.keyboard.press("ControlOrMeta+Period")
+  await expect(keyMetricsBox(page)).toBeFocused()
+  expect(errors).toEqual([])
+})
+
 async function accessibilityTree(page: Page) {
   const client = await page.context().newCDPSession(page)
   const { nodes } = await client.send("Accessibility.getFullAXTree")

@@ -71,6 +71,31 @@ function blocksPointMode(element: Element | null) {
   )
 }
 
+function isModal(dialog: Element) {
+  try {
+    return dialog.matches(":modal")
+  } catch {
+    return false
+  }
+}
+
+// Another layer owns the keyboard and the pointer until it closes: a modal
+// dialog, another instance's point mode included, a focused listbox or menu,
+// or a Radix modal layer, which turns off pointer events on the body. A modal
+// can make the page inert or keep focus out of it, so being open is enough.
+function anotherLayerIsOpen() {
+  return (
+    document.body.style.pointerEvents === "none" ||
+    document.querySelector(
+      '[data-slot="pliant-point-mode"],[role="dialog"][aria-modal="true"]'
+    ) != null ||
+    [...document.querySelectorAll("dialog[open]")].some(isModal) ||
+    document.activeElement?.closest(
+      '[role="listbox"],[role="menu"],dialog[open]'
+    ) != null
+  )
+}
+
 // `code` finds the key on layouts where "." needs Shift.
 function isShortcut(event: KeyboardEvent) {
   return (
@@ -160,11 +185,14 @@ const navigationKeys: Readonly<Record<string, (index: number) => number>> = {
  *
  * A target is found on the page by its `data-pliant-id`, so it must be a
  * Pliant node, like a `PliantRegion`. Point mode ignores Alt and the
- * shortcut while focus is in a text field other than the ask panel's prompt,
- * and Alt held together with another key, so the app's and the browser's
- * shortcuts keep working. Safari keeps ⌘. for Stop, and some Linux desktops
- * move the window on Alt+click, so the toggle is the way in that always
- * works, and the only one on touch screens.
+ * shortcut while focus is in a text field other than the ask panel's prompt
+ * or in a listbox or menu, even one that is always shown, and Alt held
+ * together with another key, so the app's and the browser's shortcuts keep
+ * working. It also ignores them while a modal dialog is open or the body has
+ * `pointer-events: none`, as Radix sets for its modal layers, so a body left
+ * with it turns them off; the toggle still works. Safari keeps ⌘. for Stop,
+ * and some Linux desktops move the window on Alt+click, so the toggle is the
+ * way in that always works, and the only one on touch screens.
  *
  * Started from the toggle or the shortcut, point mode is a modal dialog:
  * the rest of the page, an open ask panel included, is `inert` until it
@@ -233,7 +261,11 @@ function PliantPointMode({
     }
     if (isShortcut(event)) {
       cancelHold()
-      if (event.defaultPrevented || blocksPointMode(document.activeElement)) {
+      if (
+        event.defaultPrevented ||
+        blocksPointMode(document.activeElement) ||
+        (mode === null && anotherLayerIsOpen())
+      ) {
         return
       }
       event.preventDefault()
@@ -251,13 +283,17 @@ function PliantPointMode({
         event.ctrlKey ||
         event.metaKey ||
         event.shiftKey ||
-        blocksPointMode(document.activeElement)
+        blocksPointMode(document.activeElement) ||
+        anotherLayerIsOpen()
       ) {
         return
       }
       cancelHold()
       holdTimer.current = window.setTimeout(() => {
         holdTimer.current = undefined
+        if (anotherLayerIsOpen()) {
+          return
+        }
         heldThisPress.current = true
         enter("hold")
       }, holdDelay)
@@ -495,7 +531,7 @@ function PliantPointMode({
             aria-describedby={mode === "toggle" ? `${id}-help` : undefined}
             data-slot="pliant-point-mode"
             data-mode={mode}
-            className="fixed inset-0 z-40 cursor-crosshair"
+            className="pointer-events-auto fixed inset-0 z-40 cursor-crosshair"
             onClick={(event) => {
               if (event.target === event.currentTarget) {
                 exit()

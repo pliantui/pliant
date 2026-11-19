@@ -187,6 +187,11 @@ function PliantAskPanel({
   target?: string | undefined
   /** The id of the target picked first. Defaults to the first target. */
   defaultTarget?: string
+  /**
+   * Called with the id of the target the user picks in the picker. A
+   * controlled parent applies it by passing it back as `target`, right away
+   * or later, as after a navigation, and focus stays on the picker.
+   */
   onTargetChange?: (target: string) => void
   /** The prompt's placeholder. */
   placeholder?: string
@@ -248,7 +253,10 @@ function PliantAskPanel({
     }
   }
 
-  // The last target the picker set, to tell the parent's own changes apart.
+  // The target the picker last set, to tell the parent's own changes apart.
+  // A parent may apply the pick later, so it is kept until `target` changes
+  // or focus leaves the picker, as it does when pointing at the page; a pick
+  // the parent rejected must not hide a later change of its own.
   const [pickerTarget, setPickerTarget] = React.useState<string>()
   const [seenTargetProp, setSeenTargetProp] = React.useState(targetProp)
   if (seenTargetProp !== targetProp) {
@@ -448,7 +456,13 @@ function PliantAskPanel({
                 }}
                 disabled={asking}
               >
-                <SelectTrigger id={`${id}-target`} className="w-full">
+                <SelectTrigger
+                  id={`${id}-target`}
+                  className="w-full"
+                  onBlur={() => {
+                    setPickerTarget(undefined)
+                  }}
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
