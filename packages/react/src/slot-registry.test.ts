@@ -9,7 +9,7 @@ afterEach(() => {
 describe("createSlotRegistry", () => {
   it("returns the content of declared slots until they're undeclared", () => {
     const registry = createSlotRegistry()
-    const undeclare = registry.declare("dashboard", { revenue: "Revenue" })
+    const undeclare = registry.declare({}, "dashboard", { revenue: "Revenue" })
 
     expect(registry.getContent("revenue")).toBe("Revenue")
     expect(registry.getContent("orders")).toBeUndefined()
@@ -25,14 +25,14 @@ describe("createSlotRegistry", () => {
     registry.subscribe("revenue", revenue)
     registry.subscribe("orders", orders)
 
-    const undeclare = registry.declare("dashboard", {
+    const undeclare = registry.declare({}, "dashboard", {
       revenue: "Revenue",
       orders: "Orders",
     })
     expect(revenue).toHaveBeenCalledTimes(1)
     expect(orders).toHaveBeenCalledTimes(1)
 
-    registry.declare("sidebar", { filters: "Filters" })
+    registry.declare({}, "sidebar", { filters: "Filters" })
     expect(revenue).toHaveBeenCalledTimes(1)
 
     undeclare()
@@ -46,27 +46,55 @@ describe("createSlotRegistry", () => {
     const unsubscribe = registry.subscribe("revenue", listener)
     unsubscribe()
 
-    registry.declare("dashboard", { revenue: "Revenue" })
+    registry.declare({}, "dashboard", { revenue: "Revenue" })
     expect(listener).not.toHaveBeenCalled()
   })
 
   it("keeps the first declaration of a slot declared twice", () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined)
     const registry = createSlotRegistry()
-    const undeclare = registry.declare("dashboard", { revenue: "First" })
-    registry.declare("sidebar", { revenue: "Second" })
+    const undeclare = registry.declare({}, "dashboard", { revenue: "First" })
+    registry.declare({}, "sidebar", { revenue: "Second" })
 
     expect(registry.getContent("revenue")).toBe("First")
     undeclare()
     expect(registry.getContent("revenue")).toBe("Second")
   })
 
+  it("keeps the first owner's place when it declares again", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    const registry = createSlotRegistry()
+    const first = {}
+    registry.declare(first, "dashboard", { revenue: "First" })()
+    registry.declare({}, "sidebar", { revenue: "Second" })
+    registry.declare(first, "dashboard", { revenue: "First again" })
+
+    expect(registry.getContent("revenue")).toBe("First again")
+  })
+
+  it("replaces what an owner declared before", () => {
+    const registry = createSlotRegistry()
+    const owner = {}
+    const listener = vi.fn()
+    registry.subscribe("orders", listener)
+    const undeclare = registry.declare(owner, "dashboard", {
+      revenue: "Revenue",
+      orders: "Orders",
+    })
+    registry.declare(owner, "dashboard", { revenue: "Revenue" })
+
+    expect(registry.getContent("orders")).toBeUndefined()
+    expect(listener).toHaveBeenCalledTimes(2)
+    undeclare()
+    expect(registry.getContent("revenue")).toBe("Revenue")
+  })
+
   it("warns once about slot ids that aren't kebab-case", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
     const registry = createSlotRegistry()
 
-    registry.declare("dashboard", { "2024": "Year", Revenue: "Revenue" })()
-    registry.declare("dashboard", { "2024": "Year", Revenue: "Revenue" })()
+    registry.declare({}, "dashboard", { "2024": "Year", Revenue: "Revenue" })()
+    registry.declare({}, "dashboard", { "2024": "Year", Revenue: "Revenue" })()
 
     expect(warn.mock.calls).toEqual([
       [
@@ -82,9 +110,9 @@ describe("createSlotRegistry", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
     const registry = createSlotRegistry()
 
-    registry.declare("dashboard", { revenue: "Revenue" })
-    registry.declare("dashboard", { orders: "Orders" })
-    registry.declare("sidebar", { revenue: "Revenue" })
+    registry.declare({}, "dashboard", { revenue: "Revenue" })
+    registry.declare({}, "dashboard", { orders: "Orders" })
+    registry.declare({}, "sidebar", { revenue: "Revenue" })
 
     expect(warn.mock.calls).toEqual([
       [
@@ -100,8 +128,8 @@ describe("createSlotRegistry", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
     const registry = createSlotRegistry()
 
-    registry.declare("dashboard", { revenue: "Revenue" })()
-    registry.declare("dashboard", { revenue: "Revenue" })
+    registry.declare({}, "dashboard", { revenue: "Revenue" })()
+    registry.declare({}, "dashboard", { revenue: "Revenue" })
 
     expect(warn).not.toHaveBeenCalled()
   })

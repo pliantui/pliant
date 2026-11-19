@@ -5,6 +5,7 @@ export type {
   PliantStore,
 } from "./layer-store"
 export { localAdapter } from "./local-adapter"
+export { PliantActivity, type PliantActivityProps } from "./pliant-activity"
 export { PliantRoot, type PliantRootProps } from "./pliant-root"
 export type { StorageAdapter, StoredLayers } from "./storage-adapter"
 export { useMountedNodes } from "./use-mounted-nodes"

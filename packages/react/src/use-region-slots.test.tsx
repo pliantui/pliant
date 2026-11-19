@@ -2,6 +2,7 @@ import { StrictMode, useState, type ReactNode } from "react"
 import { act, cleanup, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { PliantActivity } from "./pliant-activity"
 import { PliantRoot } from "./pliant-root"
 import { useRegionSlots } from "./use-region-slots"
 import { useResolved } from "./use-resolved"
@@ -102,6 +103,52 @@ describe("useRegionSlots", () => {
       </PliantRoot>
     )
     expect(screen.getByRole("status").textContent).toBe("$2")
+  })
+
+  it("stays declared and mounted while a PliantActivity hides it", async () => {
+    function Page({
+      mode,
+      shown,
+    }: {
+      mode: "visible" | "hidden"
+      shown: boolean
+    }) {
+      return (
+        <StrictMode>
+          <PliantRoot surface="/dashboard">
+            <Content id="card" />
+            <MountedIds />
+            {shown && (
+              <PliantActivity mode={mode}>
+                <Region id="inner" slots={{ card: "Card" }} />
+              </PliantActivity>
+            )}
+          </PliantRoot>
+        </StrictMode>
+      )
+    }
+    const { rerender } = render(<Page mode="visible" shown />)
+    await act(() => Promise.resolve())
+
+    rerender(<Page mode="hidden" shown />)
+    await act(() => Promise.resolve())
+    expect(
+      screen.getAllByRole("status").map((output) => output.textContent)
+    ).toEqual(["Card", "inner,card"])
+
+    rerender(<Page mode="visible" shown />)
+    await act(() => Promise.resolve())
+    rerender(<Page mode="hidden" shown />)
+    await act(() => Promise.resolve())
+    expect(
+      screen.getAllByRole("status").map((output) => output.textContent)
+    ).toEqual(["Card", "inner,card"])
+
+    rerender(<Page mode="hidden" shown={false} />)
+    await act(() => Promise.resolve())
+    expect(
+      screen.getAllByRole("status").map((output) => output.textContent)
+    ).toEqual(["none", ""])
   })
 
   it("throws outside a PliantRoot", () => {
