@@ -1,4 +1,7 @@
 import {
+  columnOrderingFeature,
+  columnPinningFeature,
+  columnSizingFeature,
   columnVisibilityFeature,
   createPaginatedRowModel,
   createSortedRowModel,
@@ -14,6 +17,9 @@ import {
 } from "@tanstack/react-table"
 
 export const features = tableFeatures({
+  columnOrderingFeature,
+  columnPinningFeature,
+  columnSizingFeature,
   columnVisibilityFeature,
   rowPaginationFeature,
   rowSortingFeature,

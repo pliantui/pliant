@@ -1,7 +1,23 @@
 export { type OpCheck } from "./check-op"
+export {
+  compileTableState,
+  type ColumnSizeLimits,
+  type CompiledTableState,
+  type CompileTableStateOptions,
+  type FilterValue,
+} from "./compile-table-state"
+export {
+  diffTableState,
+  type DiffTableStateOptions,
+  type TableStateDiff,
+} from "./diff-table-state"
 export { formatError, type FormatErrorOptions } from "./format-error"
 export { loadOverlay, type LoadedOverlay } from "./load-overlay"
-export { type OpPropertyKey } from "./op-property"
+export {
+  opProperties,
+  type OpProperty,
+  type OpPropertyKey,
+} from "./op-property"
 export { type PlacementPosition } from "./placement"
 export {
   resolveLayers,
@@ -15,6 +31,14 @@ export {
   type UnappliedOp,
   type UnappliedReason,
 } from "./resolve-layers"
+export {
+  resolveRegion,
+  type RegionEntry,
+  type RegionLayout,
+  type ByBreakpoint,
+  type ResolvedRegion,
+  type ResolveRegionOptions,
+} from "./resolve-region"
 export {
   validateOverlay,
   type ValidateOverlayLayers,

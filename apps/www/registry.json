@@ -2,5 +2,70 @@
   "$schema": "https://ui.shadcn.com/schema/registry.json",
   "name": "pliant",
   "homepage": "https://pliantui.dev",
-  "items": []
+  "items": [
+    {
+      "name": "pliant-region",
+      "type": "registry:component",
+      "title": "Pliant Region",
+      "description": "A region whose slots users can reorder, hide, resize, wrap and collapse with Pliant overlays.",
+      "dependencies": [
+        "@pliantui/core",
+        "@pliantui/react",
+        "cn",
+        "lucide-react",
+        "zod"
+      ],
+      "registryDependencies": ["button"],
+      "files": [
+        {
+          "path": "registry/pliant/pliant-region.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-region.tsx"
+        }
+      ]
+    },
+    {
+      "name": "pliant-ask-panel",
+      "type": "registry:component",
+      "title": "Pliant Ask Panel",
+      "description": "A panel for asking AI to change how part of a page looks, with a preview that is only saved on Lock in.",
+      "dependencies": [
+        "@pliantui/react",
+        "cn",
+        "lucide-react",
+        "radix-ui",
+        "zod"
+      ],
+      "registryDependencies": [
+        "badge",
+        "button",
+        "label",
+        "select",
+        "skeleton",
+        "textarea"
+      ],
+      "files": [
+        {
+          "path": "registry/pliant/pliant-ask-panel.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-ask-panel.tsx"
+        }
+      ]
+    },
+    {
+      "name": "pliant-point-mode",
+      "type": "registry:component",
+      "title": "Pliant Point Mode",
+      "description": "A mode for pointing at the part of a page to change: hold Alt, press ⌘. or use the toggle, and the targets light up.",
+      "dependencies": ["cn", "lucide-react", "radix-ui"],
+      "registryDependencies": ["button"],
+      "files": [
+        {
+          "path": "registry/pliant/pliant-point-mode.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-point-mode.tsx"
+        }
+      ]
+    }
+  ]
 }
