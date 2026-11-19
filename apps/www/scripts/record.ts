@@ -16,11 +16,10 @@ import {
 import { recordingMiddleware } from "@pliantui/server/recordings"
 
 // Records the demo asks into `recordings/`: `pnpm --filter www record`. By
-// default it uses `claude -p` (headless Claude Code) as a stand-in for the
-// API, because there is no API key yet. To replace the stand-ins, run
-// `ANTHROPIC_API_KEY=... pnpm --filter www record --api`, which records
-// through the Anthropic API under the same keys
-// (https://github.com/pliantui/pliant/issues/24).
+// default it records through `claude -p` (headless Claude Code) and marks
+// each recording `standIn: true`, because that request path differs from
+// the Anthropic API's. `ANTHROPIC_API_KEY=... pnpm --filter www record --api`
+// records through the Anthropic API under the same keys.
 
 const args = process.argv.slice(2)
 const useApi = args.includes("--api")
@@ -198,7 +197,7 @@ function toContent(events: AssistantEvent[]): GenerateResult["content"] {
     })
 }
 
-function standInModel(cliVersion: string) {
+function claudeCodeModel(cliVersion: string) {
   const target = anthropic("claude-haiku-5-5")
   return new MockLanguageModelV4({
     provider: target.provider,
@@ -238,7 +237,7 @@ function standInModel(cliVersion: string) {
               source: "claude -p (headless Claude Code)",
               model: last?.model ?? "unknown",
               standIn: true,
-              note: "not the production API path; re-record before teaser, launch video or P3 evals (https://github.com/pliantui/pliant/issues/24)",
+              note: "recorded through claude -p (headless Claude Code), not the Anthropic API",
               cliVersion,
             },
           },
@@ -252,7 +251,9 @@ function standInModel(cliVersion: string) {
 
 function model(): PliantHandlerConfig["model"] {
   if (!useApi) {
-    return standInModel(execFileSync("claude", ["--version"]).toString().trim())
+    return claudeCodeModel(
+      execFileSync("claude", ["--version"]).toString().trim()
+    )
   }
   // `record` runs outside turbo, so turbo never caches on this variable.
   // eslint-disable-next-line turbo/no-undeclared-env-vars

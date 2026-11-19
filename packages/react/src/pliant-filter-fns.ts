@@ -115,8 +115,8 @@ function midnight(year: number, month: number, day: number) {
 /**
  * A date as the milliseconds it covers, `[start, end)`: an instant covers
  * one, and a date without a time (`2026-03-01`) covers that calendar day in
- * the viewer's time zone. Pliant has no dataset time zone on the client
- * yet, so the viewer's zone is the one personal overlays use (spec 8.4).
+ * the viewer's time zone, the same zone personal overlays use, since the
+ * client has no time zone for the dataset itself.
  */
 function spanOf(value: unknown): readonly [number, number] | undefined {
   if (value instanceof Date) {
