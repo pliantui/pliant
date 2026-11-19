@@ -6,7 +6,7 @@ declare const __PLIANT_CORE_VERSION__: string
 
 /**
  * An overlay made in this tab, before it is validated. The manifest
- * versions aren't known here yet.
+ * versions aren't known here, so `basis.manifests` is empty.
  */
 export function manualOverlay(
   { surface, generateId }: LayerTools,
