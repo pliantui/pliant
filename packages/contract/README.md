@@ -26,6 +26,8 @@ To validate an overlay:
 
 A `remove` targets a slot address outside a template or the bare id of a node. Whether a bare id names a node the user inserted or wrapped is checked at resolution time, not during validation.
 
+An address whose node id has something between its brackets, such as `order-card[42]`, is reserved for per-row overlays, which a later contract may add. Only `order-card[]`, every row of a template, is valid now. The patterns in `schema/` don't match a reserved address. Zod reports it with a single custom issue whose `params.code` is `per-row-address-reserved`, instead of a format issue, so it can be told apart from a malformed address. An op with such a target is invalid.
+
 When loading a saved overlay, apply only valid ops, flag unknown and newer ones, and keep every op unchanged when saving it again. Reject an AI answer or an import unless every op is valid.
 
 A saved view also needs every overlay to have the view's `surface` and `layer`, the same `scope.org` and `scope.team` as the others, and a unique `id`. In a manifest, a prop's `default` and `semantic` values must be among its `values`.

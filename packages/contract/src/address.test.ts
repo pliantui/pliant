@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest"
+import * as z from "zod"
 
-import { addressSchema, nodeIdSchema, slotIdSchema } from "./address"
+import {
+  addressSchema,
+  itemAddressSchema,
+  nodeAddressSchema,
+  nodeIdSchema,
+  slotIdSchema,
+} from "./address"
+import { opSchema } from "./op"
 import { surfaceSchema } from "./surface"
 
 describe("addressSchema", () => {
@@ -33,6 +41,68 @@ describe("addressSchema", () => {
     "orders-table/",
   ])("rejects %j", (address) => {
     expect(addressSchema.safeParse(address).success).toBe(false)
+  })
+})
+
+describe("per-row addresses", () => {
+  const reserved = { code: "per-row-address-reserved" }
+
+  function issuesOf(schema: z.ZodType, value: unknown) {
+    return schema.safeParse(value).error?.issues ?? []
+  }
+
+  it.each([
+    ["addressSchema", addressSchema, "order-card[42]"],
+    ["addressSchema", addressSchema, "order-card[42]/actions/refund"],
+    ["addressSchema", addressSchema, "order-card[a b]/actions/refund"],
+    ["addressSchema", addressSchema, "order-card[42]/bogus"],
+    ["nodeIdSchema", nodeIdSchema, "order-card[42]"],
+    ["itemAddressSchema", itemAddressSchema("actions"), "card[k]/actions/x"],
+    ["itemAddressSchema", itemAddressSchema(), "card[k]/slots/body"],
+    ["nodeAddressSchema", nodeAddressSchema(), "card[k]"],
+    [
+      "nodeAddressSchema",
+      nodeAddressSchema({ template: false }),
+      "card[k]/slots/body",
+    ],
+  ] as const)(
+    "%s reports only per-row-address-reserved for %j",
+    (_, schema, value) => {
+      expect(issuesOf(schema, value)).toEqual([
+        expect.objectContaining({ code: "custom", params: reserved }),
+      ])
+    }
+  )
+
+  it.each([
+    "order-card[]x",
+    "order-card[42]x",
+    "order-card[",
+    "order-card]",
+    "orders-table/columns/total[1]",
+  ])("reports %j as malformed, not reserved", (value) => {
+    const issues = issuesOf(addressSchema, value)
+    expect(issues).toEqual([
+      expect.objectContaining({ code: "invalid_format" }),
+    ])
+  })
+
+  it("reports a per-row op target as reserved", () => {
+    const issues = issuesOf(opSchema, {
+      op: "hide",
+      target: "order-card[42]/actions/refund",
+    })
+    expect(issues).toEqual([
+      expect.objectContaining({ path: ["target"], params: reserved }),
+    ])
+  })
+
+  it("keeps per-row addresses out of the JSON Schema", () => {
+    const { pattern } = z
+      .object({ pattern: z.string() })
+      .parse(z.toJSONSchema(addressSchema))
+    expect(new RegExp(pattern).test("order-card[42]")).toBe(false)
+    expect(new RegExp(pattern).test("order-card[]")).toBe(true)
   })
 })
 
