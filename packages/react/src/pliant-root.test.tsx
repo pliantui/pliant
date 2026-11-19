@@ -16,6 +16,7 @@ import type { ResolvedLayers } from "@pliantui/core"
 import { PliantRoot } from "./pliant-root"
 import type { StorageAdapter } from "./storage-adapter"
 import { useMountedNodes } from "./use-mounted-nodes"
+import { usePliantStatus } from "./use-pliant-status"
 import { usePliantStore } from "./use-pliant-store"
 import { usePreview } from "./use-preview"
 import { useResolved } from "./use-resolved"
@@ -394,6 +395,111 @@ describe("PliantRoot", () => {
     )
 
     expect(stores.size).toBe(2)
+  })
+
+  it("is ready with a synchronous adapter before the first paint", () => {
+    const statuses: string[] = []
+    function Status() {
+      const { status } = usePliantStatus()
+      statuses.push(status)
+      return <output>{status}</output>
+    }
+    render(
+      <PliantRoot surface={surface} storage={memoryAdapter().storage}>
+        <Status />
+      </PliantRoot>
+    )
+
+    expect(screen.getByRole("status").textContent).toBe("ready")
+    expect(statuses).toEqual(["loading", "ready"])
+  })
+
+  it("re-renders a selector only when its result changes", () => {
+    const renders = vi.fn()
+    const selectWidth = (resolved: ResolvedLayers) => widthOf(resolved)
+    const { result } = renderHook(
+      () => {
+        renders()
+        return {
+          width: useResolved(selectWidth),
+          store: usePliantStore(),
+        }
+      },
+      {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <PliantRoot surface={surface} storage={memoryAdapter().storage}>
+            {children}
+          </PliantRoot>
+        ),
+      }
+    )
+    const before = renders.mock.calls.length
+
+    act(() => {
+      result.current.store.applyOps("session", [
+        { op: "hide", target: "orders-table/columns/notes" },
+      ])
+    })
+    expect(renders).toHaveBeenCalledTimes(before)
+
+    act(() => {
+      result.current.store.applyOps("session", [width(200)])
+    })
+    expect(result.current.width).toBe(200)
+    expect(renders).toHaveBeenCalledTimes(before + 1)
+  })
+
+  it("reports failed saves to onError and saves them again later", () => {
+    const onError = vi.fn()
+    const setItem = vi
+      .spyOn(localStorage, "setItem")
+      .mockImplementationOnce(() => {
+        throw new DOMException("Storage is full", "QuotaExceededError")
+      })
+    const { result } = renderHook(() => usePliantStore(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <PliantRoot surface={surface} onError={onError}>
+          {children}
+        </PliantRoot>
+      ),
+    })
+
+    act(() => {
+      result.current.applyOps("personal", [width(200)])
+    })
+    window.dispatchEvent(new Event("pagehide"))
+    expect(onError).toHaveBeenCalledWith(
+      new DOMException("Storage is full", "QuotaExceededError")
+    )
+
+    setItem.mockRestore()
+    window.dispatchEvent(new Event("pagehide"))
+    expect(
+      JSON.parse(localStorage.getItem(`pliant:${surface}`) ?? "null")
+    ).toMatchObject({ personal: [{ ops: [width(200)] }] })
+  })
+
+  it("reports saving over newer data to onError", () => {
+    const onError = vi.fn()
+    localStorage.setItem(`pliant:${surface}`, JSON.stringify({ v: 2 }))
+    const { result } = renderHook(() => usePliantStore(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <PliantRoot surface={surface} onError={onError}>
+          {children}
+        </PliantRoot>
+      ),
+    })
+
+    act(() => {
+      result.current.applyOps("personal", [width(200)])
+    })
+    window.dispatchEvent(new Event("pagehide"))
+    expect(onError).toHaveBeenCalledWith(
+      new Error(
+        `The overlays saved for ${surface} were written by a newer version of Pliant`
+      )
+    )
+    expect(localStorage.getItem(`pliant:${surface}`)).toBe('{"v":2}')
   })
 
   it("throws when a hook is used outside a PliantRoot", () => {

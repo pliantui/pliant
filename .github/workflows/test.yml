@@ -59,7 +59,7 @@ jobs:
       - run: pnpm --filter @pliantui/core --filter @pliantui/react test
       - run: >-
           pnpm --recursive --filter @pliantui/contract --filter @pliantui/core
-          exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false
+          --filter @pliantui/react exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false
           --module preserve --moduleResolution bundler dist/index.d.ts
 
   zod-server:

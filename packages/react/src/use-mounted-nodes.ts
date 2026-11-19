@@ -5,7 +5,9 @@ import { useLayerStore } from "./pliant-context"
 /**
  * Registers node ids as mounted while the calling component is, so ops into
  * them apply instead of staying dormant. Changes are batched, and resolve
- * again only when the set of mounted ids changes.
+ * again only when the set of mounted ids changes. Pass a stable `ids` array
+ * (memoized, or from props); a new array registers again after each render,
+ * which is cheap but not free.
  *
  * @experimental
  */

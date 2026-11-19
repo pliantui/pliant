@@ -168,26 +168,43 @@ describe("createLayerStore", () => {
       expect(store.getResolved()).toBe(before)
     })
 
-    it("rejects an op the lower layers make invalid", () => {
+    it("checks ids against nodes mounted in the same tick", () => {
       const { store } = setup()
       store.registerNodes(["dashboard", "orders"])
-      return Promise.resolve().then(() => {
-        const result = store.actions.applyOps("personal", [
-          opSchema.parse({
-            op: "insert",
-            target: "dashboard",
-            node: { id: "orders", kind: "chart", dataset: "orders" },
-            at: { index: 0 },
-          }),
-        ])
+      const result = store.actions.applyOps("personal", [
+        opSchema.parse({
+          op: "insert",
+          target: "dashboard",
+          node: { id: "orders", kind: "chart", dataset: "orders" },
+          at: { index: 0 },
+        }),
+      ])
 
-        expect(result).toEqual({
-          success: false,
-          error: expect.stringContaining(
-            "already used on this surface"
-          ) as string,
-        })
+      expect(result).toEqual({
+        success: false,
+        error: expect.stringContaining(
+          "already used on this surface"
+        ) as string,
       })
+    })
+
+    it("sorts after saved overlays from a clock that was ahead", () => {
+      const { store } = setup({
+        personal: [
+          {
+            ...personalOverlay("01KAB0000000000000000000P1", [
+              width("total", 500),
+            ]),
+            createdAt: "2030-01-01T00:00:00.000Z",
+          },
+        ],
+      })
+      const result = store.actions.applyOps("personal", [width("total", 200)])
+
+      expect(result).toMatchObject({
+        overlay: { createdAt: "2030-01-01T00:00:00.001Z" },
+      })
+      expect(widthOf(store.getResolved(), "total")).toBe(200)
     })
 
     it("rejects an explain that doesn't match the ops", () => {
@@ -269,16 +286,35 @@ describe("createLayerStore", () => {
       expect(saved).toHaveLength(1)
     })
 
-    it("reports a failed save without throwing", () => {
-      const error = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => undefined)
+    it("coalesces moves into a node", () => {
+      const { store, saved } = setup()
+      const into = (container: string) =>
+        opSchema.parse({
+          op: "move",
+          target: "dashboard/slots/c",
+          to: { into: container },
+        })
+      store.actions.applyOps("personal", [into("sidebar")])
+      store.actions.applyOps("personal", [into("footer")])
+      store.flush()
+
+      expect(saved.map(({ ops }) => ops)).toEqual([[into("footer")]])
+    })
+
+    it("reports a failed save and saves it again on the next flush", () => {
+      const onError = vi.fn()
+      const saved: Overlay[] = []
+      let failing = true
       const store = createLayerStore({
         surface,
+        onError,
         storage: {
           load: () => ({}),
-          save: () => {
-            throw new Error("quota")
+          save: (_surface, overlay) => {
+            if (failing) {
+              throw new Error("quota")
+            }
+            saved.push(overlay)
           },
         },
       })
@@ -286,9 +322,37 @@ describe("createLayerStore", () => {
       store.actions.applyOps("personal", [width("total", 200)])
       store.flush()
 
-      expect(error).toHaveBeenCalledWith(new Error("quota"))
+      expect(onError).toHaveBeenCalledWith(new Error("quota"))
       expect(widthOf(store.getResolved(), "total")).toBe(200)
-      error.mockRestore()
+
+      failing = false
+      store.flush()
+      expect(saved.map(({ ops }) => ops)).toEqual([[width("total", 200)]])
+    })
+
+    it("saves a rejected async save again on the next flush", async () => {
+      const onError = vi.fn()
+      const save = vi
+        .fn<StorageAdapter["save"]>()
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockResolvedValue(undefined)
+      const store = createLayerStore({
+        surface,
+        onError,
+        storage: { load: () => ({}), save },
+      })
+      store.connect()
+      store.actions.applyOps("personal", [width("total", 200)])
+      store.flush()
+      await vi.waitFor(() => {
+        expect(onError).toHaveBeenCalledWith(new Error("offline"))
+      })
+
+      store.flush()
+      expect(save).toHaveBeenCalledTimes(2)
+      expect(save.mock.calls[1]?.[1]).toMatchObject({
+        ops: [width("total", 200)],
+      })
     })
   })
 
@@ -328,15 +392,19 @@ describe("createLayerStore", () => {
       expect(second.store.getPreview()?.id).toBe("01KAB0000000000000000000S1")
     })
 
-    it("doesn't touch sessionStorage before it connects", () => {
+    it("doesn't touch storage before it connects", () => {
+      const load = vi.fn(() => ({}))
       const store = createLayerStore({
         surface,
-        storage: memoryAdapter().adapter,
+        storage: { load, save: vi.fn() },
       })
-      store.actions.applyOps("session", [width("total", 200)])
 
+      expect(store.getStatus()).toEqual({ status: "loading" })
       expect(sessionStorage.getItem(`pliant:session:${surface}`)).toBeNull()
+      expect(load).not.toHaveBeenCalled()
+
       store.connect()
+      expect(store.getStatus()).toEqual({ status: "ready" })
       expect(sessionStorage.getItem(`pliant:session:${surface}`)).not.toBeNull()
     })
   })
@@ -410,16 +478,68 @@ describe("createLayerStore", () => {
       expect(widthOf(store.getResolved(), "total")).toBe(320)
     })
 
-    it("keeps the preview when it can't be locked in", () => {
+    it("drops session changes that would hide the locked version", () => {
+      const { store } = setup()
+      store.actions.applyOps("session", [
+        width("total", 100),
+        width("status", 80),
+      ])
+      store.actions.applyOps("session", [width("total", 110)], {
+        explain: ["Narrow the total column"],
+      })
+      store.actions.preview(answer)
+      store.actions.lockIn()
+
+      const resolved = store.getResolved()
+      expect(widthOf(resolved, "total")).toBe(320)
+      expect(widthOf(resolved, "status")).toBe(80)
+      expect(
+        JSON.parse(
+          sessionStorage.getItem(`pliant:session:${surface}`) ?? "null"
+        )
+      ).toMatchObject({
+        overlays: [{ ops: [width("status", 80)] }],
+        preview: null,
+      })
+    })
+
+    it("keeps session-only ops in the session layer", () => {
+      const { store, saved } = setup()
+      const page = { op: "setPage", target: "orders-table", index: 2 }
+      store.actions.preview({
+        ...answer,
+        ops: [width("total", 320), page],
+        explain: ["Widen the total column", "Go to page 3"],
+      })
+      const result = store.actions.lockIn()
+
+      expect(result).toMatchObject({
+        success: true,
+        overlay: { layer: "personal", ops: [width("total", 320)] },
+      })
+      expect(saved).toMatchObject([
+        { ops: [width("total", 320)], explain: ["Widen the total column"] },
+      ])
+      expect(
+        store.getResolved().properties.get("orders-table")?.get("page")?.winner
+          .overlay.layer
+      ).toBe("session")
+      expect(store.getPreview()).toBeNull()
+    })
+
+    it("moves a preview of session-only ops to the session layer", () => {
       const { store, saved } = setup()
       store.actions.preview({
         ...answer,
         ops: [{ op: "setPage", target: "orders-table", index: 2 }],
       })
 
-      expect(store.actions.lockIn().success).toBe(false)
+      expect(store.actions.lockIn()).toMatchObject({
+        success: true,
+        overlay: { layer: "session" },
+      })
       expect(saved).toEqual([])
-      expect(store.getPreview()).not.toBeNull()
+      expect(store.getPreview()).toBeNull()
     })
 
     it("has nothing to lock in without a preview", () => {
@@ -428,6 +548,86 @@ describe("createLayerStore", () => {
       expect(store.actions.lockIn()).toEqual({
         success: false,
         error: "There is no preview to lock in",
+      })
+    })
+  })
+
+  describe("status", () => {
+    function asyncSetup() {
+      const load = vi.fn<StorageAdapter["load"]>()
+      const store = createLayerStore({
+        surface,
+        storage: { load, save: vi.fn() },
+      })
+      return { store, load }
+    }
+
+    it("rejects changes until the layers have loaded", async () => {
+      const { store, load } = asyncSetup()
+      load.mockResolvedValue({
+        personal: [
+          personalOverlay("01KAB0000000000000000000P1", [width("total", 240)]),
+        ],
+      })
+      store.connect()
+
+      expect(store.getStatus()).toEqual({ status: "loading" })
+      expect(store.actions.applyOps("personal", [width("total", 200)])).toEqual(
+        {
+          success: false,
+          error: "The layers of /orders haven't loaded yet",
+        }
+      )
+      await vi.waitFor(() => {
+        expect(store.getStatus()).toEqual({ status: "ready" })
+      })
+      expect(widthOf(store.getResolved(), "total")).toBe(240)
+      expect(
+        store.actions.applyOps("personal", [width("total", 200)]).success
+      ).toBe(true)
+    })
+
+    it("reports a failed load, and loads again on reload", async () => {
+      const { store, load } = asyncSetup()
+      load.mockRejectedValueOnce(new Error("offline")).mockResolvedValue({
+        personal: [
+          personalOverlay("01KAB0000000000000000000P1", [width("total", 240)]),
+        ],
+      })
+      store.connect()
+      await vi.waitFor(() => {
+        expect(store.getStatus()).toEqual({
+          status: "error",
+          error: new Error("offline"),
+        })
+      })
+      expect(
+        store.actions.applyOps("session", [width("total", 1)]).success
+      ).toBe(false)
+
+      store.actions.reload()
+      expect(store.getStatus()).toEqual({ status: "loading" })
+      await vi.waitFor(() => {
+        expect(store.getStatus()).toEqual({ status: "ready" })
+      })
+      expect(widthOf(store.getResolved(), "total")).toBe(240)
+    })
+
+    it("reports a load that throws", () => {
+      const store = createLayerStore({
+        surface,
+        storage: {
+          load: () => {
+            throw new Error("blocked")
+          },
+          save: vi.fn(),
+        },
+      })
+      store.connect()
+
+      expect(store.getStatus()).toEqual({
+        status: "error",
+        error: new Error("blocked"),
       })
     })
   })

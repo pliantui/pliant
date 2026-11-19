@@ -1,4 +1,4 @@
-import type { Op } from "@pliantui/contract"
+import { opCatalog, type Op } from "@pliantui/contract"
 import {
   formatError,
   loadOverlay,
@@ -9,7 +9,7 @@ import {
   type ValidatedOverlay,
 } from "@pliantui/core"
 
-import { propertyKeysOf } from "./property-keys"
+import { changeKeyOf, propertiesOf } from "./property-keys"
 import { readSession, writeSession } from "./session-mirror"
 import type { StorageAdapter, StoredLayers } from "./storage-adapter"
 import { ulid } from "./ulid"
@@ -35,15 +35,36 @@ export interface ApplyOpsOptions {
 }
 
 /**
+ * Whether the surface's layers have loaded from the storage adapter. Until
+ * they are `ready`, nothing can change them, and the server render and the
+ * first client render resolve no overlays.
+ *
+ * @experimental
+ */
+export type PliantStatus =
+  | { readonly status: "loading" }
+  | { readonly status: "ready" }
+  | { readonly status: "error"; readonly error: unknown }
+
+/**
  * Changes the layers of the surface that the nearest `PliantRoot` holds.
+ *
+ * Each tab holds its own copy of the layers: another tab's changes show
+ * after a reload.
  *
  * @experimental
  */
 export interface PliantStore {
   /**
-   * Applies ops as one overlay on the personal or session layer. The overlay
-   * is validated against the layers below it and the mounted nodes, and
-   * rejected as a whole when any op is invalid.
+   * Applies ops as one overlay on the personal or session layer, made with
+   * `source: "manual"`, `createdBy: "local"` and `basis.manifests: {}`. The
+   * manifest versions aren't known here yet; they must be filled in before
+   * migrations rely on them.
+   *
+   * The overlay is validated against the layers below it and the mounted
+   * nodes, and rejected as a whole when any op is invalid. It is also
+   * rejected until the layers are `ready` (see `usePliantStatus`), rather
+   * than validated against layers that haven't loaded.
    *
    * A personal change that writes exactly the properties of the previous
    * one, within 1s of it, replaces it, so dragging a column width saves one
@@ -61,16 +82,25 @@ export interface PliantStore {
    * until `lockIn` or `discard`. It replaces the current preview.
    */
   readonly preview: (overlay: unknown) => OverlayResult
-  /** Saves the preview as a new personal version and ends the preview. */
+  /**
+   * Ends the preview by keeping it: its ops become a new personal version,
+   * saved at once, and the session changes to the properties they write are
+   * dropped, so they can't hide it. Ops allowed only in the session layer,
+   * such as `setPage`, stay in the session layer instead. The result is the
+   * personal version, or the session overlay when every op is session-only.
+   */
   readonly lockIn: () => OverlayResult
   /** Drops the preview. */
   readonly discard: () => void
+  /** Loads the layers from the storage adapter again, as after an error. */
+  readonly reload: () => void
 }
 
 export interface LayerStoreOptions {
   readonly surface: string
   readonly storage: StorageAdapter
   readonly teamOrder?: readonly string[] | undefined
+  readonly onError?: ((error: unknown) => void) | undefined
   readonly now?: (() => number) | undefined
   readonly generateId?: ((time: number) => string) | undefined
 }
@@ -81,16 +111,21 @@ export interface LayerStore {
   readonly getResolved: () => ResolvedLayers
   readonly getServerResolved: () => ResolvedLayers
   readonly getPreview: () => LoadedOverlay | null
+  readonly getStatus: () => PliantStatus
   readonly registerNodes: (ids: readonly string[]) => () => void
   readonly setTeamOrder: (teamOrder: readonly string[]) => void
+  readonly setOnError: (onError: ((error: unknown) => void) | undefined) => void
   readonly connect: () => () => void
   readonly flush: () => void
 }
 
+export const loadingStatus: PliantStatus = { status: "loading" }
+const readyStatus: PliantStatus = { status: "ready" }
+
 interface PendingVersion {
   readonly overlay: ValidatedOverlay
-  readonly keys: string | undefined
-  readonly time: number
+  readonly key: string | undefined
+  readonly at: number
 }
 
 function idOf(input: unknown) {
@@ -110,23 +145,35 @@ function mergeById(saved: readonly unknown[], current: readonly unknown[]) {
   ]
 }
 
-function reportError(error: unknown) {
-  console.error(error)
+function withOps(
+  { explain, ...overlay }: LoadedOverlay,
+  keep: (index: number) => boolean
+) {
+  const ops = overlay.ops.filter((_, index) => keep(index))
+  return {
+    ...overlay,
+    ops: ops.map((check) => check.op),
+    ...(explain ? { explain: explain.filter((_, index) => keep(index)) } : {}),
+  }
 }
 
 export function createLayerStore({
   surface,
   storage,
   teamOrder: initialTeamOrder = [],
+  onError: initialOnError,
   now = Date.now,
   generateId = ulid,
 }: LayerStoreOptions): LayerStore {
   const listeners = new Set<() => void>()
   const loaded = new WeakMap<object, LoadedOverlay | undefined>()
-  const keysByOverlay = new WeakMap<LoadedOverlay, string | undefined>()
+  const keys = new WeakMap<LoadedOverlay, string | undefined>()
   const mounted = new Map<string, number>()
+  const unsaved = new Map<string, ValidatedOverlay>()
 
   let teamOrder = initialTeamOrder
+  let onError = initialOnError
+  let status = loadingStatus
   let org: readonly unknown[] = []
   let team: readonly unknown[] = []
   let personal: readonly unknown[] = []
@@ -142,6 +189,14 @@ export function createLayerStore({
   let snapshot: { version: number; resolved: ResolvedLayers } | undefined
   let serverSnapshot: ResolvedLayers | undefined
 
+  function report(error: unknown) {
+    if (onError) {
+      onError(error)
+    } else {
+      console.error(error)
+    }
+  }
+
   function load(input: unknown) {
     if (typeof input !== "object" || input === null) {
       return undefined
@@ -153,11 +208,11 @@ export function createLayerStore({
     return loaded.get(input)
   }
 
-  function keysOf(overlay: LoadedOverlay) {
-    if (!keysByOverlay.has(overlay)) {
-      keysByOverlay.set(overlay, propertyKeysOf(overlay, surface))
+  function keyOf(overlay: LoadedOverlay) {
+    if (!keys.has(overlay)) {
+      keys.set(overlay, changeKeyOf(overlay))
     }
-    return keysByOverlay.get(overlay)
+    return keys.get(overlay)
   }
 
   function resolve(inputs: readonly unknown[]) {
@@ -167,18 +222,37 @@ export function createLayerStore({
     )
   }
 
-  function emit() {
-    version++
+  function notify() {
     for (const listener of listeners) {
       listener()
     }
   }
 
-  // Strictly increasing, so a change never ties with an earlier one on
-  // `createdAt`, and the preview always sorts last.
+  function changeLayers() {
+    version++
+    notify()
+  }
+
+  function setStatus(next: PliantStatus) {
+    status = next
+    notify()
+  }
+
+  // Strictly increasing, and never before a loaded overlay, so a change
+  // never sorts before an earlier one, even after a reload or when a saved
+  // overlay's clock was ahead.
   function tick() {
     lastTime = Math.max(now(), lastTime + 1)
     return lastTime
+  }
+
+  function seed(inputs: readonly unknown[]) {
+    for (const input of inputs) {
+      const time = Date.parse(load(input)?.createdAt ?? "")
+      if (time > lastTime) {
+        lastTime = time
+      }
+    }
   }
 
   function mirror() {
@@ -187,11 +261,24 @@ export function createLayerStore({
     }
   }
 
-  function save(overlay: ValidatedOverlay) {
-    try {
-      void Promise.resolve(storage.save(surface, overlay)).catch(reportError)
-    } catch (error) {
-      reportError(error)
+  function persist() {
+    for (const overlay of [...unsaved.values()]) {
+      let saved: void | Promise<void>
+      try {
+        saved = storage.save(surface, overlay)
+      } catch (error) {
+        report(error)
+        continue
+      }
+      unsaved.delete(overlay.id)
+      if (saved instanceof Promise) {
+        saved.catch((error: unknown) => {
+          if (!unsaved.has(overlay.id)) {
+            unsaved.set(overlay.id, overlay)
+          }
+          report(error)
+        })
+      }
     }
   }
 
@@ -199,10 +286,10 @@ export function createLayerStore({
     clearTimeout(timer)
     timer = undefined
     if (pending) {
-      const { overlay } = pending
+      unsaved.set(pending.overlay.id, pending.overlay)
       pending = undefined
-      save(overlay)
     }
+    persist()
   }
 
   function lowerOf(layer: "personal" | "session") {
@@ -211,10 +298,22 @@ export function createLayerStore({
       : [...org, ...team, ...personal, ...session]
   }
 
+  function notReady(): OverlayResult | undefined {
+    return status === readyStatus
+      ? undefined
+      : {
+          success: false,
+          error: `The layers of ${surface} haven't loaded yet`,
+        }
+  }
+
   function validate(
     input: unknown,
     layer: "personal" | "session"
   ): OverlayResult {
+    if (mountedScheduled) {
+      updateMountedIds()
+    }
     const result = validateOverlay(input, {
       layers: {
         overlays: lowerOf(layer),
@@ -228,21 +327,18 @@ export function createLayerStore({
       : { success: false, error: formatError(result.error) }
   }
 
-  function replacedId(
-    layer: "personal" | "session",
-    keys: string,
-    time: number
-  ) {
+  function replacedId(layer: "personal" | "session", key: string) {
     if (layer === "personal") {
-      return pending?.keys === keys && time - pending.time < coalesceWindow
+      return pending?.key === key && now() - pending.at < coalesceWindow
         ? pending.overlay.id
         : undefined
     }
-    const replaced = session.find((input) => {
-      const overlay = load(input)
-      return overlay !== undefined && keysOf(overlay) === keys
-    })
-    return idOf(replaced)
+    return idOf(
+      session.find((input) => {
+        const overlay = load(input)
+        return overlay !== undefined && keyOf(overlay) === key
+      })
+    )
   }
 
   function applyOps(
@@ -250,6 +346,10 @@ export function createLayerStore({
     ops: readonly Op[],
     { explain }: ApplyOpsOptions = {}
   ): OverlayResult {
+    const rejected = notReady()
+    if (rejected) {
+      return rejected
+    }
     const time = tick()
     const candidate = {
       v: 1,
@@ -264,10 +364,10 @@ export function createLayerStore({
       createdAt: new Date(time).toISOString(),
     }
     const loadedCandidate = loadOverlay(candidate)
-    const keys = loadedCandidate.success
-      ? keysOf(loadedCandidate.data)
+    const key = loadedCandidate.success
+      ? keyOf(loadedCandidate.data)
       : undefined
-    const id = keys === undefined ? undefined : replacedId(layer, keys, time)
+    const id = key === undefined ? undefined : replacedId(layer, key)
     const result = validate(
       id === undefined ? candidate : { ...candidate, id },
       layer
@@ -285,7 +385,7 @@ export function createLayerStore({
         ...personal.filter((saved) => idOf(saved) !== overlay.id),
         overlay,
       ]
-      pending = { overlay, keys, time }
+      pending = { overlay, key, at: now() }
       timer = setTimeout(flush, coalesceWindow)
     } else {
       session = [
@@ -294,12 +394,15 @@ export function createLayerStore({
       ]
       mirror()
     }
-    emit()
+    changeLayers()
     return result
   }
 
   function preview(input: unknown): OverlayResult {
-    const time = tick()
+    const rejected = notReady()
+    if (rejected) {
+      return rejected
+    }
     const result = validate(input, "session")
     if (!result.success) {
       return result
@@ -314,37 +417,101 @@ export function createLayerStore({
     // it, whatever the clock of the server that made it.
     const overlay = {
       ...result.overlay,
-      createdAt: new Date(time).toISOString(),
+      createdAt: new Date(tick()).toISOString(),
     }
     previewed = overlay
     mirror()
-    emit()
+    changeLayers()
     return { success: true, overlay }
   }
 
+  function withoutProperties(input: unknown, written: ReadonlySet<string>) {
+    const overlay = load(input)
+    if (!overlay) {
+      return [input]
+    }
+    const keep = overlay.ops.map(
+      (check) =>
+        check.status !== "valid" ||
+        !propertiesOf(check.op).some((property) => written.has(property))
+    )
+    if (keep.every(Boolean)) {
+      return [input]
+    }
+    return keep.some(Boolean)
+      ? [withOps(overlay, (index) => keep[index] === true)]
+      : []
+  }
+
   function lockIn(): OverlayResult {
-    if (previewed === null) {
+    const rejected = notReady()
+    if (rejected) {
+      return rejected
+    }
+    const overlay = load(previewed)
+    if (!overlay) {
       return { success: false, error: "There is no preview to lock in" }
     }
-    flush()
-    const time = tick()
-    const result = validate(
-      {
-        ...previewed,
-        id: generateId(time),
-        layer: "personal",
-        createdAt: new Date(time).toISOString(),
-      },
-      "personal"
+    const valid = overlay.ops.map((check) => check.status === "valid")
+    const personalOnly = overlay.ops.map(
+      (check) =>
+        check.status === "valid" &&
+        opCatalog[check.op.op].layers.includes("personal")
     )
-    if (!result.success) {
-      return result
+    const time = tick()
+    const createdAt = new Date(time).toISOString()
+    let locked: ValidatedOverlay | undefined
+    if (personalOnly.some(Boolean)) {
+      const result = validate(
+        {
+          ...withOps(overlay, (index) => personalOnly[index] === true),
+          id: generateId(time),
+          layer: "personal",
+          createdAt,
+        },
+        "personal"
+      )
+      if (!result.success) {
+        return result
+      }
+      locked = result.overlay
     }
-    personal = [...personal, result.overlay]
-    save(result.overlay)
+    const sessionOnly = (index: number) =>
+      valid[index] === true && personalOnly[index] !== true
+    const kept = valid.some((_, index) => sessionOnly(index))
+      ? validate(
+          {
+            ...withOps(overlay, sessionOnly),
+            id: generateId(time),
+            layer: "session",
+            createdAt,
+          },
+          "session"
+        )
+      : undefined
+    if (kept && !kept.success) {
+      return kept
+    }
+    const result: OverlayResult | undefined = locked
+      ? { success: true, overlay: locked }
+      : kept
+    if (!result) {
+      return { success: false, error: "The preview has no valid ops" }
+    }
+    if (locked) {
+      flush()
+      const written = new Set(locked.ops.flatMap((op) => propertiesOf(op)))
+      session = session.flatMap((input) => withoutProperties(input, written))
+      personal = [...personal, locked]
+      unsaved.set(locked.id, locked)
+      persist()
+    }
+    if (kept?.success) {
+      session = [...session, kept.overlay]
+    }
     previewed = null
     mirror()
-    emit()
+    changeLayers()
     return result
   }
 
@@ -352,7 +519,53 @@ export function createLayerStore({
     if (previewed !== null) {
       previewed = null
       mirror()
-      emit()
+      changeLayers()
+    }
+  }
+
+  function hydrate(token: object, stored: StoredLayers) {
+    if (connection !== token) {
+      return
+    }
+    const saved = stored.personal ?? []
+    org = stored.org ?? []
+    team = stored.team ?? []
+    personal = mergeById(saved, personal)
+    seed(saved)
+    if (org.length > 0 || team.length > 0 || saved.length > 0) {
+      version++
+    }
+    setStatus(readyStatus)
+  }
+
+  function reload() {
+    const token = connection
+    if (!token) {
+      return
+    }
+    if (status !== loadingStatus) {
+      setStatus(loadingStatus)
+    }
+    let stored: StoredLayers | Promise<StoredLayers>
+    try {
+      stored = storage.load(surface)
+    } catch (error) {
+      setStatus({ status: "error", error })
+      return
+    }
+    if (stored instanceof Promise) {
+      stored.then(
+        (layers) => {
+          hydrate(token, layers)
+        },
+        (error: unknown) => {
+          if (connection === token) {
+            setStatus({ status: "error", error })
+          }
+        }
+      )
+    } else {
+      hydrate(token, stored)
     }
   }
 
@@ -388,7 +601,18 @@ export function createLayerStore({
       [...mounted.keys()].some((id) => !current.has(id))
     ) {
       mountedIds = [...mounted.keys()]
-      emit()
+      changeLayers()
+    }
+  }
+
+  function scheduleMountedIds() {
+    if (!mountedScheduled) {
+      mountedScheduled = true
+      queueMicrotask(() => {
+        if (mountedScheduled) {
+          updateMountedIds()
+        }
+      })
     }
   }
 
@@ -396,13 +620,7 @@ export function createLayerStore({
     for (const id of ids) {
       mounted.set(id, (mounted.get(id) ?? 0) + 1)
     }
-    function schedule() {
-      if (!mountedScheduled) {
-        mountedScheduled = true
-        queueMicrotask(updateMountedIds)
-      }
-    }
-    schedule()
+    scheduleMountedIds()
     let registered = true
     return () => {
       if (!registered) {
@@ -417,7 +635,7 @@ export function createLayerStore({
           mounted.delete(id)
         }
       }
-      schedule()
+      scheduleMountedIds()
     }
   }
 
@@ -433,31 +651,12 @@ export function createLayerStore({
     ) {
       previewed = restored.preview
     }
+    seed([...session, previewed])
+    if (session.length > 0 || previewed !== null) {
+      changeLayers()
+    }
     mirror()
-
-    function hydrate({
-      org: savedOrg,
-      team: savedTeam,
-      personal: saved,
-    }: StoredLayers) {
-      if (connection === token) {
-        org = savedOrg ?? []
-        team = savedTeam ?? []
-        personal = mergeById(saved ?? [], personal)
-        emit()
-      }
-    }
-    try {
-      const stored = storage.load(surface)
-      if (stored instanceof Promise) {
-        stored.then(hydrate, reportError)
-      } else {
-        hydrate(stored)
-      }
-    } catch (error) {
-      reportError(error)
-    }
-    emit()
+    reload()
 
     function onVisibilityChange() {
       if (document.visibilityState === "hidden") {
@@ -475,7 +674,7 @@ export function createLayerStore({
   }
 
   return {
-    actions: { applyOps, preview, lockIn, discard },
+    actions: { applyOps, preview, lockIn, discard, reload },
     subscribe(listener) {
       listeners.add(listener)
       return () => {
@@ -487,12 +686,18 @@ export function createLayerStore({
     getPreview() {
       return load(previewed) ?? null
     },
+    getStatus() {
+      return status
+    },
     registerNodes,
     setTeamOrder(next) {
       if (JSON.stringify(next) !== JSON.stringify(teamOrder)) {
         teamOrder = next
-        emit()
+        changeLayers()
       }
+    },
+    setOnError(next) {
+      onError = next
     },
     connect,
     flush,

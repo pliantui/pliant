@@ -22,8 +22,8 @@ apps
 packages
 ├── contract
 ├── core
-├── react
 ├── pliantui
+├── react
 ├── server
 └── tests
 ```

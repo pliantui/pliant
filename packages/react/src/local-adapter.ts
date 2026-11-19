@@ -33,8 +33,9 @@ function readDocument(key: string): LocalDocument {
 
 /**
  * Stores personal overlays in `localStorage`, one key per surface, as
- * versioned JSON. Data that doesn't parse loads as no overlays, and data
- * written by a newer version loads as no overlays and is never overwritten.
+ * versioned JSON. Data that doesn't parse loads as no overlays. Data written
+ * by a newer version loads as no overlays and is never overwritten: saving
+ * over it throws.
  *
  * @experimental
  */
@@ -47,7 +48,9 @@ export function localAdapter(): StorageAdapter {
       const key = keyOf(surface)
       const { personal, newer } = readDocument(key)
       if (newer) {
-        return
+        throw new Error(
+          `The overlays saved for ${surface} were written by a newer version of Pliant`
+        )
       }
       const others = personal.filter(
         (saved) =>

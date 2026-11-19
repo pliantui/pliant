@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { Overlay } from "@pliantui/contract"
 
@@ -24,6 +24,10 @@ function overlay(id: string, width: number): Overlay {
 
 beforeEach(() => {
   localStorage.clear()
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe("localAdapter", () => {
@@ -74,9 +78,21 @@ describe("localAdapter", () => {
     const newer = JSON.stringify({ v: 2, layers: [] })
     localStorage.setItem(key, newer)
     const adapter = localAdapter()
-    void adapter.save("/orders", overlay("01KAB0000000000000000000P1", 200))
 
+    expect(() =>
+      adapter.save("/orders", overlay("01KAB0000000000000000000P1", 200))
+    ).toThrow("written by a newer version of Pliant")
     expect(adapter.load("/orders")).toEqual({ personal: [] })
     expect(localStorage.getItem(key)).toBe(newer)
+  })
+
+  it("throws when storage is full", () => {
+    vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+      throw new DOMException("Storage is full", "QuotaExceededError")
+    })
+
+    expect(() =>
+      localAdapter().save("/orders", overlay("01KAB0000000000000000000P1", 200))
+    ).toThrow("Storage is full")
   })
 })

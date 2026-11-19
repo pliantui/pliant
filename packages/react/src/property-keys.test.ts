@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest"
 
 import { loadOverlay } from "@pliantui/core"
 
-import { propertyKeysOf } from "./property-keys"
+import { changeKeyOf, propertiesOf } from "./property-keys"
 
-function keysOf(ops: unknown[]) {
+function keyOf(ops: unknown[]) {
   const result = loadOverlay({
     v: 1,
     id: "01KAB0000000000000000000P1",
@@ -17,9 +17,9 @@ function keysOf(ops: unknown[]) {
     createdAt: "2026-11-19T00:00:00.000Z",
   })
   if (!result.success) {
-    throw result.error
+    throw new Error(result.error.message)
   }
-  return propertyKeysOf(result.data, "/orders")
+  return changeKeyOf(result.data)
 }
 
 const width = (value: number) => ({
@@ -28,37 +28,50 @@ const width = (value: number) => ({
   width: value,
 })
 
-describe("propertyKeysOf", () => {
+const layout = (at: string) => ({
+  op: "setLayout",
+  target: "page",
+  mode: "row",
+  at,
+})
+
+describe("changeKeyOf", () => {
   it("is the same for ops that write the same properties", () => {
-    expect(keysOf([width(200)])).toBe(keysOf([width(300)]))
-    expect(keysOf([{ op: "hide", target: "a" }])).toBe(
-      keysOf([{ op: "show", target: "page/slots/a" }])
+    expect(keyOf([width(200)])).toBe(keyOf([width(300)]))
+    expect(keyOf([{ op: "hide", target: "a" }])).toBe(
+      keyOf([{ op: "show", target: "page/slots/a" }])
     )
+    expect(
+      keyOf([{ op: "move", target: "dashboard/slots/c", to: { into: "x" } }])
+    ).toBe(
+      keyOf([{ op: "move", target: "dashboard/slots/c", to: { into: "y" } }])
+    )
+    expect(keyOf([{ op: "remove", target: "x" }])).toBeDefined()
   })
 
   it("differs for other properties", () => {
-    expect(keysOf([width(200)])).not.toBe(
-      keysOf([width(200), { op: "hide", target: "a" }])
+    expect(keyOf([width(200)])).not.toBe(
+      keyOf([width(200), { op: "hide", target: "a" }])
     )
     expect(
-      keysOf([{ op: "pin", target: "page/slots/a", where: "start" }])
-    ).not.toBe(keysOf([{ op: "hide", target: "a" }]))
+      keyOf([{ op: "pin", target: "page/slots/a", where: "start" }])
+    ).not.toBe(keyOf([{ op: "hide", target: "a" }]))
   })
 
   it("differs for layouts at other breakpoints", () => {
-    const layout = (at: string) => ({
-      op: "setLayout",
-      target: "page",
-      mode: "row",
-      at,
-    })
-
-    expect(keysOf([layout("sm")])).not.toBe(keysOf([layout("lg")]))
-    expect(keysOf([layout("sm")])).toBe(keysOf([layout("sm")]))
+    expect(keyOf([layout("sm")])).not.toBe(keyOf([layout("lg")]))
+    expect(keyOf([layout("sm")])).toBe(keyOf([layout("sm")]))
   })
 
-  it("is undefined when an op doesn't apply on its own", () => {
-    expect(keysOf([{ op: "remove", target: "x" }])).toBeUndefined()
-    expect(keysOf([{ op: "fromTheFuture", target: "x" }])).toBeUndefined()
+  it("is undefined when an op isn't valid", () => {
+    expect(keyOf([{ op: "fromTheFuture", target: "x" }])).toBeUndefined()
+  })
+})
+
+describe("propertiesOf", () => {
+  it("ignores the breakpoint, since a higher layer replaces every one", () => {
+    expect(
+      propertiesOf({ op: "setLayout", target: "page", mode: "row", at: "sm" })
+    ).toEqual(propertiesOf({ op: "setLayout", target: "page", mode: "stack" }))
   })
 })
