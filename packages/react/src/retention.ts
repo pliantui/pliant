@@ -16,7 +16,9 @@ export interface RetainScope {
 export interface Retention {
   /**
    * Holds what `scope` and the scopes in it release, until called back.
-   * What it held is released on the next `settle`.
+   * What it held is released on the next `settle`, so a scope lets go once
+   * what it shows again has registered again: `PliantActivity` lets go and
+   * settles in its layout phase, or when it unmounts.
    */
   readonly hold: (scope: RetainScope) => () => void
   /** Releases, at the next microtask, what no scope holds any more. */

@@ -54,19 +54,17 @@ export function PliantActivity({
       holds.current.push(store.retention.hold(scope))
     }
   }, [store, scope, hidden])
-  // Layout effects also run again when an Activity around this one shows,
-  // and the insertion effect doesn't, so a hidden one holds again here.
   useLayoutEffect(() => {
     if (!hidden) {
       for (const drop of holds.current.splice(0)) {
         drop()
       }
-    } else if (holds.current.length === 0) {
-      holds.current.push(store.retention.hold(scope))
     }
     store.retention.settle()
-  }, [store, scope, hidden])
-  useLayoutEffect(
+  }, [store, hidden])
+  // Unlike layout cleanups, insertion cleanups run when this unmounts inside
+  // hidden content, and not when an Activity around it hides.
+  useInsertionEffect(
     () => () => {
       for (const drop of holds.current.splice(0)) {
         drop()

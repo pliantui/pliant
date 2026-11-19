@@ -171,6 +171,64 @@ describe("PliantActivity", () => {
     expect(outputs()).toEqual(["Card", "inner,card"])
   })
 
+  it("releases what a nested activity held when hidden content unmounts", async () => {
+    function Nested({
+      outer,
+      inner,
+      shown = true,
+    }: {
+      outer: "visible" | "hidden"
+      inner: "visible" | "hidden"
+      shown?: boolean
+    }) {
+      return (
+        <Page mode={outer} shown={shown}>
+          <PliantActivity mode={inner}>
+            <Region id="inner" slots={{ card: "Card" }} />
+          </PliantActivity>
+        </Page>
+      )
+    }
+    const { rerender } = render(<Nested outer="visible" inner="visible" />)
+    await settled()
+    rerender(<Nested outer="hidden" inner="visible" />)
+    await settled()
+    rerender(<Nested outer="hidden" inner="hidden" />)
+    await settled()
+    expect(outputs()).toEqual(["Card", "inner,card"])
+
+    rerender(<Nested outer="hidden" inner="hidden" shown={false} />)
+    await settled()
+    expect(outputs()).toEqual(["none", ""])
+  })
+
+  it("releases what nested activities hidden together held when they unmount", async () => {
+    function Nested({
+      mode,
+      shown = true,
+    }: {
+      mode: "visible" | "hidden"
+      shown?: boolean
+    }) {
+      return (
+        <Page mode={mode} shown={shown}>
+          <PliantActivity mode={mode}>
+            <Region id="inner" slots={{ card: "Card" }} />
+          </PliantActivity>
+        </Page>
+      )
+    }
+    const { rerender } = render(<Nested mode="visible" />)
+    await settled()
+    rerender(<Nested mode="hidden" />)
+    await settled()
+    expect(outputs()).toEqual(["Card", "inner,card"])
+
+    rerender(<Nested mode="hidden" shown={false} />)
+    await settled()
+    expect(outputs()).toEqual(["none", ""])
+  })
+
   it("registers a region first rendered hidden once it shows", async () => {
     const region = <Region id="inner" slots={{ card: "Card" }} />
     const { rerender } = render(<Page mode="hidden">{region}</Page>)
