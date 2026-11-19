@@ -168,6 +168,36 @@ async function settle() {
   await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
 }
 
+type PanelProps = React.ComponentProps<typeof PliantAskPanel>
+
+function pendingAnswer() {
+  let signal: AbortSignal | null | undefined
+  let resolveResponse: (response: Response) => void = () => undefined
+  fetchMock.mockImplementationOnce((_input, init) => {
+    signal = init?.signal
+    return new Promise((resolve) => {
+      resolveResponse = resolve
+    })
+  })
+  return {
+    signal: () => signal,
+    respond: (body: unknown) => {
+      resolveResponse(Response.json(body))
+    },
+  }
+}
+
+function Committed({
+  value,
+  onCommit,
+}: {
+  value: unknown
+  onCommit: () => void
+}) {
+  React.useLayoutEffect(onCommit, [value, onCommit])
+  return null
+}
+
 function prompt() {
   return screen.getByRole("textbox", { name: "Ask" })
 }
@@ -643,14 +673,34 @@ describe("PliantAskPanel", () => {
     expect(requestBody()).toMatchObject({ target: "orders-table" })
   })
 
-  it("targets a pick, clears the answer and focuses the prompt", async () => {
+  it("asks about the target its parent sets", async () => {
+    answer({ status: "clarify", question: "Which column?" })
+    await renderPanel({ target: "orders-table" })
+
+    expect(screen.getByRole("combobox", { name: "Change" }).textContent).toBe(
+      "Orders table"
+    )
+    await ask("make it nicer")
+
+    expect(requestBody()).toMatchObject({ target: "orders-table" })
+  })
+
+  it("falls back to the first target when its parent sets an unknown one", async () => {
+    await renderPanel({ target: "missing" })
+
+    expect(screen.getByRole("combobox", { name: "Change" }).textContent).toBe(
+      "Key metrics"
+    )
+  })
+
+  it("focuses the prompt and clears the answer when its parent changes the target", async () => {
     answer({ status: "clarify", question: "Which card?" })
-    const { rerender } = await renderPanel()
+    const { rerender } = await renderPanel({ target: "key-metrics" })
     await ask("reorder")
     expect(status()).toBe("Which card?")
     screen.getByRole("button", { name: "Close" }).focus()
 
-    rerender(page({ pick: { target: "orders-table" } }))
+    rerender(page({ target: "orders-table" }))
     await settle()
 
     expect(screen.getByRole("combobox", { name: "Change" }).textContent).toBe(
@@ -661,62 +711,116 @@ describe("PliantAskPanel", () => {
     expect(prompt()).toHaveProperty("value", "reorder")
   })
 
-  it("focuses the prompt on each pick, even of the same target", async () => {
-    answer({ status: "clarify", question: "Which card?" })
-    const { rerender } = await renderPanel({ pick: { target: "key-metrics" } })
-    await ask("reorder")
-    const close = screen.getByRole("button", { name: "Close" })
-    close.focus()
+  it("reports picks to its parent without moving focus", async () => {
+    const onTargetChange = vi.fn()
+    function Controlled() {
+      const [target, setTarget] = React.useState("key-metrics")
+      return page({
+        target,
+        onTargetChange: (next) => {
+          onTargetChange(next)
+          setTarget(next)
+        },
+      })
+    }
+    render(<Controlled />)
+    await settle()
+    const picker = screen.getByRole("combobox", { name: "Change" })
 
-    rerender(page({ pick: { target: "key-metrics" } }))
+    fireEvent.keyDown(picker, { key: "Enter" })
+    await settle()
+    fireEvent.click(screen.getByRole("option", { name: "Orders table" }))
     await settle()
 
-    expect(document.activeElement).toBe(prompt())
-    expect(status()).toBe("Which card?")
+    expect(onTargetChange).toHaveBeenCalledWith("orders-table")
+    expect(picker.textContent).toBe("Orders table")
+    expect(document.activeElement).not.toBe(prompt())
   })
 
-  it("cancels an ask when a pick changes the target", async () => {
-    const { rerender } = await renderPanel()
-    let signal: AbortSignal | null | undefined
-    let respond: (response: Response) => void = () => undefined
-    fetchMock.mockImplementationOnce((_input, init) => {
-      signal = init?.signal
-      return new Promise((resolve) => {
-        respond = resolve
-      })
-    })
+  it("cancels an ask when its parent changes the target", async () => {
+    const { rerender } = await renderPanel({ target: "key-metrics" })
+    const pending = pendingAnswer()
     await ask()
 
-    rerender(page({ pick: { target: "orders-table" } }))
+    rerender(page({ target: "orders-table" }))
     await settle()
 
-    expect(signal?.aborted).toBe(true)
+    expect(pending.signal()?.aborted).toBe(true)
     expect(status()).toBe("Cancelled.")
-    expect(screen.getByRole("combobox", { name: "Change" }).textContent).toBe(
-      "Orders table"
-    )
-
-    respond(Response.json(okAnswer))
+    pending.respond(okAnswer)
     await settle()
     expect(order()).toEqual(["revenue", "orders", "overdue"])
     expect(status()).toBe("Cancelled.")
   })
 
-  it("keeps an ask going when a pick keeps the target", async () => {
+  it("cancels an ask when its targets drop the current one", async () => {
     const { rerender } = await renderPanel()
-    let signal: AbortSignal | null | undefined
-    fetchMock.mockImplementationOnce((_input, init) => {
-      signal = init?.signal
-      return new Promise(() => undefined)
-    })
+    const pending = pendingAnswer()
     await ask()
 
-    rerender(page({ pick: { target: "key-metrics" } }))
+    rerender(page({ targets: targets.slice(1) }))
     await settle()
 
-    expect(signal?.aborted).toBe(false)
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy()
+    expect(pending.signal()?.aborted).toBe(true)
+    expect(status()).toBe("Cancelled.")
+    expect(screen.getByRole("button", { name: "Send" })).toBeTruthy()
   })
+
+  it.each([
+    ["the target changes", { target: "orders-table" }],
+    ["it closes", { open: false }],
+  ])(
+    "never previews an answer that lands right after %s outside an event",
+    async (_, change) => {
+      const pending = pendingAnswer()
+      let update: (props: Partial<PanelProps>) => void = () => undefined
+      function Timed() {
+        const [props, setProps] = React.useState<Partial<PanelProps>>({
+          target: "key-metrics",
+          open: true,
+        })
+        React.useLayoutEffect(() => {
+          update = setProps
+        }, [])
+        return (
+          <>
+            {page(props)}
+            <Committed
+              value={props}
+              onCommit={() => {
+                if (props.target !== "key-metrics" || props.open === false) {
+                  pending.respond(okAnswer)
+                }
+              }}
+            />
+          </>
+        )
+      }
+      render(<Timed />)
+      await settle()
+      await ask()
+
+      Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", false)
+      try {
+        await new Promise((resolve) => {
+          setTimeout(() => {
+            update({ target: "key-metrics", open: true, ...change })
+            setTimeout(resolve, 50)
+          }, 0)
+        })
+      } finally {
+        Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true)
+      }
+      await settle()
+      expect(pending.signal()?.aborted).toBe(true)
+      expect(order()).toEqual(["revenue", "orders", "overdue"])
+
+      act(() => {
+        update({ target: "key-metrics", ...change, open: true })
+      })
+      expect(status()).toBe("Cancelled.")
+    }
+  )
 
   it("renders answers as text, never as HTML", async () => {
     await renderPanel()

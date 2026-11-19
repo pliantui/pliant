@@ -142,31 +142,78 @@ test("ignores Alt while typing in another field", async ({ page, errors }) => {
   expect(errors).toEqual([])
 })
 
-test("hides the rest of the page from assistive technology", async ({
+async function accessibilityTree(page: Page) {
+  const client = await page.context().newCDPSession(page)
+  const { nodes } = await client.send("Accessibility.getFullAXTree")
+  await client.detach()
+  return nodes.flatMap((node) =>
+    node.ignored
+      ? []
+      : [
+          {
+            role: String(node.role?.value),
+            name: String(node.name?.value ?? ""),
+            description: String(node.description?.value ?? ""),
+          },
+        ]
+  )
+}
+
+async function buttons(page: Page) {
+  return (await accessibilityTree(page)).flatMap((node) =>
+    node.role === "button" ? [node.name] : []
+  )
+}
+
+test("is a modal dialog when started from the toggle", async ({
   page,
   errors,
 }) => {
   await load(page)
-  const client = await page.context().newCDPSession(page)
-  async function buttons() {
-    const { nodes } = await client.send("Accessibility.getFullAXTree")
-    return nodes.flatMap((node) =>
-      !node.ignored && node.role?.value === "button"
-        ? [String(node.name?.value)]
-        : []
-    )
-  }
+  const toggle = page.getByRole("button", { name: "Point" })
 
-  await page.getByRole("button", { name: "Point" }).click()
+  await toggle.click()
   await expect(keyMetricsBox(page)).toBeFocused()
   await expect(
-    page.getByRole("dialog", { name: "Parts you can change" })
+    page.getByRole("dialog", { name: "Point mode" })
   ).toHaveAttribute("aria-modal", "true")
-  expect(await buttons()).toEqual(["Key metrics"])
+  expect(await buttons(page)).toEqual(["Key metrics"])
+  expect(
+    (await accessibilityTree(page)).filter((node) => node.role === "dialog")
+  ).toEqual([
+    {
+      role: "dialog",
+      name: "Point mode",
+      description:
+        "Pick a part to change. Use Tab or the arrow keys to move, Enter to pick, Escape to leave.",
+    },
+  ])
 
   await page.keyboard.press("Escape")
   await expect(layer(page)).toBeHidden()
-  expect(await buttons()).toEqual(expect.arrayContaining(["Point", "Ask"]))
+  await expect(toggle).toBeFocused()
+  await expect(toggle).toHaveAttribute("aria-pressed", "false")
+  expect(await buttons(page)).toEqual(expect.arrayContaining(["Point", "Ask"]))
+  expect(errors).toEqual([])
+})
+
+test("announces the mode while Alt is held", async ({ page, errors }) => {
+  await load(page)
+  async function announced() {
+    return (await accessibilityTree(page)).some(
+      (node) =>
+        node.role === "StaticText" &&
+        node.name === "Point mode on. Click the part you want to change."
+    )
+  }
+
+  await page.keyboard.down("Alt")
+  await expect(keyMetricsBox(page)).toBeVisible()
+  expect(await buttons(page)).toEqual(
+    expect.arrayContaining(["Point", "Ask", "Key metrics"])
+  )
+  await expect.poll(announced).toBe(true)
+  await page.keyboard.up("Alt")
   expect(errors).toEqual([])
 })
 

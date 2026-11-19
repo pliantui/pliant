@@ -166,9 +166,12 @@ const navigationKeys: Readonly<Record<string, (index: number) => number>> = {
  * move the window on Alt+click, so the toggle is the way in that always
  * works, and the only one on touch screens.
  *
- * Started from the toggle or the shortcut, point mode is modal: the rest of
- * the page is `inert` until it ends. Focus goes back to where it was unless
- * `onPick` moves it, as the ask panel does to its prompt.
+ * Started from the toggle or the shortcut, point mode is a modal dialog:
+ * the rest of the page, an open ask panel included, is `inert` until it
+ * ends, so clicking it leaves point mode. Focus goes back to where it was
+ * unless `onPick` moves it, as the ask panel does to its prompt when its
+ * target changes. While Alt is held nothing is made inert, and the mode is
+ * announced instead.
  */
 function PliantPointMode({
   targets,
@@ -201,16 +204,16 @@ function PliantPointMode({
     focusOnShow.current = next === "toggle"
     setBoxes([])
     setMode(next)
+    // The page holding the live region is inert in toggle mode, where the
+    // dialog and the focus moving in and out of it say the same.
     setAnnouncement(
-      next === "toggle"
-        ? "Point mode on."
-        : "Point mode on. Click the part you want to change."
+      next === "hold" ? "Point mode on. Click the part you want to change." : ""
     )
   }
 
   function exit() {
     setMode(null)
-    setAnnouncement("Point mode off.")
+    setAnnouncement(mode === "hold" ? "Point mode off." : "")
   }
 
   function pick(id: string) {
@@ -230,7 +233,7 @@ function PliantPointMode({
     }
     if (isShortcut(event)) {
       cancelHold()
-      if (blocksPointMode(document.activeElement)) {
+      if (event.defaultPrevented || blocksPointMode(document.activeElement)) {
         return
       }
       event.preventDefault()
@@ -411,18 +414,31 @@ function PliantPointMode({
       return
     }
     const restore = returnFocus.current
-    const layer = layerRef.current
-    const hidden =
-      mode === "toggle"
-        ? [...document.body.children].filter(
-            (element) => element !== layer && !element.hasAttribute("inert")
-          )
-        : []
-    for (const element of hidden) {
-      element.setAttribute("inert", "")
+    const madeInert = new Set<Element>()
+    const hide = (elements: Iterable<Node>) => {
+      for (const element of elements) {
+        if (
+          element instanceof Element &&
+          !element.hasAttribute("inert") &&
+          !element.matches('[data-slot="pliant-point-mode"]')
+        ) {
+          element.setAttribute("inert", "")
+          madeInert.add(element)
+        }
+      }
+    }
+    const bodyObserver = new MutationObserver((records) => {
+      for (const record of records) {
+        hide(record.addedNodes)
+      }
+    })
+    if (mode === "toggle") {
+      hide(document.body.children)
+      bodyObserver.observe(document.body, { childList: true })
     }
     return () => {
-      for (const element of hidden) {
+      bodyObserver.disconnect()
+      for (const element of madeInert) {
         element.removeAttribute("inert")
       }
       const focused = document.activeElement
@@ -475,7 +491,7 @@ function PliantPointMode({
             ref={layerRef}
             role={mode === "toggle" ? "dialog" : "group"}
             aria-modal={mode === "toggle" ? true : undefined}
-            aria-label="Parts you can change"
+            aria-label="Point mode"
             aria-describedby={mode === "toggle" ? `${id}-help` : undefined}
             data-slot="pliant-point-mode"
             data-mode={mode}
@@ -508,8 +524,8 @@ function PliantPointMode({
           >
             {mode === "toggle" && (
               <p id={`${id}-help`} className="sr-only">
-                Use Tab or the arrow keys to move between them, Enter to pick
-                one, Escape to leave.
+                Pick a part to change. Use Tab or the arrow keys to move, Enter
+                to pick, Escape to leave.
               </p>
             )}
             {boxes.map((box) => (

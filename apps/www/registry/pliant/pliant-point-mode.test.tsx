@@ -12,11 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { PliantRoot, type StorageAdapter } from "@pliantui/react"
 
-import {
-  PliantAskPanel,
-  type PliantAskPick,
-  type PliantAskTarget,
-} from "./pliant-ask-panel"
+import { PliantAskPanel, type PliantAskTarget } from "./pliant-ask-panel"
 import { PliantPointMode } from "./pliant-point-mode"
 import { PliantRegion } from "./pliant-region"
 
@@ -103,8 +99,8 @@ function toggle() {
 
 function layer() {
   return (
-    screen.queryByRole("dialog", { name: "Parts you can change" }) ??
-    screen.queryByRole("group", { name: "Parts you can change" })
+    screen.queryByRole("dialog", { name: "Point mode" }) ??
+    screen.queryByRole("group", { name: "Point mode" })
   )
 }
 
@@ -161,7 +157,7 @@ describe("PliantPointMode", () => {
     expect(totals?.style.top).toBe("300px")
     expect(totals?.style.height).toBe("140px")
     expect(totals?.style.width).toBe("320px")
-    expect(announcement()).toContain("Point mode on.")
+    expect(announcement()).toBe("")
   })
 
   it("moves focus between targets with Tab and the arrow keys", async () => {
@@ -218,7 +214,7 @@ describe("PliantPointMode", () => {
 
     expect(layer()).toBeNull()
     expect(document.activeElement).toBe(toggle())
-    expect(announcement()).toBe("Point mode off.")
+    expect(toggle().getAttribute("aria-pressed")).toBe("false")
     expect(onPick).not.toHaveBeenCalled()
   })
 
@@ -401,7 +397,7 @@ describe("PliantPointMode", () => {
   it("makes the rest of the page inert while on from the toggle", async () => {
     renderPage()
     await enterWithToggle()
-    const dialog = screen.getByRole("dialog", { name: "Parts you can change" })
+    const dialog = screen.getByRole("dialog", { name: "Point mode" })
 
     expect(dialog.getAttribute("aria-modal")).toBe("true")
     expect(
@@ -582,7 +578,26 @@ describe("PliantPointMode", () => {
     )
   })
 
-  it("focuses the prompt when pointing at the panel's own target", async () => {
+  it("returns to the toggle when pointing from it at the panel's own target", async () => {
+    render(
+      <PliantRoot surface="/dashboard" storage={storage}>
+        <Toolbar />
+      </PliantRoot>
+    )
+    await wait()
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }))
+    await wait()
+    toggle().focus()
+
+    fireEvent.click(toggle())
+    await wait()
+    fireEvent.click(screen.getByRole("button", { name: "Key metrics" }))
+    await wait()
+
+    expect(document.activeElement).toBe(toggle())
+  })
+
+  it("returns to the prompt when pointing from it at the panel's own target", async () => {
     render(
       <PliantRoot surface="/dashboard" storage={storage}>
         <Toolbar />
@@ -592,34 +607,100 @@ describe("PliantPointMode", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ask" }))
     await wait()
     const prompt = screen.getByRole("textbox", { name: "Ask" })
-    toggle().focus()
+    expect(document.activeElement).toBe(prompt)
 
-    fireEvent.click(toggle())
-    await wait()
-    fireEvent.click(screen.getByRole("button", { name: "Key metrics" }))
+    await holdAlt()
+    const box = screen.getByRole("button", { name: "Key metrics" })
+    box.focus()
+    fireEvent.click(box)
     await wait()
 
     expect(document.activeElement).toBe(prompt)
+  })
+
+  it("announces the mode only while Alt is held", async () => {
+    renderPage()
+
+    await holdAlt()
+    expect(announcement()).toBe(
+      "Point mode on. Click the part you want to change."
+    )
+    fireEvent.keyUp(document.body, { key: "Alt" })
+    expect(announcement()).toBe("Point mode off.")
+
+    await enterWithToggle()
+    expect(announcement()).toBe("")
+    fireEvent.click(layer() ?? document.body)
+    expect(announcement()).toBe("")
+  })
+
+  it("makes nodes added to the page while it is on inert, and only those it made inert", async () => {
+    renderPage()
+    await enterWithToggle()
+
+    const late = document.createElement("div")
+    document.body.append(late)
+    await wait()
+    expect(late.hasAttribute("inert")).toBe(true)
+
+    fireEvent.click(layer() ?? document.body)
+    await wait()
+    expect(late.hasAttribute("inert")).toBe(false)
+    late.remove()
+  })
+
+  it("lets one of two instances take the shortcut", async () => {
+    render(
+      <>
+        <PliantPointMode targets={targets} onPick={() => undefined} />
+        <PliantPointMode targets={targets} onPick={() => undefined} />
+        <div data-pliant-id="orders-table" data-top="200" />
+      </>
+    )
+
+    fireEvent.keyDown(document.body, { key: ".", ctrlKey: true })
+    await wait()
+
+    const layers = document.querySelectorAll('[data-slot="pliant-point-mode"]')
+    expect(layers).toHaveLength(1)
+    expect(layers[0]?.hasAttribute("inert")).toBe(false)
+    expect(
+      screen
+        .getAllByRole("button", { name: "Point" })
+        .map((button) => button.getAttribute("aria-pressed"))
+    ).toEqual(["true", "false"])
+  })
+
+  it("keeps another instance's layer usable", async () => {
+    const other = document.createElement("div")
+    other.setAttribute("data-slot", "pliant-point-mode")
+    document.body.append(other)
+    renderPage()
+
+    await enterWithToggle()
+
+    expect(other.hasAttribute("inert")).toBe(false)
+    other.remove()
   })
 })
 
 function Toolbar() {
   const [open, setOpen] = React.useState(false)
-  const [pick, setPick] = React.useState<PliantAskPick>()
+  const [target, setTarget] = React.useState("key-metrics")
   return (
     <>
       <PliantPointMode
         targets={targets}
         onPick={(id) => {
-          setPick({ target: id })
+          setTarget(id)
           setOpen(true)
         }}
       />
       <PliantAskPanel
         endpoint="/api/pliant"
         targets={targets}
-        defaultTarget="key-metrics"
-        pick={pick}
+        target={target}
+        onTargetChange={setTarget}
         open={open}
         onOpenChange={setOpen}
       />
