@@ -4,19 +4,14 @@ import * as React from "react"
 import { cn } from "cn"
 import { ChevronDownIcon } from "lucide-react"
 
-import {
-  resolveRegion,
-  type ByBreakpoint,
-  type RegionEntry,
-  type RegionLayout,
-  type ResolvedRegion,
-} from "@pliantui/core"
+import type { ByBreakpoint, RegionEntry, RegionLayout } from "@pliantui/core"
 import {
   PliantActivity,
-  usePliantStatus,
-  useRegionSlots,
-  useResolved,
+  usePliantNode,
+  usePliantRegion,
+  useRegionItems,
   useSlotContent,
+  type RegionItem,
 } from "@pliantui/react"
 
 import { Button } from "@/components/ui/button"
@@ -288,24 +283,18 @@ function MovedSlotContent({ id }: { id: string }) {
 type Slots = Readonly<Record<string, React.ReactNode>>
 
 function RegionNode({
-  entry,
+  item,
   slots,
-  domId,
-  closed = false,
 }: {
-  entry: RegionEntry
+  item: Extract<RegionItem, { kind: "entry" }>
   slots: Slots
-  domId: string
-  closed?: boolean
 }) {
-  const mode = entry.visible && !closed ? "visible" : "hidden"
-  if (entry.kind === "wrapper") {
-    return (
-      <PliantActivity mode={mode}>
+  const { entry } = item
+  return (
+    <PliantActivity mode={item.mode}>
+      {entry.kind === "wrapper" ? (
         <div
-          id={domId}
-          data-pliant-id={entry.id}
-          data-pliant-pinned={entry.pinned}
+          {...item.props}
           className={cn(
             "grid gap-[inherit]",
             layoutClassName(entry.layout),
@@ -316,130 +305,43 @@ function RegionNode({
         >
           <RegionEntries entries={entry.entries} slots={slots} />
         </div>
-      </PliantActivity>
-    )
-  }
-  return (
-    <PliantActivity mode={mode}>
-      <div
-        id={domId}
-        data-pliant-id={entry.id}
-        data-pliant-pinned={entry.pinned}
-        className={spanClassName(entry.span, "childSpan")}
-        style={{ display: "contents" }}
-      >
-        {entry.kind === "inserted" ? (
-          <InsertedNodeContent node={entry.node} />
-        ) : Object.hasOwn(slots, entry.id) ? (
-          slots[entry.id]
-        ) : (
-          <MovedSlotContent id={entry.id} />
-        )}
-      </div>
+      ) : (
+        <div
+          {...item.props}
+          className={spanClassName(entry.span, "childSpan")}
+          style={{ display: "contents" }}
+        >
+          {entry.kind === "inserted" ? (
+            <InsertedNodeContent node={entry.node} />
+          ) : Object.hasOwn(slots, entry.id) ? (
+            slots[entry.id]
+          ) : (
+            <MovedSlotContent id={entry.id} />
+          )}
+        </div>
+      )}
     </PliantActivity>
   )
 }
 
-type CollapseKind = NonNullable<RegionEntry["collapsed"]>["into"]
-
 function CollapseTrigger({
-  id,
-  controls,
-  into,
-  label,
-  open,
-  onOpenChange,
+  item,
 }: {
-  id: string
-  controls: string
-  into: CollapseKind
-  label: string | undefined
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  item: Extract<RegionItem, { kind: "trigger" }>
 }) {
   return (
     <Button
-      id={id}
-      type="button"
+      {...item.props}
       variant="ghost"
       size="sm"
-      aria-expanded={open}
-      aria-controls={controls}
-      data-pliant-collapse={into}
       className="col-span-full -ml-2.5 self-start justify-self-start"
-      onClick={() => {
-        onOpenChange(!open)
-      }}
     >
-      {label ?? "More"}
+      {item.label ?? "More"}
       <ChevronDownIcon
-        className={cn("transition-transform", open && "rotate-180")}
+        className={cn("transition-transform", item.open && "rotate-180")}
       />
     </Button>
   )
-}
-
-type RegionItem =
-  | {
-      readonly kind: "entry"
-      readonly entry: RegionEntry
-      readonly collapse?: string
-    }
-  | {
-      readonly kind: "trigger"
-      readonly collapse: string
-      readonly into: CollapseKind
-      readonly label: string | undefined
-      readonly visible: boolean
-    }
-
-// Collapsed entries follow a trigger at the place of the first one, as
-// siblings of the other entries: moving them into a disclosure element would
-// remount them, losing their state. They stay in the same parent, but not in
-// their resolved order: an entry between two collapsed ones comes after the
-// group.
-function itemsOf(entries: readonly RegionEntry[]) {
-  const items: RegionItem[] = []
-  const groups = new Map<string, RegionItem[]>()
-  for (const entry of entries) {
-    if (!entry.collapsed) {
-      items.push({ kind: "entry", entry })
-      continue
-    }
-    const { into, label } = entry.collapsed
-    const collapse = `${into}:${label ?? ""}`
-    let group = groups.get(collapse)
-    if (!group) {
-      group = []
-      groups.set(collapse, group)
-      items.push({
-        kind: "trigger",
-        collapse,
-        into,
-        label,
-        visible: entries.some(
-          (other) =>
-            other.visible &&
-            other.collapsed?.into === into &&
-            other.collapsed.label === label
-        ),
-      })
-    }
-    group.push({ kind: "entry", entry, collapse })
-  }
-  return items.flatMap((item) =>
-    item.kind === "trigger"
-      ? [item, ...(groups.get(item.collapse) ?? [])]
-      : [item]
-  )
-}
-
-function domIdOf(baseId: string, node: string) {
-  return `${baseId}${node}`
-}
-
-function triggerIdOf(baseId: string, collapse: string) {
-  return `${baseId}collapse-${encodeURIComponent(collapse)}`
 }
 
 function RegionEntries({
@@ -449,87 +351,13 @@ function RegionEntries({
   entries: readonly RegionEntry[]
   slots: Slots
 }) {
-  const [open, setOpen] = React.useState<ReadonlySet<string>>(new Set())
-  const baseId = React.useId()
-  const items = itemsOf(entries)
-  const closedPairs = items.flatMap<readonly [string, string]>((item) =>
-    item.kind === "entry" &&
-    item.collapse !== undefined &&
-    !open.has(item.collapse)
-      ? [[domIdOf(baseId, item.entry.id), triggerIdOf(baseId, item.collapse)]]
-      : []
+  return useRegionItems(entries).map((item) =>
+    item.kind === "trigger" ? (
+      <CollapseTrigger key={item.key} item={item} />
+    ) : (
+      <RegionNode key={item.key} item={item} slots={slots} />
+    )
   )
-  const closedKey = JSON.stringify(closedPairs)
-
-  // Focus would be lost in an entry an op just collapsed, so it moves to the
-  // entry's trigger.
-  const moveFocusOutOfClosed = React.useEffectEvent(() => {
-    const active = document.activeElement
-    if (!active) {
-      return
-    }
-    for (const [domId, triggerId] of closedPairs) {
-      if (document.getElementById(domId)?.contains(active)) {
-        document.getElementById(triggerId)?.focus()
-        return
-      }
-    }
-  })
-
-  React.useLayoutEffect(() => {
-    moveFocusOutOfClosed()
-  }, [closedKey])
-
-  return (
-    <>
-      {items.map((item) =>
-        item.kind === "entry" ? (
-          <RegionNode
-            key={item.entry.id}
-            entry={item.entry}
-            slots={slots}
-            domId={domIdOf(baseId, item.entry.id)}
-            closed={item.collapse !== undefined && !open.has(item.collapse)}
-          />
-        ) : (
-          item.visible && (
-            <CollapseTrigger
-              key={`collapse:${item.collapse}`}
-              id={triggerIdOf(baseId, item.collapse)}
-              controls={items
-                .flatMap((other) =>
-                  other.kind === "entry" && other.collapse === item.collapse
-                    ? [domIdOf(baseId, other.entry.id)]
-                    : []
-                )
-                .join(" ")}
-              into={item.into}
-              label={item.label}
-              open={open.has(item.collapse)}
-              onOpenChange={(next) => {
-                setOpen((current) => {
-                  const updated = new Set(current)
-                  if (next) {
-                    updated.add(item.collapse)
-                  } else {
-                    updated.delete(item.collapse)
-                  }
-                  return updated
-                })
-              }}
-            />
-          )
-        )
-      )}
-    </>
-  )
-}
-
-function baseRegion(ids: readonly string[]): ResolvedRegion {
-  return {
-    layout: {},
-    entries: ids.map((id) => ({ kind: "slot", id, visible: true })),
-  }
 }
 
 /**
@@ -554,20 +382,13 @@ function PliantRegion({
    */
   slots: Slots
 }) {
-  useRegionSlots(id, slots)
-  const ready = usePliantStatus().status === "ready"
-  const layers = useResolved()
-  const key = Object.keys(slots).join("\n")
-  const region = React.useMemo(() => {
-    const ids = key.split("\n").filter(Boolean)
-    return ready ? resolveRegion(layers, { id, slots: ids }) : baseRegion(ids)
-  }, [ready, layers, id, key])
+  const node = usePliantNode(id)
+  const region = usePliantRegion(id, slots)
   return (
     <div
       {...props}
       data-slot="pliant-region"
-      data-pliant-id={id}
-      data-pliant-pending={ready ? undefined : ""}
+      {...node}
       className={cn("grid gap-4", className, layoutClassName(region.layout))}
     >
       <RegionEntries entries={region.entries} slots={slots} />

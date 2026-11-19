@@ -4,6 +4,7 @@ import { useId, type CSSProperties } from "react"
 import { useTable, type Column } from "@tanstack/react-table"
 import { ChevronDown } from "lucide-react"
 
+import { usePliantNode } from "@pliantui/react"
 import { usePliantTable } from "@pliantui/react/table"
 
 import { Button } from "@/components/ui/button"
@@ -54,12 +55,12 @@ function getColumnStyles(
   }
 }
 
+const id = "orders-table"
+
 export function OrdersTable({ data }: { data: Order[] }) {
   const titleId = useId()
-  const options = usePliantTable(
-    { features, data, columns },
-    { id: "orders-table" }
-  )
+  const node = usePliantNode(id)
+  const options = usePliantTable({ features, data, columns }, { id })
   const table = useTable(options)
   const { pageIndex, pageSize } = table.state.pagination
   const rowCount = table.getRowCount()
@@ -68,11 +69,7 @@ export function OrdersTable({ data }: { data: Order[] }) {
     : "0 of 0"
 
   return (
-    <div
-      data-pliant-id="orders-table"
-      data-pliant-pending={options.ready ? undefined : ""}
-      className="flex flex-col gap-4"
-    >
+    <div {...node} className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 id={titleId} className="text-lg font-semibold">
           All orders
