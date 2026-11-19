@@ -20,8 +20,8 @@ const addressMessage =
   "Must be node-id followed by /collection/item-id segments"
 const perRow = new RegExp(`^${kebab}\\[[^\\]]+\\](?:/|$)`)
 
-// Checked first and aborting, so a per-row address, which a later contract
-// may allow, gets only this issue and isn't reported as malformed.
+// Checked first and aborting, so a reserved per-row address gets only this
+// issue and can be told apart from a malformed one.
 function addressString(max: number) {
   return z
     .string()
