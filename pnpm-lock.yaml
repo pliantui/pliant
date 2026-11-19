@@ -80,15 +80,24 @@ importers:
 
   apps/www:
     dependencies:
+      '@ai-sdk/anthropic':
+        specifier: ^4.0.105
+        version: 4.0.105(zod@4.6.7)
       '@pliantui/core':
         specifier: workspace:*
         version: link:../../packages/core
       '@pliantui/react':
         specifier: workspace:*
         version: link:../../packages/react
+      '@pliantui/server':
+        specifier: workspace:*
+        version: link:../../packages/server
       '@tanstack/react-table':
         specifier: ^9.3.1
         version: 9.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      ai:
+        specifier: ^7.0.173
+        version: 7.0.173(zod@4.6.7)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
