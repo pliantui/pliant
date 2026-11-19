@@ -54,7 +54,7 @@ describe("per-row addresses", () => {
   it.each([
     ["addressSchema", addressSchema, "order-card[42]"],
     ["addressSchema", addressSchema, "order-card[42]/actions/refund"],
-    ["addressSchema", addressSchema, "order-card[a b]/actions/refund"],
+    ["addressSchema", addressSchema, "order-card[aZ_-9]/actions/refund"],
     ["addressSchema", addressSchema, "order-card[42]/bogus"],
     ["nodeIdSchema", nodeIdSchema, "order-card[42]"],
     ["itemAddressSchema", itemAddressSchema("actions"), "card[k]/actions/x"],
@@ -80,6 +80,8 @@ describe("per-row addresses", () => {
     "order-card[",
     "order-card]",
     "orders-table/columns/total[1]",
+    "order-card[a b]",
+    "order-card[a.b]/actions/refund",
   ])("reports %j as malformed, not reserved", (value) => {
     const issues = issuesOf(addressSchema, value)
     expect(issues).toEqual([
@@ -87,13 +89,28 @@ describe("per-row addresses", () => {
     ])
   })
 
-  it("reports a per-row op target as reserved", () => {
-    const issues = issuesOf(opSchema, {
-      op: "hide",
-      target: "order-card[42]/actions/refund",
-    })
-    expect(issues).toEqual([
+  it("reports a reserved address over the length limit only as reserved", () => {
+    const value = `order-card[${"k".repeat(300)}]`
+    expect(issuesOf(addressSchema, value)).toEqual([
+      expect.objectContaining({ code: "custom", params: reserved }),
+    ])
+  })
+
+  it.each([
+    ["hide", "order-card[42]/actions/refund"],
+    ["remove", "order-card[42]"],
+    ["remove", "order-card[42]/slots/body"],
+  ])("reports a per-row %s target as reserved", (op, target) => {
+    expect(issuesOf(opSchema, { op, target })).toEqual([
       expect.objectContaining({ path: ["target"], params: reserved }),
+    ])
+  })
+
+  it("still reports other remove targets as malformed", () => {
+    expect(
+      issuesOf(opSchema, { op: "remove", target: "card[]/slots/body" })
+    ).toEqual([
+      expect.objectContaining({ path: ["target"], code: "invalid_union" }),
     ])
   })
 
