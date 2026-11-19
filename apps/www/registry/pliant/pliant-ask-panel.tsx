@@ -6,7 +6,8 @@ import { Loader2Icon, SparklesIcon, XIcon } from "lucide-react"
 import { Slot } from "radix-ui"
 import * as z from "zod"
 
-import { useAskPanel, type AskAnswer } from "@pliantui/react"
+import { usePreview } from "@pliantui/react"
+import { useAskPanel } from "@pliantui/react/ask"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,8 @@ const askResponseSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("unavailable"), reason: z.string().min(1) }),
   z.object({ status: z.literal("error"), message: z.string().min(1) }),
 ])
+
+type Answer = z.infer<typeof askResponseSchema>
 
 type PliantAskCapability =
   | "label"
@@ -87,7 +90,7 @@ async function requestAnswer(
   endpoint: string,
   body: unknown,
   signal: AbortSignal
-): Promise<AskAnswer> {
+): Promise<Answer> {
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -185,12 +188,16 @@ function PliantAskPanel({
       ),
   })
   const id = React.useId()
-  const { state, asking, previewing } = panel
+  const preview = usePreview()
+  const { state } = panel
+  const asking = state.status === "asking"
+  const previewing = preview !== null
+  const explain = asking ? [] : [...new Set(preview?.explain)]
   const suggestions = panel.target?.suggestions ?? []
 
   return (
     <>
-      <Slot.Root {...panel.triggerProps}>
+      <Slot.Root {...panel.getTriggerProps()}>
         {trigger ?? (
           <Button type="button" variant="outline" size="sm">
             <SparklesIcon />
@@ -205,7 +212,7 @@ function PliantAskPanel({
       </Slot.Root>
       {panel.open && (
         <aside
-          {...panel.panelProps}
+          {...panel.getPanelProps()}
           aria-labelledby={`${id}-title`}
           className="animate-in slide-in-from-bottom sm:slide-in-from-right fixed inset-x-0 bottom-0 z-50 flex max-h-[60dvh] flex-col overflow-y-auto border-t bg-background shadow-lg sm:inset-y-0 sm:right-0 sm:left-auto sm:max-h-none sm:w-full sm:max-w-sm sm:border-t-0 sm:border-l"
         >
@@ -225,7 +232,9 @@ function PliantAskPanel({
               size="icon"
               className="size-7"
               aria-label="Close"
-              onClick={panel.close}
+              onClick={() => {
+                panel.setOpen(false)
+              }}
             >
               <XIcon />
             </Button>
@@ -239,9 +248,13 @@ function PliantAskPanel({
           >
             <div className="grid gap-2">
               <Label htmlFor={`${id}-target`}>Change</Label>
-              <Select {...panel.pickerProps}>
+              <Select
+                value={panel.target?.id ?? ""}
+                onValueChange={panel.setTarget}
+                disabled={asking}
+              >
                 <SelectTrigger
-                  {...panel.pickerTriggerProps}
+                  {...panel.getPickerProps()}
                   id={`${id}-target`}
                   className="w-full"
                 >
@@ -259,7 +272,7 @@ function PliantAskPanel({
             <div className="grid gap-2">
               <Label htmlFor={`${id}-prompt`}>Ask</Label>
               <Textarea
-                {...panel.promptProps}
+                {...panel.getPromptProps()}
                 id={`${id}-prompt`}
                 maxLength={maxPromptLength}
                 placeholder={placeholder}
@@ -322,7 +335,7 @@ function PliantAskPanel({
                   )}
                 </>
               )}
-              {panel.explain.length > 0 && (
+              {explain.length > 0 && (
                 <div
                   className={cn(
                     "flex flex-col gap-2",
@@ -331,7 +344,7 @@ function PliantAskPanel({
                 >
                   <Badge variant="secondary">Current preview</Badge>
                   <ul className="flex flex-col gap-1">
-                    {panel.explain.map((sentence) => (
+                    {explain.map((sentence) => (
                       <li key={sentence}>{sentence}</li>
                     ))}
                   </ul>
@@ -367,7 +380,7 @@ function PliantAskPanel({
                   className="h-auto py-1 text-left whitespace-normal"
                   disabled={asking}
                   onClick={() => {
-                    panel.suggest(suggestion)
+                    panel.setPrompt(suggestion)
                   }}
                 >
                   {suggestion}

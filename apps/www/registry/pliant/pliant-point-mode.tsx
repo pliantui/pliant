@@ -6,7 +6,7 @@ import { SquareDashedMousePointerIcon } from "lucide-react"
 import { Slot } from "radix-ui"
 import { createPortal } from "react-dom"
 
-import { usePointMode } from "@pliantui/react"
+import { usePointMode } from "@pliantui/react/ask"
 
 import { Button } from "@/components/ui/button"
 
@@ -51,13 +51,18 @@ function PliantPointMode({
   /** The element that toggles point mode. Defaults to a "Point" button. */
   trigger?: React.ReactElement
 }) {
-  const { mode, boxes, announcement, pick, triggerProps, layerProps } =
-    usePointMode({ targets, onPick })
+  const { mode, boxes, announcement, pick, getTriggerProps, getLayerProps } =
+    usePointMode({
+      targets,
+      onPick,
+      // The labels' `max-w-48`, so they stay on screen.
+      labelWidth: 192,
+    })
   const id = React.useId()
 
   return (
     <>
-      <Slot.Root {...triggerProps}>
+      <Slot.Root {...getTriggerProps()}>
         {trigger ?? (
           <Button
             type="button"
@@ -76,7 +81,7 @@ function PliantPointMode({
       {mode !== null &&
         createPortal(
           <div
-            {...layerProps}
+            {...getLayerProps()}
             aria-label="Point mode"
             aria-describedby={mode === "toggle" ? `${id}-help` : undefined}
             className="pointer-events-auto fixed inset-0 z-40 cursor-crosshair"
