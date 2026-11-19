@@ -2,10 +2,9 @@ import type { Metadata } from "next"
 
 import { PliantRoot } from "@pliantui/react"
 
-import { PliantAskPanel } from "@/registry/pliant/pliant-ask-panel"
 import { PliantRegion } from "@/registry/pliant/pliant-region"
 
-import { askTargets } from "./ask-targets"
+import { AskToolbar } from "./components/ask-toolbar"
 import { KpiCard } from "./components/kpi-card"
 import { OrdersTable } from "./components/orders-table"
 import { orders } from "./data"
@@ -30,7 +29,7 @@ export default function OrdersPage() {
                 Orders placed Jan–Oct 2026
               </p>
             </div>
-            <PliantAskPanel endpoint="/api/pliant" targets={askTargets} />
+            <AskToolbar />
           </header>
           <section aria-label="Key metrics">
             <PliantRegion
