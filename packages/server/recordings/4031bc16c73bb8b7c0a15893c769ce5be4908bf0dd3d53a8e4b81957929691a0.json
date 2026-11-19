@@ -1,0 +1,33 @@
+{
+  "key": "4031bc16c73bb8b7c0a15893c769ce5be4908bf0dd3d53a8e4b81957929691a0",
+  "provider": "anthropic.messages",
+  "modelId": "claude-haiku-5-5",
+  "recordedAt": "2026-11-18T23:05:25.645Z",
+  "source": "claude -p (headless Claude Code)",
+  "model": "claude-haiku-5-5",
+  "standIn": true,
+  "note": "not the production API path; re-record before teaser, launch video or P3 evals (https://github.com/pliantui/pliant/issues/24)",
+  "cliVersion": "2.1.29 (Claude Code)",
+  "result": {
+    "content": [
+      {
+        "type": "tool-call",
+        "toolCallId": "toolu_013Xpqcmm9umgZ7QcLpVgiav",
+        "toolName": "clarify",
+        "input": "{\"question\":\"What would make the orders table nicer for you: easier scanning, a cleaner layout, or something specific like sorting or hiding columns?\"}"
+      },
+      {
+        "type": "text",
+        "text": "I've asked what \"nicer\" means for the orders table. Should it be easier scanning, a cleaner layout, or a specific change like sorting or hiding columns?"
+      }
+    ],
+    "finishReason": {
+      "unified": "tool-calls"
+    },
+    "usage": {
+      "inputTokens": {},
+      "outputTokens": {}
+    },
+    "warnings": []
+  }
+}

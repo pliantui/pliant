@@ -1,0 +1,33 @@
+{
+  "key": "bfd7898483f09c6e674edc9c10e53c389e5036f7390a9e8bc61d3e67491e7018",
+  "provider": "anthropic.messages",
+  "modelId": "claude-haiku-5-5",
+  "recordedAt": "2026-11-18T23:04:36.160Z",
+  "source": "claude -p (headless Claude Code)",
+  "model": "claude-haiku-5-5",
+  "standIn": true,
+  "note": "not the production API path; re-record before teaser, launch video or P3 evals (https://github.com/pliantui/pliant/issues/24)",
+  "cliVersion": "2.1.29 (Claude Code)",
+  "result": {
+    "content": [
+      {
+        "type": "tool-call",
+        "toolCallId": "toolu_01YRo7NrKdf9Qv6gqQYBSXhD",
+        "toolName": "setFilter",
+        "input": "{\"field\":\"status\",\"operator\":\"eq\",\"value\":\"overdue\",\"explain\":\"Filtered table to show only overdue orders.\"}"
+      },
+      {
+        "type": "text",
+        "text": "The table now shows only overdue orders."
+      }
+    ],
+    "finishReason": {
+      "unified": "tool-calls"
+    },
+    "usage": {
+      "inputTokens": {},
+      "outputTokens": {}
+    },
+    "warnings": []
+  }
+}

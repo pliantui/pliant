@@ -1,0 +1,33 @@
+{
+  "key": "6fb52b1e8a4aa5634e21b3c077045f5591c41ed31819b6f7a2f9b491f072e6ad",
+  "provider": "anthropic.messages",
+  "modelId": "claude-haiku-5-5",
+  "recordedAt": "2026-11-18T23:04:26.592Z",
+  "source": "claude -p (headless Claude Code)",
+  "model": "claude-haiku-5-5",
+  "standIn": true,
+  "note": "not the production API path; re-record before teaser, launch video or P3 evals (https://github.com/pliantui/pliant/issues/24)",
+  "cliVersion": "2.1.29 (Claude Code)",
+  "result": {
+    "content": [
+      {
+        "type": "tool-call",
+        "toolCallId": "toolu_01USprt7st2aDyDPLzmbxBBe",
+        "toolName": "setVisible",
+        "input": "{\"items\":[\"notes\"],\"visible\":false,\"explain\":\"Hid the Notes column from the orders table.\"}"
+      },
+      {
+        "type": "text",
+        "text": "I hid the Notes column in the orders table."
+      }
+    ],
+    "finishReason": {
+      "unified": "tool-calls"
+    },
+    "usage": {
+      "inputTokens": {},
+      "outputTokens": {}
+    },
+    "warnings": []
+  }
+}

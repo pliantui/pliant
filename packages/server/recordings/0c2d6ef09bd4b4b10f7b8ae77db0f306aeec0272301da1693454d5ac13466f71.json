@@ -1,0 +1,33 @@
+{
+  "key": "0c2d6ef09bd4b4b10f7b8ae77db0f306aeec0272301da1693454d5ac13466f71",
+  "provider": "anthropic.messages",
+  "modelId": "claude-haiku-5-5",
+  "recordedAt": "2026-11-18T23:05:52.051Z",
+  "source": "claude -p (headless Claude Code)",
+  "model": "claude-haiku-5-5",
+  "standIn": true,
+  "note": "not the production API path; re-record before teaser, launch video or P3 evals (https://github.com/pliantui/pliant/issues/24)",
+  "cliVersion": "2.1.29 (Claude Code)",
+  "result": {
+    "content": [
+      {
+        "type": "tool-call",
+        "toolCallId": "toolu_01Uh1a29HfG8s8mvKX2LzD3f",
+        "toolName": "setLayout",
+        "input": "{\"mode\":\"grid\",\"columns\":2,\"explain\":\"Arranged the metric cards in a two-column grid.\"}"
+      },
+      {
+        "type": "text",
+        "text": "The metric cards are now in a two-column grid."
+      }
+    ],
+    "finishReason": {
+      "unified": "tool-calls"
+    },
+    "usage": {
+      "inputTokens": {},
+      "outputTokens": {}
+    },
+    "warnings": []
+  }
+}

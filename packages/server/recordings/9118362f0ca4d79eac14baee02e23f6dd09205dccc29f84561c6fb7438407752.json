@@ -1,0 +1,33 @@
+{
+  "key": "9118362f0ca4d79eac14baee02e23f6dd09205dccc29f84561c6fb7438407752",
+  "provider": "anthropic.messages",
+  "modelId": "claude-haiku-5-5",
+  "recordedAt": "2026-11-18T23:04:15.433Z",
+  "source": "claude -p (headless Claude Code)",
+  "model": "claude-haiku-5-5",
+  "standIn": true,
+  "note": "not the production API path; re-record before teaser, launch video or P3 evals (https://github.com/pliantui/pliant/issues/24)",
+  "cliVersion": "2.1.29 (Claude Code)",
+  "result": {
+    "content": [
+      {
+        "type": "tool-call",
+        "toolCallId": "toolu_01FzMwfPuigQBMiExmhQLzJS",
+        "toolName": "setSort",
+        "input": "{\"sort\":[{\"field\":\"value\",\"dir\":\"desc\"}],\"explain\":\"Sorted by value, highest first.\"}"
+      },
+      {
+        "type": "text",
+        "text": "The table is now sorted by Value, highest first."
+      }
+    ],
+    "finishReason": {
+      "unified": "tool-calls"
+    },
+    "usage": {
+      "inputTokens": {},
+      "outputTokens": {}
+    },
+    "warnings": []
+  }
+}

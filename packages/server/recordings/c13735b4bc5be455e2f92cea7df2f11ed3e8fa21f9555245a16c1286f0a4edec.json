@@ -1,0 +1,33 @@
+{
+  "key": "c13735b4bc5be455e2f92cea7df2f11ed3e8fa21f9555245a16c1286f0a4edec",
+  "provider": "anthropic.messages",
+  "modelId": "claude-haiku-5-5",
+  "recordedAt": "2026-11-18T23:04:56.107Z",
+  "source": "claude -p (headless Claude Code)",
+  "model": "claude-haiku-5-5",
+  "standIn": true,
+  "note": "not the production API path; re-record before teaser, launch video or P3 evals (https://github.com/pliantui/pliant/issues/24)",
+  "cliVersion": "2.1.29 (Claude Code)",
+  "result": {
+    "content": [
+      {
+        "type": "tool-call",
+        "toolCallId": "toolu_01YJxvcaLoN141KJNiTS5szZ",
+        "toolName": "pin",
+        "input": "{\"item\":\"id\",\"where\":\"start\",\"explain\":\"Pinned the Order column to the start of the table.\"}"
+      },
+      {
+        "type": "text",
+        "text": "I pinned the Order column to the start of the table."
+      }
+    ],
+    "finishReason": {
+      "unified": "tool-calls"
+    },
+    "usage": {
+      "inputTokens": {},
+      "outputTokens": {}
+    },
+    "warnings": []
+  }
+}

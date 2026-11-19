@@ -1,0 +1,39 @@
+{
+  "key": "26d9575abdc2493f5b33dd8c5b182515203e0fc72ef4feb5ffe2c4c6135b8b06",
+  "provider": "anthropic.messages",
+  "modelId": "claude-haiku-5-5",
+  "recordedAt": "2026-11-18T23:05:15.730Z",
+  "source": "claude -p (headless Claude Code)",
+  "model": "claude-haiku-5-5",
+  "standIn": true,
+  "note": "not the production API path; re-record before teaser, launch video or P3 evals (https://github.com/pliantui/pliant/issues/24)",
+  "cliVersion": "2.1.29 (Claude Code)",
+  "result": {
+    "content": [
+      {
+        "type": "tool-call",
+        "toolCallId": "toolu_01VSpxqvtdAp1wfZZXbSx34u",
+        "toolName": "setSort",
+        "input": "{\"sort\":[{\"field\":\"createdAt\",\"dir\":\"desc\"}],\"explain\":\"Sorted by created date, newest first.\"}"
+      },
+      {
+        "type": "tool-call",
+        "toolCallId": "toolu_01WYveJ9RoN91GYiKEYqwzBD",
+        "toolName": "setVisible",
+        "input": "{\"items\":[\"region\"],\"visible\":false,\"explain\":\"Hid the Region column.\"}"
+      },
+      {
+        "type": "text",
+        "text": "Sorted the orders by Created date, newest first, and hid the Region column."
+      }
+    ],
+    "finishReason": {
+      "unified": "tool-calls"
+    },
+    "usage": {
+      "inputTokens": {},
+      "outputTokens": {}
+    },
+    "warnings": []
+  }
+}
