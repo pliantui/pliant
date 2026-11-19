@@ -6,6 +6,7 @@ interface Declaration {
   readonly rank: number
   readonly region: string
   readonly slots: Readonly<Record<string, ReactNode>>
+  retiring: boolean
 }
 
 /**
@@ -25,35 +26,58 @@ export interface SlotRegistry {
     region: string,
     slots: Readonly<Record<string, ReactNode>>
   ) => () => void
+  /**
+   * Marks what `owner` declared as about to be undeclared: it no longer
+   * wins over another declaration of a slot, nor counts as a duplicate,
+   * until `owner` declares again.
+   */
+  readonly retire: (owner: object) => void
   /** The content of a declared slot, or `undefined`. */
   readonly getContent: (id: string) => ReactNode
   /** Calls `listener` when the content of slot `id` changes. */
   readonly subscribe: (id: string, listener: () => void) => () => void
 }
 
-const isDevelopment = process.env.NODE_ENV !== "production"
+// Bundlers replace `process.env.NODE_ENV`; where none did and there is no
+// `process`, this is a browser build that isn't development.
+function readIsDevelopment() {
+  try {
+    return process.env.NODE_ENV !== "production"
+  } catch {
+    return false
+  }
+}
+
+const isDevelopment = readIsDevelopment()
 
 export function createSlotRegistry(): SlotRegistry {
   const declarations = new Map<object, Declaration>()
+  const ownersById = new Map<string, Set<object>>()
+  const ownersByRegion = new Map<string, Set<object>>()
   const ranks = new WeakMap<object, number>()
   const listeners = new Map<string, Set<() => void>>()
   const warned = new Set<string>()
   let nextRank = 0
 
-  function warnOnce(message: string) {
-    if (!warned.has(message)) {
-      warned.add(message)
+  function warnOnce(key: string, message: string) {
+    if (!warned.has(key)) {
+      warned.add(key)
       console.warn(message)
     }
   }
 
+  // An active declaration wins over a retiring one, then the first owner.
   function ownerOf(id: string, except?: object) {
     let first: Declaration | undefined
-    for (const [owner, declaration] of declarations) {
+    for (const owner of ownersById.get(id) ?? []) {
+      const declaration = declarations.get(owner)
       if (
         owner !== except &&
-        Object.hasOwn(declaration.slots, id) &&
-        (!first || declaration.rank < first.rank)
+        declaration &&
+        (!first ||
+          (first.retiring && !declaration.retiring) ||
+          (first.retiring === declaration.retiring &&
+            declaration.rank < first.rank))
       ) {
         first = declaration
       }
@@ -77,10 +101,45 @@ export function createSlotRegistry(): SlotRegistry {
     }
   }
 
+  function index(
+    owners: Map<string, Set<object>>,
+    owner: object,
+    keys: readonly string[],
+    add: boolean
+  ) {
+    for (const key of keys) {
+      let set = owners.get(key)
+      if (add) {
+        if (!set) {
+          set = new Set()
+          owners.set(key, set)
+        }
+        set.add(owner)
+      } else if (set) {
+        set.delete(owner)
+        if (set.size === 0) {
+          owners.delete(key)
+        }
+      }
+    }
+  }
+
+  function indexDeclaration(
+    owner: object,
+    declaration: Declaration | undefined,
+    add: boolean
+  ) {
+    if (declaration) {
+      index(ownersById, owner, Object.keys(declaration.slots), add)
+      index(ownersByRegion, owner, [declaration.region], add)
+    }
+  }
+
   function check(owner: object, { region, slots }: Declaration) {
-    for (const [other, declaration] of declarations) {
-      if (other !== owner && declaration.region === region) {
+    for (const other of ownersByRegion.get(region) ?? []) {
+      if (other !== owner && declarations.get(other)?.retiring === false) {
         warnOnce(
+          `region:${region}`,
           `Pliant: two mounted regions use the id "${region}". Region ids must be unique within a surface.`
         )
       }
@@ -88,12 +147,14 @@ export function createSlotRegistry(): SlotRegistry {
     for (const id of Object.keys(slots)) {
       if (!slotIdSchema.safeParse(id).success) {
         warnOnce(
+          `key:${region}/${id}`,
           `Pliant: region "${region}" has a slot "${id}". Slot ids must be kebab-case and start with a letter: keys that look like numbers change the base order.`
         )
       }
       const other = ownerOf(id, owner)
-      if (other) {
+      if (other && !other.retiring) {
         warnOnce(
+          `slot:${id}`,
           `Pliant: regions "${other.region}" and "${region}" both declare a slot "${id}". Slot ids must be unique within a surface.`
         )
       }
@@ -110,28 +171,39 @@ export function createSlotRegistry(): SlotRegistry {
       rank = nextRank++
       ranks.set(owner, rank)
     }
-    const declaration: Declaration = { rank, region, slots }
+    const declaration: Declaration = { rank, region, slots, retiring: false }
     if (isDevelopment) {
       check(owner, declaration)
     }
     const previous = declarations.get(owner)
-    update(
-      new Set([...Object.keys(previous?.slots ?? {}), ...Object.keys(slots)]),
-      () => {
-        declarations.set(owner, declaration)
-      }
-    )
+    const ids = Object.keys(slots)
+    update(new Set([...Object.keys(previous?.slots ?? {}), ...ids]), () => {
+      indexDeclaration(owner, previous, false)
+      declarations.set(owner, declaration)
+      indexDeclaration(owner, declaration, true)
+    })
     return () => {
       if (declarations.get(owner) === declaration) {
-        update(Object.keys(slots), () => {
+        update(ids, () => {
           declarations.delete(owner)
+          indexDeclaration(owner, declaration, false)
         })
       }
     }
   }
 
+  function retire(owner: object) {
+    const declaration = declarations.get(owner)
+    if (declaration && !declaration.retiring) {
+      update(Object.keys(declaration.slots), () => {
+        declaration.retiring = true
+      })
+    }
+  }
+
   return {
     declare,
+    retire,
     getContent,
     subscribe(id, listener) {
       let set = listeners.get(id)

@@ -37,6 +37,28 @@ describe("createRetention", () => {
     unhold()
     expect(outer.held).toBe(0)
     await Promise.resolve()
+    expect(release).not.toHaveBeenCalled()
+
+    retention.settle()
+    await Promise.resolve()
+    expect(release).toHaveBeenCalledOnce()
+  })
+
+  it("keeps a release held when its scope is held again before settling", async () => {
+    const retention = createRetention()
+    const hidden = scope()
+    const release = vi.fn()
+
+    retention.release(hidden, release)
+    retention.hold(hidden)()
+    const unhold = retention.hold(hidden)
+    retention.settle()
+    await Promise.resolve()
+    expect(release).not.toHaveBeenCalled()
+
+    unhold()
+    retention.settle()
+    await Promise.resolve()
     expect(release).toHaveBeenCalledOnce()
   })
 })
