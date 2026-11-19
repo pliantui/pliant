@@ -1,0 +1,1243 @@
+{
+  "valid": [
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 3,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TD",
+        "surface": "/orders/[id]",
+        "layer": "team",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "promote",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z",
+        "scope": {
+          "team": "support"
+        }
+      },
+      "etag": "W/\"7\"",
+      "version": 1,
+      "updatedAt": "2026-11-19T15:45:00+05:30"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TF",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "pinColumns",
+            "target": "@page",
+            "side": "left"
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z",
+        "future": {
+          "kept": true
+        }
+      },
+      "etag": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "version": 9007199254740991,
+      "updatedAt": "2026-11-19T10:15:00.000Z",
+      "future": {
+        "kept": true
+      }
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "futureOp",
+            "target": "orders-table",
+            "extra": 1
+          },
+          {
+            "op": "Bad"
+          },
+          42
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 3,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    }
+  ],
+  "invalid": [
+    {
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 3,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "version": 3,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 3
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "",
+      "version": 3,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "version": 3,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": 7,
+      "version": 3,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": null,
+      "version": 3,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 0,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": -1,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 1.5,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": "3",
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 3,
+      "updatedAt": "2026-11-19"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 3,
+      "updatedAt": "2026-11-19T10:15:00"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 3,
+      "updatedAt": "yesterday"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 3,
+      "updatedAt": 1763547300000
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 3,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": {
+        "v": 1,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 3,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": {
+        "v": 2,
+        "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+        "surface": "/orders/[id]",
+        "layer": "personal",
+        "ops": [
+          {
+            "op": "hide",
+            "target": "orders-table/columns/notes"
+          },
+          {
+            "op": "setSort",
+            "target": "orders-table",
+            "sort": [
+              {
+                "field": "value",
+                "dir": "desc"
+              }
+            ]
+          }
+        ],
+        "basis": {
+          "contract": 1,
+          "core": "0.1.0",
+          "manifests": {
+            "data-table": 1
+          },
+          "datasets": {
+            "orders": 2
+          },
+          "layers": {
+            "team": {
+              "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+              "version": 3
+            }
+          }
+        },
+        "source": "ai",
+        "explain": ["Hid the notes column.", "Sorted by value, highest first."],
+        "createdBy": "user_123",
+        "createdAt": "2026-11-01T09:30:00.000Z"
+      },
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 3,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": null,
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 3,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    {
+      "overlay": [
+        {
+          "v": 1,
+          "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+          "surface": "/orders/[id]",
+          "layer": "personal",
+          "ops": [
+            {
+              "op": "hide",
+              "target": "orders-table/columns/notes"
+            },
+            {
+              "op": "setSort",
+              "target": "orders-table",
+              "sort": [
+                {
+                  "field": "value",
+                  "dir": "desc"
+                }
+              ]
+            }
+          ],
+          "basis": {
+            "contract": 1,
+            "core": "0.1.0",
+            "manifests": {
+              "data-table": 1
+            },
+            "datasets": {
+              "orders": 2
+            },
+            "layers": {
+              "team": {
+                "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+                "version": 3
+              }
+            }
+          },
+          "source": "ai",
+          "explain": [
+            "Hid the notes column.",
+            "Sorted by value, highest first."
+          ],
+          "createdBy": "user_123",
+          "createdAt": "2026-11-01T09:30:00.000Z"
+        }
+      ],
+      "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+      "version": 3,
+      "updatedAt": "2026-11-19T10:15:00.000Z"
+    },
+    [
+      {
+        "overlay": {
+          "v": 1,
+          "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+          "surface": "/orders/[id]",
+          "layer": "personal",
+          "ops": [
+            {
+              "op": "hide",
+              "target": "orders-table/columns/notes"
+            },
+            {
+              "op": "setSort",
+              "target": "orders-table",
+              "sort": [
+                {
+                  "field": "value",
+                  "dir": "desc"
+                }
+              ]
+            }
+          ],
+          "basis": {
+            "contract": 1,
+            "core": "0.1.0",
+            "manifests": {
+              "data-table": 1
+            },
+            "datasets": {
+              "orders": 2
+            },
+            "layers": {
+              "team": {
+                "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+                "version": 3
+              }
+            }
+          },
+          "source": "ai",
+          "explain": [
+            "Hid the notes column.",
+            "Sorted by value, highest first."
+          ],
+          "createdBy": "user_123",
+          "createdAt": "2026-11-01T09:30:00.000Z"
+        },
+        "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+        "version": 3,
+        "updatedAt": "2026-11-19T10:15:00.000Z"
+      }
+    ],
+    "record",
+    null
+  ],
+  "crossField": [
+    {
+      "value": {
+        "overlay": {
+          "v": 1,
+          "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+          "surface": "/orders/[id]",
+          "layer": "personal",
+          "ops": [
+            {
+              "op": "hide",
+              "target": "orders-table/columns/notes"
+            },
+            {
+              "op": "setSort",
+              "target": "orders-table",
+              "sort": [
+                {
+                  "field": "value",
+                  "dir": "desc"
+                }
+              ]
+            }
+          ],
+          "basis": {
+            "contract": 1,
+            "core": "0.1.0",
+            "manifests": {
+              "data-table": 1
+            },
+            "datasets": {
+              "orders": 2
+            },
+            "layers": {
+              "team": {
+                "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+                "version": 3
+              }
+            }
+          },
+          "source": "ai",
+          "explain": ["Hid the notes column."],
+          "createdBy": "user_123",
+          "createdAt": "2026-11-01T09:30:00.000Z"
+        },
+        "etag": "\"33a64df551425fcc55e4d42a148795d9f25f89d4\"",
+        "version": 3,
+        "updatedAt": "2026-11-19T10:15:00.000Z"
+      },
+      "message": "Must have one sentence per op",
+      "path": ["overlay", "explain"]
+    },
+    {
+      "value": {
+        "overlay": {
+          "v": 1,
+          "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8T9",
+          "surface": "/orders/[id]",
+          "layer": "personal",
+          "ops": [
+            {
+              "op": "hide",
+              "target": "orders-table/columns/notes"
+            },
+            {
+              "op": "setSort",
+              "target": "orders-table",
+              "sort": [
+                {
+                  "field": "value",
+                  "dir": "desc"
+                }
+              ]
+            }
+          ],
+          "basis": {
+            "contract": 1,
+            "core": "0.1.0",
+            "manifests": {
+              "data-table": 1
+            },
+            "datasets": {
+              "orders": 2
+            },
+            "layers": {
+              "team": {
+                "id": "01JBQ3V8Z7XKQ2M4N5P6R7S8TA",
+                "version": 3
+              }
+            }
+          },
+          "source": "ai",
+          "explain": [
+            "Hid the notes column.",
+            "Sorted by value, highest first."
+          ],
+          "createdBy": "user_123",
+          "createdAt": "2026-11-01T09:30:00.000Z"
+        },
+        "etag": "e",
+        "version": 1,
+        "updatedAt": "2026-11-19T10:15:00Z",
+        "meta": {
+          "__proto__": {
+            "x": 1
+          }
+        }
+      },
+      "message": "Must not have a __proto__ key",
+      "path": ["meta", "__proto__"]
+    }
+  ]
+}

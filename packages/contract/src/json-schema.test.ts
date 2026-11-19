@@ -18,6 +18,7 @@ import { opSchema } from "./op"
 import { overlaySchema } from "./overlay"
 import { savedViewSchema } from "./saved-view"
 import { sortSchema } from "./sort"
+import { storedOverlaySchema } from "./stored-overlay"
 import { surfaceSchema } from "./surface"
 
 const schemas = [
@@ -35,6 +36,11 @@ const schemas = [
     name: "saved-view",
     schema: savedViewSchema,
     fixtures: [readFixture("saved-view")],
+  },
+  {
+    name: "stored-overlay",
+    schema: storedOverlaySchema,
+    fixtures: [readFixture("stored-overlay")],
   },
   {
     name: "manifest",
