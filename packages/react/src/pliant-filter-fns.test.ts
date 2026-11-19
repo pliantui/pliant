@@ -1,8 +1,13 @@
-import { describe, expect, it } from "vitest"
+import { filterFn_inNumberRange } from "@tanstack/react-table"
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 
 import type { FilterValue } from "@pliantui/core"
 
-import { matchesFilter, rawFilterValueOf } from "./pliant-filter-fns"
+import {
+  isEmptyFilterValue,
+  matchesFilter,
+  rawFilterValueOf,
+} from "./pliant-filter-fns"
 
 describe("matchesFilter", () => {
   it("matches a missing value only with isNull", () => {
@@ -22,6 +27,12 @@ describe("matchesFilter", () => {
     expect(matchesFilter(5, { operator: "eq", value: 5 })).toBe(true)
     expect(matchesFilter("5", { operator: "eq", value: 5 })).toBe(false)
     expect(matchesFilter("5", { operator: "neq", value: 5 })).toBe(true)
+    expect(matchesFilter(5, { operator: "eq", value: "5" })).toBe(true)
+    expect(matchesFilter(12, { operator: "gt", value: "9" })).toBe(true)
+    expect(matchesFilter("Paid", { operator: "eq", value: "paid" })).toBe(false)
+    expect(matchesFilter("Paid", { operator: "in", value: ["paid"] })).toBe(
+      false
+    )
     expect(matchesFilter(5, { operator: "gte", value: 5 })).toBe(true)
     expect(matchesFilter(5, { operator: "gt", value: 5 })).toBe(false)
     expect(matchesFilter("b", { operator: "lt", value: "c" })).toBe(true)
@@ -87,5 +98,116 @@ describe("rawFilterValueOf", () => {
     })
     expect(rawFilterValueOf({ from: 1 })).toBeUndefined()
     expect(rawFilterValueOf([])).toBeUndefined()
+  })
+})
+
+describe("range inputs", () => {
+  const ranges: unknown[] = [
+    [undefined, 20],
+    [10, undefined],
+    ["10", "20"],
+    [20, 10],
+    [null, 5],
+    ["", "7"],
+    [5, 5],
+    ["-3", 0],
+  ]
+
+  it("filters as TanStack's inNumberRange", () => {
+    for (const range of ranges) {
+      const filter = rawFilterValueOf(range)
+      expect(filter, JSON.stringify(range)).toBeDefined()
+      const resolved: unknown =
+        filterFn_inNumberRange.resolveFilterValue?.(range)
+      for (let cell = -5; cell <= 30; cell++) {
+        expect(
+          filter && matchesFilter(cell, filter),
+          `${String(cell)} in ${JSON.stringify(range)}`
+        ).toBe(
+          Boolean(
+            Reflect.apply(filterFn_inNumberRange.filter, undefined, [
+              cell,
+              resolved,
+            ])
+          )
+        )
+      }
+    }
+  })
+
+  it("is removed when TanStack removes it", () => {
+    for (const value of [
+      undefined,
+      null,
+      "",
+      [],
+      [undefined, undefined],
+      [null, ""],
+      [1, undefined],
+      ["", 2],
+      "a",
+      0,
+    ]) {
+      expect(isEmptyFilterValue(value), JSON.stringify(value)).toBe(
+        filterFn_inNumberRange.autoRemove?.(value) ?? false
+      )
+    }
+  })
+})
+
+describe("dates", () => {
+  beforeAll(() => {
+    vi.stubEnv("TZ", "America/New_York")
+  })
+
+  afterAll(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it("runs in a zone behind UTC", () => {
+    expect(new Date(2026, 2, 1).getTimezoneOffset()).toBe(300)
+  })
+
+  it("reads a date without a time as a day in the viewer's zone", () => {
+    const lateEvening = new Date("2026-03-01T03:00:00Z")
+    expect(
+      matchesFilter(lateEvening, { operator: "eq", value: "2026-03-01" })
+    ).toBe(false)
+    expect(
+      matchesFilter(lateEvening, { operator: "eq", value: "2026-02-28" })
+    ).toBe(true)
+    expect(
+      matchesFilter(lateEvening, { operator: "lt", value: "2026-03-01" })
+    ).toBe(true)
+    expect(
+      matchesFilter(new Date("2026-03-02T04:30:00Z"), {
+        operator: "between",
+        value: ["2026-03-01", "2026-03-01"],
+      })
+    ).toBe(true)
+    expect(
+      matchesFilter(new Date("2026-03-02T05:00:00Z"), {
+        operator: "lte",
+        value: "2026-03-01",
+      })
+    ).toBe(false)
+  })
+
+  it("compares ISO text as dates, not as text", () => {
+    expect(
+      matchesFilter("2026-03-01T00:00:00-05:00", {
+        operator: "eq",
+        value: "2026-03-01",
+      })
+    ).toBe(true)
+    expect(
+      matchesFilter("2026-03-01", {
+        operator: "gt",
+        value: "2026-02-28T23:00:00-05:00",
+      })
+    ).toBe(true)
+    expect(
+      matchesFilter("2026-03-01", { operator: "eq", value: "March" })
+    ).toBe(false)
   })
 })

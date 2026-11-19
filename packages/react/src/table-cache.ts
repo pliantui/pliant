@@ -1,14 +1,10 @@
 import {
+  compareData,
   compileTableState,
   type CompiledTableState,
   type CompileTableStateOptions,
   type ResolvedLayers,
 } from "@pliantui/core"
-
-export interface ColumnFilter {
-  readonly id: string
-  readonly value: unknown
-}
 
 /**
  * Remembers a table's last compiled state, so each render, snapshot and
@@ -23,14 +19,6 @@ export function createTableCache() {
         readonly state: CompiledTableState
       }
     | undefined
-  let presented:
-    | {
-        readonly filters: readonly ColumnFilter[]
-        readonly context: unknown
-        readonly shown: ColumnFilter[]
-      }
-    | undefined
-
   return {
     compile(
       resolved: ResolvedLayers,
@@ -49,42 +37,32 @@ export function createTableCache() {
       }
       return compiled.state
     },
-    /**
-     * The filters as TanStack sees them, each mapped by `show` or left out
-     * when it returns `undefined`, then `extra`. The same array while
-     * `filters` and `context` are, or while every shown value is the same.
-     */
-    present(
-      filters: readonly ColumnFilter[],
-      context: unknown,
-      show: (filter: ColumnFilter) => { readonly value: unknown } | undefined,
-      extra: () => readonly ColumnFilter[]
-    ): ColumnFilter[] {
-      if (presented?.filters === filters && presented.context === context) {
-        return presented.shown
-      }
-      const shown = [
-        ...filters.flatMap((filter) => {
-          const mapped = show(filter)
-          return mapped === undefined
-            ? []
-            : [
-                mapped.value === filter.value
-                  ? filter
-                  : { id: filter.id, value: mapped.value },
-              ]
-        }),
-        ...extra(),
-      ]
-      const last = presented?.shown
-      const same =
-        last?.length === shown.length &&
-        shown.every((filter, index) => {
-          const other = last[index]
-          return other?.id === filter.id && other.value === filter.value
-        })
-      presented = { filters, context, shown: same ? last : shown }
-      return presented.shown
-    },
+  }
+}
+
+/**
+ * A function that returns `derive()`, computed again only when one of
+ * `inputs` is a different value, and the same object as last time while it
+ * is equal as data.
+ */
+export function createDerived<T>() {
+  let last:
+    { readonly inputs: readonly unknown[]; readonly value: T } | undefined
+  return (inputs: readonly unknown[], derive: () => T): T => {
+    if (
+      last?.inputs.length === inputs.length &&
+      inputs.every((input, index) => input === last?.inputs[index])
+    ) {
+      return last.value
+    }
+    const value = derive()
+    last = {
+      inputs,
+      value:
+        last !== undefined && compareData(last.value, value) === 0
+          ? last.value
+          : value,
+    }
+    return last.value
   }
 }

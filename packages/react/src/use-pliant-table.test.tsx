@@ -8,6 +8,7 @@ import {
   createColumnHelper,
   createFilteredRowModel,
   createSortedRowModel,
+  functionalUpdate,
   rowPaginationFeature,
   rowSortingFeature,
   sortFn_alphanumeric,
@@ -102,7 +103,8 @@ function memoryAdapter() {
 
 function setup(
   options: Partial<TableOptions<Features, Order>> = {},
-  config: Partial<UsePliantTableOptions> = {}
+  config: Partial<UsePliantTableOptions> = {},
+  onError?: (error: unknown) => void
 ) {
   const { storage, saved } = memoryAdapter()
   const harness: Partial<Harness> = {}
@@ -128,7 +130,7 @@ function setup(
     )
   }
   render(
-    <PliantRoot surface={surface} storage={storage}>
+    <PliantRoot surface={surface} storage={storage} onError={onError}>
       <Table />
     </PliantRoot>
   )
@@ -148,6 +150,9 @@ function setup(
     get store() {
       return get("store")
     },
+    get resolved() {
+      return get("resolved")
+    },
     placement(address: string) {
       return get("resolved").placements.get(address)?.winner?.check.op
     },
@@ -158,6 +163,18 @@ function setup(
 }
 
 const column = (id: string) => `${tableId}/columns/${id}`
+
+const aiSort = (field: string, dir: "asc" | "desc") => ({
+  v: 1,
+  id: "01KAB0000000000000000000S1",
+  surface,
+  layer: "session",
+  ops: [{ op: "setSort", target: tableId, sort: [{ field, dir }] }],
+  basis: { contract: 1, core: "0.0.0", manifests: {} },
+  source: "ai",
+  createdBy: "user-1",
+  createdAt: "2026-11-19T00:00:00.000Z",
+})
 
 beforeEach(() => {
   localStorage.clear()
@@ -487,6 +504,220 @@ describe("usePliantTable", () => {
       </PliantRoot>
     )
     expect(pinning).toEqual({ start: [], end: [] })
+  })
+})
+
+describe("usePliantTable edge cases", () => {
+  it("maps range inputs as TanStack's inNumberRange reads them", () => {
+    const t = setup()
+    act(() => {
+      t.table.getColumn("value")?.setFilterValue([undefined, 20])
+    })
+    expect(t.winner(tableId, "filter.value")?.check.op).toEqual({
+      op: "setFilter",
+      target: tableId,
+      filter: { field: "value", operator: "lte", value: 20 },
+    })
+    expect(t.table.getColumn("value")?.getFilterValue()).toEqual([
+      undefined,
+      20,
+    ])
+    expect(t.rows()).toEqual(
+      data.filter((order) => order.value <= 20).map(({ id }) => id)
+    )
+    act(() => {
+      t.table.getColumn("value")?.setFilterValue(["10", "20"])
+    })
+    expect(t.winner(tableId, "filter.value")?.check.op).toEqual({
+      op: "setFilter",
+      target: tableId,
+      filter: { field: "value", operator: "between", value: [10, 20] },
+    })
+    expect(t.rows()).toEqual(
+      data
+        .filter((order) => order.value >= 10 && order.value <= 20)
+        .map(({ id }) => id)
+    )
+    act(() => {
+      t.table.getColumn("value")?.setFilterValue([undefined, ""])
+    })
+    expect(t.table.getColumn("value")?.getFilterValue()).toBeUndefined()
+    expect(t.winner(tableId, "filter.value")?.check.op).toEqual({
+      op: "clearFilter",
+      target: tableId,
+      field: "value",
+    })
+  })
+
+  it("sorts text case-insensitively, without warnings", () => {
+    const warn = vi.spyOn(console, "warn")
+    const t = setup({
+      data: [
+        { id: "a", customer: "beta", status: null, value: 1 },
+        { id: "b", customer: "Alpha", status: null, value: 2 },
+        { id: "c", customer: "alpha2", status: null, value: 3 },
+      ],
+    })
+    act(() => {
+      t.table.getColumn("status")?.toggleSorting(false)
+      t.table.getColumn("customer")?.toggleSorting(false)
+    })
+    expect(t.rows()).toEqual(["b", "c", "a"])
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it("keeps the state of a column whose id ops can't name in the table", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    const t = setup({
+      columns: helper.columns([
+        ...columns,
+        helper.accessor((order) => order.value * 2, { id: "2x value" }),
+      ]),
+    })
+    act(() => {
+      t.table.getColumn("2x value")?.toggleVisibility(false)
+    })
+    act(() => {
+      t.table.getColumn("2x value")?.setFilterValue("4")
+    })
+    act(() => {
+      t.table.getColumn("2x value")?.toggleSorting(true)
+    })
+    expect(t.table.getColumn("2x value")?.getIsVisible()).toBe(false)
+    expect(t.table.getColumn("2x value")?.getFilterValue()).toBe("4")
+    expect(t.table.state.sorting).toEqual([{ id: "2x value", desc: true }])
+    expect(t.resolved.properties.size).toBe(0)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(String(warn.mock.calls[0]?.[0])).toContain('"2x value"')
+  })
+
+  it("reports a filter a column's own filter function can't read", async () => {
+    const onError = vi.fn()
+    vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    const t = setup({}, {}, onError)
+    await act(async () => {
+      await Promise.resolve()
+    })
+    act(() => {
+      t.store.applyOps("session", [
+        {
+          op: "setFilter",
+          target: tableId,
+          filter: { field: "customer", operator: "eq", value: "Acme" },
+        },
+      ])
+    })
+    expect(t.table.getColumn("customer")?.getFilterValue()).toBeUndefined()
+    expect(t.rows()).toHaveLength(data.length)
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(String(onError.mock.calls[0]?.[0])).toContain(
+      'the filter on column "customer" of orders-table'
+    )
+  })
+
+  it("shows a click above an AI preview of the same property", () => {
+    const t = setup()
+    act(() => {
+      t.store.preview(aiSort("value", "desc"))
+    })
+    act(() => {
+      t.table.getColumn("customer")?.toggleSorting(false)
+    })
+    expect(t.winner(tableId, "sort")?.overlay.layer).toBe("session")
+    expect(t.winner(tableId, "sort")?.overlay.source).toBe("manual")
+    expect(t.table.state.sorting).toEqual([{ id: "customer", desc: false }])
+  })
+
+  it("keeps ready out of the table's options", () => {
+    const t = setup()
+    expect(Object.keys(t.table.options)).not.toContain("ready")
+  })
+})
+
+describe("usePliantTable with state rebuilt every render", () => {
+  it("keeps a page set from elsewhere", () => {
+    const harness: { store?: PliantStore; page?: number } = {}
+    function Table() {
+      const [pageIndex, setPageIndex] = useState(0)
+      const [pageSize, setPageSize] = useState(10)
+      const table = useTable(
+        usePliantTable(
+          {
+            features,
+            data,
+            columns,
+            state: { pagination: { pageIndex, pageSize } },
+            onPaginationChange: (updater) => {
+              const next = functionalUpdate(updater, { pageIndex, pageSize })
+              setPageIndex(next.pageIndex)
+              setPageSize(next.pageSize)
+            },
+          },
+          { id: tableId }
+        )
+      )
+      const store = usePliantStore()
+      useLayoutEffect(() => {
+        Object.assign(harness, {
+          store,
+          page: table.state.pagination.pageIndex,
+        })
+      })
+      return <output>{pageIndex}</output>
+    }
+    render(
+      <PliantRoot surface={surface} storage={memoryAdapter().storage}>
+        <Table />
+      </PliantRoot>
+    )
+    act(() => {
+      harness.store?.applyOps("session", [
+        { op: "setPage", target: tableId, index: 2 },
+      ])
+    })
+    expect(harness.page).toBe(2)
+    expect(screen.getByRole("status").textContent).toBe("2")
+  })
+
+  it("keeps an AI preview's sort", () => {
+    vi.useFakeTimers()
+    const { storage, saved } = memoryAdapter()
+    const harness: { store?: PliantStore; sorting?: SortingState } = {}
+    function Table() {
+      const [sorting, setSorting] = useState<SortingState>()
+      const table = useTable(
+        usePliantTable(
+          {
+            features,
+            data,
+            columns,
+            state: { sorting: sorting ?? [] },
+            onSortingChange: (updater) => {
+              setSorting(functionalUpdate(updater, sorting ?? []))
+            },
+          },
+          { id: tableId }
+        )
+      )
+      const store = usePliantStore()
+      useLayoutEffect(() => {
+        Object.assign(harness, { store, sorting: table.state.sorting })
+      })
+      return null
+    }
+    render(
+      <PliantRoot surface={surface} storage={storage}>
+        <Table />
+      </PliantRoot>
+    )
+    act(() => {
+      harness.store?.preview(aiSort("value", "desc"))
+    })
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+    expect(harness.sorting).toEqual([{ id: "value", desc: true }])
+    expect(saved).toEqual([])
   })
 })
 

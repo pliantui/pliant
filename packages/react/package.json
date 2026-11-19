@@ -62,7 +62,7 @@
     },
     {
       "path": "dist/table.js",
-      "limit": "3.5 kB",
+      "limit": "5 kB",
       "ignore": [
         "react",
         "zod",
