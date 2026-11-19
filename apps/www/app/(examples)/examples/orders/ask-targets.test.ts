@@ -40,6 +40,9 @@ describe("askTargets", () => {
     )
 
     expect(demo.surface).toBe("/examples/orders")
+    expect(askTargets.map(({ id }) => id).sort()).toEqual(
+      demo.targets.map(({ target }) => target).sort()
+    )
     for (const { id, context, suggestions } of askTargets) {
       const recorded = demo.targets.find(({ target }) => target === id)
       expect(recorded).toBeDefined()

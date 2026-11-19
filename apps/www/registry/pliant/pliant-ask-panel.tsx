@@ -135,6 +135,29 @@ async function requestAnswer(
       }
 }
 
+// Docked at the bottom of a small screen, the panel can cover the node
+// being changed, so its preview wouldn't show. The node is brought to the
+// top then, unless it already fits above the panel or starts near the top
+// of the room left there. Elsewhere the page is left where the user put it.
+function showTarget(id: string, panel: HTMLElement | null) {
+  const node = document.querySelector(`[data-pliant-id="${CSS.escape(id)}"]`)
+  if (!node || !panel || !window.matchMedia("(width < 40rem)").matches) {
+    return
+  }
+  const room = panel.getBoundingClientRect().top
+  const { top, bottom } = node.getBoundingClientRect()
+  if (top >= 0 && (bottom <= room || top <= room / 3)) {
+    return
+  }
+  const reduceMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches
+  node.scrollIntoView({
+    block: "start",
+    behavior: reduceMotion ? "instant" : "smooth",
+  })
+}
+
 function unique(sentences: readonly string[] | undefined) {
   return [...new Set(sentences)]
 }
@@ -155,9 +178,14 @@ function sessionNote(ops: readonly Op[]) {
  * while it is open. It covers what is under it, so the app must make room:
  * the panel has `data-slot="pliant-ask-panel"` while it is open, so a
  * layout can add padding with, for example,
- * `sm:has-[[data-slot=pliant-ask-panel]]:pr-96`. Escape closes it while
- * focus is inside it. Closing it cancels an ask in progress but keeps the
- * preview, which the trigger then marks with `data-preview`. The prompt is
+ * `sm:has-[[data-slot=pliant-ask-panel]]:pr-96` and
+ * `max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh]`. On small screens,
+ * where it covers the lower part of the page, a preview scrolls the target
+ * (found by its `data-pliant-id`) to the top unless it already shows above
+ * the panel, and the suggestions hide until the preview ends; focus stays
+ * where it was. Escape closes it while focus is inside it. Closing it
+ * cancels an ask in progress but keeps the preview, which the trigger then
+ * marks with `data-preview`. The prompt is
  * kept when the target changes, so the same ask can go to another target.
  *
  * The target can be controlled with `target` and `onTargetChange`, so a
@@ -323,6 +351,9 @@ function PliantAskPanel({
     request.current = null
     if (answer.status === "ok") {
       const result = store.preview(answer.overlay)
+      if (result.success) {
+        showTarget(target.id, panelRef.current)
+      }
       setState(
         result.success
           ? { status: "idle" }
@@ -588,7 +619,10 @@ function PliantAskPanel({
             <div
               role="group"
               aria-label="Suggestions"
-              className="flex flex-wrap gap-2 p-4"
+              className={cn(
+                "flex flex-wrap gap-2 p-4",
+                previewing && "max-sm:hidden"
+              )}
             >
               {target.suggestions.map((suggestion) => (
                 <Button

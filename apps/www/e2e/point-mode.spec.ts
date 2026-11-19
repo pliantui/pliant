@@ -80,6 +80,10 @@ test("picks with the keyboard alone", async ({ page, errors }) => {
   await page.keyboard.press("ControlOrMeta+Period")
   await expect(keyMetricsBox(page)).toBeFocused()
   await page.keyboard.press("ArrowDown")
+  await expect(
+    layer(page).getByRole("button", { name: "All orders" })
+  ).toBeFocused()
+  await page.keyboard.press("ArrowDown")
   await expect(keyMetricsBox(page)).toBeFocused()
   await page.keyboard.press("Enter")
 
@@ -241,7 +245,7 @@ test("is a modal dialog when started from the toggle", async ({
   await expect(
     page.getByRole("dialog", { name: "Point mode" })
   ).toHaveAttribute("aria-modal", "true")
-  expect(await buttons(page)).toEqual(["Key metrics"])
+  expect(await buttons(page)).toEqual(["Key metrics", "All orders"])
   expect(
     (await accessibilityTree(page)).filter((node) => node.role === "dialog")
   ).toEqual([

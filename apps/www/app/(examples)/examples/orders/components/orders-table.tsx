@@ -1,8 +1,10 @@
 "use client"
 
-import { useId } from "react"
-import { useTable } from "@tanstack/react-table"
+import { useId, type CSSProperties } from "react"
+import { useTable, type Column } from "@tanstack/react-table"
 import { ChevronDown } from "lucide-react"
+
+import { usePliantTable } from "@pliantui/react/table"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -23,13 +25,42 @@ import {
 import type { Order } from "../data"
 import { formatNumber } from "../format"
 import { columns } from "./columns"
-import { features } from "./data-table-features"
+import { features, type DataTableFeatures } from "./data-table-features"
 
 const ariaSort = { asc: "ascending", desc: "descending" } as const
 
+// Pinned cells need a solid background to cover what scrolls under them,
+// with the row's hover tint layered on top so hovered rows stay even.
+const pinnedClassName =
+  "data-pinned:bg-background [tr:hover>&]:data-pinned:bg-linear-to-r [tr:hover>&]:data-pinned:from-muted/50 [tr:hover>&]:data-pinned:to-muted/50"
+
+function getColumnStyles(
+  column: Column<DataTableFeatures, Order>
+): CSSProperties {
+  const pinned = column.getIsPinned()
+  const isLastStart = pinned === "start" && column.getIsLastColumn("start")
+  const isFirstEnd = pinned === "end" && column.getIsFirstColumn("end")
+  return {
+    position: pinned ? "sticky" : undefined,
+    left: pinned === "start" ? column.getStart("start") : undefined,
+    right: pinned === "end" ? column.getAfter("end") : undefined,
+    zIndex: pinned ? 1 : undefined,
+    boxShadow: isLastStart
+      ? "inset -1px 0 var(--border)"
+      : isFirstEnd
+        ? "inset 1px 0 var(--border)"
+        : undefined,
+    width: column.getSize(),
+  }
+}
+
 export function OrdersTable({ data }: { data: Order[] }) {
   const titleId = useId()
-  const table = useTable({ features, data, columns })
+  const options = usePliantTable(
+    { features, data, columns },
+    { id: "orders-table" }
+  )
+  const table = useTable(options)
   const { pageIndex, pageSize } = table.state.pagination
   const rowCount = table.getRowCount()
   const range = rowCount
@@ -37,7 +68,11 @@ export function OrdersTable({ data }: { data: Order[] }) {
     : "0 of 0"
 
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      data-pliant-id="orders-table"
+      data-pliant-pending={options.ready ? undefined : ""}
+      className="flex flex-col gap-4"
+    >
       <div className="flex items-center justify-between">
         <h2 id={titleId} className="text-lg font-semibold">
           All orders
@@ -66,8 +101,22 @@ export function OrdersTable({ data }: { data: Order[] }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="overflow-hidden rounded-lg border border-border">
-        <Table aria-labelledby={titleId}>
+      {/* The region scrolls instead of the table's own container, so it can
+      take focus and scroll from the keyboard. */}
+      <div
+        role="region"
+        aria-labelledby={titleId}
+        tabIndex={0}
+        className="overflow-x-auto rounded-lg border border-border outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_[data-slot=table-container]]:overflow-visible"
+      >
+        {/* Every column keeps its size, and an empty filler cell at the end
+        of each row takes the room left over, so the table fills its
+        container. */}
+        <Table
+          aria-labelledby={titleId}
+          className="table-fixed"
+          style={{ minWidth: table.getTotalSize() }}
+        >
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="border-border">
@@ -77,6 +126,9 @@ export function OrdersTable({ data }: { data: Order[] }) {
                     <TableHead
                       key={header.id}
                       aria-sort={sorted ? ariaSort[sorted] : undefined}
+                      data-pinned={header.column.getIsPinned() || undefined}
+                      className={pinnedClassName}
+                      style={getColumnStyles(header.column)}
                     >
                       {header.isPlaceholder ? null : (
                         <table.FlexRender header={header} />
@@ -84,6 +136,7 @@ export function OrdersTable({ data }: { data: Order[] }) {
                     </TableHead>
                   )
                 })}
+                <TableHead aria-hidden className="p-0" />
               </TableRow>
             ))}
           </TableHeader>
@@ -92,16 +145,22 @@ export function OrdersTable({ data }: { data: Order[] }) {
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} className="border-border">
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      key={cell.id}
+                      data-pinned={cell.column.getIsPinned() || undefined}
+                      className={pinnedClassName}
+                      style={getColumnStyles(cell.column)}
+                    >
                       <table.FlexRender cell={cell} />
                     </TableCell>
                   ))}
+                  <TableCell aria-hidden className="p-0" />
                 </TableRow>
               ))
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={table.getVisibleLeafColumns().length}
+                  colSpan={table.getVisibleLeafColumns().length + 1}
                   className="h-24 text-center"
                 >
                   No results.
