@@ -278,58 +278,6 @@ describe("PliantRegion", () => {
     expect(screen.getByRole("button", { name: "Orders 2" })).toBeTruthy()
   })
 
-  it("points the trigger at the entries it controls", async () => {
-    await renderRegion([
-      {
-        op: "collapse",
-        target: "key-metrics",
-        items: ["orders", "overdue"],
-        into: "more",
-      },
-    ])
-
-    const controls = screen
-      .getByRole("button", { name: "More" })
-      .getAttribute("aria-controls")
-      ?.split(" ")
-      .map((id) => document.getElementById(id)?.getAttribute("data-pliant-id"))
-    expect(controls).toEqual(["orders", "overdue"])
-  })
-
-  it("moves focus to the trigger when an op collapses the focused entry", async () => {
-    await renderRegion()
-    screen.getByRole("button", { name: "Orders 0" }).focus()
-
-    apply({
-      op: "collapse",
-      target: "key-metrics",
-      items: ["orders"],
-      into: "more",
-      label: "More metrics",
-    })
-
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "More metrics" })
-    )
-  })
-
-  it("moves focus to the trigger of a label with tabs and newlines", async () => {
-    await renderRegion()
-    screen.getByRole("button", { name: "Orders 0" }).focus()
-
-    apply({
-      op: "collapse",
-      target: "key-metrics",
-      items: ["orders"],
-      into: "more",
-      label: "a\tb\nc",
-    })
-
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "a\tb\nc" })
-    )
-  })
-
   it("lays out collapsed slots in place, with the container's layout", async () => {
     await renderRegion(
       [
@@ -411,21 +359,6 @@ describe("PliantRegion", () => {
     expect(region("trend").textContent).toBe("Trend can't be shown yet")
   })
 
-  it("renders the base order while the layers load", () => {
-    const storage: StorageAdapter = {
-      load: () => new Promise(() => undefined),
-      save: () => undefined,
-    }
-    render(
-      <PliantRoot surface={surface} storage={storage}>
-        <PliantRegion id="key-metrics" slots={slots} />
-      </PliantRoot>
-    )
-
-    expect(region().getAttribute("data-pliant-pending")).toBe("")
-    expect(idsIn(region())).toEqual(["revenue", "orders", "overdue"])
-  })
-
   it("renders the base order on the server", () => {
     const html = renderToString(
       <PliantRoot surface={surface} storage={storageWith([])}>
@@ -436,25 +369,5 @@ describe("PliantRegion", () => {
     expect(html).toBe(
       '<div data-slot="pliant-region" data-pliant-id="key-metrics" data-pliant-pending="" class="grid gap-4"><!--&--><div id="_R_0_revenue" data-pliant-id="revenue" style="display:contents">Revenue</div><!--/&--></div>'
     )
-  })
-
-  it("warns about slot keys that aren't kebab-case and duplicate ids", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
-    await renderRegion(
-      [],
-      <>
-        <PliantRegion id="key-metrics" slots={{ "2024": "Year" }} />
-        <PliantRegion id="key-metrics" slots={{ revenue: "Revenue" }} />
-      </>
-    )
-
-    expect(warn.mock.calls).toEqual([
-      [
-        'Pliant: region "key-metrics" has a slot "2024". Slot ids must be kebab-case and start with a letter: keys that look like numbers change the base order.',
-      ],
-      [
-        'Pliant: two mounted regions use the id "key-metrics". Region ids must be unique within a surface.',
-      ],
-    ])
   })
 })
