@@ -1,10 +1,10 @@
-import { useLayoutEffect, useState } from "react"
+import { createRef, useLayoutEffect, useState, type KeyboardEvent } from "react"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { PliantRoot } from "./pliant-root"
 import type { StorageAdapter } from "./storage-adapter"
-import { useAskPanel, type AskAnswer } from "./use-ask-panel"
+import { useAskPanel, type UseAskPanelOptions } from "./use-ask-panel"
 import { useMountedNodes } from "./use-mounted-nodes"
 import { usePliantStore } from "./use-pliant-store"
 import { usePreview } from "./use-preview"
@@ -51,7 +51,9 @@ const storage: StorageAdapter = {
   save: () => undefined,
 }
 
-const send = vi.fn<Parameters<typeof useAskPanel<Target>>[0]["send"]>()
+type AskAnswer = Awaited<ReturnType<UseAskPanelOptions<Target>["send"]>>
+
+const send = vi.fn<UseAskPanelOptions<Target>["send"]>()
 
 function answer(value: AskAnswer) {
   send.mockResolvedValueOnce(value)
@@ -74,9 +76,14 @@ function pendingAnswer() {
   }
 }
 
-type PanelProps = Partial<Parameters<typeof useAskPanel<Target>>[0]>
+type Panel = ReturnType<typeof useAskPanel<Target>>
 
-function statusText(state: ReturnType<typeof useAskPanel>["state"]) {
+type PanelProps = Partial<UseAskPanelOptions<Target>> & {
+  promptProps?: Parameters<Panel["getPromptProps"]>[0]
+  pickerProps?: Parameters<Panel["getPickerProps"]>[0]
+}
+
+function statusText(state: Panel["state"]) {
   switch (state.status) {
     case "asking":
       return "Asking…"
@@ -97,26 +104,33 @@ function statusText(state: ReturnType<typeof useAskPanel>["state"]) {
   }
 }
 
-function Panel(props: PanelProps) {
-  const panel = useAskPanel({ targets, send, ...props })
+function Panel({ promptProps, pickerProps, ...options }: PanelProps) {
+  const panel = useAskPanel({ targets, send, ...options })
+  const preview = usePreview()
+  const asking = panel.state.status === "asking"
   return (
     <>
-      <button type="button" {...panel.triggerProps}>
+      <button type="button" {...panel.getTriggerProps()}>
         Ask
       </button>
       {panel.open && (
-        <aside {...panel.panelProps} aria-label="Ask">
-          <button type="button" onClick={panel.close}>
+        <aside {...panel.getPanelProps()} aria-label="Ask">
+          <button
+            type="button"
+            onClick={() => {
+              panel.setOpen(false)
+            }}
+          >
             Close
           </button>
           <select
+            {...panel.getPickerProps(pickerProps)}
             aria-label="Change"
-            value={panel.pickerProps.value}
-            disabled={panel.pickerProps.disabled}
+            value={panel.target?.id}
+            disabled={asking}
             onChange={(event) => {
-              panel.pickerProps.onValueChange(event.target.value)
+              panel.setTarget(event.target.value)
             }}
-            {...panel.pickerTriggerProps}
           >
             {targets.map((target) => (
               <option key={target.id} value={target.id}>
@@ -130,21 +144,24 @@ function Panel(props: PanelProps) {
               panel.ask()
             }}
           >
-            <textarea aria-label="Prompt" {...panel.promptProps} />
-            {panel.asking && (
+            <textarea
+              {...panel.getPromptProps(promptProps)}
+              aria-label="Prompt"
+            />
+            {asking && (
               <button type="button" onClick={panel.cancel}>
                 Cancel
               </button>
             )}
-            <button type="submit" disabled={panel.asking}>
+            <button type="submit" disabled={asking}>
               Send
             </button>
           </form>
           <div role="status">
             {statusText(panel.state)}
-            {panel.explain.join(" ")}
+            {asking ? "" : [...new Set(preview?.explain)].join(" ")}
           </div>
-          {panel.previewing && !panel.asking && (
+          {preview !== null && !asking && (
             <>
               <button type="button" onClick={panel.lockIn}>
                 Lock in
@@ -156,9 +173,9 @@ function Panel(props: PanelProps) {
           )}
           <button
             type="button"
-            disabled={panel.asking}
+            disabled={asking}
             onClick={() => {
-              panel.suggest("make the total wider")
+              panel.setPrompt("make the total wider")
             }}
           >
             Suggest
@@ -422,12 +439,71 @@ describe("useAskPanel", () => {
   })
 
   it("says the server couldn't be reached when sending fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined)
     await renderPanel()
     send.mockRejectedValueOnce(new TypeError("Failed to fetch"))
 
     await ask()
 
     expect(status()).toBe("Couldn't reach the server. Check your connection.")
+  })
+
+  it("logs why sending failed in development", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    await renderPanel()
+    const failure = new TypeError("Failed to fetch")
+    send.mockRejectedValueOnce(failure)
+
+    await ask()
+
+    expect(error).toHaveBeenCalledWith(failure)
+  })
+
+  it("runs the app's prompt handlers first and composes its ref", async () => {
+    const ref = createRef<HTMLTextAreaElement>()
+    const onKeyDown = vi.fn((event: KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.ctrlKey) {
+        event.preventDefault()
+      }
+    })
+    await renderPanel({ promptProps: { ref, onKeyDown } })
+    answer({ status: "clarify", question: "Which column?" })
+    expect(ref.current).toBe(prompt())
+    fireEvent.change(prompt(), { target: { value: "make it wider" } })
+
+    fireEvent.keyDown(prompt(), { key: "Enter", ctrlKey: true })
+    await settle()
+    expect(onKeyDown).toHaveBeenCalledTimes(1)
+    expect(send).not.toHaveBeenCalled()
+
+    fireEvent.keyDown(prompt(), { key: "Enter" })
+    await settle()
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+
+  it("keeps forgetting a rejected pick when the app handles the picker's blur", async () => {
+    const onBlur = vi.fn()
+    const { rerender } = await renderPanel({
+      target: "orders-table",
+      onTargetChange: () => undefined,
+      pickerProps: { onBlur },
+    })
+    picker().focus()
+    pick("totals")
+    await settle()
+    screen.getByRole("button", { name: "Close" }).focus()
+
+    rerender(
+      page({
+        target: "totals",
+        onTargetChange: () => undefined,
+        pickerProps: { onBlur },
+      })
+    )
+    await settle()
+
+    expect(onBlur).toHaveBeenCalled()
+    expect(document.activeElement).toBe(prompt())
   })
 
   it("sends one ask at a time", async () => {
@@ -759,21 +835,26 @@ describe("useAskPanel", () => {
   })
 })
 
-describe("useAskPanel docked below the page", () => {
+describe("useAskPanel over its target", () => {
   const scrollIntoView = vi.fn<Element["scrollIntoView"]>()
 
-  function layout({ target, panel }: { target: number; panel: number }) {
+  // Boxes are `[x, y, width, height]`, in a 400px wide viewport.
+  type Box = [number, number, number, number]
+
+  function layout({ target, panel }: { target: Box; panel: Box }) {
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
       function (this: Element) {
-        const top = this.matches('[data-slot="pliant-ask-panel"]')
+        const box = this.matches('[data-slot="pliant-ask-panel"]')
           ? panel
           : this.matches('[data-pliant-id="orders-table"]')
             ? target
-            : 0
-        return DOMRect.fromRect({ y: top, height: 200 })
+            : null
+        return box ? new DOMRect(...box) : new DOMRect()
       }
     )
   }
+
+  const docked: Box = [0, 340, 400, 300]
 
   function reducedMotion(matches: boolean) {
     vi.stubGlobal("matchMedia", (query: string) => ({ media: query, matches }))
@@ -792,7 +873,7 @@ describe("useAskPanel docked below the page", () => {
   })
 
   it("scrolls the target above the panel when a preview shows", async () => {
-    layout({ target: 600, panel: 340 })
+    layout({ target: [0, 600, 400, 200], panel: docked })
     await renderPanel()
     answer(okAnswer)
     prompt().focus()
@@ -812,7 +893,7 @@ describe("useAskPanel docked below the page", () => {
 
   it("scrolls instantly when motion is reduced", async () => {
     reducedMotion(true)
-    layout({ target: 600, panel: 340 })
+    layout({ target: [0, 600, 400, 200], panel: docked })
     await renderPanel()
     answer(okAnswer)
 
@@ -824,9 +905,16 @@ describe("useAskPanel docked below the page", () => {
     })
   })
 
-  it.each([
-    ["a target that already shows above the panel", 40, 340],
-    ["beside the page", 600, 0],
+  it.each<[string, Box, Box]>([
+    ["a target that shows above the panel", [0, 40, 400, 200], docked],
+    ["a target that starts near the top", [0, 100, 400, 400], docked],
+    ["beside a panel at the side", [0, 600, 280, 200], [300, 0, 100, 800]],
+    ["beside a floating panel", [0, 500, 200, 200], [220, 400, 160, 300]],
+    [
+      "under a panel that reaches the top",
+      [0, 600, 400, 200],
+      [0, 0, 400, 800],
+    ],
   ])("doesn't scroll %s", async (_, target, panel) => {
     layout({ target, panel })
     await renderPanel()
@@ -839,7 +927,7 @@ describe("useAskPanel docked below the page", () => {
   })
 
   it("doesn't scroll without a preview", async () => {
-    layout({ target: 600, panel: 340 })
+    layout({ target: [0, 600, 400, 200], panel: docked })
     await renderPanel()
     answer({ status: "error", message: "Something went wrong." })
 

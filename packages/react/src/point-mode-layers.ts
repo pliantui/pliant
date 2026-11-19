@@ -70,19 +70,33 @@ export function isShortcut(event: KeyboardEvent) {
   )
 }
 
-// Everything but the point mode layers, including nodes added while it is on,
-// until the returned function restores the elements it made inert.
-export function makePageInert() {
+function isPointModeLayer(element: Element) {
+  return element.matches('[data-slot="pliant-point-mode"]')
+}
+
+// Like a modal, everything but `layer`, its ancestors and other point mode
+// layers, including nodes added while it is on, until the returned function
+// restores the elements it made inert.
+export function makeOthersInert(layer: Element) {
   const madeInert = new Set<Element>()
-  const hide = (elements: Iterable<Node>) => {
-    for (const element of elements) {
+  const path = new Set<Element>()
+  for (
+    let node: Element | null = layer;
+    node && node !== document.body;
+    node = node.parentElement
+  ) {
+    path.add(node)
+  }
+  const hide = (nodes: Iterable<Node>) => {
+    for (const node of nodes) {
       if (
-        element instanceof Element &&
-        !element.hasAttribute("inert") &&
-        !element.matches('[data-slot="pliant-point-mode"]')
+        node instanceof Element &&
+        !path.has(node) &&
+        !node.hasAttribute("inert") &&
+        !isPointModeLayer(node)
       ) {
-        element.setAttribute("inert", "")
-        madeInert.add(element)
+        node.setAttribute("inert", "")
+        madeInert.add(node)
       }
     }
   }
@@ -91,8 +105,12 @@ export function makePageInert() {
       hide(record.addedNodes)
     }
   })
-  hide(document.body.children)
-  observer.observe(document.body, { childList: true })
+  for (const parent of [document.body, ...path]) {
+    if (parent !== layer) {
+      hide(parent.children)
+      observer.observe(parent, { childList: true })
+    }
+  }
   return () => {
     observer.disconnect()
     for (const element of madeInert) {

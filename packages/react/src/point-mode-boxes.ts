@@ -1,7 +1,10 @@
 /**
  * Where a target shows on the page, in viewport coordinates, and where its
- * label goes: at the outline's start or, near the viewport's right edge, at
- * its end, moved in by `labelInset` so it stays on screen.
+ * label goes: at the outline's start or, when a label `labelWidth` wide
+ * wouldn't fit before the viewport's right edge, at its end, moved in by
+ * `labelInset` so it stays on screen.
+ *
+ * @experimental
  */
 export interface PointModeBox {
   id: string
@@ -13,9 +16,6 @@ export interface PointModeBox {
   labelAlign: "start" | "end"
   labelInset: number
 }
-
-// The widest a label gets, a `max-w-48`.
-const labelRoom = 192
 
 function union(rects: readonly DOMRect[]) {
   if (rects.length === 0) {
@@ -56,6 +56,7 @@ function rectOf(nodes: readonly (Element | Text)[]) {
 
 export function measureBoxes(
   targets: readonly { id: string; label: string }[],
+  labelWidth: number,
   observe: (element: Element) => void
 ): PointModeBox[] {
   const viewport = document.documentElement.clientWidth
@@ -73,7 +74,7 @@ export function measureBoxes(
         observe(node)
       }
     }
-    const end = rect.left + labelRoom > viewport
+    const end = rect.left + labelWidth > viewport
     return [
       {
         id: target.id,
