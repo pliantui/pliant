@@ -9,12 +9,13 @@ declare const __PLIANT_CORE_VERSION__: string
  * versions aren't known here, so `basis.manifests` is empty.
  */
 export function manualOverlay(
-  { surface, generateId }: LayerTools,
+  { surface, generateId, language }: LayerTools,
   layer: "personal" | "session",
   ops: readonly Op[],
   time: number,
   explain?: readonly string[]
 ) {
+  const lang = language()
   return {
     v: 1,
     id: generateId(time),
@@ -23,6 +24,7 @@ export function manualOverlay(
     ops: [...ops],
     basis: { contract: 1, core: __PLIANT_CORE_VERSION__, manifests: {} },
     source: "manual",
+    ...(lang === undefined ? {} : { lang }),
     ...(explain ? { explain: [...explain] } : {}),
     createdBy: "local",
     createdAt: new Date(time).toISOString(),
