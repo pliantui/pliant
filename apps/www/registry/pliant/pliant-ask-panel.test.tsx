@@ -619,18 +619,6 @@ describe("PliantAskPanel", () => {
     expect(screen.getByText("Revenue").closest("[aria-hidden]")).toBeNull()
   })
 
-  it("asks about the target its parent picks", async () => {
-    answer({ status: "clarify", question: "Which column?" })
-    await renderPanel({ target: "orders-table" })
-
-    expect(screen.getByRole("combobox", { name: "Change" }).textContent).toBe(
-      "Orders table"
-    )
-    await ask("make it nicer")
-
-    expect(requestBody()).toMatchObject({ target: "orders-table" })
-  })
-
   it("focuses the prompt when its parent opens it", async () => {
     const { rerender } = await renderPanel({ open: false })
     expect(screen.queryByRole("complementary")).toBeNull()
@@ -641,14 +629,28 @@ describe("PliantAskPanel", () => {
     expect(document.activeElement).toBe(prompt())
   })
 
-  it("focuses the prompt and clears the answer when its parent sets the target", async () => {
+  it("asks about the target picked in the picker", async () => {
+    await renderPanel()
+    answer({ status: "clarify", question: "Which column?" })
+    const picker = screen.getByRole("combobox", { name: "Change" })
+
+    fireEvent.keyDown(picker, { key: "Enter" })
+    await settle()
+    fireEvent.click(screen.getByRole("option", { name: "Orders table" }))
+    await settle()
+    await ask("make it nicer")
+
+    expect(requestBody()).toMatchObject({ target: "orders-table" })
+  })
+
+  it("targets a pick, clears the answer and focuses the prompt", async () => {
     answer({ status: "clarify", question: "Which card?" })
-    const { rerender } = await renderPanel({ target: "key-metrics" })
+    const { rerender } = await renderPanel()
     await ask("reorder")
     expect(status()).toBe("Which card?")
     screen.getByRole("button", { name: "Close" }).focus()
 
-    rerender(page({ target: "orders-table" }))
+    rerender(page({ pick: { target: "orders-table" } }))
     await settle()
 
     expect(screen.getByRole("combobox", { name: "Change" }).textContent).toBe(
@@ -659,30 +661,61 @@ describe("PliantAskPanel", () => {
     expect(prompt()).toHaveProperty("value", "reorder")
   })
 
-  it("reports picks to its parent without moving focus", async () => {
-    const onTargetChange = vi.fn()
-    function Controlled() {
-      const [target, setTarget] = React.useState("key-metrics")
-      return page({
-        target,
-        onTargetChange: (next) => {
-          onTargetChange(next)
-          setTarget(next)
-        },
+  it("focuses the prompt on each pick, even of the same target", async () => {
+    answer({ status: "clarify", question: "Which card?" })
+    const { rerender } = await renderPanel({ pick: { target: "key-metrics" } })
+    await ask("reorder")
+    const close = screen.getByRole("button", { name: "Close" })
+    close.focus()
+
+    rerender(page({ pick: { target: "key-metrics" } }))
+    await settle()
+
+    expect(document.activeElement).toBe(prompt())
+    expect(status()).toBe("Which card?")
+  })
+
+  it("cancels an ask when a pick changes the target", async () => {
+    const { rerender } = await renderPanel()
+    let signal: AbortSignal | null | undefined
+    let respond: (response: Response) => void = () => undefined
+    fetchMock.mockImplementationOnce((_input, init) => {
+      signal = init?.signal
+      return new Promise((resolve) => {
+        respond = resolve
       })
-    }
-    render(<Controlled />)
-    await settle()
-    const picker = screen.getByRole("combobox", { name: "Change" })
+    })
+    await ask()
 
-    fireEvent.keyDown(picker, { key: "Enter" })
-    await settle()
-    fireEvent.click(screen.getByRole("option", { name: "Orders table" }))
+    rerender(page({ pick: { target: "orders-table" } }))
     await settle()
 
-    expect(onTargetChange).toHaveBeenCalledWith("orders-table")
-    expect(picker.textContent).toBe("Orders table")
-    expect(document.activeElement).not.toBe(prompt())
+    expect(signal?.aborted).toBe(true)
+    expect(status()).toBe("Cancelled.")
+    expect(screen.getByRole("combobox", { name: "Change" }).textContent).toBe(
+      "Orders table"
+    )
+
+    respond(Response.json(okAnswer))
+    await settle()
+    expect(order()).toEqual(["revenue", "orders", "overdue"])
+    expect(status()).toBe("Cancelled.")
+  })
+
+  it("keeps an ask going when a pick keeps the target", async () => {
+    const { rerender } = await renderPanel()
+    let signal: AbortSignal | null | undefined
+    fetchMock.mockImplementationOnce((_input, init) => {
+      signal = init?.signal
+      return new Promise(() => undefined)
+    })
+    await ask()
+
+    rerender(page({ pick: { target: "key-metrics" } }))
+    await settle()
+
+    expect(signal?.aborted).toBe(false)
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy()
   })
 
   it("renders answers as text, never as HTML", async () => {

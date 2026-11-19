@@ -96,6 +96,11 @@ interface PliantAskTarget {
   suggestions?: readonly string[]
 }
 
+/** A pick of a target made outside the panel, as from `PliantPointMode`. */
+interface PliantAskPick {
+  target: string
+}
+
 type AskState =
   | { status: "idle" }
   | { status: "asking" }
@@ -160,16 +165,16 @@ function sessionNote(ops: readonly Op[]) {
  * preview, which the trigger then marks with `data-preview`. The prompt is
  * kept when the target changes, so the same ask can go to another target.
  *
- * Focus moves to the prompt whenever the panel opens, and when its parent
- * sets `target` while it is open, so a target picked elsewhere on the page,
- * as with `PliantPointMode`, can be asked about right away.
+ * Focus moves to the prompt whenever the panel opens and on each `pick`, so
+ * a target picked elsewhere on the page, as with `PliantPointMode`, can be
+ * asked about right away. A pick that changes the target cancels an ask in
+ * progress.
  */
 function PliantAskPanel({
   endpoint,
   targets,
-  target: targetProp,
   defaultTarget,
-  onTargetChange,
+  pick,
   placeholder = "Describe a change",
   trigger,
   open,
@@ -180,11 +185,14 @@ function PliantAskPanel({
   endpoint: string
   /** The nodes users can ask about, in picker order. */
   targets: readonly PliantAskTarget[]
-  /** The id of the picked target, when the parent controls it. */
-  target?: string
   /** The id of the target picked first. Defaults to the first target. */
   defaultTarget?: string
-  onTargetChange?: (target: string) => void
+  /**
+   * The latest pick made outside the panel. Each new object is a new pick:
+   * it targets the panel at `pick.target` and focuses the prompt, even when
+   * the target is the same. Open the panel with `open` along with it.
+   */
+  pick?: PliantAskPick | undefined
   /** The prompt's placeholder. */
   placeholder?: string
   /** The element that opens the panel. Defaults to an "Ask" button. */
@@ -198,8 +206,7 @@ function PliantAskPanel({
   const preview = usePreview()
   const ready = usePliantStatus().status === "ready"
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen)
-  const [uncontrolledTarget, setUncontrolledTarget] =
-    React.useState(defaultTarget)
+  const [targetId, setTargetId] = React.useState(defaultTarget)
   const [prompt, setPrompt] = React.useState("")
   const [state, setState] = React.useState<AskState>({ status: "idle" })
   const request = React.useRef<AbortController | null>(null)
@@ -208,14 +215,17 @@ function PliantAskPanel({
   const panelRef = React.useRef<HTMLElement>(null)
   const id = React.useId()
   const isOpen = open ?? uncontrolledOpen
-  const targetId = targetProp ?? uncontrolledTarget
   const [focusRequest, setFocusRequest] = React.useState(0)
+  const target =
+    targets.find((candidate) => candidate.id === targetId) ?? targets[0]
 
+  // An answer for one target must never be previewed under another.
   React.useEffect(
     () => () => {
       request.current?.abort()
+      request.current = null
     },
-    []
+    [target?.id]
   )
 
   const [wasOpen, setWasOpen] = React.useState(isOpen)
@@ -228,15 +238,17 @@ function PliantAskPanel({
     }
   }
 
-  // The last target the picker set, to tell the parent's own changes apart.
-  const [pickedTarget, setPickedTarget] = React.useState(targetProp)
-  const [seenTarget, setSeenTarget] = React.useState(targetProp)
-  if (seenTarget !== targetProp) {
-    setSeenTarget(targetProp)
-    if (targetProp !== pickedTarget) {
-      setPickedTarget(targetProp)
-      if (state.status !== "asking") {
-        setState({ status: "idle" })
+  const [seenPick, setSeenPick] = React.useState(pick)
+  if (seenPick !== pick) {
+    setSeenPick(pick)
+    if (pick) {
+      if (pick.target !== target?.id) {
+        setTargetId(pick.target)
+        setState(
+          state.status === "asking"
+            ? { status: "cancelled" }
+            : { status: "idle" }
+        )
       }
       if (isOpen) {
         setFocusRequest((count) => count + 1)
@@ -257,8 +269,6 @@ function PliantAskPanel({
     }
   }, [focusRequest])
 
-  const target =
-    targets.find((candidate) => candidate.id === targetId) ?? targets[0]
   const asking = state.status === "asking"
 
   function setOpen(next: boolean) {
@@ -426,11 +436,7 @@ function PliantAskPanel({
               <Select
                 value={target?.id ?? ""}
                 onValueChange={(next) => {
-                  if (targetProp === undefined) {
-                    setUncontrolledTarget(next)
-                  }
-                  setPickedTarget(next)
-                  onTargetChange?.(next)
+                  setTargetId(next)
                   setState({ status: "idle" })
                 }}
                 disabled={asking}
@@ -587,4 +593,9 @@ function PliantAskPanel({
   )
 }
 
-export { PliantAskPanel, type PliantAskContext, type PliantAskTarget }
+export {
+  PliantAskPanel,
+  type PliantAskContext,
+  type PliantAskPick,
+  type PliantAskTarget,
+}

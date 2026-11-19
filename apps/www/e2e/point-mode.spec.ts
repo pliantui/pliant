@@ -9,7 +9,7 @@ function region(page: Page) {
 }
 
 function layer(page: Page) {
-  return page.getByRole("group", { name: "Parts you can change" })
+  return page.locator('[data-slot="pliant-point-mode"]')
 }
 
 function keyMetricsBox(page: Page) {
@@ -107,17 +107,66 @@ test("leaves on Escape and returns focus to the toggle", async ({
   expect(errors).toEqual([])
 })
 
-test("ignores Alt while typing in the prompt", async ({ page, errors }) => {
+test("points again from the prompt at the target it already shows", async ({
+  page,
+  errors,
+}) => {
   await load(page)
   await page.getByRole("button", { name: "Ask" }).click()
   const textbox = page.getByRole("textbox", { name: "Ask" })
   await expect(textbox).toBeFocused()
 
   await page.keyboard.down("Alt")
+  await keyMetricsBox(page).click()
+  await page.keyboard.up("Alt")
+
+  await expect(layer(page)).toBeHidden()
+  await expect(textbox).toBeFocused()
+  expect(errors).toEqual([])
+})
+
+test("ignores Alt while typing in another field", async ({ page, errors }) => {
+  await load(page)
+  await page.evaluate(() => {
+    const input = document.createElement("input")
+    input.setAttribute("aria-label", "Scratch")
+    document.querySelector("main")?.prepend(input)
+    input.focus()
+  })
+
+  await page.keyboard.down("Alt")
   await page.waitForTimeout(500)
   await expect(layer(page)).toBeHidden()
   await page.keyboard.up("Alt")
-  await expect(textbox).toBeFocused()
+  await expect(page.getByRole("textbox", { name: "Scratch" })).toBeFocused()
+  expect(errors).toEqual([])
+})
+
+test("hides the rest of the page from assistive technology", async ({
+  page,
+  errors,
+}) => {
+  await load(page)
+  const client = await page.context().newCDPSession(page)
+  async function buttons() {
+    const { nodes } = await client.send("Accessibility.getFullAXTree")
+    return nodes.flatMap((node) =>
+      !node.ignored && node.role?.value === "button"
+        ? [String(node.name?.value)]
+        : []
+    )
+  }
+
+  await page.getByRole("button", { name: "Point" }).click()
+  await expect(keyMetricsBox(page)).toBeFocused()
+  await expect(
+    page.getByRole("dialog", { name: "Parts you can change" })
+  ).toHaveAttribute("aria-modal", "true")
+  expect(await buttons()).toEqual(["Key metrics"])
+
+  await page.keyboard.press("Escape")
+  await expect(layer(page)).toBeHidden()
+  expect(await buttons()).toEqual(expect.arrayContaining(["Point", "Ask"]))
   expect(errors).toEqual([])
 })
 

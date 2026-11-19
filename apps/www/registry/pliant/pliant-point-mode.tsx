@@ -23,10 +23,15 @@ interface Box {
   left: number
   width: number
   height: number
+  labelEnd: boolean
+  labelInset: number
 }
 
 // Long enough that Alt pressed as part of a shortcut never lights the page up.
 const holdDelay = 250
+
+// The widest a label gets, as its `max-w-48`.
+const labelRoom = 192
 
 const textInputTypes = new Set([
   "date",
@@ -57,12 +62,21 @@ function isEditable(element: Element | null) {
   )
 }
 
+// Typing in the ask panel's prompt doesn't use Alt alone or the shortcut, and
+// pointing again from there is how users ask about something else next.
+function blocksPointMode(element: Element | null) {
+  return (
+    isEditable(element) &&
+    element?.closest('[data-slot="pliant-ask-panel"]') == null
+  )
+}
+
+// `code` finds the key on layouts where "." needs Shift.
 function isShortcut(event: KeyboardEvent) {
   return (
-    event.key === "." &&
     (event.metaKey || event.ctrlKey) &&
     !event.altKey &&
-    !event.shiftKey
+    (event.key === "." || (event.code === "Period" && !event.shiftKey))
   )
 }
 
@@ -78,18 +92,28 @@ function union(rects: readonly DOMRect[]) {
 }
 
 // A `display: contents` element, like a region's slot wrapper, has no box of
-// its own, so it is outlined around its children.
-function boxElementsOf(element: Element): Element[] {
-  return getComputedStyle(element).display === "contents"
-    ? [...element.children].flatMap(boxElementsOf)
-    : [element]
+// its own, so it is outlined around its children, text included.
+function boxNodesOf(node: Node): (Element | Text)[] {
+  if (node instanceof Element) {
+    return getComputedStyle(node).display === "contents"
+      ? [...node.childNodes].flatMap(boxNodesOf)
+      : [node]
+  }
+  return node instanceof Text && node.data.trim() !== "" ? [node] : []
 }
 
-function rectOf(element: Element) {
+function rectOfNode(node: Element | Text) {
+  if (node instanceof Element) {
+    return node.getBoundingClientRect()
+  }
+  const range = document.createRange()
+  range.selectNodeContents(node)
+  return range.getBoundingClientRect()
+}
+
+function rectOf(nodes: readonly (Element | Text)[]) {
   return union(
-    boxElementsOf(element)
-      .map((box) => box.getBoundingClientRect())
-      .filter((rect) => rect.width > 0 && rect.height > 0)
+    nodes.map(rectOfNode).filter((rect) => rect.width > 0 && rect.height > 0)
   )
 }
 
@@ -97,7 +121,16 @@ function elementOf(id: string) {
   return document.querySelector(`[data-pliant-id="${CSS.escape(id)}"]`)
 }
 
-const boxKeys = ["id", "label", "top", "left", "width", "height"] as const
+const boxKeys = [
+  "id",
+  "label",
+  "top",
+  "left",
+  "width",
+  "height",
+  "labelEnd",
+  "labelInset",
+] as const
 
 function sameBoxes(current: readonly Box[], next: readonly Box[]) {
   return (
@@ -127,8 +160,15 @@ const navigationKeys: Readonly<Record<string, (index: number) => number>> = {
  *
  * A target is found on the page by its `data-pliant-id`, so it must be a
  * Pliant node, like a `PliantRegion`. Point mode ignores Alt and the
- * shortcut while focus is in a text field, and Alt held together with
- * another key, so the app's and the browser's shortcuts keep working.
+ * shortcut while focus is in a text field other than the ask panel's prompt,
+ * and Alt held together with another key, so the app's and the browser's
+ * shortcuts keep working. Safari keeps ⌘. for Stop, and some Linux desktops
+ * move the window on Alt+click, so the toggle is the way in that always
+ * works, and the only one on touch screens.
+ *
+ * Started from the toggle or the shortcut, point mode is modal: the rest of
+ * the page is `inert` until it ends. Focus goes back to where it was unless
+ * `onPick` moves it, as the ask panel does to its prompt.
  */
 function PliantPointMode({
   targets,
@@ -151,6 +191,7 @@ function PliantPointMode({
   const holdTimer = React.useRef<number | undefined>(undefined)
   const heldThisPress = React.useRef(false)
   const active = mode !== null
+  const id = React.useId()
 
   function enter(next: Mode) {
     returnFocus.current =
@@ -162,25 +203,17 @@ function PliantPointMode({
     setMode(next)
     setAnnouncement(
       next === "toggle"
-        ? "Point mode on. Use Tab or the arrow keys to move between the parts you can change, Enter to pick one, Escape to leave."
+        ? "Point mode on."
         : "Point mode on. Click the part you want to change."
     )
   }
 
-  function exit({ restoreFocus }: { restoreFocus: boolean }) {
-    if (
-      restoreFocus &&
-      layerRef.current?.contains(document.activeElement) === true
-    ) {
-      returnFocus.current?.focus()
-    }
-    returnFocus.current = null
+  function exit() {
     setMode(null)
     setAnnouncement("Point mode off.")
   }
 
   function pick(id: string) {
-    returnFocus.current = null
     setMode(null)
     setAnnouncement("")
     onPick(id)
@@ -197,14 +230,14 @@ function PliantPointMode({
     }
     if (isShortcut(event)) {
       cancelHold()
-      if (isEditable(document.activeElement)) {
+      if (blocksPointMode(document.activeElement)) {
         return
       }
       event.preventDefault()
       if (mode === null) {
         enter("toggle")
       } else {
-        exit({ restoreFocus: true })
+        exit()
       }
       return
     }
@@ -215,7 +248,7 @@ function PliantPointMode({
         event.ctrlKey ||
         event.metaKey ||
         event.shiftKey ||
-        isEditable(document.activeElement)
+        blocksPointMode(document.activeElement)
       ) {
         return
       }
@@ -231,14 +264,14 @@ function PliantPointMode({
     // a character, not a hold.
     cancelHold()
     if (mode === "hold") {
-      exit({ restoreFocus: false })
+      exit()
     } else if (
       mode === "toggle" &&
       event.key === "Escape" &&
       !event.defaultPrevented
     ) {
       event.preventDefault()
-      exit({ restoreFocus: true })
+      exit()
     }
   })
 
@@ -253,7 +286,7 @@ function PliantPointMode({
       event.preventDefault()
     }
     if (mode === "hold") {
-      exit({ restoreFocus: false })
+      exit()
     }
   })
 
@@ -262,7 +295,7 @@ function PliantPointMode({
     cancelHold()
     heldThisPress.current = false
     if (mode === "hold") {
-      exit({ restoreFocus: false })
+      exit()
     }
   })
 
@@ -289,13 +322,20 @@ function PliantPointMode({
 
   const measure = React.useEffectEvent(
     (observe: (element: Element) => void) => {
+      const viewport = document.documentElement.clientWidth
       const next = targets.flatMap((target) => {
         const element = elementOf(target.id)
-        const rect = element && rectOf(element)
-        if (!element || !rect) {
+        const nodes = element ? boxNodesOf(element) : []
+        const rect = rectOf(nodes)
+        if (!rect) {
           return []
         }
-        boxElementsOf(element).forEach(observe)
+        for (const node of nodes) {
+          if (node instanceof Element) {
+            observe(node)
+          }
+        }
+        const labelEnd = rect.left + labelRoom > viewport
         return [
           {
             id: target.id,
@@ -304,6 +344,11 @@ function PliantPointMode({
             left: rect.left,
             width: rect.width,
             height: rect.height,
+            labelEnd,
+            labelInset: Math.max(
+              0,
+              labelEnd ? rect.right - viewport : -rect.left
+            ),
           },
         ]
       })
@@ -319,7 +364,13 @@ function PliantPointMode({
     let frame = 0
     const observed = new Set<Element>()
     const resizeObserver = new ResizeObserver(schedule)
-    const mutationObserver = new MutationObserver(schedule)
+    const mutationObserver = new MutationObserver((records) => {
+      if (
+        records.some((record) => !layerRef.current?.contains(record.target))
+      ) {
+        schedule()
+      }
+    })
     const observe = (element: Element) => {
       if (!observed.has(element)) {
         observed.add(element)
@@ -356,6 +407,32 @@ function PliantPointMode({
   }, [active])
 
   React.useEffect(() => {
+    if (mode === null) {
+      return
+    }
+    const restore = returnFocus.current
+    const layer = layerRef.current
+    const hidden =
+      mode === "toggle"
+        ? [...document.body.children].filter(
+            (element) => element !== layer && !element.hasAttribute("inert")
+          )
+        : []
+    for (const element of hidden) {
+      element.setAttribute("inert", "")
+    }
+    return () => {
+      for (const element of hidden) {
+        element.removeAttribute("inert")
+      }
+      const focused = document.activeElement
+      if (!focused || focused === document.body || !focused.isConnected) {
+        restore?.focus()
+      }
+    }
+  }, [mode])
+
+  React.useEffect(() => {
     const first = layerRef.current?.querySelector("button")
     if (focusOnShow.current && first) {
       focusOnShow.current = false
@@ -371,14 +448,19 @@ function PliantPointMode({
         data-state={active ? "on" : "off"}
         onClick={() => {
           if (active) {
-            exit({ restoreFocus: true })
+            exit()
           } else {
             enter("toggle")
           }
         }}
       >
         {trigger ?? (
-          <Button type="button" variant="outline" size="sm">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
+          >
             <SquareDashedMousePointerIcon />
             Point
           </Button>
@@ -391,14 +473,16 @@ function PliantPointMode({
         createPortal(
           <div
             ref={layerRef}
-            role="group"
+            role={mode === "toggle" ? "dialog" : "group"}
+            aria-modal={mode === "toggle" ? true : undefined}
             aria-label="Parts you can change"
+            aria-describedby={mode === "toggle" ? `${id}-help` : undefined}
             data-slot="pliant-point-mode"
             data-mode={mode}
             className="fixed inset-0 z-40 cursor-crosshair"
             onClick={(event) => {
               if (event.target === event.currentTarget) {
-                exit({ restoreFocus: true })
+                exit()
               }
             }}
             onKeyDown={(event) => {
@@ -422,6 +506,12 @@ function PliantPointMode({
               buttons[((move % length) + length) % length]?.focus()
             }}
           >
+            {mode === "toggle" && (
+              <p id={`${id}-help`} className="sr-only">
+                Use Tab or the arrow keys to move between them, Enter to pick
+                one, Escape to leave.
+              </p>
+            )}
             {boxes.map((box) => (
               <button
                 key={box.id}
@@ -440,9 +530,14 @@ function PliantPointMode({
               >
                 <span
                   className={cn(
-                    "absolute left-0 rounded-md bg-primary px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-primary-foreground shadow-sm",
-                    box.top < 24 ? "top-1 left-1" : "-top-6"
+                    "absolute max-w-48 truncate rounded-md bg-primary px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-primary-foreground shadow-sm",
+                    box.top < 24 ? "top-1" : "-top-6"
                   )}
+                  style={
+                    box.labelEnd
+                      ? { right: box.labelInset }
+                      : { left: box.labelInset }
+                  }
                 >
                   {box.label}
                 </span>

@@ -12,7 +12,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { PliantRoot, type StorageAdapter } from "@pliantui/react"
 
-import { PliantAskPanel, type PliantAskTarget } from "./pliant-ask-panel"
+import {
+  PliantAskPanel,
+  type PliantAskPick,
+  type PliantAskTarget,
+} from "./pliant-ask-panel"
 import { PliantPointMode } from "./pliant-point-mode"
 import { PliantRegion } from "./pliant-region"
 
@@ -98,7 +102,10 @@ function toggle() {
 }
 
 function layer() {
-  return screen.queryByRole("group", { name: "Parts you can change" })
+  return (
+    screen.queryByRole("dialog", { name: "Parts you can change" }) ??
+    screen.queryByRole("group", { name: "Parts you can change" })
+  )
 }
 
 function boxes() {
@@ -391,34 +398,172 @@ describe("PliantPointMode", () => {
     )
   })
 
-  it("opens the ask panel on the picked target with focus in the prompt", async () => {
-    function Toolbar() {
-      const [open, setOpen] = React.useState(false)
-      const [picked, setPicked] = React.useState("key-metrics")
-      return (
-        <>
-          <PliantPointMode
-            targets={targets}
-            onPick={(id) => {
-              setPicked(id)
-              setOpen(true)
-            }}
-          />
-          <PliantAskPanel
-            endpoint="/api/pliant"
-            targets={targets}
-            target={picked}
-            onTargetChange={setPicked}
-            open={open}
-            onOpenChange={setOpen}
-          />
-        </>
-      )
+  it("makes the rest of the page inert while on from the toggle", async () => {
+    renderPage()
+    await enterWithToggle()
+    const dialog = screen.getByRole("dialog", { name: "Parts you can change" })
+
+    expect(dialog.getAttribute("aria-modal")).toBe("true")
+    expect(
+      document.getElementById(dialog.getAttribute("aria-describedby") ?? "")
+        ?.textContent
+    ).toContain("Escape to leave")
+    const others = [...document.body.children].filter(
+      (element) => element !== dialog
+    )
+    expect(others.length).toBeGreaterThan(0)
+    expect(others.every((element) => element.hasAttribute("inert"))).toBe(true)
+
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    })
+    await wait()
+
+    expect(document.querySelector("[inert]")).toBeNull()
+  })
+
+  it("leaves the page alone while Alt is held", async () => {
+    renderPage()
+    await holdAlt()
+
+    expect(screen.queryByRole("dialog")).toBeNull()
+    expect(layer()?.hasAttribute("aria-modal")).toBe(false)
+    expect(document.querySelector("[inert]")).toBeNull()
+  })
+
+  it("keeps an element the app made inert", async () => {
+    const outside = document.createElement("div")
+    outside.setAttribute("inert", "")
+    document.body.append(outside)
+    renderPage()
+    await enterWithToggle()
+
+    fireEvent.click(layer() ?? document.body)
+    await wait()
+
+    expect(outside.hasAttribute("inert")).toBe(true)
+    outside.remove()
+  })
+
+  it("returns focus after a click outside the targets", async () => {
+    renderPage()
+    toggle().focus()
+    await enterWithToggle()
+
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
     }
+    fireEvent.click(layer() ?? document.body)
+    await wait()
+
+    expect(document.activeElement).toBe(toggle())
+  })
+
+  it("returns focus after a pick unless the app moves it", async () => {
+    renderPage()
+    toggle().focus()
+    await enterWithToggle()
+
+    fireEvent.click(screen.getByRole("button", { name: "Orders table" }))
+    await wait()
+
+    expect(document.activeElement).toBe(toggle())
+  })
+
+  it("toggles with the Period key on layouts where it needs Shift", async () => {
+    renderPage()
+
+    fireEvent.keyDown(document.body, {
+      key: ":",
+      code: "Period",
+      ctrlKey: true,
+    })
+    await wait()
+    expect(layer()).not.toBeNull()
+
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: ".",
+      code: "Semicolon",
+      metaKey: true,
+      shiftKey: true,
+    })
+    expect(layer()).toBeNull()
+  })
+
+  it("outlines text inside a display: contents target", async () => {
+    vi.spyOn(Range.prototype, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(16, 500, 80, 20)
+    )
+    render(
+      <PliantPointMode
+        targets={[{ id: "note", label: "Note" }]}
+        onPick={() => undefined}
+      />
+    )
+    const note = document.createElement("div")
+    note.setAttribute("data-pliant-id", "note")
+    note.style.display = "contents"
+    note.textContent = "Only text"
+    document.body.append(note)
+
+    await enterWithToggle()
+
+    expect(screen.getByRole("button", { name: "Note" }).style.top).toBe("500px")
+    note.remove()
+  })
+
+  it("keeps labels on screen at the right edge", async () => {
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      configurable: true,
+      value: 400,
+    })
+    render(
+      <>
+        <PliantPointMode
+          targets={[{ id: "side", label: "Side" }]}
+          onPick={() => undefined}
+        />
+        <div data-pliant-id="side" data-top="100" />
+      </>
+    )
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: Element) {
+        return this.hasAttribute("data-top")
+          ? new DOMRect(300, 100, 160, 40)
+          : new DOMRect(0, 0, 0, 0)
+      }
+    )
+
+    await enterWithToggle()
+
+    const label = screen.getByText("Side")
+    expect(label.style.right).toBe("60px")
+    expect(label.style.left).toBe("")
+    Reflect.deleteProperty(document.documentElement, "clientWidth")
+  })
+
+  it("starts from the ask panel's prompt", async () => {
     render(
       <PliantRoot surface="/dashboard" storage={storage}>
         <Toolbar />
-        <div data-pliant-id="orders-table" data-top="200" />
+      </PliantRoot>
+    )
+    await wait()
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }))
+    await wait()
+    expect(document.activeElement).toBe(
+      screen.getByRole("textbox", { name: "Ask" })
+    )
+
+    await holdAlt()
+
+    expect(layer()).not.toBeNull()
+  })
+
+  it("opens the ask panel on the picked target with focus in the prompt", async () => {
+    render(
+      <PliantRoot surface="/dashboard" storage={storage}>
+        <Toolbar />
       </PliantRoot>
     )
     await wait()
@@ -436,4 +581,50 @@ describe("PliantPointMode", () => {
       within(panel).getByRole("textbox", { name: "Ask" })
     )
   })
+
+  it("focuses the prompt when pointing at the panel's own target", async () => {
+    render(
+      <PliantRoot surface="/dashboard" storage={storage}>
+        <Toolbar />
+      </PliantRoot>
+    )
+    await wait()
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }))
+    await wait()
+    const prompt = screen.getByRole("textbox", { name: "Ask" })
+    toggle().focus()
+
+    fireEvent.click(toggle())
+    await wait()
+    fireEvent.click(screen.getByRole("button", { name: "Key metrics" }))
+    await wait()
+
+    expect(document.activeElement).toBe(prompt)
+  })
 })
+
+function Toolbar() {
+  const [open, setOpen] = React.useState(false)
+  const [pick, setPick] = React.useState<PliantAskPick>()
+  return (
+    <>
+      <PliantPointMode
+        targets={targets}
+        onPick={(id) => {
+          setPick({ target: id })
+          setOpen(true)
+        }}
+      />
+      <PliantAskPanel
+        endpoint="/api/pliant"
+        targets={targets}
+        defaultTarget="key-metrics"
+        pick={pick}
+        open={open}
+        onOpenChange={setOpen}
+      />
+      <div data-pliant-id="key-metrics" data-top="100" />
+      <div data-pliant-id="orders-table" data-top="200" />
+    </>
+  )
+}
