@@ -4,14 +4,14 @@ import { askTargets } from "@/app/(examples)/examples/orders/ask-targets"
 
 import { POST } from "./route"
 
-function ask() {
+function ask(prompt = "put the overdue card first") {
   return new Request("http://localhost/api/pliant", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       surface: "/examples/orders",
       target: "key-metrics",
-      prompt: "put the overdue card first",
+      prompt,
       context: askTargets[0]?.context,
     }),
   })
@@ -52,6 +52,19 @@ describe("POST /api/pliant", () => {
         ],
       },
       explain: ["Moved the Overdue card to the first position."],
+    })
+  })
+
+  it("lists the recorded asks for an ask it has no answer to", async () => {
+    vi.stubEnv("PLIANT_ASK_ENABLED", "1")
+
+    const response = await POST(ask("Put the overdue card first"))
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      status: "unavailable",
+      reason:
+        "This demo only answers its recorded asks. Try: put the overdue card first; hide the average order value card; show the cards in a two-column grid.",
     })
   })
 })

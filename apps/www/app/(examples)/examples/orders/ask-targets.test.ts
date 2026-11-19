@@ -8,7 +8,13 @@ import { askTargets } from "./ask-targets"
 
 const demoAsksSchema = z.object({
   surface: z.string(),
-  targets: z.array(z.object({ target: z.string(), context: z.unknown() })),
+  targets: z.array(
+    z.object({
+      target: z.string(),
+      context: z.unknown(),
+      prompts: z.array(z.string()),
+    })
+  ),
 })
 
 describe("askTargets", () => {
@@ -20,7 +26,7 @@ describe("askTargets", () => {
 
   // The demo route replays recordings keyed by the exact context, so a
   // context that drifts from the recorded asks has no answer.
-  it("match the contexts of the recorded demo asks", async () => {
+  it("match the recorded demo asks", async () => {
     const demo = demoAsksSchema.parse(
       JSON.parse(
         await readFile(
@@ -34,10 +40,13 @@ describe("askTargets", () => {
     )
 
     expect(demo.surface).toBe("/examples/orders")
-    for (const { id, context } of askTargets) {
-      expect(context).toEqual(
-        demo.targets.find(({ target }) => target === id)?.context
-      )
+    expect(askTargets.map(({ id }) => id).sort()).toEqual(
+      demo.targets.map(({ target }) => target).sort()
+    )
+    for (const { id, context, suggestions } of askTargets) {
+      const recorded = demo.targets.find(({ target }) => target === id)
+      expect(context).toEqual(recorded?.context)
+      expect(suggestions).toEqual(recorded?.prompts)
     }
   })
 })

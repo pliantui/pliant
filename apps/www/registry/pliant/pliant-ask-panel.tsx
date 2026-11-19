@@ -1,7 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { Loader2Icon, SparklesIcon } from "lucide-react"
+import { cn } from "cn"
+import { Loader2Icon, SparklesIcon, XIcon } from "lucide-react"
+import { Slot } from "radix-ui"
 import * as z from "zod"
 
 import {
@@ -23,14 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -45,6 +39,8 @@ const askResponseSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("error"), message: z.string().min(1) }),
 ])
 
+type Answer = z.infer<typeof askResponseSchema>
+
 type Op = Extract<
   ReturnType<PliantStore["lockIn"]>,
   { success: true }
@@ -54,12 +50,14 @@ type Op = Extract<
  * A node users can ask about: its address, a label for the picker, and the
  * context the server needs to answer (`askContextSchema` in
  * `@pliantui/server`): its manifest, the items it holds and, for data, the
- * fields it can sort and filter by. Never rows.
+ * fields it can sort and filter by. Never rows. `suggestions` are asks shown
+ * as chips that fill in the prompt.
  */
 interface PliantAskTarget {
   id: string
   label: string
   context: AskContext
+  suggestions?: readonly string[]
 }
 
 type AskState =
@@ -71,16 +69,33 @@ type AskState =
   | { status: "discarded" }
   | { status: "locked"; keptInSession: readonly Op[] }
 
-async function readAnswer(response: Response) {
-  const body: unknown = await response.json().catch(() => undefined)
-  const answer = askResponseSchema.safeParse(body)
-  if (answer.success) {
-    return answer.data
+async function requestAnswer(
+  endpoint: string,
+  body: unknown,
+  signal: AbortSignal
+): Promise<Answer> {
+  let response: Response
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    })
+  } catch {
+    return {
+      status: "error",
+      message: "Couldn't reach the server. Check your connection.",
+    }
   }
-  return {
-    status: "error",
-    message: `Couldn't read the answer (HTTP ${String(response.status)}).`,
-  } as const
+  const json: unknown = await response.json().catch(() => undefined)
+  const answer = askResponseSchema.safeParse(json)
+  return answer.success
+    ? answer.data
+    : {
+        status: "error",
+        message: `Couldn't read the answer (HTTP ${String(response.status)}).`,
+      }
 }
 
 function unique(sentences: readonly string[] | undefined) {
@@ -97,14 +112,19 @@ function sessionNote(ops: readonly Op[]) {
  * A panel for asking AI to change how a node of the page looks. The answer
  * is previewed on the page, and nothing is saved until the user locks it in.
  * Use it inside a `PliantRoot`; it sends the root's surface with each ask.
+ *
+ * The panel is a non-modal complementary region docked to the side (to the
+ * bottom on small screens), so the page and its preview stay usable while it
+ * is open. Escape closes it while focus is inside it.
  */
 function PliantAskPanel({
   endpoint,
   targets,
   defaultTarget,
+  placeholder = "Describe a change",
   trigger,
   open,
-  defaultOpen,
+  defaultOpen = false,
   onOpenChange,
 }: {
   /** The URL of the route that answers asks with `createPliantHandler`. */
@@ -113,6 +133,8 @@ function PliantAskPanel({
   targets: readonly PliantAskTarget[]
   /** The id of the target picked first. Defaults to the first target. */
   defaultTarget?: string
+  /** The prompt's placeholder. */
+  placeholder?: string
   /** The element that opens the panel. Defaults to an "Ask" button. */
   trigger?: React.ReactElement
   open?: boolean
@@ -123,14 +145,16 @@ function PliantAskPanel({
   const surface = usePliantSurface()
   const preview = usePreview()
   const ready = usePliantStatus().status === "ready"
-  const [targetId, setTargetId] = React.useState(
-    defaultTarget ?? targets[0]?.id ?? ""
-  )
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen)
+  const [targetId, setTargetId] = React.useState(defaultTarget)
   const [prompt, setPrompt] = React.useState("")
   const [state, setState] = React.useState<AskState>({ status: "idle" })
   const request = React.useRef<AbortController | null>(null)
   const promptRef = React.useRef<HTMLTextAreaElement>(null)
+  const triggerRef = React.useRef<HTMLButtonElement>(null)
+  const panelRef = React.useRef<HTMLElement>(null)
   const id = React.useId()
+  const isOpen = open ?? uncontrolledOpen
 
   React.useEffect(
     () => () => {
@@ -139,61 +163,71 @@ function PliantAskPanel({
     []
   )
 
-  const target = targets.find((candidate) => candidate.id === targetId)
+  React.useEffect(() => {
+    if (isOpen) {
+      promptRef.current?.focus()
+    }
+  }, [isOpen])
+
+  const target =
+    targets.find((candidate) => candidate.id === targetId) ?? targets[0]
   const asking = state.status === "asking"
-  const canAsk = ready && target !== undefined && prompt.trim() !== ""
+
+  function setOpen(next: boolean) {
+    if (open === undefined) {
+      setUncontrolledOpen(next)
+    }
+    onOpenChange?.(next)
+  }
+
+  function close() {
+    const hadFocus = panelRef.current?.contains(document.activeElement)
+    setOpen(false)
+    if (hadFocus) {
+      triggerRef.current?.focus()
+    }
+  }
 
   async function ask() {
-    if (request.current || !canAsk) {
+    const text = prompt.trim()
+    if (request.current || !target || text === "") {
+      return
+    }
+    if (!ready) {
+      setState({
+        status: "failed",
+        message: "The page is still loading. Try again in a moment.",
+      })
       return
     }
     const controller = new AbortController()
     request.current = controller
     setState({ status: "asking" })
-    try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          surface,
-          target: target.id,
-          prompt: prompt.trim(),
-          context: target.context,
-        }),
-        signal: controller.signal,
-      })
-      const answer = await readAnswer(response)
-      if (controller.signal.aborted) {
-        return
-      }
-      if (answer.status === "ok") {
-        const result = store.preview(answer.overlay)
-        setState(
-          result.success
-            ? { status: "idle" }
-            : {
-                status: "failed",
-                message: `The answer couldn't be previewed: ${result.error}`,
-              }
-        )
-      } else if (answer.status === "clarify") {
-        setState({ status: "clarify", question: answer.question })
-      } else if (answer.status === "unavailable") {
-        setState({ status: "failed", message: answer.reason })
-      } else {
-        setState({ status: "failed", message: answer.message })
-      }
-    } catch {
-      if (!controller.signal.aborted) {
-        setState({
-          status: "failed",
-          message: "Couldn't reach the server. Check your connection.",
-        })
-      }
-    } finally {
-      if (request.current === controller) {
-        request.current = null
-      }
+    const answer = await requestAnswer(
+      endpoint,
+      { surface, target: target.id, prompt: text, context: target.context },
+      controller.signal
+    )
+    if (controller.signal.aborted) {
+      return
+    }
+    request.current = null
+    if (answer.status === "ok") {
+      const result = store.preview(answer.overlay)
+      setState(
+        result.success
+          ? { status: "idle" }
+          : {
+              status: "failed",
+              message: `The answer couldn't be previewed: ${result.error}`,
+            }
+      )
+    } else if (answer.status === "clarify") {
+      setState({ status: "clarify", question: answer.question })
+    } else if (answer.status === "unavailable") {
+      setState({ status: "failed", message: answer.reason })
+    } else {
+      setState({ status: "failed", message: answer.message })
     }
   }
 
@@ -223,156 +257,218 @@ function PliantAskPanel({
   const explain = asking ? [] : unique(preview?.explain)
 
   return (
-    <Sheet
-      modal={false}
-      open={open}
-      defaultOpen={defaultOpen}
-      onOpenChange={onOpenChange}
-    >
-      <SheetTrigger asChild>
+    <>
+      <Slot.Root
+        ref={triggerRef}
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? `${id}-panel` : undefined}
+        onClick={() => {
+          if (isOpen) {
+            close()
+          } else {
+            setOpen(true)
+          }
+        }}
+      >
         {trigger ?? (
           <Button variant="outline" size="sm">
             <SparklesIcon />
             Ask
           </Button>
         )}
-      </SheetTrigger>
-      <SheetContent
-        data-slot="pliant-ask-panel"
-        onOpenAutoFocus={(event) => {
-          event.preventDefault()
-          promptRef.current?.focus()
-        }}
-        onInteractOutside={(event) => {
-          event.preventDefault()
-        }}
-      >
-        <SheetHeader>
-          <SheetTitle>Ask</SheetTitle>
-          <SheetDescription>
-            Describe how this page should look. You see a preview, and nothing
-            is saved until you lock it in.
-          </SheetDescription>
-        </SheetHeader>
-        <form
-          className="flex flex-col gap-4 px-4"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void ask()
+      </Slot.Root>
+      {isOpen && (
+        <aside
+          ref={panelRef}
+          id={`${id}-panel`}
+          aria-labelledby={`${id}-title`}
+          data-slot="pliant-ask-panel"
+          className="animate-in slide-in-from-bottom sm:slide-in-from-right fixed inset-x-0 bottom-0 z-50 flex max-h-[60dvh] flex-col gap-4 overflow-y-auto border-t bg-background shadow-lg sm:inset-y-0 sm:right-0 sm:left-auto sm:max-h-none sm:w-full sm:max-w-sm sm:border-t-0 sm:border-l"
+          onKeyDown={(event) => {
+            if (
+              event.key === "Escape" &&
+              event.target instanceof Node &&
+              event.currentTarget.contains(event.target)
+            ) {
+              event.preventDefault()
+              close()
+            }
           }}
         >
-          <div className="grid gap-2">
-            <Label htmlFor={`${id}-target`}>Change</Label>
-            <Select
-              value={targetId}
-              onValueChange={setTargetId}
-              disabled={asking}
+          <div className="flex items-start justify-between gap-2 p-4 pb-0">
+            <div className="flex flex-col gap-1.5">
+              <h2 id={`${id}-title`} className="font-semibold">
+                Ask
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Describe how this page should look. You see a preview, and
+                nothing is saved until you lock it in.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              aria-label="Close"
+              onClick={close}
             >
-              <SelectTrigger id={`${id}-target`} className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {targets.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor={`${id}-prompt`}>Ask</Label>
-            <Textarea
-              ref={promptRef}
-              id={`${id}-prompt`}
-              value={prompt}
-              maxLength={maxPromptLength}
-              placeholder="Put the overdue card first"
-              aria-describedby={`${id}-hint`}
-              readOnly={asking}
-              onChange={(event) => {
-                setPrompt(event.target.value)
-              }}
-              onKeyDown={(event) => {
-                if (
-                  event.key === "Enter" &&
-                  !event.shiftKey &&
-                  !event.nativeEvent.isComposing
-                ) {
-                  event.preventDefault()
-                  void ask()
-                }
-              }}
-            />
-            <p id={`${id}-hint`} className="text-xs text-muted-foreground">
-              Enter to send, Shift+Enter for a new line.
-            </p>
-          </div>
-          <div className="flex justify-end gap-2">
-            {asking && (
-              <Button type="button" variant="outline" onClick={cancel}>
-                Cancel
-              </Button>
-            )}
-            <Button type="submit" disabled={asking || !canAsk}>
-              {asking && <Loader2Icon className="animate-spin" />}
-              Send
+              <XIcon />
             </Button>
           </div>
-        </form>
-        <div className="flex flex-col gap-3 px-4 pb-4">
-          <div
-            role="status"
-            aria-live="polite"
-            className="flex flex-col gap-2 text-sm"
+          <form
+            className="flex flex-col gap-4 px-4"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void ask()
+            }}
           >
-            {asking && (
-              <>
-                <span className="sr-only">Asking…</span>
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-              </>
-            )}
-            {explain.length > 0 && (
-              <>
-                <Badge variant="secondary">Preview</Badge>
-                <ul className="flex flex-col gap-1">
-                  {explain.map((sentence) => (
-                    <li key={sentence}>{sentence}</li>
+            <div className="grid gap-2">
+              <Label htmlFor={`${id}-target`}>Change</Label>
+              <Select
+                value={target?.id ?? ""}
+                onValueChange={setTargetId}
+                disabled={asking}
+              >
+                <SelectTrigger id={`${id}-target`} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {targets.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.label}
+                    </SelectItem>
                   ))}
-                </ul>
-              </>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor={`${id}-prompt`}>Ask</Label>
+              <Textarea
+                ref={promptRef}
+                id={`${id}-prompt`}
+                value={prompt}
+                maxLength={maxPromptLength}
+                placeholder={placeholder}
+                aria-describedby={`${id}-hint`}
+                readOnly={asking}
+                onChange={(event) => {
+                  setPrompt(event.target.value)
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Enter" &&
+                    !event.shiftKey &&
+                    !event.nativeEvent.isComposing &&
+                    // Safari ends a composition with an Enter whose
+                    // isComposing is false; only its keyCode tells.
+                    // eslint-disable-next-line @typescript-eslint/no-deprecated
+                    event.keyCode !== 229
+                  ) {
+                    event.preventDefault()
+                    void ask()
+                  }
+                }}
+              />
+              <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+                Enter to send, Shift+Enter for a new line.
+              </p>
+            </div>
+            {target?.suggestions && target.suggestions.length > 0 && (
+              <div
+                role="group"
+                aria-label="Suggestions"
+                className="flex flex-wrap gap-2"
+              >
+                {target.suggestions.map((suggestion) => (
+                  <Button
+                    key={suggestion}
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="h-auto py-1 text-left whitespace-normal"
+                    disabled={asking}
+                    onClick={() => {
+                      setPrompt(suggestion)
+                      promptRef.current?.focus()
+                    }}
+                  >
+                    {suggestion}
+                  </Button>
+                ))}
+              </div>
             )}
-            {!asking && state.status === "clarify" && <p>{state.question}</p>}
-            {!asking && state.status === "failed" && (
-              <p className="text-destructive">{state.message}</p>
-            )}
-            {state.status === "cancelled" && <p>Cancelled.</p>}
-            {state.status === "discarded" && <p>Discarded.</p>}
-            {state.status === "locked" && (
-              <>
-                <p>Locked in.</p>
-                {state.keptInSession.length > 0 && (
-                  <p className="text-muted-foreground">
-                    {sessionNote(state.keptInSession)}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-          {preview && !asking && (
-            <div className="flex gap-2">
-              <Button type="button" onClick={lockIn}>
-                Lock in
-              </Button>
-              <Button type="button" variant="outline" onClick={discard}>
-                Discard
+            <div className="flex justify-end gap-2">
+              {asking && (
+                <Button type="button" variant="outline" onClick={cancel}>
+                  Cancel
+                </Button>
+              )}
+              <Button type="submit" disabled={asking || prompt.trim() === ""}>
+                {asking && <Loader2Icon className="animate-spin" />}
+                Send
               </Button>
             </div>
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
+          </form>
+          <div className="flex flex-col gap-3 px-4 pb-4">
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex flex-col gap-2 text-sm break-words"
+            >
+              {asking && (
+                <>
+                  <span className="sr-only">Asking…</span>
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </>
+              )}
+              {!asking && state.status === "clarify" && <p>{state.question}</p>}
+              {!asking && state.status === "failed" && (
+                <p className="text-destructive">{state.message}</p>
+              )}
+              {state.status === "cancelled" && <p>Cancelled.</p>}
+              {state.status === "discarded" && <p>Discarded.</p>}
+              {state.status === "locked" && (
+                <>
+                  <p>Locked in.</p>
+                  {state.keptInSession.length > 0 && (
+                    <p className="text-muted-foreground">
+                      {sessionNote(state.keptInSession)}
+                    </p>
+                  )}
+                </>
+              )}
+              {explain.length > 0 && (
+                <div
+                  className={cn(
+                    "flex flex-col gap-2",
+                    state.status !== "idle" && "border-t pt-3"
+                  )}
+                >
+                  <Badge variant="secondary">Current preview</Badge>
+                  <ul className="flex flex-col gap-1">
+                    {explain.map((sentence) => (
+                      <li key={sentence}>{sentence}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            {preview && !asking && (
+              <div className="flex gap-2">
+                <Button type="button" onClick={lockIn}>
+                  Lock in
+                </Button>
+                <Button type="button" variant="outline" onClick={discard}>
+                  Discard
+                </Button>
+              </div>
+            )}
+          </div>
+        </aside>
+      )}
+    </>
   )
 }
 

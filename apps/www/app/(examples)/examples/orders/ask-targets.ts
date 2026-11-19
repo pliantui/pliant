@@ -1,5 +1,8 @@
 import type { PliantAskTarget } from "@/registry/pliant/pliant-ask-panel"
 
+// The demo route replays recorded answers, so it answers exactly these
+// asks; the suggestions list every one of them.
+
 export const askTargets = [
   {
     id: "key-metrics",
@@ -21,6 +24,11 @@ export const askTargets = [
         ],
       },
     },
+    suggestions: [
+      "put the overdue card first",
+      "hide the average order value card",
+      "show the cards in a two-column grid",
+    ],
   },
   {
     id: "orders-table",
@@ -63,5 +71,15 @@ export const askTargets = [
         { id: "createdAt", label: "Created", type: "date" },
       ],
     },
+    suggestions: [
+      "sort by value, highest first",
+      "hide the notes column",
+      "only show overdue orders",
+      "put customer before order",
+      "pin the order column",
+      "make the customer column 240 pixels wide",
+      "newest first and hide region",
+      "make it nicer",
+    ],
   },
 ] satisfies PliantAskTarget[]

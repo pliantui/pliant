@@ -1,6 +1,13 @@
 // @vitest-environment happy-dom
 import * as React from "react"
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
@@ -110,10 +117,11 @@ function answer(body: unknown, status = 200) {
 }
 
 async function renderPanel(
-  props: Partial<React.ComponentProps<typeof PliantAskPanel>> = {}
+  props: Partial<React.ComponentProps<typeof PliantAskPanel>> = {},
+  layers: StorageAdapter = storage
 ) {
   const view = render(
-    <PliantRoot surface={surface} storage={storage}>
+    <PliantRoot surface={surface} storage={layers}>
       <Store />
       <Table />
       <PliantRegion
@@ -183,12 +191,57 @@ describe("PliantAskPanel", () => {
   it("labels its controls and focuses the prompt when it opens", async () => {
     await renderPanel()
 
-    expect(screen.getByRole("dialog", { name: "Ask" })).toBeTruthy()
+    expect(screen.getByRole("complementary", { name: "Ask" })).toBeTruthy()
     expect(screen.getByRole("combobox", { name: "Change" }).textContent).toBe(
       "Key metrics"
     )
     expect(document.activeElement).toBe(prompt())
     expect(prompt().getAttribute("maxlength")).toBe("500")
+    expect(prompt().getAttribute("placeholder")).toBe("Describe a change")
+  })
+
+  it("falls back to the first target when the default isn't one", async () => {
+    await renderPanel({ defaultTarget: "missing" })
+    answer({ status: "clarify", question: "Which card?" })
+
+    await ask("reorder")
+
+    expect(screen.getByRole("combobox", { name: "Change" }).textContent).toBe(
+      "Key metrics"
+    )
+    expect(requestBody()).toMatchObject({ target: "key-metrics" })
+  })
+
+  it("fills the prompt from a suggestion", async () => {
+    await renderPanel({
+      targets: targets.map((target) => ({
+        ...target,
+        suggestions: ["put the overdue card first"],
+      })),
+    })
+    const suggestions = screen.getByRole("group", { name: "Suggestions" })
+
+    fireEvent.click(
+      within(suggestions).getByRole("button", {
+        name: "put the overdue card first",
+      })
+    )
+
+    expect(prompt()).toHaveProperty("value", "put the overdue card first")
+    expect(document.activeElement).toBe(prompt())
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it("says so when the page hasn't loaded its layers yet", async () => {
+    await renderPanel(
+      {},
+      { load: () => new Promise(() => undefined), save: () => undefined }
+    )
+
+    await ask()
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(status()).toBe("The page is still loading. Try again in a moment.")
   })
 
   it("sends the ask with the root's surface and previews the answer", async () => {
@@ -396,19 +449,59 @@ describe("PliantAskPanel", () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it("closes with Escape and returns focus to the trigger", async () => {
+  it("doesn't send while an IME is composing", async () => {
+    await renderPanel()
+    fireEvent.change(prompt(), { target: { value: "ちゅうもん" } })
+
+    fireEvent.keyDown(prompt(), { key: "Enter", keyCode: 229 })
+    fireEvent.keyDown(prompt(), { key: "Enter", isComposing: true })
+    await settle()
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it("opens and closes from its trigger", async () => {
     await renderPanel({ defaultOpen: false })
     const trigger = screen.getByRole("button", { name: "Ask" })
-    trigger.focus()
+    expect(trigger.getAttribute("aria-expanded")).toBe("false")
+    expect(screen.queryByRole("complementary")).toBeNull()
+
     fireEvent.click(trigger)
     await settle()
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("true")
+    expect(trigger.getAttribute("aria-controls")).toBe(
+      screen.getByRole("complementary", { name: "Ask" }).id
+    )
     expect(document.activeElement).toBe(prompt())
 
-    fireEvent.keyDown(prompt(), { key: "Escape" })
+    fireEvent.click(screen.getByRole("button", { name: "Close" }))
+
+    expect(screen.queryByRole("complementary")).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it("closes with Escape only while focus is inside it", async () => {
+    await renderPanel({ defaultOpen: false })
+    const trigger = screen.getByRole("button", { name: "Ask" })
+    fireEvent.click(trigger)
     await settle()
 
-    expect(screen.queryByRole("dialog")).toBeNull()
+    fireEvent.keyDown(document.body, { key: "Escape" })
+    expect(screen.getByRole("complementary", { name: "Ask" })).toBeTruthy()
+
+    fireEvent.keyDown(prompt(), { key: "Escape" })
+
+    expect(screen.queryByRole("complementary")).toBeNull()
     expect(document.activeElement).toBe(trigger)
+  })
+
+  it("keeps the page outside it usable", async () => {
+    await renderPanel()
+
+    expect(document.querySelector("[aria-modal]")).toBeNull()
+    expect(document.querySelector("[data-radix-focus-guard]")).toBeNull()
+    expect(screen.getByText("Revenue").closest("[aria-hidden]")).toBeNull()
   })
 
   it("renders answers as text, never as HTML", async () => {

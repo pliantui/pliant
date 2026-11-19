@@ -31,8 +31,9 @@
       "description": "A panel for asking AI to change how part of a page looks, with a preview that is only saved on Lock in.",
       "dependencies": [
         "@pliantui/react",
-        "@pliantui/server",
+        "cn",
         "lucide-react",
+        "radix-ui",
         "zod"
       ],
       "registryDependencies": [
@@ -40,7 +41,6 @@
         "button",
         "label",
         "select",
-        "sheet",
         "skeleton",
         "textarea"
       ],
@@ -50,7 +50,8 @@
           "type": "registry:component",
           "target": "@components/pliant/pliant-ask-panel.tsx"
         }
-      ]
+      ],
+      "devDependencies": ["@pliantui/server"]
     }
   ]
 }
