@@ -9,7 +9,7 @@ import {
   type ValidatedOverlay,
 } from "@pliantui/core"
 
-import type { LayerContext } from "./layer-context"
+import type { LayerTools } from "./layer-tools"
 import { planLockIn } from "./lock-in"
 import { settleManual, splitManual } from "./manual-changes"
 import { manualOverlay } from "./manual-overlay"
@@ -79,7 +79,7 @@ export function createLayerStore({
     report,
     now,
   })
-  const context: LayerContext = {
+  const tools: LayerTools = {
     surface,
     generateId,
     tick,
@@ -242,7 +242,7 @@ export function createLayerStore({
     if (rejected) {
       return rejected
     }
-    const candidate = manualOverlay(context, layer, ops, tick(), explain)
+    const candidate = manualOverlay(tools, layer, ops, tick(), explain)
     const loadedCandidate = loadOverlay(candidate)
     const key = loadedCandidate.success
       ? keyOf(loadedCandidate.data)
@@ -311,10 +311,10 @@ export function createLayerStore({
   // where they were, which renders the same.
   function endPreview() {
     const target = viewOf(resolve([...org, ...team, ...personal, ...session]))
-    const manual = splitManual(load, session, previewed)
+    const manual = splitManual(tools, session, previewed)
     previewed = null
     const settled = settleManual(
-      context,
+      tools,
       manual.overlays,
       target,
       lowerOf("personal"),
@@ -335,16 +335,11 @@ export function createLayerStore({
     if (rejected) {
       return rejected
     }
-    const overlay = load(previewed)
-    if (!overlay) {
-      return { success: false, error: "There is no preview to lock in" }
-    }
     const plan = planLockIn(
-      context,
+      tools,
       lowerOf("personal"),
       session,
       previewed,
-      overlay,
       viewOf(getResolved())
     )
     if (!plan.success) {

@@ -1,19 +1,20 @@
 import { opCatalog } from "@pliantui/contract"
 import type { LoadedOverlay, ValidatedOverlay } from "@pliantui/core"
 
-import type { LayerContext } from "./layer-context"
+import type { LayerTools } from "./layer-tools"
 import { manualOverlay } from "./manual-overlay"
-import { withOps } from "./overlay-list"
+import { withOps, withoutProperties } from "./overlay-list"
 import { dependsOnHistory, propertiesOf } from "./property-keys"
 import { differingProperties, viewOf } from "./resolved-view"
-import { withoutProperties } from "./without-properties"
 
-// Splits the changes made while the preview showed from the rest of the
-// session layer, in the order they were made: the session overlays dated
-// after it. Both dates come from `tick`, and survive a reload with the
-// session layer, so this needs no record of its own.
+/**
+ * Splits the changes made while the preview showed from the rest of the
+ * session layer, in the order they were made: the session overlays dated
+ * after it. Both dates come from `tick`, and survive a reload with the
+ * session layer, so this needs no record of its own.
+ */
 export function splitManual(
-  load: LayerContext["load"],
+  { load }: LayerTools,
   session: readonly unknown[],
   previewed: unknown
 ) {
@@ -28,29 +29,33 @@ export function splitManual(
   }
 }
 
+/** A personal version for the changes, if any, and the session layer. */
+export interface SettledChanges {
+  readonly version?: ValidatedOverlay
+  readonly session: unknown[]
+}
+
 /**
  * Where the changes made while a preview showed go once it has ended,
  * on top of `below` (the org, team and personal overlays) and `session`:
  * the ones the personal layer accepts as a personal version above the
  * others (above the locked one, too), dropping the earlier session ops
  * they overrode, and the rest in their session overlays, above every other
- * one, where they showed. A change that
- * would render differently from `target` (what showed before the preview
- * ended, less the preview itself on discard), such as a move whose
- * history a session op still depends on, stays in the session layer.
- * `undefined` when even that renders differently, as when a removal
- * applied only in the session layer the preview was in.
+ * one, where they showed. A change that would render differently from
+ * `target` (what showed before the preview ended, less the preview itself
+ * on discard), such as a move whose history a session op still depends
+ * on, stays in the session layer. `undefined` when even that renders
+ * differently, as when a removal applied only in the session layer the
+ * preview was in.
  */
 export function settleManual(
-  context: LayerContext,
+  tools: LayerTools,
   overlays: readonly LoadedOverlay[],
   target: ReturnType<typeof viewOf>,
   below: readonly unknown[],
   session: readonly unknown[]
-):
-  | { readonly version?: ValidatedOverlay; readonly session: unknown[] }
-  | undefined {
-  const { load, tick, resolve, validateAbove } = context
+): SettledChanges | undefined {
+  const { load, tick, resolve, validateAbove } = tools
   const changes = overlays.flatMap((overlay, at) =>
     overlay.ops.flatMap((check) =>
       check.status === "valid" ? [{ at, index: check.index, op: check.op }] : []
@@ -82,7 +87,7 @@ export function settleManual(
     const version =
       personalOps.length > 0
         ? validateAbove(
-            manualOverlay(context, "personal", personalOps, time),
+            manualOverlay(tools, "personal", personalOps, time),
             below
           )
         : undefined

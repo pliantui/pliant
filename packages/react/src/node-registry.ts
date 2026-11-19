@@ -1,8 +1,4 @@
-/**
- * The ids of the nodes mounted on a surface, which ops are validated and
- * resolved against. Mounts and unmounts are batched to a microtask.
- */
-export interface NodeRegistry {
+interface NodeRegistry {
   /** The mounted ids as of the last update. */
   readonly ids: () => readonly string[]
   /** Applies a batched update now, so validation sees the latest mounts. */
@@ -11,6 +7,11 @@ export interface NodeRegistry {
   readonly register: (ids: readonly string[]) => () => void
 }
 
+/**
+ * Tracks the ids of the nodes mounted on a surface, which ops are validated
+ * and resolved against. Mounts and unmounts are batched to a microtask, and
+ * `onChange` is called when the ids change.
+ */
 export function createNodeRegistry(onChange: () => void): NodeRegistry {
   const mounted = new Map<string, number>()
   let mountedIds: readonly string[] = []

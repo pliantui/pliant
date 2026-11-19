@@ -4,8 +4,8 @@ import type {
   validateOverlay,
 } from "@pliantui/core"
 
-/** What the store lends the code that plans a change to its layers. */
-export interface LayerContext {
+/** What the store lends the planners that change its layers. */
+export interface LayerTools {
   readonly surface: string
   readonly generateId: (time: number) => string
   readonly tick: () => number

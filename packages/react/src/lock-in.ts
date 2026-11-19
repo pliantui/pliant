@@ -7,39 +7,44 @@ import {
   type ValidatedOverlay,
 } from "@pliantui/core"
 
-import type { LayerContext } from "./layer-context"
-import { settleManual, splitManual } from "./manual-changes"
-import { withOps } from "./overlay-list"
+import type { LayerTools } from "./layer-tools"
+import {
+  settleManual,
+  splitManual,
+  type SettledChanges,
+} from "./manual-changes"
+import { withOps, withoutProperties } from "./overlay-list"
 import { dependsOnHistory, propertiesOf } from "./property-keys"
 import { differingProperties, viewOf } from "./resolved-view"
-import { withoutProperties } from "./without-properties"
 
-/**
- * Where `lockIn` puts each op of the preview, and where the changes made
- * while it showed go, so the resolved view stays as `shown`.
- */
-export type LockInPlan =
+type LockInPlan =
   | { readonly success: false; readonly error: string }
   | {
       readonly success: true
       readonly locked: ValidatedOverlay | undefined
       readonly kept: ValidatedOverlay | undefined
-      readonly settled: {
-        readonly version?: ValidatedOverlay
-        readonly session: unknown[]
-      }
+      readonly settled: SettledChanges
     }
 
+/**
+ * Where `lockIn` puts each op of the preview, and where the changes made
+ * while it showed go, so the resolved view stays as `shown`. `below` holds
+ * the org, team and personal overlays.
+ */
 export function planLockIn(
-  context: LayerContext,
+  tools: LayerTools,
   below: readonly unknown[],
   session: readonly unknown[],
   previewed: unknown,
-  overlay: LoadedOverlay,
   shown: ReturnType<typeof viewOf>
 ): LockInPlan {
-  const { load, tick, generateId, resolve, validateAbove } = context
-  const manual = splitManual(load, session, previewed)
+  const { load, tick, generateId, resolve, validateAbove } = tools
+  const loadedPreview = load(previewed)
+  if (!loadedPreview) {
+    return { success: false, error: "There is no preview to lock in" }
+  }
+  const overlay: LoadedOverlay = loadedPreview
+  const manual = splitManual(tools, session, previewed)
   const target =
     manual.overlays.length === 0
       ? shown
@@ -223,7 +228,7 @@ export function planLockIn(
       return { success: false, error: "The preview has no valid ops" }
     }
     const settled = settleManual(
-      context,
+      tools,
       manual.overlays,
       shown,
       [...below, ...(locked ? [locked.overlay] : [])],

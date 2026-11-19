@@ -1,6 +1,6 @@
 import type { Op } from "@pliantui/contract"
 
-import type { LayerContext } from "./layer-context"
+import type { LayerTools } from "./layer-tools"
 
 declare const __PLIANT_CORE_VERSION__: string
 
@@ -9,7 +9,7 @@ declare const __PLIANT_CORE_VERSION__: string
  * versions aren't known here yet.
  */
 export function manualOverlay(
-  { surface, generateId }: LayerContext,
+  { surface, generateId }: LayerTools,
   layer: "personal" | "session",
   ops: readonly Op[],
   time: number,
