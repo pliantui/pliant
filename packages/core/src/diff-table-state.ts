@@ -73,9 +73,10 @@ function clamp(value: number, min: number, max: number) {
  * - The unpinned columns end up in `next`'s `columnOrder`, or, when only the
  *   pinning changed, in the order the table showed, as TanStack keeps it:
  *   an unpinned column comes back where it sat in `columnOrder`, and the
- *   columns anchored on a newly pinned one stay where they were. This takes
- *   the fewest `move`s found, each anchored on a nearby column, that compile
- *   into that order. A column a lower layer anchored on a moved one travels
+ *   columns anchored on a newly pinned one stay where they were. This keeps
+ *   the columns already in order and moves the others, each anchored on a
+ *   nearby column (or at its index), checking that they compile into that
+ *   order. A column a lower layer anchored on a moved one travels
  *   with it, so it is moved too when it would end up out of place. Since
  *   `pin` and `move` set the same placement, a move also unpins a column
  *   pinned by an op, and replaces its `pin none`.

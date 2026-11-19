@@ -703,6 +703,8 @@ describe("diffTableState moves", () => {
     const counts = new Map<number, number>()
     let drags = 0
     let over = 0
+    let free = 0
+    let freeMore = 0
     for (let seed = 1; seed <= 500; seed++) {
       const g = generator(seed)
       const t = history({ base: { columnOrder: g.shuffle(columns) } })
@@ -720,7 +722,8 @@ describe("diffTableState moves", () => {
         const label = `seed ${String(seed)}, drag ${String(drag)}`
         expect(ops.length, label).toBeGreaterThan(0)
         if (dependants.length === 0) {
-          expect(ops, label).toHaveLength(1)
+          free++
+          freeMore += ops.length > 1 ? 1 : 0
         }
         drags++
         over += ops.length > 1 + dependants.length ? 1 : 0
@@ -729,8 +732,116 @@ describe("diffTableState moves", () => {
       }
     }
     // Columns anchored on the dragged one travel with it, and a few
-    // histories need more moves than re-anchoring those.
-    expect(over).toBeLessThan(drags / 100)
-    expect(counts.get(1) ?? 0).toBeGreaterThan(drags * 0.7)
+    // histories (columns placed by index, whose place shifts when a column
+    // before them moves) need more moves than re-anchoring those.
+    expect(freeMore).toBeLessThan(free / 200)
+    expect(over).toBeLessThan(drags / 50)
+    expect(counts.get(1) ?? 0).toBeGreaterThan(drags * 0.69)
   }, 30_000)
+})
+
+describe("diffTableState on wide tables", () => {
+  function wide(n: number, team: (ids: readonly string[]) => unknown[]) {
+    const ids = Array.from({ length: n }, (_, index) => `c${String(index)}`)
+    const options = { table, columns: ids }
+    const ops = team(ids)
+    const overlays = ops.length > 0 ? [overlay("team", ops)] : []
+    const resolved = resolveLayers(overlays, { surface: "/orders" })
+    const order = compileTableState(resolved, options).columnOrder
+    return {
+      order,
+      diff(wanted: readonly string[]) {
+        const started = Date.now()
+        const result = diffTableState(
+          resolved,
+          { columnOrder: [...wanted] },
+          options
+        )
+        const elapsed = Date.now() - started
+        const after = compileTableState(
+          resolveLayers(
+            [
+              ...overlays,
+              ...(result.ops.length > 0
+                ? [overlay("session", result.ops)]
+                : []),
+            ],
+            { surface: "/orders" }
+          ),
+          options
+        )
+        expect(after.columnOrder).toEqual(wanted)
+        return { ops: result.ops, elapsed }
+      },
+    }
+  }
+
+  // Each of these takes about 1 to 15 ms on a dev machine. The bound leaves
+  // room for slow CI runners while catching a search that grows much faster
+  // than the table, as the greedy one did (9 s to reverse 60 columns).
+  const frame = 50
+
+  const chained = (ids: readonly string[]) =>
+    ids.slice(1).map((id, index) => ({
+      op: "move",
+      target: column(id),
+      to: { before: ids[index] },
+    }))
+
+  it.each([100, 150])("reorders %i columns within the bound", (n) => {
+    const g = generator(n)
+    const t = wide(n, () => [])
+    const shapes: [string, string[]][] = [
+      ["reverse", t.order.toReversed()],
+      ["shuffle", g.shuffle(t.order)],
+      ["rotate", [...t.order.slice(10), ...t.order.slice(0, 10)]],
+      ["swap pairs", t.order.map((id, index) => t.order[index ^ 1] ?? id)],
+    ]
+    for (const [shape, wanted] of shapes) {
+      expect(t.diff(wanted).elapsed, shape).toBeLessThan(frame)
+    }
+  })
+
+  it.each([100, 150])(
+    "drags a column of %i that a team chained together within the bound",
+    (n) => {
+      const t = wide(n, chained)
+      for (const [from, to] of [
+        [3, n - 5],
+        [n - 2, 1],
+        [n >> 1, 0],
+      ] as const) {
+        const dragged = t.order[from] ?? ""
+        const rest = t.order.filter((id) => id !== dragged)
+        const { ops, elapsed } = t.diff([
+          ...rest.slice(0, to),
+          dragged,
+          ...rest.slice(to),
+        ])
+        expect(elapsed).toBeLessThan(frame)
+        expect(ops.length).toBeLessThanOrEqual(2)
+      }
+    }
+  )
+
+  it("re-anchors only the next column when a chain's root is dragged", () => {
+    for (const n of [5, 8, 10]) {
+      const t = wide(n, (ids) =>
+        ids.slice(1).map((id, index) => ({
+          op: "move",
+          target: column(id),
+          to: { after: ids[index] },
+        }))
+      )
+      for (const dragged of t.order) {
+        for (let at = 0; at < n; at++) {
+          const rest = t.order.filter((id) => id !== dragged)
+          const wanted = [...rest.slice(0, at), dragged, ...rest.slice(at)]
+          if (wanted.join() !== t.order.join()) {
+            expect(t.diff(wanted).ops.length).toBeLessThanOrEqual(2)
+          }
+        }
+      }
+    }
+  })
 })
