@@ -15,10 +15,11 @@ import {
 } from "@pliantui/server"
 import { recordingMiddleware } from "@pliantui/server/recordings"
 
-// Records the demo asks. By default it uses `claude -p` (headless Claude Code)
-// as a stand-in for the API, because there is no API key yet; `--api` records
-// through the Anthropic API with ANTHROPIC_API_KEY. Both key recordings as
-// anthropic/claude-haiku-5-5, so the API run replaces the stand-ins
+// Records the demo asks into `recordings/`: `pnpm --filter www record`. By
+// default it uses `claude -p` (headless Claude Code) as a stand-in for the
+// API, because there is no API key yet. To replace the stand-ins, run
+// `ANTHROPIC_API_KEY=... pnpm --filter www record --api`, which records
+// through the Anthropic API under the same keys
 // (https://github.com/pliantui/pliant/issues/24).
 
 const args = process.argv.slice(2)

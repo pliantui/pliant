@@ -5,7 +5,7 @@ const withMDX = createMDX()
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   outputFileTracingIncludes: {
-    "/api/pliant": ["../../packages/server/recordings/*.json"],
+    "/api/pliant": ["./recordings/*.json"],
   },
 }
 
