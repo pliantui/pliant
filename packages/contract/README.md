@@ -48,4 +48,10 @@ The `in` function takes at most 15 values, because a function takes at most 16 a
 
 ## Flags
 
-`flagsSchema` checks the flags set on one address in `pliant.config.ts`. `primary` marks the surface's primary action. It is set by address, never derived from position, because a user's reorder would change it. An address can't be both `primary` and `destructive`, since a destructive action never sits next to or above the primary one. A surface has at most one `primary` action; `flagsSchema` sees one address at a time, so that rule is checked where a config's flags are read together.
+`flagsSchema` checks the flags set on one address in `pliant.config.ts`:
+
+```ts
+flags: { "/settings": { "settings-actions/slots/save": { primary: true } } }
+```
+
+`primary` marks the surface's primary action. It is set by address, never derived from position, because a user's reorder would change it. A surface should have at most one `primary` action. `flagsSchema` validates one address at a time, so it can't check this. The config loader will enforce it; until then nothing does (#66).
