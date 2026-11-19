@@ -96,7 +96,9 @@ describe("per-row addresses", () => {
       expect.objectContaining({ code: "custom", params: reserved })
     )
     // Older Zod 4 releases run length checks even after an aborting issue.
-    expect(rest).toHaveLength("explicitlyAborted" in z.core.util ? 0 : 1)
+    expect(rest).toEqual(
+      rest.length === 0 ? [] : [expect.objectContaining({ code: "too_big" })]
+    )
   })
 
   it.each([
