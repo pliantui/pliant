@@ -17,6 +17,7 @@ export {
   type FunctionName,
 } from "./function-catalog"
 export { itemIdSchema } from "./identifier"
+export { languageTagSchema } from "./language-tag"
 export { breakpointSchema, type Breakpoint } from "./layout"
 export { layerSchema, type Layer } from "./layer"
 export {

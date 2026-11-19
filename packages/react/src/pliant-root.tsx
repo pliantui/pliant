@@ -23,6 +23,14 @@ export interface PliantRootProps {
    * and is saved again on the next flush. Defaults to `console.error`.
    */
   readonly onError?: ((error: unknown) => void) | undefined
+  /**
+   * The UI language as a BCP 47 tag, such as `"fr-CA"`. Overlays made in
+   * this tab, and AI previews locked in without a language, record it as
+   * the language of their labels. Defaults to the page's `<html lang>`.
+   * Set it when the app localizes without changing `<html lang>`. A
+   * malformed tag is ignored, with a warning in development.
+   */
+  readonly lang?: string | undefined
   readonly children?: ReactNode
 }
 
@@ -31,6 +39,7 @@ function PliantSurfaceRoot({
   storage,
   teamOrder = [],
   onError,
+  lang,
   children,
 }: PliantRootProps) {
   const [store] = useState(() =>
@@ -39,6 +48,7 @@ function PliantSurfaceRoot({
       storage: storage ?? localAdapter(),
       teamOrder,
       onError,
+      lang,
     })
   )
   useLayoutEffect(() => {
@@ -47,6 +57,9 @@ function PliantSurfaceRoot({
   useLayoutEffect(() => {
     store.setTeamOrder(teamOrder)
   }, [store, teamOrder])
+  useLayoutEffect(() => {
+    store.setLang(lang)
+  }, [store, lang])
   const [, setConnections] = useState(0)
   useLayoutEffect(() => {
     // Hooks subscribe to the store in passive effects, after this one, so

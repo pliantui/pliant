@@ -10,7 +10,7 @@ export interface RetainScope {
 /**
  * Keeps what a hidden part of the tree registered. React's `Activity`
  * cleans up the effects of what it hides, as if it unmounted, but hidden
- * content stays mounted (spec 7), so a hidden region's slots and nodes must
+ * content stays mounted, so a hidden region's slots and nodes must
  * stay registered.
  */
 export interface Retention {

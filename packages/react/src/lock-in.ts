@@ -38,7 +38,7 @@ export function planLockIn(
   previewed: unknown,
   shown: ReturnType<typeof viewOf>
 ): LockInPlan {
-  const { load, tick, generateId, resolve, validateAbove } = tools
+  const { load, tick, generateId, resolve, validateAbove, language } = tools
   const loadedPreview = load(previewed)
   if (!loadedPreview) {
     return { success: false, error: "There is no preview to lock in" }
@@ -61,6 +61,7 @@ export function planLockIn(
   const createdAt = new Date(time).toISOString()
   const lockedId = generateId(time)
   const keptId = generateId(time)
+  const lang = overlay.lang ?? language()
 
   // Validates the preview's ops at `indices` as one overlay of `layer`,
   // with issues pointing at the preview's own ops.
@@ -74,6 +75,7 @@ export function planLockIn(
         ...withOps(overlay, (index) => indices.includes(index)),
         id: layer === "personal" ? lockedId : keptId,
         layer,
+        ...(layer === "personal" && lang !== undefined ? { lang } : {}),
         createdAt,
       },
       lower

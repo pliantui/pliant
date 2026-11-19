@@ -37,4 +37,4 @@ const model = wrapLanguageModel({
 })
 ```
 
-The orders demo's recordings, and the script that records them with `pnpm --filter www record`, live in `apps/www`. They are stand-ins made with `claude -p` (headless Claude Code), not the production API path, and each file says so with `standIn: true`; see [#24](https://github.com/pliantui/pliant/issues/24).
+The orders demo's recordings, and the script that records them with `pnpm --filter www record`, live in `apps/www`. They are recorded through `claude -p` (headless Claude Code), not the Anthropic API, and each file says so with `standIn: true`.
