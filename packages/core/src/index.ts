@@ -1,4 +1,11 @@
 export { type OpCheck } from "./check-op"
+export {
+  compileTableState,
+  type ColumnSizeLimits,
+  type CompileTableStateOptions,
+  type PliantFilterValue,
+  type PliantTableState,
+} from "./compile-table-state"
 export { formatError, type FormatErrorOptions } from "./format-error"
 export { loadOverlay, type LoadedOverlay } from "./load-overlay"
 export { type OpPropertyKey } from "./op-property"
