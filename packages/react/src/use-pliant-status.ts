@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react"
 
-import { loadingStatus, type PliantStatus } from "./layer-store"
 import { useLayerStore } from "./pliant-context"
+import { loadingStatus, type PliantStatus } from "./pliant-status"
 
 function getServerStatus() {
   return loadingStatus
