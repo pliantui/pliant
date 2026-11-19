@@ -149,6 +149,7 @@ export interface LayerStoreOptions {
 }
 
 export interface LayerStore {
+  readonly surface: string
   readonly actions: PliantStore
   readonly subscribe: (listener: () => void) => () => void
   readonly getResolved: () => ResolvedLayers
@@ -911,6 +912,7 @@ export function createLayerStore({
   }
 
   return {
+    surface,
     actions: { applyOps, preview, lockIn, discard, reload },
     subscribe(listener) {
       listeners.add(listener)
