@@ -1,4 +1,10 @@
-import { StrictMode, useEffect, useLayoutEffect, type ReactNode } from "react"
+import {
+  Activity,
+  StrictMode,
+  useEffect,
+  useLayoutEffect,
+  type ReactNode,
+} from "react"
 import {
   act,
   cleanup,
@@ -432,6 +438,74 @@ describe("PliantRoot", () => {
       })
 
       expect(commits.indexOf("layout:ready")).toBeLessThan(
+        commits.indexOf("microtask")
+      )
+    } finally {
+      root.unmount()
+      Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", actEnvironment)
+    }
+  })
+
+  it("applies what it loads when shown again, before the paint", async () => {
+    const actEnvironment: unknown = Reflect.get(
+      globalThis,
+      "IS_REACT_ACT_ENVIRONMENT"
+    )
+    Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", false)
+    let stored: unknown[] = []
+    const storage: StorageAdapter = {
+      load: () => ({ personal: stored }),
+      save: () => undefined,
+    }
+    const commits: string[] = []
+    function Probe() {
+      const value = String(widthOf(useResolved()) ?? "base")
+      useLayoutEffect(() => {
+        commits.push(`layout:${value}`)
+        if (value === "base") {
+          queueMicrotask(() => {
+            commits.push("microtask")
+          })
+        }
+      })
+      return null
+    }
+    const app = (mode: "visible" | "hidden") => (
+      <Activity mode={mode}>
+        <PliantRoot surface={surface} storage={storage}>
+          <Probe />
+        </PliantRoot>
+      </Activity>
+    )
+    const root = createRoot(document.createElement("div"))
+    try {
+      root.render(app("visible"))
+      await vi.waitFor(() => {
+        expect(commits).toContain("microtask")
+      })
+      root.render(app("hidden"))
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      stored = [
+        {
+          v: 1,
+          id: "01KAB0000000000000000000P1",
+          surface,
+          layer: "personal",
+          ops: [width(240)],
+          basis: { contract: 1, core: "0.0.0", manifests: {} },
+          source: "manual",
+          createdBy: "local",
+          createdAt: "2026-11-19T00:00:00.000Z",
+        },
+      ]
+      commits.length = 0
+      root.render(app("visible"))
+      await vi.waitFor(() => {
+        expect(commits).toContain("layout:240")
+      })
+
+      expect(commits).toContain("microtask")
+      expect(commits.indexOf("layout:240")).toBeLessThan(
         commits.indexOf("microtask")
       )
     } finally {

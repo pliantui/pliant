@@ -10,6 +10,7 @@ import {
 } from "@pliantui/core"
 
 import { changeKeyOf, propertiesOf } from "./property-keys"
+import { differingProperties, viewOf } from "./resolved-view"
 import { readSession, writeSession } from "./session-mirror"
 import type { StorageAdapter, StoredLayers } from "./storage-adapter"
 import { ulid } from "./ulid"
@@ -105,11 +106,13 @@ export interface PliantStore {
    * saved at once, and the session changes to the properties they write are
    * dropped, so they can't hide it.
    *
-   * Some ops stay in the session layer instead, as a new session overlay,
-   * and are listed in `keptInSession`: ops allowed only in the session layer,
-   * such as `setPage`, and ops that applied in the preview but wouldn't
-   * below the session layer, such as a move into a node a session `wrap`
-   * creates. So what the user sees doesn't change.
+   * Some ops stay in the session layer instead, as a new session overlay
+   * above the others, and are listed in `keptInSession`: ops allowed only in
+   * the session layer, such as `setPage`, and every op whose move would
+   * change the resolved view, such as a move into a node a session `wrap`
+   * creates, or one that would drop that `wrap`. The resolved view (each
+   * property's winning op, each placement, and each op that doesn't apply)
+   * is the same before and after; `overlay` is `null` when every op stays.
    */
   readonly lockIn: () => LockInResult
   /** Drops the preview. */
@@ -469,22 +472,37 @@ export function createLayerStore({
     return { success: true, overlay }
   }
 
-  function withoutProperties(input: unknown, written: ReadonlySet<string>) {
-    const overlay = load(input)
-    if (!overlay) {
-      return [input]
-    }
-    const keep = overlay.ops.map(
-      (check) =>
-        check.status !== "valid" ||
-        !propertiesOf(check.op).some((property) => written.has(property))
-    )
-    if (keep.every(Boolean)) {
-      return [input]
-    }
-    return keep.some(Boolean)
-      ? [withOps(overlay, (index) => keep[index] === true)]
-      : []
+  // The session ops that write a property in `written` are dropped, so a
+  // locked version isn't hidden by them; `dropped` lists their properties.
+  function withoutProperties(
+    inputs: readonly unknown[],
+    written: ReadonlySet<string>
+  ) {
+    const dropped: (readonly string[])[] = []
+    const kept = inputs.flatMap((input) => {
+      const overlay = load(input)
+      if (!overlay) {
+        return [input]
+      }
+      const keep = overlay.ops.map((check) => {
+        if (check.status !== "valid") {
+          return true
+        }
+        const properties = propertiesOf(check.op)
+        if (properties.some((property) => written.has(property))) {
+          dropped.push(properties)
+          return false
+        }
+        return true
+      })
+      if (keep.every(Boolean)) {
+        return [input]
+      }
+      return keep.some(Boolean)
+        ? [withOps(overlay, (index) => keep[index] === true)]
+        : []
+    })
+    return { kept, dropped }
   }
 
   function lockIn(): LockInResult {
@@ -497,33 +515,21 @@ export function createLayerStore({
       return { success: false, error: "There is no preview to lock in" }
     }
     const overlay: LoadedOverlay = loadedPreview
-    const unappliedBefore = new Set(
-      getResolved()
-        .unapplied.filter((entry) => entry.overlay === overlay)
-        .map(({ check }) => check.index)
-    )
+    const target = viewOf(getResolved())
     const valid = overlay.ops.flatMap((check) =>
-      check.status === "valid" ? [check.index] : []
+      check.status === "valid" ? [check] : []
     )
-    const personalAllowed = valid.filter((index) => {
-      const check = overlay.ops[index]
-      return (
-        check?.status === "valid" &&
-        opCatalog[check.op.op].layers.includes("personal")
-      )
-    })
     const time = tick()
     const createdAt = new Date(time).toISOString()
     const lockedId = generateId(time)
     const keptId = generateId(time)
 
-    function plan(toPersonal: readonly number[]) {
-      const inPersonal = new Set(toPersonal)
+    function plan(toPersonal: ReadonlySet<number>) {
       let locked: ValidatedOverlay | undefined
-      if (toPersonal.length > 0) {
+      if (toPersonal.size > 0) {
         const result = validate(
           {
-            ...withOps(overlay, (index) => inPersonal.has(index)),
+            ...withOps(overlay, (index) => toPersonal.has(index)),
             id: lockedId,
             layer: "personal",
             createdAt,
@@ -535,12 +541,15 @@ export function createLayerStore({
         }
         locked = result.overlay
       }
-      const toSession = valid.filter((index) => !inPersonal.has(index))
       let kept: ValidatedOverlay | undefined
-      if (toSession.length > 0) {
+      if (valid.some(({ index }) => !toPersonal.has(index))) {
         const result = validate(
           {
-            ...withOps(overlay, (index) => toSession.includes(index)),
+            ...withOps(
+              overlay,
+              (index) =>
+                !toPersonal.has(index) && overlay.ops[index]?.status === "valid"
+            ),
             id: keptId,
             layer: "session",
             createdAt,
@@ -552,39 +561,63 @@ export function createLayerStore({
         }
         kept = result.overlay
       }
-      const written = new Set(locked?.ops.flatMap((op) => propertiesOf(op)))
-      const nextSession = [
-        ...session.flatMap((input) => withoutProperties(input, written)),
-        ...(kept ? [kept] : []),
-      ]
-      return { success: true as const, locked, kept, nextSession }
+      const { kept: trimmed, dropped } = withoutProperties(
+        session,
+        new Set(locked?.ops.flatMap((op) => propertiesOf(op)))
+      )
+      const nextSession = [...trimmed, ...(kept ? [kept] : [])]
+      return { success: true as const, locked, kept, nextSession, dropped }
     }
 
-    let planned = plan(personalAllowed)
+    // Each round compares what the user would see with what they see now,
+    // and moves the locked ops involved in a difference (writing a differing
+    // property, or having dropped a session op that writes one) back to the
+    // session layer, all of them when none is found. Every round moves at
+    // least one op, and with none left the preview is a session overlay
+    // above every other one, as it was.
+    let toPersonal = new Set(
+      valid.flatMap(({ op, index }) =>
+        opCatalog[op.op].layers.includes("personal") ? [index] : []
+      )
+    )
+    let planned = plan(toPersonal)
+    while (planned.success && planned.locked) {
+      const differing = differingProperties(
+        target,
+        viewOf(
+          resolve([
+            ...org,
+            ...team,
+            ...personal,
+            planned.locked,
+            ...planned.nextSession,
+          ])
+        )
+      )
+      if (differing.size === 0) {
+        break
+      }
+      const touched = planned.dropped.filter((properties) =>
+        properties.some((property) => differing.has(property))
+      )
+      const involved = [...toPersonal].filter((index) => {
+        const check = overlay.ops[index]
+        if (check?.status !== "valid") {
+          return true
+        }
+        const properties = propertiesOf(check.op)
+        return properties.some(
+          (property) =>
+            differing.has(property) ||
+            touched.some((dropped) => dropped.includes(property))
+        )
+      })
+      const moved = new Set(involved.length > 0 ? involved : toPersonal)
+      toPersonal = new Set([...toPersonal].filter((index) => !moved.has(index)))
+      planned = plan(toPersonal)
+    }
     if (!planned.success) {
       return planned
-    }
-    const { locked } = planned
-    if (locked) {
-      // An op can depend on session structure, such as a move into a box a
-      // session wrap creates. Below the session layer it would stop
-      // applying, so it stays in the session layer instead.
-      const loadedLocked = load(locked)
-      const lost = new Set(
-        resolve([...org, ...team, ...personal, locked, ...planned.nextSession])
-          .unapplied.filter((entry) => entry.overlay === loadedLocked)
-          .map(({ check }) => personalAllowed[check.index])
-          .filter(
-            (index): index is number =>
-              index !== undefined && !unappliedBefore.has(index)
-          )
-      )
-      if (lost.size > 0) {
-        planned = plan(personalAllowed.filter((index) => !lost.has(index)))
-        if (!planned.success) {
-          return planned
-        }
-      }
     }
     if (!planned.locked && !planned.kept) {
       return { success: false, error: "The preview has no valid ops" }
