@@ -20,6 +20,7 @@ const columnHelper = createColumnHelper<DataTableFeatures, Order>()
 
 export const columns = columnHelper.columns([
   columnHelper.accessor("id", {
+    size: 110,
     meta: { label: "Order" },
     header: ({ column }) => <DataTableColumnHeader column={column} />,
     cell: ({ row }) => (
@@ -27,14 +28,17 @@ export const columns = columnHelper.columns([
     ),
   }),
   columnHelper.accessor("customer", {
+    size: 190,
     meta: { label: "Customer" },
     header: ({ column }) => <DataTableColumnHeader column={column} />,
   }),
   columnHelper.accessor("region", {
+    size: 100,
     meta: { label: "Region" },
     header: ({ column }) => <DataTableColumnHeader column={column} />,
   }),
   columnHelper.accessor("status", {
+    size: 110,
     meta: { label: "Status" },
     header: ({ column }) => <DataTableColumnHeader column={column} />,
     cell: ({ row }) => {
@@ -47,6 +51,7 @@ export const columns = columnHelper.columns([
     },
   }),
   columnHelper.accessor("value", {
+    size: 130,
     meta: { label: "Value" },
     header: ({ column }) => (
       <div className="-mr-2.5 flex justify-end pr-4">
@@ -60,11 +65,13 @@ export const columns = columnHelper.columns([
     ),
   }),
   columnHelper.accessor("createdAt", {
+    size: 130,
     meta: { label: "Created" },
     header: ({ column }) => <DataTableColumnHeader column={column} />,
     cell: ({ row }) => formatDate(row.original.createdAt),
   }),
   columnHelper.accessor("notes", {
+    size: 330,
     meta: { label: "Notes" },
     enableSorting: false,
     header: ({ column }) => column.columnDef.meta?.label,

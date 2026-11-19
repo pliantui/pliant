@@ -1,8 +1,10 @@
 "use client"
 
-import { useId } from "react"
-import { useTable } from "@tanstack/react-table"
+import { useId, type CSSProperties } from "react"
+import { useTable, type Column } from "@tanstack/react-table"
 import { ChevronDown } from "lucide-react"
+
+import { usePliantTable } from "@pliantui/react/table"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -23,13 +25,37 @@ import {
 import type { Order } from "../data"
 import { formatNumber } from "../format"
 import { columns } from "./columns"
-import { features } from "./data-table-features"
+import { features, type DataTableFeatures } from "./data-table-features"
 
 const ariaSort = { asc: "ascending", desc: "descending" } as const
 
+function getColumnStyles(
+  column: Column<DataTableFeatures, Order>
+): CSSProperties {
+  const pinned = column.getIsPinned()
+  const isLastStart = pinned === "start" && column.getIsLastColumn("start")
+  const isFirstEnd = pinned === "end" && column.getIsFirstColumn("end")
+  return {
+    position: pinned ? "sticky" : undefined,
+    left: pinned === "start" ? column.getStart("start") : undefined,
+    right: pinned === "end" ? column.getAfter("end") : undefined,
+    zIndex: pinned ? 1 : undefined,
+    boxShadow: isLastStart
+      ? "inset -1px 0 var(--border)"
+      : isFirstEnd
+        ? "inset 1px 0 var(--border)"
+        : undefined,
+    width: column.getSize(),
+  }
+}
+
 export function OrdersTable({ data }: { data: Order[] }) {
   const titleId = useId()
-  const table = useTable({ features, data, columns })
+  const options = usePliantTable(
+    { features, data, columns },
+    { id: "orders-table" }
+  )
+  const table = useTable(options)
   const { pageIndex, pageSize } = table.state.pagination
   const rowCount = table.getRowCount()
   const range = rowCount
@@ -37,7 +63,11 @@ export function OrdersTable({ data }: { data: Order[] }) {
     : "0 of 0"
 
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      data-pliant-id="orders-table"
+      data-pliant-pending={options.ready ? undefined : ""}
+      className="flex flex-col gap-4"
+    >
       <div className="flex items-center justify-between">
         <h2 id={titleId} className="text-lg font-semibold">
           All orders
@@ -66,8 +96,12 @@ export function OrdersTable({ data }: { data: Order[] }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <div className="overflow-hidden rounded-lg border border-border">
-        <Table aria-labelledby={titleId}>
+      <div className="w-fit max-w-full overflow-hidden rounded-lg border border-border">
+        <Table
+          aria-labelledby={titleId}
+          className="table-fixed"
+          style={{ width: table.getTotalSize() }}
+        >
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="border-border">
@@ -77,6 +111,9 @@ export function OrdersTable({ data }: { data: Order[] }) {
                     <TableHead
                       key={header.id}
                       aria-sort={sorted ? ariaSort[sorted] : undefined}
+                      data-pinned={header.column.getIsPinned() || undefined}
+                      className="data-pinned:bg-background"
+                      style={getColumnStyles(header.column)}
                     >
                       {header.isPlaceholder ? null : (
                         <table.FlexRender header={header} />
@@ -92,7 +129,12 @@ export function OrdersTable({ data }: { data: Order[] }) {
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} className="border-border">
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      key={cell.id}
+                      data-pinned={cell.column.getIsPinned() || undefined}
+                      className="truncate data-pinned:bg-background"
+                      style={getColumnStyles(cell.column)}
+                    >
                       <table.FlexRender cell={cell} />
                     </TableCell>
                   ))}

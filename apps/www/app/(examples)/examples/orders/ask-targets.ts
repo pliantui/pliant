@@ -1,8 +1,9 @@
 import type { PliantAskTarget } from "@/registry/pliant/pliant-ask-panel"
 
+import { orderRegions, orderStatuses } from "./data"
+
 // The demo route replays recorded answers, so it answers exactly these
-// asks; the suggestions list every one of them. The orders table becomes a
-// target once it is a Pliant node.
+// asks; the suggestions list every one of them.
 
 export const askTargets = [
   {
@@ -29,6 +30,58 @@ export const askTargets = [
       "put the overdue card first",
       "hide the average order value card",
       "show the cards in a two-column grid",
+    ],
+  },
+  {
+    id: "orders-table",
+    label: "All orders",
+    context: {
+      manifest: {
+        kind: "data-table",
+        version: 1,
+        description: "A table of orders",
+        capabilities: { data: true, hideable: true, slots: true },
+      },
+      collection: {
+        name: "columns",
+        items: [
+          { id: "id", label: "Order" },
+          { id: "customer", label: "Customer" },
+          { id: "region", label: "Region" },
+          { id: "status", label: "Status" },
+          { id: "value", label: "Value" },
+          { id: "createdAt", label: "Created" },
+          { id: "notes", label: "Notes" },
+        ],
+      },
+      fields: [
+        { id: "id", label: "Order", type: "text" },
+        { id: "customer", label: "Customer", type: "text" },
+        {
+          id: "region",
+          label: "Region",
+          type: "enum",
+          values: [...orderRegions],
+        },
+        {
+          id: "status",
+          label: "Status",
+          type: "enum",
+          values: [...orderStatuses],
+        },
+        { id: "value", label: "Value", type: "number" },
+        { id: "createdAt", label: "Created", type: "date" },
+      ],
+    },
+    suggestions: [
+      "sort by value, highest first",
+      "hide the notes column",
+      "only show overdue orders",
+      "put customer before order",
+      "pin the order column",
+      "make the customer column 240 pixels wide",
+      "newest first and hide region",
+      "make it nicer",
     ],
   },
 ] satisfies PliantAskTarget[]
