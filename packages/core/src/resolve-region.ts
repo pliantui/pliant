@@ -25,7 +25,7 @@ export type RegionLayout =
 /**
  * A value per breakpoint, each applying from that breakpoint up, in
  * breakpoint order. A breakpoint that isn't set keeps the developer's own
- * value, so the mobile layout only changes when an op targets it (spec 5.6).
+ * value, so the mobile layout only changes when an op targets it.
  */
 export type ByBreakpoint<T> = Readonly<Partial<Record<Breakpoint, T>>>
 
@@ -153,7 +153,7 @@ function anchorOf(position: PlacementPosition): string | undefined {
  * The order starts from the base order, then every other node by id. Nodes
  * that were in the container and left it (moved out, wrapped, removed) stay
  * in the order without rendering, at their latest position there, so
- * anchors on them keep working (spec 5.4, rule 2); like hidden nodes, but
+ * anchors on them keep working; like hidden nodes, but
  * unlike them they take no index. Each node's position is the first of
  * these that applies:
  *
@@ -170,8 +170,7 @@ function anchorOf(position: PlacementPosition): string | undefined {
  * An anchor that isn't in the order, or is the node itself, doesn't apply,
  * nor does a position that keeps the node in place (`pin sticky`, `pin
  * none`). An anchor on a removed inserted node keeps working from that
- * node's old place; spec 5.4 rule 3 may later flag such an op "needs
- * updating" instead. The order then follows `orderItems`, shared with tables:
+ * node's old place. The order then follows `orderItems`, shared with tables:
  *
  * - `move before` or `after` puts a node next to its anchor, and it travels
  *   with it; nodes on the same anchor keep their order. A cycle of anchors

@@ -351,8 +351,8 @@ export function usePliantTable<
         )
       }
     }
-    // Validation can't reject these yet: it doesn't know which columns have
-    // their own filterFn (https://github.com/pliantui/pliant/issues/42).
+    // Validation can't reject these: it doesn't know which columns have
+    // their own filterFn.
     for (const filter of filtersOf(compiled).dropped) {
       if (typeof filter.value === "object" && filter.value !== null) {
         if (reported.has(filter.value)) {
