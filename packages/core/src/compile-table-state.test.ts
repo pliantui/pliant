@@ -61,6 +61,7 @@ function compile(
     ],
     { surface: "/orders" }
   )
+  expect(resolved.skipped).toEqual([])
   return compileTableState(resolved, { table, columns, ...options })
 }
 
@@ -444,7 +445,7 @@ describe("compileTableState", () => {
             filter: {
               field: "createdAt",
               operator: "custom",
-              value: { within: "P7D" },
+              value: "last-7-days",
             },
           },
         ]).columnFilters
@@ -475,6 +476,13 @@ describe("compileTableState", () => {
                 100,
                 500,
               ],
+            },
+          },
+          {
+            "id": "createdAt",
+            "value": {
+              "operator": "custom",
+              "value": "last-7-days",
             },
           },
           {
