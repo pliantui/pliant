@@ -51,7 +51,7 @@ export type RegionItem =
       readonly kind: "trigger"
       /** The item's React key. */
       readonly key: string
-      /** The collapse's key, the `group` of the entries it holds. */
+      /** The collapse's key, the `group` of the entries it holds. Treat it as opaque. */
       readonly group: string
       readonly into: Collapse["into"]
       readonly label: string | undefined

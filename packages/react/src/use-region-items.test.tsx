@@ -1,5 +1,12 @@
 import type { MouseEvent } from "react"
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+} from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { RegionEntry } from "@pliantui/core"
@@ -132,36 +139,21 @@ describe("useRegionItems", () => {
   })
 
   it("gives each item its collapse group, and each trigger its members", () => {
-    function Groups() {
-      const items = useRegionItems([
+    const { result } = renderHook(() =>
+      useRegionItems([
         slot("revenue"),
         slot("orders", { collapsed: more }),
         slot("overdue", { collapsed: more }),
       ])
-      return (
-        <output>
-          {JSON.stringify(
-            items.map((item) =>
-              item.kind === "trigger"
-                ? { key: item.key, group: item.group, members: item.members }
-                : { key: item.key, group: item.group ?? null }
-            )
-          )}
-        </output>
-      )
-    }
-    render(<Groups />)
+    )
 
-    expect(JSON.parse(screen.getByRole("status").textContent)).toEqual([
-      { key: "revenue", group: null },
-      {
-        key: "collapse:more:More metrics",
-        group: "more:More metrics",
-        members: ["orders", "overdue"],
-      },
-      { key: "orders", group: "more:More metrics" },
-      { key: "overdue", group: "more:More metrics" },
-    ])
+    const [revenue, trigger, orders, overdue] = result.current
+    expect(trigger?.kind).toBe("trigger")
+    if (trigger?.kind !== "trigger") return
+    expect(trigger.members).toEqual(["orders", "overdue"])
+    expect(revenue).toMatchObject({ key: "revenue", group: undefined })
+    expect(orders).toMatchObject({ key: "orders", group: trigger.group })
+    expect(overdue).toMatchObject({ key: "overdue", group: trigger.group })
   })
 
   it("runs the trigger's own onClick first, and lets it prevent the toggle", () => {
