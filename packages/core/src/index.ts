@@ -6,6 +6,11 @@ export {
   type CompileTableStateOptions,
   type FilterValue,
 } from "./compile-table-state"
+export {
+  diffTableState,
+  type DiffTableStateOptions,
+  type TableStateDiff,
+} from "./diff-table-state"
 export { formatError, type FormatErrorOptions } from "./format-error"
 export { loadOverlay, type LoadedOverlay } from "./load-overlay"
 export {
