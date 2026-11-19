@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { opSchema, type Op } from "@pliantui/contract"
 import * as core from "@pliantui/core"
 
-import { createLayerStore } from "./layer-store"
+import { createLayerStore, type LayerStoreOptions } from "./layer-store"
 
 // CI runs 500 seeds. Run more locally with, for example:
 // LOCK_IN_SEEDS=20000 LOCK_IN_START=1 pnpm --filter @pliantui/react exec vitest run lock-in-view
@@ -248,10 +248,14 @@ function answer(id: number, ops: Op[]) {
   }
 }
 
-async function createStore(mounted: readonly string[]) {
+async function createStore(
+  mounted: readonly string[],
+  options: Partial<LayerStoreOptions> = {}
+) {
   const store = createLayerStore({
     surface,
     storage: { load: () => ({}), save: () => undefined },
+    ...options,
   })
   store.connect()
   store.registerNodes(mounted)
@@ -316,6 +320,44 @@ describe("lockIn", () => {
 
     expect(changed).toEqual([])
     expect(lockedIn).toBeGreaterThan(seeds / 2)
+  }, 600_000)
+
+  it("coalesces changes without changing what renders", async () => {
+    const changed: string[] = []
+    const mounted = ["dashboard", "sidebar", "a", "b", "c", "d", "e", "f"]
+    for (let seed = start; seed < start + seeds; seed++) {
+      sessionStorage.clear()
+      const random = createRandom(seed)
+      const ops = createOps(random)
+      const steps = Array.from({ length: 1 + random.random(8) }, () => ({
+        layer: random.pick(["personal", "session"] as const),
+        ops: ops(1 + random.random(2)),
+        after: random.random(600),
+      }))
+      const run = async (coalesce: boolean) => {
+        sessionStorage.clear()
+        let time = Date.UTC(2026, 10, 19)
+        const store = await createStore(mounted, { coalesce, now: () => time })
+        for (const { layer, ops: changes, after } of steps) {
+          time += after
+          if (changes.length > 0) {
+            store.actions.applyOps(layer, changes)
+          }
+        }
+        const result = rendered(store.getResolved())
+        store.flush()
+        return result
+      }
+      const coalesced = await run(true)
+      const separate = await run(false)
+      for (const key of Object.keys(coalesced) as (keyof typeof coalesced)[]) {
+        if (coalesced[key] !== separate[key]) {
+          changed.push(`seed ${String(seed)}: ${key}`)
+        }
+      }
+    }
+
+    expect(changed).toEqual([])
   }, 600_000)
 
   it("moves a chain of ops sharing properties in one round", async () => {

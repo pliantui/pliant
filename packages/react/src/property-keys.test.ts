@@ -41,21 +41,22 @@ describe("changeKeyOf", () => {
     expect(keyOf([{ op: "hide", target: "a" }])).toBe(
       keyOf([{ op: "show", target: "page/slots/a" }])
     )
+  })
+
+  it("is undefined for ops that depend on history", () => {
     expect(
       keyOf([{ op: "move", target: "dashboard/slots/c", to: { into: "x" } }])
-    ).toBe(
-      keyOf([{ op: "move", target: "dashboard/slots/c", to: { into: "y" } }])
-    )
-    expect(keyOf([{ op: "remove", target: "x" }])).toBeDefined()
+    ).toBeUndefined()
+    expect(
+      keyOf([width(200), { op: "pin", target: "page/slots/a", where: "start" }])
+    ).toBeUndefined()
+    expect(keyOf([{ op: "remove", target: "x" }])).toBeUndefined()
   })
 
   it("differs for other properties", () => {
     expect(keyOf([width(200)])).not.toBe(
       keyOf([width(200), { op: "hide", target: "a" }])
     )
-    expect(
-      keyOf([{ op: "pin", target: "page/slots/a", where: "start" }])
-    ).not.toBe(keyOf([{ op: "hide", target: "a" }]))
   })
 
   it("differs for layouts at other breakpoints", () => {

@@ -10,14 +10,16 @@ export function propertiesOf(op: Op) {
 
 /**
  * The (identity, property, breakpoint) triples an overlay writes, as one
- * string, or `undefined` when an op isn't valid. Two overlays of one layer
- * with the same key write exactly the same values, so the later one can
- * replace the earlier one.
+ * string. Two overlays of one layer with the same key write exactly the same
+ * values, so the later one can replace the earlier one. `undefined` when an
+ * op isn't valid or depends on history (see `dependsOnHistory`): replacing
+ * such an op changes what it leaves behind, such as a pin after a move into
+ * another node, which keeps the item there.
  */
 export function changeKeyOf(overlay: LoadedOverlay) {
   const keys = new Set<string>()
   for (const check of overlay.ops) {
-    if (check.status !== "valid") {
+    if (check.status !== "valid" || dependsOnHistory(check.op)) {
       return undefined
     }
     for (const { address, property, breakpoint } of opProperties(check.op)) {

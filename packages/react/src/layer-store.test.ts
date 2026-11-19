@@ -286,20 +286,51 @@ describe("createLayerStore", () => {
       expect(saved).toHaveLength(1)
     })
 
-    it("coalesces moves into a node", () => {
-      const { store, saved } = setup()
-      const into = (container: string) =>
-        opSchema.parse({
-          op: "move",
-          target: "dashboard/slots/c",
-          to: { into: container },
-        })
-      store.actions.applyOps("personal", [into("sidebar")])
-      store.actions.applyOps("personal", [into("footer")])
-      store.flush()
+    it.each(["personal", "session"] as const)(
+      "never coalesces %s placements, insertions or removals",
+      async (layer) => {
+        const { store } = setup()
+        store.registerNodes(["dashboard", "sidebar", "a", "b"])
+        await Promise.resolve()
+        store.actions.applyOps(layer, [
+          opSchema.parse({
+            op: "move",
+            target: "dashboard/slots/a",
+            to: { into: "sidebar" },
+          }),
+        ])
+        store.actions.applyOps(layer, [
+          opSchema.parse({
+            op: "pin",
+            target: "dashboard/slots/a",
+            where: "start",
+          }),
+        ])
+        store.actions.applyOps(layer, [
+          opSchema.parse({
+            op: "insert",
+            target: "dashboard",
+            node: { id: "ins1", kind: "chart", dataset: "orders" },
+            at: { index: 0 },
+          }),
+        ])
+        store.actions.applyOps(layer, [
+          opSchema.parse({ op: "remove", target: "ins1" }),
+        ])
+        const resolved = store.getResolved()
 
-      expect(saved.map(({ ops }) => ops)).toEqual([[into("footer")]])
-    })
+        expect(resolved.placements.get("a")).toMatchObject({
+          container: "sidebar",
+          position: { pin: "start" },
+        })
+        expect(
+          resolved.properties.get("ins1")?.get("inserted")?.winner.check.op.op
+        ).toBe("remove")
+        expect(
+          resolved.overlays.filter((overlay) => overlay.layer === layer)
+        ).toHaveLength(4)
+      }
+    )
 
     it("reports a failed save and saves it again on the next flush", () => {
       const onError = vi.fn()

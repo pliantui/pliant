@@ -190,4 +190,57 @@ describe("lockIn", () => {
     expect(saved).toHaveLength(1)
     expect(containers(store)).toMatchObject({ a: "pair" })
   })
+
+  it("keeps ops in session when the rest wouldn't validate on top", async () => {
+    const stored = (id: string, ops: unknown[], second: number) => ({
+      ...answer([]),
+      id,
+      layer: "personal",
+      ops,
+      createdAt: `2026-11-18T00:00:0${String(second)}.000Z`,
+    })
+    const insert = (target: string, dataset: string) =>
+      parse({
+        op: "insert",
+        target,
+        node: { id: "ins1", kind: "chart", dataset },
+        at: { index: 0 },
+      })
+    const store = createLayerStore({
+      surface,
+      storage: {
+        load: () => ({
+          personal: [
+            stored("01KAB0000000000000000000P1", [insert("dashboard", "a")], 1),
+            stored(
+              "01KAB0000000000000000000P2",
+              [{ op: "remove", target: "ins1" }],
+              2
+            ),
+          ],
+        }),
+        save: () => undefined,
+      },
+    })
+    store.connect()
+    store.registerNodes(["dashboard", "sidebar", "a", "c"])
+    await Promise.resolve()
+    store.actions.applyOps("session", [
+      parse({
+        op: "wrap",
+        target: "sidebar",
+        id: "box",
+        items: ["c", "e"],
+        mode: "stack",
+      }),
+    ])
+    const preview = [insert("box", "orders"), into("a", "ins1")]
+    expect(store.actions.preview(answer(preview)).success).toBe(true)
+
+    expect(lockInKeepsTheView(store)).toEqual({
+      success: true,
+      overlay: null,
+      keptInSession: preview,
+    })
+  })
 })

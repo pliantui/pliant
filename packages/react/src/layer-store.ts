@@ -138,6 +138,8 @@ export interface LayerStoreOptions {
   readonly onError?: ((error: unknown) => void) | undefined
   readonly now?: (() => number) | undefined
   readonly generateId?: ((time: number) => string) | undefined
+  /** Whether changes replace earlier ones; off only to test that it's exact. */
+  readonly coalesce?: boolean | undefined
 }
 
 export interface LayerStore {
@@ -199,6 +201,7 @@ export function createLayerStore({
   onError: initialOnError,
   now = Date.now,
   generateId = ulid,
+  coalesce = true,
 }: LayerStoreOptions): LayerStore {
   const listeners = new Set<() => void>()
   const loaded = new WeakMap<object, LoadedOverlay | undefined>()
@@ -385,6 +388,9 @@ export function createLayerStore({
   }
 
   function replacedId(layer: "personal" | "session", key: string) {
+    if (!coalesce) {
+      return undefined
+    }
     if (layer === "personal") {
       return pending?.key === key && now() - pending.at < coalesceWindow
         ? pending.overlay.id
@@ -541,7 +547,11 @@ export function createLayerStore({
 
     // Validates the preview's ops at `indices` as one overlay of `layer`,
     // with issues pointing at the preview's own ops.
-    function check(indices: readonly number[], layer: "personal" | "session") {
+    function check(
+      indices: readonly number[],
+      layer: "personal" | "session",
+      lower: readonly unknown[]
+    ) {
       const result = validateOverlay(
         {
           ...withOps(overlay, (index) => indices.includes(index)),
@@ -551,7 +561,7 @@ export function createLayerStore({
         },
         {
           layers: {
-            overlays: lowerOf(layer),
+            overlays: lower,
             surface,
             baseIds: { ids: mountedIds, source: "mounted" },
             teamOrder,
@@ -651,7 +661,7 @@ export function createLayerStore({
       )
       const locked =
         personalIndices.length > 0
-          ? check(personalIndices, "personal")
+          ? check(personalIndices, "personal", lowerOf("personal"))
           : undefined
       if (locked && !locked.success) {
         toPersonal = withoutConnected(
@@ -660,15 +670,25 @@ export function createLayerStore({
         )
         continue
       }
-      const kept =
-        sessionIndices.length > 0 ? check(sessionIndices, "session") : undefined
-      if (kept && !kept.success) {
-        return { success: false, error: kept.error }
-      }
       const { kept: trimmed, dropped } = withoutProperties(
         session,
         new Set(locked?.overlay.ops.flatMap((op) => propertiesOf(op)))
       )
+      const kept =
+        sessionIndices.length > 0
+          ? check(sessionIndices, "session", [
+              ...lowerOf("personal"),
+              ...(locked ? [locked.overlay] : []),
+              ...trimmed,
+            ])
+          : undefined
+      if (kept && !kept.success) {
+        if (locked) {
+          toPersonal = new Set()
+          continue
+        }
+        return { success: false, error: kept.error }
+      }
       const nextSession = [...trimmed, ...(kept ? [kept.overlay] : [])]
       if (locked) {
         const differing = differingProperties(
