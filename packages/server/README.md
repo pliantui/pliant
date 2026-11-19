@@ -37,6 +37,4 @@ const model = wrapLanguageModel({
 })
 ```
 
-`pnpm --filter @pliantui/server record` records the orders demo asks into `recordings/`. It runs TypeScript directly, so it needs Node.js 22.18 or later.
-
-The committed recordings are stand-ins: they were made with `claude -p` (headless Claude Code), not the production API path, and each file says so with `standIn: true`. Replaying one logs a warning. They will be re-recorded through the API (`record --api` with `ANTHROPIC_API_KEY`); see [#24](https://github.com/pliantui/pliant/issues/24).
+The orders demo's recordings, and the script that records them with `pnpm --filter www record`, live in `apps/www`. They are stand-ins made with `claude -p` (headless Claude Code), not the production API path, and each file says so with `standIn: true`; see [#24](https://github.com/pliantui/pliant/issues/24).
