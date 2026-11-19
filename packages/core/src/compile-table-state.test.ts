@@ -21,7 +21,7 @@ const columns = [
 const column = (id: string) => `${table}/columns/${id}`
 
 function overlay(
-  layer: "team" | "personal",
+  layer: "team" | "personal" | "session",
   ops: unknown[],
   id = "01JBQ3V8Z7XKQ2M4N5P6R7S800"
 ): LoadedOverlay {
@@ -46,7 +46,8 @@ function overlay(
 function compile(
   ops: unknown[],
   options: Partial<CompileTableStateOptions> = {},
-  lower: unknown[] = []
+  lower: unknown[] = [],
+  session: unknown[] = []
 ) {
   const resolved = resolveLayers(
     [
@@ -54,6 +55,9 @@ function compile(
         ? [overlay("team", lower, "01JBQ3V8Z7XKQ2M4N5P6R7S801")]
         : []),
       overlay("personal", ops),
+      ...(session.length > 0
+        ? [overlay("session", session, "01JBQ3V8Z7XKQ2M4N5P6R7S802")]
+        : []),
     ],
     { surface: "/orders" }
   )
@@ -64,26 +68,31 @@ describe("compileTableState", () => {
   it("compiles no ops into empty state in base order", () => {
     expect(compile([{ op: "rename", target: table, label: "Orders" }]))
       .toMatchInlineSnapshot(`
-      {
-        "columnFilters": [],
-        "columnOrder": [
-          "id",
-          "customer",
-          "region",
-          "status",
-          "value",
-          "createdAt",
-          "notes",
-        ],
-        "columnPinning": {
-          "end": [],
-          "start": [],
-        },
-        "columnSizing": {},
-        "columnVisibility": {},
-        "sorting": [],
-      }
-    `)
+        {
+          "columnFilters": [],
+          "columnOrder": [
+            "id",
+            "customer",
+            "region",
+            "status",
+            "value",
+            "createdAt",
+            "notes",
+          ],
+          "columnPinning": {
+            "end": [],
+            "start": [],
+          },
+          "columnSizing": {},
+          "columnVisibility": {},
+          "grouping": [],
+          "pagination": {
+            "pageIndex": 0,
+            "pageSize": 10,
+          },
+          "sorting": [],
+        }
+      `)
   })
 
   describe("setSort", () => {
@@ -429,6 +438,15 @@ describe("compileTableState", () => {
             target: table,
             filter: { field: "margin", operator: "gt", value: 0 },
           },
+          {
+            op: "setFilter",
+            target: table,
+            filter: {
+              field: "createdAt",
+              operator: "custom",
+              value: { within: "P7D" },
+            },
+          },
         ]).columnFilters
       ).toMatchInlineSnapshot(`
         [
@@ -509,6 +527,322 @@ describe("compileTableState", () => {
     })
   })
 
+  describe("setGroupBy", () => {
+    it("compiles grouping, leaving out fields that aren't columns", () => {
+      expect(
+        compile([
+          {
+            op: "setGroupBy",
+            target: table,
+            fields: ["region", "margin", "status"],
+          },
+        ]).grouping
+      ).toMatchInlineSnapshot(`
+        [
+          "region",
+          "status",
+        ]
+      `)
+    })
+
+    it("replaces the base grouping, and can clear it", () => {
+      const base = { grouping: ["status"] }
+      expect(
+        compile([{ op: "setGroupBy", target: table, fields: [] }], { base })
+          .grouping
+      ).toMatchInlineSnapshot(`[]`)
+      expect(
+        compile([{ op: "rename", target: table, label: "Orders" }], { base })
+          .grouping
+      ).toBe(base.grouping)
+    })
+  })
+
+  describe("setPage", () => {
+    const rename = [{ op: "rename", target: table, label: "Orders" }]
+
+    it("compiles pagination over the base page size", () => {
+      expect(
+        compile(rename, {}, [], [{ op: "setPage", target: table, index: 3 }])
+          .pagination
+      ).toMatchInlineSnapshot(`
+        {
+          "pageIndex": 3,
+          "pageSize": 10,
+        }
+      `)
+      expect(
+        compile(
+          rename,
+          { base: { pagination: { pageIndex: 0, pageSize: 25 } } },
+          [],
+          [{ op: "setPage", target: table, index: 2 }]
+        ).pagination
+      ).toMatchInlineSnapshot(`
+        {
+          "pageIndex": 2,
+          "pageSize": 25,
+        }
+      `)
+    })
+
+    it("sets the page size when the op has one", () => {
+      expect(
+        compile(
+          rename,
+          { base: { pagination: { pageIndex: 4, pageSize: 25 } } },
+          [],
+          [{ op: "setPage", target: table, index: 0, size: 50 }]
+        ).pagination
+      ).toMatchInlineSnapshot(`
+        {
+          "pageIndex": 0,
+          "pageSize": 50,
+        }
+      `)
+    })
+  })
+
+  describe("over a base", () => {
+    const base = {
+      sorting: [{ id: "createdAt", desc: true }],
+      columnVisibility: { notes: false, region: false },
+      columnOrder: ["notes", "id"],
+      columnPinning: { start: ["id"], end: ["notes"] },
+      columnSizing: { notes: 300, customer: 200 },
+      columnFilters: [
+        { id: "status", value: "open" },
+        { id: "region", value: ["EU"] },
+      ],
+    }
+    const rename = { op: "rename", target: table, label: "Orders" }
+
+    it("keeps the base without ops", () => {
+      expect(compile([rename], { base })).toMatchInlineSnapshot(`
+        {
+          "columnFilters": [
+            {
+              "id": "status",
+              "value": "open",
+            },
+            {
+              "id": "region",
+              "value": [
+                "EU",
+              ],
+            },
+          ],
+          "columnOrder": [
+            "notes",
+            "id",
+            "customer",
+            "region",
+            "status",
+            "value",
+            "createdAt",
+          ],
+          "columnPinning": {
+            "end": [
+              "notes",
+            ],
+            "start": [
+              "id",
+            ],
+          },
+          "columnSizing": {
+            "customer": 200,
+            "notes": 300,
+          },
+          "columnVisibility": {
+            "notes": false,
+            "region": false,
+          },
+          "grouping": [],
+          "pagination": {
+            "pageIndex": 0,
+            "pageSize": 10,
+          },
+          "sorting": [
+            {
+              "desc": true,
+              "id": "createdAt",
+            },
+          ],
+        }
+      `)
+    })
+
+    it("clears the base sort with an empty sort", () => {
+      expect(
+        compile([{ op: "setSort", target: table, sort: [] }], { base }).sorting
+      ).toEqual([])
+    })
+
+    it("replaces the base sort", () => {
+      expect(
+        compile(
+          [
+            {
+              op: "setSort",
+              target: table,
+              sort: [{ field: "value", dir: "asc" }],
+            },
+          ],
+          { base }
+        ).sorting
+      ).toMatchInlineSnapshot(`
+        [
+          {
+            "desc": false,
+            "id": "value",
+          },
+        ]
+      `)
+    })
+
+    it("sets visibility per column", () => {
+      expect(
+        compile(
+          [
+            { op: "show", target: column("notes") },
+            { op: "hide", target: column("value") },
+          ],
+          { base }
+        ).columnVisibility
+      ).toMatchInlineSnapshot(`
+        {
+          "notes": true,
+          "region": false,
+          "value": false,
+        }
+      `)
+    })
+
+    it("applies placements to the base order", () => {
+      expect(
+        compile(
+          [{ op: "move", target: column("customer"), to: { before: "notes" } }],
+          { base }
+        ).columnOrder
+      ).toMatchInlineSnapshot(`
+        [
+          "customer",
+          "notes",
+          "id",
+          "region",
+          "status",
+          "value",
+          "createdAt",
+        ]
+      `)
+    })
+
+    it("moves, adds and clears pins per column", () => {
+      expect(
+        compile(
+          [
+            { op: "pin", target: column("notes"), where: "start" },
+            { op: "pin", target: column("id"), where: "none" },
+            { op: "pin", target: column("value"), where: "end" },
+          ],
+          { base }
+        ).columnPinning
+      ).toMatchInlineSnapshot(`
+        {
+          "end": [
+            "value",
+          ],
+          "start": [
+            "notes",
+          ],
+        }
+      `)
+    })
+
+    it("overrides sizing per column", () => {
+      expect(
+        compile(
+          [{ op: "setColumnWidth", target: column("notes"), width: 120 }],
+          { base }
+        ).columnSizing
+      ).toMatchInlineSnapshot(`
+        {
+          "customer": 200,
+          "notes": 120,
+        }
+      `)
+    })
+
+    it("sets and clears filters per field", () => {
+      expect(
+        compile(
+          [
+            { op: "clearFilter", target: table, field: "status" },
+            {
+              op: "setFilter",
+              target: table,
+              filter: { field: "region", operator: "in", value: ["US"] },
+            },
+            {
+              op: "setFilter",
+              target: table,
+              filter: { field: "value", operator: "gt", value: 10 },
+            },
+          ],
+          { base }
+        ).columnFilters
+      ).toMatchInlineSnapshot(`
+        [
+          {
+            "id": "region",
+            "value": {
+              "operator": "in",
+              "value": [
+                "US",
+              ],
+            },
+          },
+          {
+            "id": "value",
+            "value": {
+              "operator": "gt",
+              "value": 10,
+            },
+          },
+        ]
+      `)
+    })
+
+    it("leaves base ids that aren't columns out of the order only", () => {
+      const state = compile([rename], {
+        base: {
+          columnOrder: ["margin", "value"],
+          columnFilters: [{ id: "margin", value: 1 }],
+        },
+      })
+      expect(state.columnOrder[0]).toBe("value")
+      expect(state.columnOrder).toHaveLength(columns.length)
+      expect(state.columnFilters).toEqual([{ id: "margin", value: 1 }])
+    })
+  })
+
+  it("counts repeated column ids once", () => {
+    const state = compile(
+      [
+        {
+          op: "setFilter",
+          target: table,
+          filter: { field: "notes", operator: "eq", value: "x" },
+        },
+      ],
+      { columns: ["id", "notes", "id", "notes"] }
+    )
+    expect(state.columnOrder).toEqual(["id", "notes"])
+    expect(state.columnFilters).toEqual([
+      { id: "notes", value: { operator: "eq", value: "x" } },
+    ])
+  })
+
   it("ignores ops on other tables and unknown columns", () => {
     expect(
       compile([
@@ -575,6 +909,22 @@ describe("compileTableState", () => {
         { previous }
       )
       expect(next).toBe(previous)
+    })
+
+    it("reuses grouping and pagination", () => {
+      const grouped = [
+        ...ops,
+        { op: "setGroupBy", target: table, fields: ["region"] },
+      ]
+      const page = (index: number) => [{ op: "setPage", target: table, index }]
+      const previous = compile(grouped, {}, [], page(1))
+      const same = compile(grouped, { previous }, [], page(1))
+      expect(same).toBe(previous)
+      const next = compile(grouped, { previous }, [], page(2))
+      expect(next.pagination).toEqual({ pageIndex: 2, pageSize: 10 })
+      expect(next.grouping).toBe(previous.grouping)
+      expect(next.sorting).toBe(previous.sorting)
+      expect(next.columnFilters).toBe(previous.columnFilters)
     })
 
     it("reuses empty slices", () => {
