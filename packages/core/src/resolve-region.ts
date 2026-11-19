@@ -330,7 +330,10 @@ export function resolveRegion(
             ? position.pin
             : undefined
         const collapseOp = collapses?.get(`collapse.${node}`)?.winner.check.op
-        const collapse = collapseOp?.op === "collapse" ? collapseOp : undefined
+        const collapse =
+          collapseOp?.op === "collapse" && collapseOp.into !== "none"
+            ? collapseOp
+            : undefined
         const into = collapseKinds.find((kind) => kind === collapse?.into)
         const span = properties?.get("span")?.breakpoints
         const entry: RegionEntryBase = {
