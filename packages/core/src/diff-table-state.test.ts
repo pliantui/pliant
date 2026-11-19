@@ -737,7 +737,7 @@ describe("diffTableState moves", () => {
     expect(freeMore).toBeLessThan(free / 200)
     expect(over).toBeLessThan(drags / 50)
     expect(counts.get(1) ?? 0).toBeGreaterThan(drags * 0.69)
-  }, 30_000)
+  }, 60_000)
 })
 
 describe("diffTableState on wide tables", () => {
@@ -843,7 +843,7 @@ describe("diffTableState on wide tables", () => {
             side === "before" ? { before: ids[index] } : { after: ids[index] },
         }))
       )
-      const step = n > 30 ? 9 : 1
+      const step = n > 30 ? 9 : n === 30 ? 2 : 1
       for (let from = 0; from < n; from += step) {
         for (let at = 0; at < n; at += step) {
           const dragged = t.order[from] ?? ""

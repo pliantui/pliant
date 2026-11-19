@@ -559,11 +559,9 @@ export function createLayerStore({
   // layer, so this needs no record of its own.
   function takeManual() {
     const before = session
-    const since = load(previewed)?.createdAt
-    const during = (input: unknown) => {
-      const createdAt = load(input)?.createdAt
-      return since !== undefined && createdAt !== undefined && createdAt > since
-    }
+    const since = Date.parse(load(previewed)?.createdAt ?? "")
+    const during = (input: unknown) =>
+      Date.parse(load(input)?.createdAt ?? "") > since
     session = session.filter((input) => !during(input))
     return {
       overlays: before.flatMap((input) =>
@@ -965,7 +963,7 @@ export function createLayerStore({
         return {
           success: false,
           error:
-            "The changes made while the preview showed would render differently once it is locked in",
+            "Couldn't keep this preview as it is. Discard keeps your own changes.",
         }
       }
       flush()

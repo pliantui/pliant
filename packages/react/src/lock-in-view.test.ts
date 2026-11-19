@@ -442,7 +442,7 @@ describe("lockIn", () => {
 
     expect(changed).toEqual([])
     expect(moved).toBeGreaterThan(seeds / 4)
-    expect(failed).toBeLessThan(seeds / 10)
+    expect(failed).toBeLessThan(seeds / 100)
   }, 600_000)
 
   it("coalesces changes without changing what renders", async () => {
