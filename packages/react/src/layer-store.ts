@@ -13,7 +13,9 @@ import {
 
 import { changeKeyOf, dependsOnHistory, propertiesOf } from "./property-keys"
 import { differingProperties, viewOf } from "./resolved-view"
+import { createRetention, type Retention } from "./retention"
 import { readSession, writeSession } from "./session-mirror"
+import { createSlotRegistry, type SlotRegistry } from "./slot-registry"
 import type { StorageAdapter, StoredLayers } from "./storage-adapter"
 import { ulid } from "./ulid"
 
@@ -154,6 +156,8 @@ export interface LayerStore {
   readonly getPreview: () => LoadedOverlay | null
   readonly getStatus: () => PliantStatus
   readonly registerNodes: (ids: readonly string[]) => () => void
+  readonly slots: SlotRegistry
+  readonly retention: Retention
   readonly setTeamOrder: (teamOrder: readonly string[]) => void
   readonly setOnError: (onError: ((error: unknown) => void) | undefined) => void
   readonly connect: () => () => void
@@ -925,6 +929,8 @@ export function createLayerStore({
       return status
     },
     registerNodes,
+    slots: createSlotRegistry(),
+    retention: createRetention(),
     setTeamOrder(next) {
       if (JSON.stringify(next) !== JSON.stringify(teamOrder)) {
         teamOrder = next

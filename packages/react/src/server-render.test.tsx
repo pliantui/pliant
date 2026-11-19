@@ -6,7 +6,9 @@ import { PliantRoot } from "./pliant-root"
 import type { StorageAdapter } from "./storage-adapter"
 import { useMountedNodes } from "./use-mounted-nodes"
 import { usePreview } from "./use-preview"
+import { useRegionSlots } from "./use-region-slots"
 import { useResolved } from "./use-resolved"
+import { useSlotContent } from "./use-slot-content"
 
 function Probe() {
   useMountedNodes(["orders-table"])
@@ -43,5 +45,20 @@ describe("PliantRoot on the server", () => {
         </PliantRoot>
       )
     ).toContain("none")
+  })
+
+  it("renders no slot content declared by a region", () => {
+    function Region() {
+      useRegionSlots("key-metrics", { revenue: "Revenue" })
+      return <output>{useSlotContent("revenue") ?? "none"}</output>
+    }
+
+    expect(
+      renderToString(
+        <PliantRoot surface="/orders">
+          <Region />
+        </PliantRoot>
+      )
+    ).toBe("<output>none</output>")
   })
 })
