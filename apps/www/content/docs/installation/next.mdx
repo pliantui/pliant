@@ -5,10 +5,27 @@ description: Add Pliant to a Next.js app and make one region and one table custo
 
 <Callout type="warn" title="Not installable yet">
   The `@pliantui/*` packages aren't published to npm, and the component registry
-  isn't hosted yet, so the commands below don't work outside this repository.
-  They show the setup as it will work. To try Pliant today, run the [orders
-  example](#see-it-working) from a clone of the repository.
+  isn't hosted yet, so the setup commands below don't work outside the Pliant
+  repository. You can try Pliant today from a clone.
 </Callout>
+
+## Try it now
+
+The repository has a complete example: an orders page with a row of metric cards, a data table and the ask panel. You need Node.js 22.22 or 24.11 and later, and pnpm 10.
+
+```bash
+git clone https://github.com/pliantui/pliant.git
+cd pliant
+pnpm install
+pnpm build:packages
+PLIANT_ASK_ENABLED=1 pnpm --filter www dev
+```
+
+`PLIANT_ASK_ENABLED=1` turns on the recorded ask panel. It replays saved answers, so it needs no API key and only answers its suggested asks.
+
+Open [localhost:4000/examples/orders](http://localhost:4000/examples/orders). Sort the table, hide a column from the **Columns** menu and reload: the changes stay.
+
+When the packages are published, setup looks like this.
 
 ## Before you start
 
@@ -22,7 +39,7 @@ You need a Next.js app that uses the App Router, React 19.2 or later, and [shadc
 pnpm add @pliantui/react zod
 ```
 
-`@pliantui/react` is the runtime: it loads each user's changes, applies them and saves new ones.
+`@pliantui/react` is the runtime: it loads each user's changes, applies them and saves new ones. `zod` is a peer dependency.
 
 ### Add the region component
 
@@ -50,7 +67,9 @@ export default function OrdersPage() {
 }
 ```
 
-By default, each user's changes are saved in their browser's `localStorage`. To save them to your backend instead, see [Storage](#storage).
+For a dynamic route, pass the route pattern, not the URL. On `app/orders/[id]/page.tsx`, use `surface="/orders/[id]"`, so every order page shares one layout.
+
+Each user's changes are saved in their browser's `localStorage` by default. To keep them on your server, see [Storage](/docs/storage).
 
 ### Make a region editable
 
@@ -79,171 +98,35 @@ export default function OrdersPage() {
 }
 ```
 
-The order of the keys is the default order. Ids are kebab-case and start with a letter. Overlays can now reorder, hide, resize, wrap and collapse these cards. With no overlays, the region renders the cards in the order you wrote them.
+The order of the keys is the default order. Ids are kebab-case and start with a letter. Give the region its spacing with `gap-*` classes: each slot sits in a `display: contents` wrapper, so `space-*` and `divide-*` won't work.
 
-Give the region its spacing with `gap-*` classes. Each slot sits in a `display: contents` wrapper, so `space-*` and `divide-*` won't work.
+Nothing changes on screen yet: the region renders as before. Overlays can now reorder, hide and resize the cards, group them, or fold some behind a "More" button. Users make those changes through the [ask panel](/docs/ask-panel). There's no manual control for regions yet.
 
 ### Make a table remember its sort
 
-Pliant works with tables built on [TanStack Table](https://tanstack.com/table) v9, such as shadcn's data table. Install it if you haven't:
-
-```bash
-pnpm add @tanstack/react-table
-```
-
-Then pass your table's options through `usePliantTable` before they reach `useTable`, with an id for the table.
+Pliant works with tables built on [TanStack Table](https://tanstack.com/table) v9, such as shadcn's data table. Pass your table's options through `usePliantTable` before they reach `useTable`, with an id for the table:
 
 ```tsx title="components/orders-table.tsx"
 "use client"
 
-import {
-  createSortedRowModel,
-  rowSortingFeature,
-  sortFn_alphanumeric,
-  tableFeatures,
-  useTable,
-} from "@tanstack/react-table"
+import { useTable } from "@tanstack/react-table"
 import { usePliantTable } from "@pliantui/react/table"
 
-const features = tableFeatures({
-  rowSortingFeature,
-  sortedRowModel: createSortedRowModel(),
-  sortFns: { alphanumeric: sortFn_alphanumeric },
-})
+// your existing TanStack v9 setup
+import { columns, features, type Order } from "./columns"
 
 export function OrdersTable({ data }: { data: Order[] }) {
   const table = useTable(
-    usePliantTable({ features, data, columns }, { id: "orders-table" })
+    usePliantTable({ features, data, columns }, { id: "orders-table" }) // [!code highlight]
   )
 
   // Render the table as before.
 }
 ```
 
-Render the table inside `PliantRoot`. When a user sorts it, the sort is saved to their personal layer and comes back after a reload. Column order, visibility, widths and pinning are saved the same way. Pagination and filters last for the browser tab only. To save filters too, pass `persistFilters: true` next to `id`.
+Render the table inside `PliantRoot`. When a user sorts it, the sort is saved to their personal layer and comes back after a reload. Column order, visibility, widths and pinning are saved the same way, from your table's own controls. Pagination and filters last for the browser tab only. To save filters too, pass `persistFilters: true` next to `id`.
 
-## Storage
+## Next steps
 
-`PliantRoot` reads and writes through a storage adapter. The default, `localAdapter()`, keeps personal changes in `localStorage`, one key per surface. To keep them on your server, pass your own adapter to `storage`. It has two methods:
-
-```ts title="lib/pliant-storage.ts"
-import type { StorageAdapter } from "@pliantui/react"
-
-export const pliantStorage: StorageAdapter = {
-  async load(surface) {
-    const response = await fetch(
-      `/api/layers?surface=${encodeURIComponent(surface)}`
-    )
-    return response.json() // { org?: [...], team?: [...], personal?: [...] }
-  },
-  async save(surface, overlay) {
-    await fetch(`/api/layers?surface=${encodeURIComponent(surface)}`, {
-      method: "PUT",
-      body: JSON.stringify(overlay),
-      keepalive: true,
-    })
-  },
-}
-```
-
-- `load` returns the surface's saved overlays by layer. Pliant validates each one and skips any that don't load.
-- `save` stores one personal overlay, replacing a saved overlay with the same `id`. Pliant also saves while the page unloads, which is why the request uses `keepalive`.
-
-Pass the adapter from a client component, since an object of functions can't be passed from a Server Component.
-
-<Callout title="Coming before 1.0">
-  The storage adapter interface will change before 1.0, to support saving team
-  and org overlays and safe concurrent saves. The `org` and `team` layers
-  already load from your adapter, but there is no UI for creating them yet.
-</Callout>
-
-## Add the ask panel
-
-This step is optional. Pliant works without AI.
-
-The ask panel lets users describe a change, such as "hide the overdue card". It shows the result on the page as a preview. Nothing is saved until the user locks it in.
-
-### Add the server route
-
-```bash
-pnpm add @pliantui/server ai @ai-sdk/anthropic
-```
-
-```ts title="app/api/pliant/route.ts"
-import { anthropic } from "@ai-sdk/anthropic"
-import { createPliantHandler } from "@pliantui/server"
-
-export const POST = createPliantHandler({
-  model: anthropic("claude-haiku-5-5"),
-  getUser: async (request) => (await auth(request))?.userId ?? null,
-})
-```
-
-The route turns a request into a validated overlay and sends it back. It never changes your data. `model` takes any [AI SDK](https://ai-sdk.dev) model. `getUser` returns the signed-in user's id, or `null` to answer with a 401.
-
-<Callout type="warn">
-  The route has no rate limits yet. Keep it behind your sign-in before you
-  expose it.
-</Callout>
-
-### Add the panel
-
-```bash
-pnpm dlx shadcn@latest add https://pliantui.dev/r/pliant-ask-panel.json
-```
-
-Render it inside `PliantRoot`, with the route's URL and the regions users can ask about:
-
-```tsx title="components/ask-button.tsx"
-"use client"
-
-import {
-  PliantAskPanel,
-  type PliantAskTarget,
-} from "@/components/pliant/pliant-ask-panel"
-
-const targets = [
-  {
-    id: "key-metrics",
-    label: "Key metrics",
-    context: {
-      manifest: {
-        kind: "region",
-        version: 1,
-        description: "A row of key metric cards",
-        capabilities: { slots: true, hideable: true, layout: true },
-      },
-      collection: {
-        name: "slots",
-        items: [
-          { id: "revenue", label: "Revenue" },
-          { id: "orders", label: "Orders" },
-          { id: "overdue", label: "Overdue" },
-        ],
-      },
-    },
-  },
-] satisfies PliantAskTarget[]
-
-export function AskButton() {
-  return <PliantAskPanel endpoint="/api/pliant" targets={targets} />
-}
-```
-
-`context` tells the model what the region holds: its kind, what can change, and its items. It never includes your rows. For now, you write each target's `context` by hand.
-
-The panel opens from an "Ask" button and docks to the right edge of the screen. Add padding to your layout while it's open, such as `sm:has-[[data-slot=pliant-ask-panel]]:pr-96`, so it doesn't cover the page.
-
-## See it working
-
-The repository has a complete example: an orders page with a region of metric cards, a data table and the ask panel.
-
-```bash
-git clone https://github.com/pliantui/pliant.git
-cd pliant
-pnpm install
-pnpm build:packages
-PLIANT_ASK_ENABLED=1 pnpm --filter www dev
-```
-
-Open [localhost:4000/examples/orders](http://localhost:4000/examples/orders). Sort the table, hide a column and reload: the changes stay. The ask panel replays recorded answers, so it only answers its suggested asks and needs no API key.
+- [Storage](/docs/storage): save changes to your backend instead of the browser.
+- [Ask panel](/docs/ask-panel): let users describe a change in words.

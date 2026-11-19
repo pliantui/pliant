@@ -1,0 +1,64 @@
+---
+title: Storage
+description: Save each user's changes to your backend instead of the browser.
+---
+
+`PliantRoot` reads and writes overlays through a storage adapter. The default, `localAdapter()`, keeps each user's personal overlays in their browser's `localStorage`, one key per surface. To keep them on your server, write an adapter and pass it to `PliantRoot`.
+
+## Write an adapter
+
+An adapter has two methods:
+
+```ts title="lib/pliant-storage.ts"
+import type { StorageAdapter } from "@pliantui/react"
+
+export const pliantStorage: StorageAdapter = {
+  async load(surface) {
+    const response = await fetch(
+      `/api/layers?surface=${encodeURIComponent(surface)}`
+    )
+    return response.json() // { org?: [...], team?: [...], personal?: [...] }
+  },
+  async save(surface, overlay) {
+    await fetch(`/api/layers?surface=${encodeURIComponent(surface)}`, {
+      method: "PUT",
+      body: JSON.stringify(overlay),
+      keepalive: true,
+    })
+  },
+}
+```
+
+- `load` returns the surface's saved overlays by layer. Pliant validates each one and skips any that don't load. If `load` fails, `usePliantStatus()` reports the error and no saved overlays apply.
+- `save` stores one personal overlay, replacing a saved overlay with the same `id`. If it fails, Pliant tries again on the next save. Pliant also saves while the page unloads, which is why the request uses `keepalive`.
+
+The `/api/layers` route is yours: store overlays however you like, keyed by user and surface.
+
+## Pass it to PliantRoot
+
+The adapter is an object of functions, which a Server Component can't pass to a client component. Render `PliantRoot` from a client component instead:
+
+```tsx title="components/orders-root.tsx"
+"use client"
+
+import type { ReactNode } from "react"
+import { PliantRoot } from "@pliantui/react"
+
+import { pliantStorage } from "@/lib/pliant-storage"
+
+export function OrdersRoot({ children }: { children: ReactNode }) {
+  return (
+    <PliantRoot surface="/orders" storage={pliantStorage}>
+      {children}
+    </PliantRoot>
+  )
+}
+```
+
+Then use `OrdersRoot` in place of `PliantRoot` in your page.
+
+<Callout title="Coming before 1.0">
+  The adapter interface will change to support saving team and org overlays and
+  safe concurrent saves. A self-hosted server adapter with team and org layers
+  is planned too.
+</Callout>

@@ -26,9 +26,9 @@ AI is one way to make those changes. A user can ask "hide the notes column" and 
 
 A **surface** is one page or screen, such as `/orders`. Its customizations are stored and loaded together.
 
-A **region** is a group of items users can rearrange, such as a row of metric cards. You give the region an id and each item in it a slot id. Tables work the same way, with their columns as the items.
+A **region** is a group of items users can rearrange, such as a row of metric cards. You give the region an id, and each item in it (a _slot_) its own id. A **table** is customized the same way, with its columns as the items, but you connect it through a hook instead of a component.
 
-An **overlay** is a small JSON document that describes a change: a list of operations on the surface, such as "sort `orders-table` by `value`, descending" or "hide the `notes` column". Pliant checks every operation against a fixed schema before applying it, and skips any that don't pass. This is one operation:
+An **overlay** is a small JSON document that describes a change. It has an `id` and a list of operations on the surface, such as "sort `orders-table` by `value`, descending" or "hide the `notes` column". Every operation comes from a closed catalog of operations. Pliant checks each one against that catalog before applying it, and skips any that don't pass. This is one operation:
 
 ```json
 {
@@ -49,7 +49,9 @@ Overlays live in **layers**. There are four, from lowest to highest:
 
 When two layers set the same property, the higher layer wins. That's decided per property, not per page. A team can set a default sort while a user hides a column, and both apply.
 
-The page you wrote is the base. With no overlays, it renders exactly as it does without Pliant.
+Put together: a surface contains regions and tables; overlays describe changes to them; layers stack overlays from org down to session; Pliant applies the result on top of the page you wrote.
+
+The page you wrote is the base. With no overlays, it renders your page as you wrote it.
 
 <Callout title="Coming before 1.0">
   Pliant loads `org` and `team` overlays from your storage today, but nothing
@@ -62,12 +64,7 @@ The page you wrote is the base. With no overlays, it renders exactly as it does 
 
 ### Works without AI
 
-Sorting, column order, visibility and widths are saved as you use the table, with no AI involved. Pagination stays in the session layer. Filters do too, unless you choose to save them.
-
-<Callout title="Coming before 1.0">
-  Saved views, which let a user name and switch between arrangements, are
-  defined in the contract but not built yet.
-</Callout>
+Sorting, column order, visibility and widths are saved as you use the table, with no AI involved. Pagination stays in the session layer. Filters do too, unless you choose to save them. Saved views, named arrangements a user can switch between, are coming before 1.0.
 
 ### Uses your design system
 
@@ -75,7 +72,7 @@ Pliant's components are copied into your project with the shadcn CLI, like any s
 
 ### Safe by construction
 
-AI never writes code for your app. It can only produce overlays, made from a closed catalog of operations. The server checks each answer against that catalog and turns away requests that aren't about the view, such as "delete these orders". The browser validates every overlay again before applying it. Nothing an AI suggests is saved until the user locks it in.
+AI never writes code for your app. It can only produce overlays, made from a closed catalog of operations. The server checks each answer against that catalog and turns away requests that aren't about the view, such as "delete these orders". The browser validates every overlay again before applying it. Nothing an AI suggests is saved until the user saves it.
 
 ### Removable
 
