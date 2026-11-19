@@ -5,7 +5,7 @@ import {
   type CompileTableStateOptions,
 } from "./compile-table-state"
 import { loadOverlay, type LoadedOverlay } from "./load-overlay"
-import { resolveLayers, type ResolvedLayers } from "./resolve-layers"
+import { resolveLayers } from "./resolve-layers"
 
 const table = "orders-table"
 const columns = [
@@ -562,7 +562,7 @@ describe("compileTableState", () => {
       expect(
         compile([{ op: "rename", target: table, label: "Orders" }], { base })
           .grouping
-      ).toBe(base.grouping)
+      ).toEqual(base.grouping)
     })
   })
 
@@ -834,6 +834,82 @@ describe("compileTableState", () => {
     })
   })
 
+  describe("base", () => {
+    const baseline = () => ({
+      sorting: [{ id: "createdAt", desc: true }],
+      columnVisibility: { notes: false },
+      grouping: ["region"],
+      pagination: { pageIndex: 0, pageSize: 25 },
+    })
+    const base = baseline()
+    const rename = { op: "rename", target: table, label: "Orders" }
+
+    it("is never returned or changed", () => {
+      const state = compile([rename], { base })
+      expect(state.sorting).toEqual(base.sorting)
+      expect(state.sorting).not.toBe(base.sorting)
+      expect(state.sorting[0]).not.toBe(base.sorting[0])
+      expect(state.columnVisibility).not.toBe(base.columnVisibility)
+      expect(state.grouping).not.toBe(base.grouping)
+      expect(state.pagination).not.toBe(base.pagination)
+      compile([{ op: "show", target: column("notes") }], { base })
+      expect(base).toEqual(baseline())
+    })
+
+    it("must not be compiled state, or removed ops stay applied", () => {
+      const sorted = compile(
+        [
+          {
+            op: "setSort",
+            target: table,
+            sort: [{ field: "value", dir: "asc" }],
+          },
+        ],
+        { base }
+      )
+      expect(compile([rename], { base }).sorting).toEqual(base.sorting)
+      expect(compile([rename], { base: sorted }).sorting).toEqual([
+        { id: "value", desc: false },
+      ])
+    })
+
+    it("clears the base sort and grouping with only unknown fields", () => {
+      const state = compile(
+        [
+          {
+            op: "setSort",
+            target: table,
+            sort: [{ field: "margin", dir: "asc" }],
+          },
+          { op: "setGroupBy", target: table, fields: ["margin"] },
+        ],
+        { base }
+      )
+      expect(state.sorting).toEqual([])
+      expect(state.grouping).toEqual([])
+    })
+
+    it("keeps base pins and filters on ids that aren't columns", () => {
+      const state = compile(
+        [{ op: "pin", target: column("id"), where: "start" }],
+        {
+          base: {
+            columnPinning: {
+              start: ["select", "id", "notes"],
+              end: ["actions"],
+            },
+            columnFilters: [{ id: "search", value: "acme" }],
+          },
+        }
+      )
+      expect(state.columnPinning).toEqual({
+        start: ["select", "notes", "id"],
+        end: ["actions"],
+      })
+      expect(state.columnFilters).toEqual([{ id: "search", value: "acme" }])
+    })
+  })
+
   it("counts repeated column ids once", () => {
     const state = compile(
       [
@@ -979,18 +1055,29 @@ describe("compileTableState", () => {
             `01JBQ3V8Z7XKQ2M4N5P6R7${String(index).padStart(4, "0")}`
           )
       )
-      return {
-        ids,
-        resolved: resolveLayers(overlays, { surface: "/orders" }),
+      const resolved = resolveLayers(overlays, { surface: "/orders" })
+      expect(resolved.skipped).toEqual([])
+      const base: CompileTableStateOptions["base"] = {
+        sorting: [{ id: "c0", desc: true }],
+        columnVisibility: Object.fromEntries(ids.map((id) => [id, true])),
+        columnOrder: ids.toReversed(),
+        columnPinning: {
+          start: ids.filter((_, index) => index % 3 === 0),
+          end: [],
+        },
+        columnSizing: Object.fromEntries(ids.map((id) => [id, 150])),
+        columnFilters: ids.map((id) => ({ id, value: "x" })),
+        grouping: ["c1"],
       }
+      return { ids, resolved, base }
     }
 
     // Counts map reads, as resolveLayers' scaling tests do: 4n columns read
     // about 4 times as much when compiling is linear, 16 times when quadratic.
-    const reads = (ids: string[], resolved: ResolvedLayers) => {
+    const reads = ({ ids, resolved, base }: ReturnType<typeof many>) => {
       const spy = vi.spyOn(Map.prototype, "get")
       try {
-        compileTableState(resolved, { table, columns: ids })
+        compileTableState(resolved, { table, columns: ids, base })
         return spy.mock.calls.length
       } finally {
         spy.mockRestore()
@@ -1000,15 +1087,15 @@ describe("compileTableState", () => {
     it("compiles many columns", () => {
       const small = many(500)
       const large = many(2000)
-      expect(
-        reads(large.ids, large.resolved) / reads(small.ids, small.resolved)
-      ).toBeLessThan(6)
+      expect(reads(large) / reads(small)).toBeLessThan(6)
       const state = compileTableState(large.resolved, {
         table,
         columns: large.ids,
+        base: large.base,
       })
       expect(state.columnOrder).toHaveLength(2000)
       expect(state.columnPinning.end).toHaveLength(1000)
+      expect(state.columnPinning.start).toHaveLength(333)
       expect(state.columnFilters).toHaveLength(2000)
     })
   })

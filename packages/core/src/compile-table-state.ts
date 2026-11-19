@@ -18,8 +18,9 @@ export type FilterValue = WithoutField<Filter>
 
 /**
  * TanStack Table v9 state for a table node: the developer's base state with
- * the resolved layers applied on top. Each slice has the shape of the
- * TanStack state of the same name.
+ * the resolved layers applied on top. Each slice has the shape of the v9
+ * state of the same name, so pinning is `start`/`end`; a v8 adapter maps it
+ * to `left`/`right`.
  */
 export interface CompiledTableState {
   /** The `setSort` that holds replaces the whole list. */
@@ -30,7 +31,9 @@ export interface CompiledTableState {
   columnOrder: string[]
   /**
    * `pin start` and `sticky` move a column to `start`, `pin end` to `end`,
-   * and `pin none` takes it out of both.
+   * and `pin none` takes it out of both. A column an op pins goes after the
+   * base pins on its side, even when the base already pinned it there, as
+   * TanStack's `column.pin` does.
    */
   columnPinning: { start: string[]; end: string[] }
   /** `setColumnWidth` sets a column's width, clamped to its size limits. */
@@ -59,11 +62,18 @@ export interface CompileTableStateOptions {
   /** The table's column ids, in their definition order. */
   readonly columns: readonly string[]
   /**
-   * The developer's own state, such as their `initialState` or the state
-   * they manage, which the ops apply on top of. A slice left out starts from
-   * TanStack's default: empty, `columns` for `columnOrder`, and page 0 of 10
-   * rows for `pagination`. A partial `columnOrder` is completed with the
-   * rest of `columns`, as TanStack does.
+   * The developer's baseline, which the ops apply on top of: their
+   * `initialState`, or their own state as captured before Pliant syncs it.
+   * Never pass compiled state back in as `base`: an op that is later removed
+   * or undone would stay applied. The developer's own later changes (a
+   * `setSorting` call) reach the compiler as ops, not through `base`.
+   *
+   * A slice left out starts from TanStack's default: empty, `columns` for
+   * `columnOrder`, and page 0 of 10 rows for `pagination`. A partial
+   * `columnOrder` is completed with the rest of `columns`, as TanStack does.
+   * Base pins and filters on ids that aren't in `columns` are kept, since
+   * TanStack ignores them. `base` is never returned or changed: every slice
+   * is a new object, unless it is reused from `previous`.
    */
   readonly base?: Partial<CompiledTableState> | undefined
   /** Size limits by column id, which `setColumnWidth` widths clamp to. */
@@ -73,7 +83,9 @@ export interface CompileTableStateOptions {
    * returned as that same object, and when every slice is, so is `previous`
    * itself: TanStack recomputes its row models, and resets pagination, when
    * it gets a new object for unchanged state. Slices are compared as data
-   * (deeply), at a cost proportional to their size.
+   * (deeply, with `compareData`), at a cost proportional to their size. A
+   * value that isn't plain data, such as a `Date` in a base filter, is equal
+   * only to itself, so its slice is reused only while it is the same object.
    */
   readonly previous?: CompiledTableState | undefined
 }
@@ -112,7 +124,8 @@ function clamp(width: number, { minSize, maxSize }: ColumnSizeLimits = {}) {
  * - A data op's `field` is taken as the TanStack column id. A column whose id
  *   differs from its field (a nested `accessorKey` such as `customer.name`
  *   gets the id `customer_name`) can't be sorted, filtered or grouped by
- *   ops: those fields are left out.
+ *   ops: those fields are left out. A `setSort` or `setGroupBy` whose fields
+ *   are all left out still replaces the base list, so it clears it.
  * - `columnOrder` starts from the base order and applies placements as
  *   `orderItems` does. Anchors resolve against every column, hidden ones
  *   included. A column anchored on a pinned one sits next to the pin
@@ -147,20 +160,20 @@ export function compileTableState(
       ? sortOp.sort
           .filter(({ field }) => known.has(field))
           .map(({ field, dir }) => ({ id: field, desc: dir === "desc" }))
-      : (base.sorting ?? [])
+      : (base.sorting ?? []).map((sort) => ({ ...sort }))
 
   const groupOp = tableOp("groupBy")
   const grouping =
     groupOp?.op === "setGroupBy"
       ? groupOp.fields.filter((field) => known.has(field))
-      : (base.grouping ?? [])
+      : [...(base.grouping ?? [])]
 
   const pageOp = tableOp("page")
   const basePage = base.pagination ?? { pageIndex: 0, pageSize: 10 }
   const pagination =
     pageOp?.op === "setPage"
       ? { pageIndex: pageOp.index, pageSize: pageOp.size ?? basePage.pageSize }
-      : basePage
+      : { ...basePage }
 
   const columnVisibility = { ...base.columnVisibility }
   const columnSizing = { ...base.columnSizing }
