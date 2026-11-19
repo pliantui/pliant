@@ -9,30 +9,41 @@ import type { ResolvedLayers } from "./resolve-layers"
 type WithoutField<T> = T extends unknown ? Omit<T, "field"> : never
 
 /**
- * A column filter's value: the filter of a `setFilter` op without its
+ * The value of a column filter that a `setFilter` op sets: its filter without
  * `field`, such as `{ operator: "between", value: [10, 100] }`, or
  * `{ operator: "isNull" }`. The React layer registers one TanStack `filterFn`
  * per operator (`pliant:eq`, `pliant:between`, …) that reads this value.
  */
-export type PliantFilterValue = WithoutField<Filter>
+export type FilterValue = WithoutField<Filter>
 
 /**
- * TanStack Table v9 state for a table node, compiled from resolved layers.
- * Each slice has the shape of the TanStack state of the same name.
+ * TanStack Table v9 state for a table node: the developer's base state with
+ * the resolved layers applied on top. Each slice has the shape of the
+ * TanStack state of the same name.
  */
-export interface PliantTableState {
-  /** From the table's `sort`: `setSort` replaces the whole list. */
+export interface CompiledTableState {
+  /** The `setSort` that holds replaces the whole list. */
   sorting: { id: string; desc: boolean }[]
-  /** From each column's `visible`: `false` after `hide`, `true` after `show`. */
+  /** `hide` sets a column's entry to `false`, `show` to `true`. */
   columnVisibility: Record<string, boolean>
   /** Every column, hidden ones included, in resolved order. */
   columnOrder: string[]
-  /** Columns pinned `start` or `sticky`, and `end`, in resolved order. */
+  /**
+   * `pin start` and `sticky` move a column to `start`, `pin end` to `end`,
+   * and `pin none` takes it out of both.
+   */
   columnPinning: { start: string[]; end: string[] }
-  /** From each column's `width`, clamped to its size limits. */
+  /** `setColumnWidth` sets a column's width, clamped to its size limits. */
   columnSizing: Record<string, number>
-  /** From each column's `filter.<field>`, in the order of `columns`. */
-  columnFilters: { id: string; value: PliantFilterValue }[]
+  /**
+   * `setFilter` sets a column's filter, with a `FilterValue`, and
+   * `clearFilter` deletes it. Base filters keep their place and value type.
+   */
+  columnFilters: { id: string; value: unknown }[]
+  /** The `setGroupBy` that holds replaces the whole list. */
+  grouping: string[]
+  /** `setPage` sets `pageIndex`, and `pageSize` when it has a `size`. */
+  pagination: { pageIndex: number; pageSize: number }
 }
 
 /** A column's developer-set size limits, as in its TanStack column def. */
@@ -41,21 +52,30 @@ export interface ColumnSizeLimits {
   readonly maxSize?: number | undefined
 }
 
-/** What `compileTableState` compiles, and against what. */
+/** What `compileTableState` compiles, and on top of what. */
 export interface CompileTableStateOptions {
   /** The table node's id, or its slot address. */
   readonly table: string
-  /** The table's column ids, in their base order. */
+  /** The table's column ids, in their definition order. */
   readonly columns: readonly string[]
+  /**
+   * The developer's own state, such as their `initialState` or the state
+   * they manage, which the ops apply on top of. A slice left out starts from
+   * TanStack's default: empty, `columns` for `columnOrder`, and page 0 of 10
+   * rows for `pagination`. A partial `columnOrder` is completed with the
+   * rest of `columns`, as TanStack does.
+   */
+  readonly base?: Partial<CompiledTableState> | undefined
   /** Size limits by column id, which `setColumnWidth` widths clamp to. */
   readonly sizeLimits?: Readonly<Record<string, ColumnSizeLimits>> | undefined
   /**
    * The state compiled last time. Each slice equal to its previous one is
    * returned as that same object, and when every slice is, so is `previous`
    * itself: TanStack recomputes its row models, and resets pagination, when
-   * it gets a new object for unchanged state.
+   * it gets a new object for unchanged state. Slices are compared as data
+   * (deeply), at a cost proportional to their size.
    */
-  readonly previous?: PliantTableState | undefined
+  readonly previous?: CompiledTableState | undefined
 }
 
 const slices = [
@@ -65,7 +85,9 @@ const slices = [
   "columnPinning",
   "columnSizing",
   "columnFilters",
-] as const satisfies readonly (keyof PliantTableState)[]
+  "grouping",
+  "pagination",
+] as const satisfies readonly (keyof CompiledTableState)[]
 
 function reuse<T>(previous: T | undefined, next: T): T {
   return previous !== undefined && compareData(previous, next) === 0
@@ -78,36 +100,75 @@ function clamp(width: number, { minSize, maxSize }: ColumnSizeLimits = {}) {
 }
 
 /**
- * Compiles a table node's resolved layers into TanStack Table v9 state.
+ * Compiles a table node's resolved layers into TanStack Table v9 state, on
+ * top of the developer's `base` state. Ops apply per column and per field: a
+ * column or field no op decides keeps its base value, and an op that clears
+ * something (`setSort` with `[]`, `clearFilter`, `pin none`) clears it in the
+ * base too.
  *
- * Only the ops decide the state: a slice no op sets is empty (`columnOrder`
- * is then `columns`). Sorts and filters on fields that aren't one of
- * `columns` are left out, since TanStack keys its state by column id.
- * Columns are the items of the table's `columns` collection
- * (`orders-table/columns/notes`), ordered by `orderItems`; a `sticky` pin
- * pins to the start, since TanStack pinning is what keeps a column in view.
+ * - Columns are the items of the table's `columns` collection
+ *   (`orders-table/columns/notes`). Ops on ids that aren't in `columns` are
+ *   ignored, and repeated ids count once.
+ * - A data op's `field` is taken as the TanStack column id. A column whose id
+ *   differs from its field (a nested `accessorKey` such as `customer.name`
+ *   gets the id `customer_name`) can't be sorted, filtered or grouped by
+ *   ops: those fields are left out.
+ * - `columnOrder` starts from the base order and applies placements as
+ *   `orderItems` does. Anchors resolve against every column, hidden ones
+ *   included. A column anchored on a pinned one sits next to the pin
+ *   boundary on the centre side, since TanStack renders pinned columns
+ *   apart. A `sticky` column keeps its place in `columnOrder` but is pinned
+ *   to the start, since TanStack pinning is what keeps a column in view.
+ * - Columns an op pins follow the base pins, in base order (`start` pins,
+ *   then `sticky` ones).
+ * - Widths clamp to `sizeLimits`. TanStack also clamps rendered sizes to its
+ *   default `minSize` of 20, so a width below that renders at 20 unless the
+ *   column sets a lower `minSize`.
  */
 export function compileTableState(
   { properties, placements }: Pick<ResolvedLayers, "properties" | "placements">,
-  { table, columns, sizeLimits = {}, previous }: CompileTableStateOptions
-): PliantTableState {
+  {
+    table,
+    columns,
+    base = {},
+    sizeLimits = {},
+    previous,
+  }: CompileTableStateOptions
+): CompiledTableState {
   const node = identityOf(table)
-  const known = new Set(columns)
-  const tableProperties = properties.get(node)
+  const ids = [...new Set(columns)]
+  const known = new Set(ids)
+  const tableOp = (property: "sort" | "groupBy" | "page") =>
+    properties.get(node)?.get(property)?.winner.check.op
 
-  const sortOp = tableProperties?.get("sort")?.winner.check.op
+  const sortOp = tableOp("sort")
   const sorting =
     sortOp?.op === "setSort"
       ? sortOp.sort
           .filter(({ field }) => known.has(field))
           .map(({ field, dir }) => ({ id: field, desc: dir === "desc" }))
-      : []
+      : (base.sorting ?? [])
 
-  const columnVisibility: Record<string, boolean> = {}
-  const columnSizing: Record<string, number> = {}
-  const columnFilters: PliantTableState["columnFilters"] = []
+  const groupOp = tableOp("groupBy")
+  const grouping =
+    groupOp?.op === "setGroupBy"
+      ? groupOp.fields.filter((field) => known.has(field))
+      : (base.grouping ?? [])
+
+  const pageOp = tableOp("page")
+  const basePage = base.pagination ?? { pageIndex: 0, pageSize: 10 }
+  const pagination =
+    pageOp?.op === "setPage"
+      ? { pageIndex: pageOp.index, pageSize: pageOp.size ?? basePage.pageSize }
+      : basePage
+
+  const columnVisibility = { ...base.columnVisibility }
+  const columnSizing = { ...base.columnSizing }
+  const filters = new Map(
+    base.columnFilters?.map(({ id, value }) => [id, value])
+  )
   const positions = new Map<string, PlacementPosition | undefined>()
-  for (const column of columns) {
+  for (const column of ids) {
     const identity = `${node}/columns/${column}`
     const columnProperties = properties.get(identity)
     const visible = columnProperties?.get("visible")?.winner.check.op.op
@@ -118,30 +179,43 @@ export function compileTableState(
     if (widthOp?.op === "setColumnWidth") {
       columnSizing[column] = clamp(widthOp.width, sizeLimits[column])
     }
-    const filterOp = tableProperties?.get(`filter.${column}`)?.winner.check.op
+    const filterOp = properties.get(node)?.get(`filter.${column}`)?.winner
+      .check.op
     if (filterOp?.op === "setFilter") {
       const { field, ...value } = filterOp.filter
-      columnFilters.push({ id: field, value })
+      filters.set(field, value)
+    } else if (filterOp?.op === "clearFilter") {
+      filters.delete(column)
     }
     const placement = placements.get(identity)
     if (placement?.container === node) {
       positions.set(column, placement.position)
     }
   }
+  const columnFilters = Array.from(filters, ([id, value]) => ({ id, value }))
 
-  const columnOrder = orderItems(columns, (column) => positions.get(column))
-  const pinned = (where: "start" | "end") =>
-    columnOrder.filter((column) => {
-      const position = positions.get(column)
-      return (
-        position !== undefined &&
-        "pin" in position &&
-        (position.pin === where ||
-          (where === "start" && position.pin === "sticky"))
-      )
-    })
+  const baseOrder = [
+    ...new Set([
+      ...(base.columnOrder ?? []).filter((id) => known.has(id)),
+      ...ids,
+    ]),
+  ]
+  const columnOrder = orderItems(baseOrder, (column) => positions.get(column))
+  const pinnedBy = (column: string) => {
+    const position = positions.get(column)
+    return position && "pin" in position ? position.pin : undefined
+  }
+  const pinned = (where: "start" | "end") => [
+    ...(base.columnPinning?.[where] ?? []).filter(
+      (column) => pinnedBy(column) === undefined
+    ),
+    ...columnOrder.filter((column) => {
+      const pin = pinnedBy(column)
+      return pin === where || (where === "start" && pin === "sticky")
+    }),
+  ]
 
-  const next: PliantTableState = {
+  const next: CompiledTableState = {
     sorting: reuse(previous?.sorting, sorting),
     columnVisibility: reuse(previous?.columnVisibility, columnVisibility),
     columnOrder: reuse(previous?.columnOrder, columnOrder),
@@ -151,6 +225,8 @@ export function compileTableState(
     }),
     columnSizing: reuse(previous?.columnSizing, columnSizing),
     columnFilters: reuse(previous?.columnFilters, columnFilters),
+    grouping: reuse(previous?.grouping, grouping),
+    pagination: reuse(previous?.pagination, pagination),
   }
   return previous && slices.every((slice) => previous[slice] === next[slice])
     ? previous
