@@ -37,4 +37,5 @@ export {
 } from "./overlay"
 export { savedViewSchema, type SavedView } from "./saved-view"
 export { sortSchema, type Sort } from "./sort"
+export { storedOverlaySchema, type StoredOverlay } from "./stored-overlay"
 export { surfaceSchema, type Surface } from "./surface"

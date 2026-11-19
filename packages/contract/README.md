@@ -6,11 +6,11 @@ Pliant is in early development. See https://github.com/pliantui/pliant.
 
 ## Validating without JavaScript
 
-`schema/` holds JSON Schemas for overlays, ops, saved views and manifests, the op catalog as data in `catalog.json`, and the function catalog in `functions.json`. Patterns are ECMA-262 regular expressions: `\d` matches only ASCII digits and `$` matches only at the end of the string (Python's `re` differs on both). `format: date-time` (RFC 3339) must be checked. String lengths count Unicode code points, as `maxLength` does.
+`schema/` holds JSON Schemas for overlays, ops, saved views, stored overlays and manifests, the op catalog as data in `catalog.json`, and the function catalog in `functions.json`. Patterns are ECMA-262 regular expressions: `\d` matches only ASCII digits and `$` matches only at the end of the string (Python's `re` differs on both). `format: date-time` (RFC 3339) must be checked. String lengths count Unicode code points, as `maxLength` does.
 
 `catalog.json` is `{ "contract": 1, "ops": { [name]: { capability, layers, args } } }`. `capability` is checked against manifests at resolution time; `null` means none is needed. `args` holds one list of top-level argument keys per shape, without `op` and `target`. When an op's shapes need different capabilities, `capability` is a list with one entry per `args` list, in the same order: `setDefault` needs `form` on the field's parent without `prop`, and `defaults` on the target with it. `layers` and the keys in each `args` list are unordered. New ops and fields may be added within contract 1, so ignore keys you don't know.
 
-Before anything else, reject an overlay, saved view or manifest if any object in it, at any depth, has a key named `__proto__`, `constructor` or `prototype`. JSON parsers can produce these keys, and some runtimes treat them specially.
+Before anything else, reject an overlay, saved view, stored overlay or manifest if any object in it, at any depth, has a key named `__proto__`, `constructor` or `prototype`. JSON parsers can produce these keys, and some runtimes treat them specially.
 
 To validate an overlay:
 
@@ -31,6 +31,17 @@ When loading a saved overlay, apply only valid ops, flag unknown and newer ones,
 A `setDefault` with `prop` also needs `prop` declared in the target's `defaults` capability and a `value` that fits the declaration: one of its `values`, a boolean for `type: "boolean"`, a number from `min` to `max` for `type: "number"`, or an ISO 8601 calendar date (`YYYY-MM-DD`) for `type: "date"`. These values are never data values. A field's default, without `prop`, is a data value and must parse with the field's schema.
 
 A saved view also needs every overlay to have the view's `surface` and `layer`, the same `scope.org` and `scope.team` as the others, and a unique `id`. In a manifest, a prop's `default` and `semantic` values must be among its `values`. A `defaults` declaration of `type: "number"` needs `min` at most `max`.
+
+## Stored overlays
+
+A storage adapter stores and returns each overlay as a record that `stored-overlay.json` and `storedOverlaySchema` describe: `{ overlay, etag, version, updatedAt }`.
+
+- `overlay` is checked as a saved overlay: the record is valid even when some ops are unknown, newer or invalid, and the adapter keeps every op and unknown field unchanged.
+- `etag` is an opaque string of 1 to 256 characters. Every successful save gives the overlay an etag it has never had before. Clients only compare etags for equality.
+- `version` is an integer from 1. The adapter increases it on every save. For a team or org overlay it is the version that `basis.layers` records, and clients compare versions to tell that a layer changed.
+- `updatedAt` is an RFC 3339 date-time with an offset, like `createdAt`.
+
+The adapter methods and the `conflict` result of a conditional save belong to `@pliantui/react`, not to the contract.
 
 ## Function catalog
 
