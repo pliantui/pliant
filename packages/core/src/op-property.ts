@@ -46,11 +46,19 @@ export type OpPropertyKey =
   | `props.${string}`
   | `${UserItemKind}.${string}`
 
+/** One (identity, property) pair an op writes; see `opProperties`. */
 export interface OpProperty {
+  /** The identity written, as in `ResolvedLayers.properties`. */
   readonly address: string
-  // An item's placement resolves apart from its properties, into
-  // `ResolvedLayers.placements`; "placement" never reaches `properties`.
+  /**
+   * The property written. `"placement"` resolves into
+   * `ResolvedLayers.placements`, never into `properties`.
+   */
   readonly property: OpPropertyKey | "placement"
+  /**
+   * Set for `layout` and `span` only: the breakpoint written, `md` when the
+   * op has no `at`.
+   */
   readonly breakpoint?: Breakpoint
 }
 
@@ -63,10 +71,14 @@ function one(address: string, property: OpProperty["property"]): OpProperty[] {
 }
 
 /**
- * The (address, property) pairs an op writes, keyed by identity (see
- * `identityOf`): a node's bare id, an item's address on its node, or a
- * reserved target. `remove` and `removeUserItem` list the pairs they may
- * clear; resolution decides which ones they do.
+ * The (address, property) pairs an op writes, following the op → property
+ * table that `resolveLayers` resolves by. Addresses are identities: a node's
+ * bare id, an item's address on its node, or a reserved target. `remove` and
+ * `removeUserItem` list the pairs they may clear; resolution decides which
+ * ones they do. Two ops with the same pairs (and breakpoints) write the same
+ * values, so a runtime can replace the earlier one with the later.
+ *
+ * Takes a valid op, such as one from `validateOverlay` or a `valid` check.
  */
 export function opProperties(op: Op): readonly OpProperty[] {
   const target = identityOf(op.target)
