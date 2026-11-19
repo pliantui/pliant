@@ -481,6 +481,16 @@ describe("useAskPanel", () => {
     expect(send).toHaveBeenCalledTimes(1)
   })
 
+  it("keeps the app's callback ref attached across renders", async () => {
+    const ref = vi.fn<(element: HTMLTextAreaElement | null) => void>()
+    await renderPanel({ promptProps: { ref } })
+
+    fireEvent.change(prompt(), { target: { value: "make it" } })
+    fireEvent.change(prompt(), { target: { value: "make it wider" } })
+
+    expect(ref.mock.calls).toEqual([[prompt()]])
+  })
+
   it("keeps forgetting a rejected pick when the app handles the picker's blur", async () => {
     const onBlur = vi.fn()
     const { rerender } = await renderPanel({
@@ -889,6 +899,19 @@ describe("useAskPanel over its target", () => {
       behavior: "smooth",
     })
     expect(document.activeElement).toBe(prompt())
+  })
+
+  it.each<[string, Box]>([
+    ["above the viewport", [0, -500, 400, 200]],
+    ["below the viewport", [0, 900, 400, 200]],
+  ])("scrolls a target %s into view", async (_, target) => {
+    layout({ target, panel: docked })
+    await renderPanel()
+    answer(okAnswer)
+
+    await ask()
+
+    expect(scrollIntoView).toHaveBeenCalledTimes(1)
   })
 
   it("scrolls instantly when motion is reduced", async () => {

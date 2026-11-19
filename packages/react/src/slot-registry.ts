@@ -2,6 +2,8 @@ import type { ReactNode } from "react"
 
 import { slotIdSchema } from "@pliantui/contract"
 
+import { isDevelopment } from "./is-development"
+
 interface Declaration {
   readonly rank: number
   readonly region: string
@@ -37,18 +39,6 @@ export interface SlotRegistry {
   /** Calls `listener` when the content of slot `id` changes. */
   readonly subscribe: (id: string, listener: () => void) => () => void
 }
-
-// Bundlers replace `process.env.NODE_ENV`; where none did and there is no
-// `process`, this is a browser build that isn't development.
-function readIsDevelopment() {
-  try {
-    return process.env.NODE_ENV !== "production"
-  } catch {
-    return false
-  }
-}
-
-const isDevelopment = readIsDevelopment()
 
 export function createSlotRegistry(): SlotRegistry {
   const declarations = new Map<object, Declaration>()
