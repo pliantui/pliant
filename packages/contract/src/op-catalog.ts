@@ -6,21 +6,26 @@ type AppliesTo = "target" | "parent" | "surface" | "app"
 
 export interface OpDefinition {
   /**
-   * The capability the op needs, or `null` for none. An op whose shapes need
-   * different capabilities lists one per `args` list, in the same order, and
-   * `appliesTo` does the same.
+   * The capability the op's target must have, or `null` for none. An op whose
+   * shapes need different capabilities lists one per `args` list, and
+   * `appliesTo` does the same: `capability[i]` and `appliesTo[i]` apply to the
+   * shape `args[i]`.
    */
   readonly capability: Capability | null | readonly Capability[]
   readonly appliesTo: AppliesTo | readonly AppliesTo[]
   readonly layers: readonly Layer[]
   /**
    * The op's top-level argument keys, without `op` and `target`: one list per
-   * shape, in no particular order unless `capability` is a list. An op that
-   * fails its schema comes from a newer version when it passes after removing
-   * every key other than `op` and `target` that appears in none of these
-   * lists. Unknown keys nested inside an argument, a new value for a shape's
-   * discriminator, and a key added to one shape that another shape already has
-   * all leave the op invalid.
+   * shape. When `capability` is a single value, the order of the lists doesn't
+   * matter. When it is a list, the order always matters: the lists go from
+   * narrowest to widest, and an op's shape is the first list that contains
+   * every argument key the op has.
+   *
+   * An op that fails its schema comes from a newer version when it passes
+   * after removing every key other than `op` and `target` that appears in none
+   * of these lists. Unknown keys nested inside an argument, a new value for a
+   * shape's discriminator, and a key added to one shape that another shape
+   * already has all leave the op invalid.
    */
   readonly args: readonly (readonly string[])[]
 }

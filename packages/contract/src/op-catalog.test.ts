@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import * as z from "zod"
 
+import { readOpFixtures } from "../test/fixtures"
 import { opSchemas } from "./op"
 import { opCatalog } from "./op-catalog"
 
@@ -65,6 +66,39 @@ describe("opCatalog", () => {
       appliesTo: ["parent", "target"],
       args: [["value"], ["prop", "value"]],
     })
+  })
+
+  it("picks a list-form op's shape as the first args list with all its keys", () => {
+    const shapeOf = (args: readonly (readonly string[])[], op: object) => {
+      const keys = Object.keys(op).filter(
+        (key) => key !== "op" && key !== "target"
+      )
+      return args.findIndex((list) => keys.every((key) => list.includes(key)))
+    }
+    const fixtures = readOpFixtures()
+    for (const [name, { capability, args }] of Object.entries(opCatalog)) {
+      if (!Array.isArray(capability)) {
+        continue
+      }
+      for (const [index, list] of args.entries()) {
+        expect(list.length).toBeGreaterThanOrEqual(args[index - 1]?.length ?? 0)
+      }
+      for (const op of fixtures.get(name)?.valid ?? []) {
+        expect(shapeOf(args, z.object({}).loose().parse(op))).not.toBe(-1)
+      }
+    }
+    const { args } = opCatalog.setDefault
+    expect(
+      shapeOf(args, { op: "setDefault", target: "f/fields/a", value: null })
+    ).toBe(0)
+    expect(
+      shapeOf(args, {
+        op: "setDefault",
+        target: "tabs",
+        prop: "defaultValue",
+        value: "a",
+      })
+    ).toBe(1)
   })
 
   it("matches the published file", async () => {
