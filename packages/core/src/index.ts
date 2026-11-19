@@ -27,6 +27,14 @@ export {
   type UnappliedReason,
 } from "./resolve-layers"
 export {
+  resolveRegion,
+  type RegionEntry,
+  type RegionLayout,
+  type ByBreakpoint,
+  type ResolvedRegion,
+  type ResolveRegionOptions,
+} from "./resolve-region"
+export {
   validateOverlay,
   type ValidateOverlayLayers,
   type ValidateOverlayOptions,

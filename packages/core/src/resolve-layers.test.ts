@@ -174,7 +174,34 @@ describe("resolveLayers", () => {
       placements: new Map(),
       skipped: [],
       unapplied: [],
+      overlays: [],
+      baseIds: undefined,
     })
+  })
+
+  it("lists the overlays in resolution order", () => {
+    const overlay = overlays()
+    const ops = [{ op: "hide", target: "orders-table" }]
+    const personal = overlay("personal", ops)
+    const other = overlay("personal", ops, { surface: "/other" })
+    const org = overlay("org", ops)
+
+    expect(resolve([other, org, personal]).overlays).toEqual([
+      org,
+      personal,
+      other,
+    ])
+  })
+
+  it("returns the base ids it read", () => {
+    expect(resolve([], { baseIds: ["a", "b"] }).baseIds).toEqual({
+      ids: new Set(["a", "b"]),
+      source: "inventory",
+    })
+    const ids = new Set(["a"])
+    const { baseIds } = resolve([], { baseIds: { ids, source: "mounted" } })
+    ids.add("b")
+    expect(baseIds).toEqual({ ids: new Set(["a"]), source: "mounted" })
   })
 
   it("lets the higher layer win, whatever order overlays are given in", () => {

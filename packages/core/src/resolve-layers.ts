@@ -5,7 +5,12 @@ import type { LoadedOverlay } from "./load-overlay"
 import type { OpPropertyKey } from "./op-property"
 import { scopeKeyOf } from "./overlay-scope"
 import type { ResolvedPlacement } from "./placement"
-import { applyOp, createResolution, settleResolution } from "./resolution"
+import {
+  applyOp,
+  createResolution,
+  readBaseIds,
+  settleResolution,
+} from "./resolution"
 import { surfaceOrder } from "./surface-order"
 
 /**
@@ -193,6 +198,17 @@ export interface ResolvedLayers {
   readonly skipped: readonly SkippedOp[]
   /** Valid ops that didn't apply, in resolution order. */
   readonly unapplied: readonly UnappliedOp[]
+  /**
+   * The overlays in resolution order, skipped ones included. Ops apply in
+   * this order, then by their index in the overlay.
+   */
+  readonly overlays: readonly LoadedOverlay[]
+  /**
+   * The `baseIds` resolution used, read as `{ ids, source }`, if given. The
+   * ids are a set copied when resolving, so changing the caller's ids
+   * afterwards doesn't change them.
+   */
+  readonly baseIds: BaseIds | undefined
 }
 
 /**
@@ -220,14 +236,16 @@ export function resolveLayers(
   overlays: readonly LoadedOverlay[],
   { surface, baseIds, teamOrder = [] }: ResolveLayersOptions
 ): ResolvedLayers {
-  const state = createResolution(baseIds)
+  const read = readBaseIds(baseIds)
+  const known: BaseIds | undefined = read && {
+    ids: new Set(read.ids),
+    source: read.source,
+  }
+  const state = createResolution(known)
   const skipped: SkippedOp[] = []
   const unapplied: UnappliedOp[] = []
-  for (const { overlay, reason } of surfaceOrder(
-    overlays,
-    surface,
-    teamOrder
-  )) {
+  const ordered = surfaceOrder(overlays, surface, teamOrder)
+  for (const { overlay, reason } of ordered) {
     const scope = scopeKeyOf(overlay)
     for (const check of overlay.ops) {
       if (reason) {
@@ -242,5 +260,11 @@ export function resolveLayers(
       }
     }
   }
-  return { ...settleResolution(state), skipped, unapplied }
+  return {
+    ...settleResolution(state),
+    skipped,
+    unapplied,
+    overlays: ordered.map(({ overlay }) => overlay),
+    baseIds: known,
+  }
 }
