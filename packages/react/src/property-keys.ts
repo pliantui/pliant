@@ -26,3 +26,19 @@ export function changeKeyOf(overlay: LoadedOverlay) {
   }
   return [...keys].sort().join("\n")
 }
+
+/**
+ * Whether an op's effect depends on the order of placements and insertions:
+ * resolution keeps every place an item has been, so later anchors on it
+ * still hold, and a `remove` undoes only what its scope added. Dropping
+ * such an op, or moving another below it, can change what other ops do.
+ */
+export function dependsOnHistory(op: Op) {
+  return (
+    op.op === "remove" ||
+    op.op === "removeUserItem" ||
+    opProperties(op).some(
+      ({ property }) => property === "placement" || property === "inserted"
+    )
+  )
+}

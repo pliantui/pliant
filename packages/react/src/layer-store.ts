@@ -1,3 +1,5 @@
+import * as z from "zod"
+
 import { opCatalog, type Op } from "@pliantui/contract"
 import {
   formatError,
@@ -9,7 +11,7 @@ import {
   type ValidatedOverlay,
 } from "@pliantui/core"
 
-import { changeKeyOf, propertiesOf } from "./property-keys"
+import { changeKeyOf, dependsOnHistory, propertiesOf } from "./property-keys"
 import { differingProperties, viewOf } from "./resolved-view"
 import { readSession, writeSession } from "./session-mirror"
 import type { StorageAdapter, StoredLayers } from "./storage-adapter"
@@ -103,16 +105,24 @@ export interface PliantStore {
   readonly preview: (overlay: unknown) => OverlayResult
   /**
    * Ends the preview by keeping it: its ops become a new personal version,
-   * saved at once, and the session changes to the properties they write are
-   * dropped, so they can't hide it.
+   * saved at once. Session changes to the same whole-value properties
+   * (such as `visible`, `width` or `sort`) are dropped, so they can't hide
+   * it.
    *
    * Some ops stay in the session layer instead, as a new session overlay
-   * above the others, and are listed in `keptInSession`: ops allowed only in
-   * the session layer, such as `setPage`, and every op whose move would
-   * change the resolved view, such as a move into a node a session `wrap`
-   * creates, or one that would drop that `wrap`. The resolved view (each
-   * property's winning op, each placement, and each op that doesn't apply)
-   * is the same before and after; `overlay` is `null` when every op stays.
+   * above the others, and are listed in `keptInSession`:
+   * - ops allowed only in the session layer, such as `setPage`;
+   * - ops that share a property with a session placement, insertion or
+   *   removal, which are never dropped, since resolution keeps their history
+   *   (later anchors on a moved item still use its old place);
+   * - ops that don't validate as a personal version;
+   * - ops whose move would change the resolved view (each property's
+   *   winning op, each placement, and each op that doesn't apply), such as a
+   *   move into a node a session `wrap` creates;
+   * - with each of these, every op that shares a property with it.
+   *
+   * The resolved view is the same before and after. `overlay` is `null` when
+   * every op stays in the session layer.
    */
   readonly lockIn: () => LockInResult
   /** Drops the preview. */
@@ -516,58 +526,115 @@ export function createLayerStore({
     }
     const overlay: LoadedOverlay = loadedPreview
     const target = viewOf(getResolved())
-    const valid = overlay.ops.flatMap((check) =>
-      check.status === "valid" ? [check] : []
+    const valid = new Map(
+      overlay.ops.flatMap((check) =>
+        check.status === "valid" ? [[check.index, check.op] as const] : []
+      )
+    )
+    const propertiesByIndex = new Map(
+      [...valid].map(([index, op]) => [index, propertiesOf(op)] as const)
     )
     const time = tick()
     const createdAt = new Date(time).toISOString()
     const lockedId = generateId(time)
     const keptId = generateId(time)
 
-    function plan(toPersonal: ReadonlySet<number>) {
-      let locked: ValidatedOverlay | undefined
-      if (toPersonal.size > 0) {
-        const result = validate(
-          {
-            ...withOps(overlay, (index) => toPersonal.has(index)),
-            id: lockedId,
-            layer: "personal",
-            createdAt,
+    // Validates the preview's ops at `indices` as one overlay of `layer`,
+    // with issues pointing at the preview's own ops.
+    function check(indices: readonly number[], layer: "personal" | "session") {
+      const result = validateOverlay(
+        {
+          ...withOps(overlay, (index) => indices.includes(index)),
+          id: layer === "personal" ? lockedId : keptId,
+          layer,
+          createdAt,
+        },
+        {
+          layers: {
+            overlays: lowerOf(layer),
+            surface,
+            baseIds: { ids: mountedIds, source: "mounted" },
+            teamOrder,
           },
-          "personal"
-        )
-        if (!result.success) {
-          return result
         }
-        locked = result.overlay
-      }
-      let kept: ValidatedOverlay | undefined
-      if (valid.some(({ index }) => !toPersonal.has(index))) {
-        const result = validate(
-          {
-            ...withOps(
-              overlay,
-              (index) =>
-                !toPersonal.has(index) && overlay.ops[index]?.status === "valid"
-            ),
-            id: keptId,
-            layer: "session",
-            createdAt,
-          },
-          "session"
-        )
-        if (!result.success) {
-          return result
-        }
-        kept = result.overlay
-      }
-      const { kept: trimmed, dropped } = withoutProperties(
-        session,
-        new Set(locked?.ops.flatMap((op) => propertiesOf(op)))
       )
-      const nextSession = [...trimmed, ...(kept ? [kept] : [])]
-      return { success: true as const, locked, kept, nextSession, dropped }
+      if (result.success) {
+        return { success: true as const, overlay: result.data }
+      }
+      const failing = new Set<number>()
+      const issues = result.error.issues.map((issue) => {
+        const [first, position, ...rest] = issue.path
+        const index =
+          first === "ops" && typeof position === "number"
+            ? indices[position]
+            : undefined
+        if (index === undefined) {
+          return issue
+        }
+        failing.add(index)
+        return { ...issue, path: ["ops", index, ...rest] }
+      })
+      return {
+        success: false as const,
+        failing,
+        error: formatError(new z.ZodError(issues)),
+      }
     }
+
+    // Moving an op back also moves every locked op that shares a property
+    // with it, transitively, so a chain of such ops moves in one round.
+    function withoutConnected(
+      toPersonal: ReadonlySet<number>,
+      moving: Iterable<number>
+    ) {
+      const remaining = new Set(toPersonal)
+      const moved = new Set<number>()
+      const queue = [...moving]
+      for (let next = queue.pop(); next !== undefined; next = queue.pop()) {
+        if (moved.has(next)) {
+          continue
+        }
+        moved.add(next)
+        remaining.delete(next)
+        const properties = propertiesByIndex.get(next) ?? []
+        for (const index of remaining) {
+          if (
+            propertiesByIndex
+              .get(index)
+              ?.some((property) => properties.includes(property))
+          ) {
+            queue.push(index)
+          }
+        }
+      }
+      return remaining
+    }
+
+    // Session ops whose effect depends on history are never dropped, so a
+    // locked op sharing a property with one stays in the session layer.
+    const protectedProperties = new Set(
+      session.flatMap(
+        (input) =>
+          load(input)?.ops.flatMap((check) =>
+            check.status === "valid" && dependsOnHistory(check.op)
+              ? propertiesOf(check.op)
+              : []
+          ) ?? []
+      )
+    )
+    let toPersonal = withoutConnected(
+      new Set(
+        [...valid].flatMap(([index, op]) =>
+          opCatalog[op.op].layers.includes("personal") ? [index] : []
+        )
+      ),
+      [...valid].flatMap(([index, op]) =>
+        !opCatalog[op.op].layers.includes("personal") ||
+        propertiesOf(op).some((property) => protectedProperties.has(property))
+          ? [index]
+          : []
+      )
+    )
 
     // Each round compares what the user would see with what they see now,
     // and moves the locked ops involved in a difference (writing a differing
@@ -575,67 +642,83 @@ export function createLayerStore({
     // session layer, all of them when none is found. Every round moves at
     // least one op, and with none left the preview is a session overlay
     // above every other one, as it was.
-    let toPersonal = new Set(
-      valid.flatMap(({ op, index }) =>
-        opCatalog[op.op].layers.includes("personal") ? [index] : []
+    for (;;) {
+      const personalIndices = [...valid.keys()].filter((index) =>
+        toPersonal.has(index)
       )
-    )
-    let planned = plan(toPersonal)
-    while (planned.success && planned.locked) {
-      const differing = differingProperties(
-        target,
-        viewOf(
-          resolve([
-            ...org,
-            ...team,
-            ...personal,
-            planned.locked,
-            ...planned.nextSession,
-          ])
+      const sessionIndices = [...valid.keys()].filter(
+        (index) => !toPersonal.has(index)
+      )
+      const locked =
+        personalIndices.length > 0
+          ? check(personalIndices, "personal")
+          : undefined
+      if (locked && !locked.success) {
+        toPersonal = withoutConnected(
+          toPersonal,
+          locked.failing.size > 0 ? locked.failing : toPersonal
         )
-      )
-      if (differing.size === 0) {
-        break
+        continue
       }
-      const touched = planned.dropped.filter((properties) =>
-        properties.some((property) => differing.has(property))
+      const kept =
+        sessionIndices.length > 0 ? check(sessionIndices, "session") : undefined
+      if (kept && !kept.success) {
+        return { success: false, error: kept.error }
+      }
+      const { kept: trimmed, dropped } = withoutProperties(
+        session,
+        new Set(locked?.overlay.ops.flatMap((op) => propertiesOf(op)))
       )
-      const involved = [...toPersonal].filter((index) => {
-        const check = overlay.ops[index]
-        if (check?.status !== "valid") {
-          return true
-        }
-        const properties = propertiesOf(check.op)
-        return properties.some(
-          (property) =>
-            differing.has(property) ||
-            touched.some((dropped) => dropped.includes(property))
+      const nextSession = [...trimmed, ...(kept ? [kept.overlay] : [])]
+      if (locked) {
+        const differing = differingProperties(
+          target,
+          viewOf(
+            resolve([
+              ...org,
+              ...team,
+              ...personal,
+              locked.overlay,
+              ...nextSession,
+            ])
+          )
         )
-      })
-      const moved = new Set(involved.length > 0 ? involved : toPersonal)
-      toPersonal = new Set([...toPersonal].filter((index) => !moved.has(index)))
-      planned = plan(toPersonal)
-    }
-    if (!planned.success) {
-      return planned
-    }
-    if (!planned.locked && !planned.kept) {
-      return { success: false, error: "The preview has no valid ops" }
-    }
-    flush()
-    if (planned.locked) {
-      personal = [...personal, planned.locked]
-      unsaved.set(planned.locked.id, planned.locked)
-      persist()
-    }
-    session = planned.nextSession
-    previewed = null
-    mirror()
-    changeLayers()
-    return {
-      success: true,
-      overlay: planned.locked ?? null,
-      keptInSession: planned.kept?.ops ?? [],
+        if (differing.size > 0) {
+          const touched = dropped.filter((properties) =>
+            properties.some((property) => differing.has(property))
+          )
+          const involved = personalIndices.filter((index) =>
+            (propertiesByIndex.get(index) ?? []).some(
+              (property) =>
+                differing.has(property) ||
+                touched.some((properties) => properties.includes(property))
+            )
+          )
+          toPersonal = withoutConnected(
+            toPersonal,
+            involved.length > 0 ? involved : personalIndices
+          )
+          continue
+        }
+      }
+      if (!locked && !kept) {
+        return { success: false, error: "The preview has no valid ops" }
+      }
+      flush()
+      if (locked) {
+        personal = [...personal, locked.overlay]
+        unsaved.set(locked.overlay.id, locked.overlay)
+        persist()
+      }
+      session = nextSession
+      previewed = null
+      mirror()
+      changeLayers()
+      return {
+        success: true,
+        overlay: locked?.overlay ?? null,
+        keptInSession: kept?.overlay.ops ?? [],
+      }
     }
   }
 

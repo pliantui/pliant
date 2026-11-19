@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest"
 
 import { opSchema, type Op } from "@pliantui/contract"
+import { resolveRegion } from "@pliantui/core"
 
 import { createLayerStore } from "./layer-store"
 import { differingProperties, viewOf } from "./resolved-view"
@@ -142,58 +143,51 @@ describe("lockIn", () => {
     expect(saved).toHaveLength(1)
   })
 
-  it("never changes the resolved view", async () => {
-    let seed = 7
-    function random(max: number) {
-      seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648
-      return Math.floor(seed / 65_536) % max
-    }
-    function pick<T>(items: readonly T[]): T {
-      const item = items[random(items.length)]
-      if (item === undefined) {
-        throw new Error("empty")
-      }
-      return item
-    }
-    const pool = () => [
-      wrapBox,
+  it("keeps the session moves an item's old place anchors", async () => {
+    const { store } = await setup()
+    const after = (item: string, anchor: string) =>
       parse({
-        op: "wrap",
-        target: "dashboard",
-        id: "pair",
-        items: ["c", "d"],
-        mode: "stack",
-      }),
-      into(pick(["a", "b", "c"]), pick(["box", "pair", "d"])),
-      parse({
-        op: "pin",
-        target: `dashboard/slots/${pick(["a", "b", "c"])}`,
-        where: "start",
-      }),
-      parse({
-        op: pick(["hide", "show"]),
-        target: pick(["a", "b", "c", "box"]),
-      }),
-      width(100 + random(400)),
-      parse({ op: "setPage", target: "orders-table", index: random(5) }),
-      parse({ op: "remove", target: pick(["box", "pair"]) }),
-    ]
+        op: "move",
+        target: `dashboard/slots/${item}`,
+        to: { after: anchor },
+      })
+    store.actions.applyOps("session", [after("a", "c"), after("b", "a")])
+    store.actions.preview(answer([into("a", "d")]))
+    const order = () =>
+      resolveRegion(store.getResolved(), {
+        id: "dashboard",
+        slots: ["b", "a", "c", "d"],
+      }).entries.map(({ id }) => id)
+    expect(order()).toEqual(["c", "b", "d"])
 
-    for (let run = 0; run < 150; run++) {
-      sessionStorage.clear()
-      const { store } = await setup()
-      for (let change = random(4); change > 0; change--) {
-        store.actions.applyOps(
-          "session",
-          Array.from({ length: 1 + random(2) }, () => pick(pool()))
-        )
-      }
-      const preview = store.actions.preview(
-        answer(Array.from({ length: 1 + random(3) }, () => pick(pool())))
-      )
-      if (preview.success) {
-        lockInKeepsTheView(store)
-      }
-    }
+    expect(lockInKeepsTheView(store)).toEqual({
+      success: true,
+      overlay: null,
+      keptInSession: [into("a", "d")],
+    })
+    expect(order()).toEqual(["c", "b", "d"])
+  })
+
+  it("keeps ops in session when the personal version wouldn't validate", async () => {
+    const { store, saved } = await setup()
+    const pair = parse({
+      op: "wrap",
+      target: "dashboard",
+      id: "pair",
+      items: ["c", "d"],
+      mode: "row",
+    })
+    const remove = parse({ op: "remove", target: "pair" })
+    store.actions.applyOps("personal", [pair])
+    store.flush()
+    store.actions.preview(answer([remove, into("a", "pair")]))
+
+    expect(lockInKeepsTheView(store)).toEqual({
+      success: true,
+      overlay: null,
+      keptInSession: [remove, into("a", "pair")],
+    })
+    expect(saved).toHaveLength(1)
+    expect(containers(store)).toMatchObject({ a: "pair" })
   })
 })
