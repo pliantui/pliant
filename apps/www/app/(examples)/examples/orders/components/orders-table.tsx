@@ -4,7 +4,7 @@ import { useId, type CSSProperties } from "react"
 import { useTable, type Column } from "@tanstack/react-table"
 import { ChevronDown } from "lucide-react"
 
-import { usePliantNode } from "@pliantui/react"
+import { usePliantNodeProps } from "@pliantui/react"
 import { usePliantTable } from "@pliantui/react/table"
 
 import { Button } from "@/components/ui/button"
@@ -55,12 +55,12 @@ function getColumnStyles(
   }
 }
 
-const id = "orders-table"
+const nodeId = "orders-table"
 
 export function OrdersTable({ data }: { data: Order[] }) {
   const titleId = useId()
-  const node = usePliantNode(id)
-  const options = usePliantTable({ features, data, columns }, { id })
+  const node = usePliantNodeProps(nodeId)
+  const options = usePliantTable({ features, data, columns }, { id: nodeId })
   const table = useTable(options)
   const { pageIndex, pageSize } = table.state.pagination
   const rowCount = table.getRowCount()

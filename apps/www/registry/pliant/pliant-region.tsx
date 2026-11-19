@@ -7,7 +7,7 @@ import { ChevronDownIcon } from "lucide-react"
 import type { ByBreakpoint, RegionEntry, RegionLayout } from "@pliantui/core"
 import {
   PliantActivity,
-  usePliantNode,
+  usePliantNodeProps,
   usePliantRegion,
   useRegionItems,
   useSlotContent,
@@ -331,7 +331,7 @@ function CollapseTrigger({
 }) {
   return (
     <Button
-      {...item.props}
+      {...item.getTriggerProps()}
       variant="ghost"
       size="sm"
       className="col-span-full -ml-2.5 self-start justify-self-start"
@@ -382,7 +382,7 @@ function PliantRegion({
    */
   slots: Slots
 }) {
-  const node = usePliantNode(id)
+  const node = usePliantNodeProps(id)
   const region = usePliantRegion(id, slots)
   return (
     <div
