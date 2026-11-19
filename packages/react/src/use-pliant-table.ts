@@ -367,8 +367,8 @@ export function usePliantTable<
   })
 
   // State that differs on every render (a new sort each time, say) would
-  // sync forever, so syncing stops after many syncs in a row without a
-  // change from the table, until the next one.
+  // sync forever, so syncing stops after many syncs in a row in one task,
+  // until the next task.
   useLayoutEffect(() => {
     const developerState = read(options, "state")
     const { sent, seen } = sync.current
@@ -398,6 +398,14 @@ export function usePliantTable<
       }
     }
     sync.current.syncs = synced ? sync.current.syncs + 1 : 0
+    if (synced) {
+      // A loop re-renders synchronously, within one task, so this runs only
+      // once it has ended: syncs spread over time never add up.
+      const current = sync.current
+      queueMicrotask(() => {
+        current.syncs = 0
+      })
+    }
     if (sync.current.syncs > maxSyncs) {
       warnInDevelopment(
         `Pliant: the state passed to ${id} changes on every render, so Pliant stopped syncing it. Pass state that changes only when the table's does.`

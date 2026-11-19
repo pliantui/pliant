@@ -828,6 +828,55 @@ describe("usePliantTable with state rebuilt with dates", () => {
     expect(renders.mock.calls.length).toBeLessThan(10)
   })
 
+  it("keeps syncing state pushed from outside over time", async () => {
+    const harness: {
+      push?: (sorting: SortingState) => void
+      sorting?: SortingState
+    } = {}
+    function Table() {
+      const [sorting, setSorting] = useState<SortingState>([])
+      const table = useTable(
+        usePliantTable(
+          {
+            features,
+            data,
+            columns,
+            state: { sorting },
+            onSortingChange: (updater) => {
+              setSorting(functionalUpdate(updater, sorting))
+            },
+          },
+          { id: tableId }
+        )
+      )
+      useLayoutEffect(() => {
+        Object.assign(harness, {
+          push: setSorting,
+          sorting: table.state.sorting,
+        })
+      }, [table.state.sorting])
+      return null
+    }
+    render(
+      <PliantRoot surface={surface} storage={memoryAdapter().storage}>
+        <Table />
+      </PliantRoot>
+    )
+    // Pushes that change the developer's state but not the table's, such
+    // as sorts by a column it doesn't have, one per message.
+    for (let message = 0; message < 40; message++) {
+      await act(async () => {
+        harness.push?.([{ id: "missing", desc: message % 2 === 0 }])
+        await Promise.resolve()
+      })
+    }
+    await act(async () => {
+      harness.push?.([{ id: "value", desc: true }])
+      await Promise.resolve()
+    })
+    expect(harness.sorting).toEqual([{ id: "value", desc: true }])
+  })
+
   it("stops syncing state that differs on every render", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
     let tick = 0
