@@ -600,6 +600,15 @@ describe("resolveRegion", () => {
       expect(entry(entries, "a")).not.toHaveProperty("collapsed")
     })
 
+    it("undoes a lower layer's collapse with a collapse into none", () => {
+      const { entries } = region([
+        { op: "collapse", target: "dashboard", items: ["b"], into: "more" },
+        { op: "collapse", target: "dashboard", items: ["b"], into: "none" },
+      ])
+
+      expect(entry(entries, "b")).not.toHaveProperty("collapsed")
+    })
+
     it("treats a collapse into an unknown value as not collapsed", () => {
       const layers = layersOf([
         { op: "collapse", target: "dashboard", items: ["b"], into: "more" },
