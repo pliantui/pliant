@@ -15,9 +15,12 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.105",
     "@pliantui/core": "workspace:*",
     "@pliantui/react": "workspace:*",
+    "@pliantui/server": "workspace:*",
     "@tanstack/react-table": "^9.3.1",
+    "ai": "^7.0.173",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
     "fumadocs-core": "^16.19.0",

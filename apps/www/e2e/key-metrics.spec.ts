@@ -87,10 +87,12 @@ test("reorders the key metrics in DOM, visual and tab order", async ({
       element.setAttribute("tabindex", "0")
     }
   })
-  await page.getByRole("heading", { level: 1 }).evaluate((heading) => {
-    heading.setAttribute("tabindex", "-1")
-    heading.focus()
-  })
+  await page
+    .getByRole("region", { name: "Key metrics" })
+    .evaluate((section) => {
+      section.setAttribute("tabindex", "-1")
+      section.focus()
+    })
   for (const label of expected) {
     await page.keyboard.press("Tab")
     expect(

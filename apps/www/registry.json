@@ -23,6 +23,34 @@
           "target": "@components/pliant/pliant-region.tsx"
         }
       ]
+    },
+    {
+      "name": "pliant-ask-panel",
+      "type": "registry:component",
+      "title": "Pliant Ask Panel",
+      "description": "A panel for asking AI to change how part of a page looks, with a preview that is only saved on Lock in.",
+      "dependencies": [
+        "@pliantui/react",
+        "cn",
+        "lucide-react",
+        "radix-ui",
+        "zod"
+      ],
+      "registryDependencies": [
+        "badge",
+        "button",
+        "label",
+        "select",
+        "skeleton",
+        "textarea"
+      ],
+      "files": [
+        {
+          "path": "registry/pliant/pliant-ask-panel.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-ask-panel.tsx"
+        }
+      ]
     }
   ]
 }
