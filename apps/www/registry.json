@@ -57,7 +57,7 @@
       "type": "registry:component",
       "title": "Pliant Point Mode",
       "description": "A mode for pointing at the part of a page to change: hold Alt, press ⌘. or use the toggle, and the targets light up.",
-      "dependencies": ["cn", "lucide-react", "radix-ui"],
+      "dependencies": ["@pliantui/react", "cn", "lucide-react", "radix-ui"],
       "registryDependencies": ["button"],
       "files": [
         {
