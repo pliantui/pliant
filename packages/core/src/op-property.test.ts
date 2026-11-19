@@ -42,6 +42,10 @@ const cases: [Op, OpProperty[]][] = [
     ],
   ],
   [
+    { op: "collapse", target: "dashboard", items: ["notes"], into: "none" },
+    [{ address: "dashboard", property: "collapse.notes" }],
+  ],
+  [
     { op: "pin", target: "orders-table/columns/id", where: "start" },
     [{ address: "orders-table/columns/id", property: "placement" }],
   ],
