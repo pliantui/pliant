@@ -452,30 +452,33 @@ function RegionEntries({
   const [open, setOpen] = React.useState<ReadonlySet<string>>(new Set())
   const baseId = React.useId()
   const items = itemsOf(entries)
-  const closed = items.flatMap((item) =>
+  const closedPairs = items.flatMap<readonly [string, string]>((item) =>
     item.kind === "entry" &&
     item.collapse !== undefined &&
     !open.has(item.collapse)
-      ? [`${item.entry.id}\t${item.collapse}`]
+      ? [[domIdOf(baseId, item.entry.id), triggerIdOf(baseId, item.collapse)]]
       : []
   )
-  const closedKey = closed.join("\n")
+  const closedKey = JSON.stringify(closedPairs)
 
   // Focus would be lost in an entry an op just collapsed, so it moves to the
   // entry's trigger.
-  React.useLayoutEffect(() => {
+  const moveFocusOutOfClosed = React.useEffectEvent(() => {
     const active = document.activeElement
-    if (!active || closedKey === "") {
+    if (!active) {
       return
     }
-    for (const line of closedKey.split("\n")) {
-      const [node = "", collapse = ""] = line.split("\t")
-      if (document.getElementById(domIdOf(baseId, node))?.contains(active)) {
-        document.getElementById(triggerIdOf(baseId, collapse))?.focus()
+    for (const [domId, triggerId] of closedPairs) {
+      if (document.getElementById(domId)?.contains(active)) {
+        document.getElementById(triggerId)?.focus()
         return
       }
     }
-  }, [baseId, closedKey])
+  })
+
+  React.useLayoutEffect(() => {
+    moveFocusOutOfClosed()
+  }, [closedKey])
 
   return (
     <>
