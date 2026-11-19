@@ -5,10 +5,12 @@ import { wrapLanguageModel } from "ai"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import * as z from "zod"
 
-import { askRequestSchema } from "./ask-request"
-import { askResponseSchema } from "./ask-response"
-import { createPliantHandler } from "./create-pliant-handler"
-import { recordingMiddleware } from "./recording-middleware"
+import {
+  askRequestSchema,
+  askResponseSchema,
+  createPliantHandler,
+} from "@pliantui/server"
+import { recordingMiddleware } from "@pliantui/server/recordings"
 
 const demoSchema = z.strictObject({
   surface: z.string(),
@@ -24,7 +26,7 @@ const demoSchema = z.strictObject({
 const demo = demoSchema.parse(
   JSON.parse(
     await readFile(
-      new URL("../scripts/demo-asks.json", import.meta.url),
+      new URL("../../../scripts/demo-asks.json", import.meta.url),
       "utf8"
     )
   )
@@ -41,7 +43,7 @@ const handler = createPliantHandler({
     model: anthropic("claude-haiku-5-5"),
     middleware: recordingMiddleware({
       mode: "replay",
-      directory: fileURLToPath(new URL("../recordings", import.meta.url)),
+      directory: fileURLToPath(new URL("../../../recordings", import.meta.url)),
     }),
   }),
   getUser: () => "anonymous",
