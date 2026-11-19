@@ -86,25 +86,37 @@ export function AskButton() {
 
 `context` tells the model what the region holds: its kind, what can change, and its items. It never includes your rows.
 
-<Callout title="Coming before 1.0">
-  You write each target's `context` by hand for now. Pliant will derive it from
-  the region.
+<Callout>
+  You write each target's `context` by hand. Pliant doesn't derive it from the
+  region yet. See the [roadmap](/docs/roadmap).
 </Callout>
 
 Render it inside `PliantRoot`, next to the region:
 
 ```tsx title="app/orders/page.tsx"
-<PliantRoot surface="/orders">
-  <header className="flex items-center justify-between">
-    <h1>Orders</h1>
-    <AskButton />
-  </header>
-  {/* your regions and tables */}
-</PliantRoot>
+import { PliantRoot } from "@pliantui/react"
+
+import { AskButton } from "@/components/ask-button"
+
+export default function OrdersPage() {
+  return (
+    <main>
+      <PliantRoot surface="/orders">
+        <header className="flex items-center justify-between">
+          <h1>Orders</h1>
+          <AskButton />
+        </header>
+        {/* your regions and tables */}
+      </PliantRoot>
+    </main>
+  )
+}
 ```
 
-The panel opens from an "Ask" button. From the `sm` breakpoint up it docks to the right edge of the screen; on small screens it's a sheet at the bottom. It covers what's under it, so add room to your layout while it's open:
+The panel opens from an "Ask" button. From the `sm` breakpoint up it docks to the right edge of the screen; on small screens it's a sheet at the bottom. It covers what's under it, so add room while it's open, on the `<main>` in `app/orders/page.tsx` (or your layout):
 
 ```tsx
 <main className="sm:has-[[data-slot=pliant-ask-panel]]:pr-96 max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh]">
+  …
+</main>
 ```

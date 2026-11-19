@@ -6,12 +6,13 @@ description: Add Pliant to a Next.js app and make one region and one table custo
 <Callout type="warn" title="Not installable yet">
   The `@pliantui/*` packages aren't published to npm, and the component registry
   isn't hosted yet, so the setup commands below don't work outside the Pliant
-  repository. You can try Pliant today from a clone.
+  repository. You can try Pliant today from a clone. See the
+  [roadmap](/docs/roadmap).
 </Callout>
 
 ## Try it now
 
-The repository has a complete example: an orders page with a row of metric cards, a data table and the ask panel. You need Node.js 22.22 or 24.11 and later, and pnpm 10.
+The repository has a complete example: an orders page with a row of metric cards, a data table and the ask panel. You need Node.js 22.22+ or 24.11+, and pnpm 10.
 
 ```bash
 git clone https://github.com/pliantui/pliant.git
@@ -100,7 +101,7 @@ export default function OrdersPage() {
 
 The order of the keys is the default order. Ids are kebab-case and start with a letter. Give the region its spacing with `gap-*` classes: each slot sits in a `display: contents` wrapper, so `space-*` and `divide-*` won't work.
 
-Nothing changes on screen yet: the region renders as before. Overlays can now reorder, hide and resize the cards, group them, or fold some behind a "More" button. Users make those changes through the [ask panel](/docs/ask-panel). There's no manual control for regions yet.
+Nothing changes on screen yet: the region renders as before. Overlays can now reorder, hide and resize the cards, group them, or fold some behind a "More" button. Users make those changes through the [ask panel](/docs/ask-panel). Pliant has no manual controls for regions yet. See the [roadmap](/docs/roadmap).
 
 ### Make a table remember its sort
 
