@@ -24,6 +24,7 @@ import type { StorageAdapter } from "./storage-adapter"
 import { useMountedNodes } from "./use-mounted-nodes"
 import { usePliantStatus } from "./use-pliant-status"
 import { usePliantStore } from "./use-pliant-store"
+import { usePliantSurface } from "./use-pliant-surface"
 import { usePreview } from "./use-preview"
 import { useResolved } from "./use-resolved"
 
@@ -401,6 +402,26 @@ describe("PliantRoot", () => {
     )
 
     expect(stores.size).toBe(2)
+  })
+
+  it("gives the surface of the nearest root", () => {
+    const { storage } = memoryAdapter()
+    function Surface() {
+      return <output>{usePliantSurface()}</output>
+    }
+    const { rerender } = render(
+      <PliantRoot surface={surface} storage={storage}>
+        <Surface />
+      </PliantRoot>
+    )
+    expect(screen.getByRole("status").textContent).toBe(surface)
+
+    rerender(
+      <PliantRoot surface="/invoices" storage={storage}>
+        <Surface />
+      </PliantRoot>
+    )
+    expect(screen.getByRole("status").textContent).toBe("/invoices")
   })
 
   it("is ready with a synchronous adapter before the first paint", async () => {
