@@ -159,11 +159,20 @@ function sessionNote(ops: readonly Op[]) {
  * focus is inside it. Closing it cancels an ask in progress but keeps the
  * preview, which the trigger then marks with `data-preview`. The prompt is
  * kept when the target changes, so the same ask can go to another target.
+ *
+ * The target can be controlled with `target` and `onTargetChange`, so a
+ * target picked elsewhere on the page, as with `PliantPointMode`, can be
+ * asked about: focus moves to the prompt when the panel opens and when its
+ * parent changes `target` while it is open. A target that isn't one of
+ * `targets` falls back to the first. Changing the target, from anywhere,
+ * cancels an ask in progress.
  */
 function PliantAskPanel({
   endpoint,
   targets,
+  target: targetProp,
   defaultTarget,
+  onTargetChange,
   placeholder = "Describe a change",
   trigger,
   open,
@@ -174,8 +183,11 @@ function PliantAskPanel({
   endpoint: string
   /** The nodes users can ask about, in picker order. */
   targets: readonly PliantAskTarget[]
+  /** The id of the picked target, when the parent controls it. */
+  target?: string | undefined
   /** The id of the target picked first. Defaults to the first target. */
   defaultTarget?: string
+  onTargetChange?: (target: string) => void
   /** The prompt's placeholder. */
   placeholder?: string
   /** The element that opens the panel. Defaults to an "Ask" button. */
@@ -189,33 +201,65 @@ function PliantAskPanel({
   const preview = usePreview()
   const ready = usePliantStatus().status === "ready"
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen)
-  const [targetId, setTargetId] = React.useState(defaultTarget)
+  const [uncontrolledTarget, setUncontrolledTarget] =
+    React.useState(defaultTarget)
   const [prompt, setPrompt] = React.useState("")
   const [state, setState] = React.useState<AskState>({ status: "idle" })
   const request = React.useRef<AbortController | null>(null)
-  const focusOnOpen = React.useRef(false)
   const promptRef = React.useRef<HTMLTextAreaElement>(null)
   const triggerRef = React.useRef<HTMLButtonElement>(null)
   const panelRef = React.useRef<HTMLElement>(null)
   const id = React.useId()
   const isOpen = open ?? uncontrolledOpen
+  const [focusRequest, setFocusRequest] = React.useState(0)
+  const targetId = targetProp ?? uncontrolledTarget
+  const target =
+    targets.find((candidate) => candidate.id === targetId) ?? targets[0]
 
-  React.useEffect(
+  // An answer for one target must never be previewed under another, and a
+  // passive effect would leave a gap for one to land in after the target
+  // changed outside an event, from a timer or a transition.
+  React.useLayoutEffect(
     () => () => {
-      request.current?.abort()
+      if (request.current) {
+        request.current.abort()
+        request.current = null
+        setState({ status: "cancelled" })
+      }
     },
-    []
+    [target?.id]
   )
 
   const [wasOpen, setWasOpen] = React.useState(isOpen)
   if (wasOpen !== isOpen) {
     setWasOpen(isOpen)
-    if (!isOpen && state.status === "asking") {
+    if (isOpen) {
+      setFocusRequest((count) => count + 1)
+    } else if (state.status === "asking") {
       setState({ status: "cancelled" })
     }
   }
 
-  React.useEffect(() => {
+  const [seenTarget, setSeenTarget] = React.useState(target?.id)
+  if (seenTarget !== target?.id) {
+    setSeenTarget(target?.id)
+    if (state.status !== "asking") {
+      setState({ status: "idle" })
+    }
+  }
+
+  // The last target the picker set, to tell the parent's own changes apart.
+  const [pickerTarget, setPickerTarget] = React.useState<string>()
+  const [seenTargetProp, setSeenTargetProp] = React.useState(targetProp)
+  if (seenTargetProp !== targetProp) {
+    setSeenTargetProp(targetProp)
+    setPickerTarget(undefined)
+    if (isOpen && targetProp !== pickerTarget) {
+      setFocusRequest((count) => count + 1)
+    }
+  }
+
+  React.useLayoutEffect(() => {
     if (!isOpen) {
       request.current?.abort()
       request.current = null
@@ -223,14 +267,11 @@ function PliantAskPanel({
   }, [isOpen])
 
   React.useEffect(() => {
-    if (isOpen && focusOnOpen.current) {
-      focusOnOpen.current = false
+    if (focusRequest > 0) {
       promptRef.current?.focus()
     }
-  }, [isOpen])
+  }, [focusRequest])
 
-  const target =
-    targets.find((candidate) => candidate.id === targetId) ?? targets[0]
   const asking = state.status === "asking"
 
   function setOpen(next: boolean) {
@@ -329,7 +370,6 @@ function PliantAskPanel({
           if (isOpen) {
             close()
           } else {
-            focusOnOpen.current = true
             setOpen(true)
           }
         }}
@@ -399,7 +439,11 @@ function PliantAskPanel({
               <Select
                 value={target?.id ?? ""}
                 onValueChange={(next) => {
-                  setTargetId(next)
+                  setPickerTarget(next)
+                  if (targetProp === undefined) {
+                    setUncontrolledTarget(next)
+                  }
+                  onTargetChange?.(next)
                   setState({ status: "idle" })
                 }}
                 disabled={asking}
