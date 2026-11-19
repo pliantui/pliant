@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest"
+import * as z from "zod"
 
 import { overlaySchema } from "@pliantui/contract"
 
+import { loadOverlay } from "./load-overlay"
+import { resolveLayers } from "./resolve-layers"
 import { validateOverlay } from "./validate-overlay"
 
 function overlay(ops: unknown[]) {
@@ -315,5 +318,599 @@ describe("validateOverlay", () => {
 
   it("fails when the envelope is invalid", () => {
     expect(validateOverlay({ ...overlay([]), v: 2 }).success).toBe(false)
+  })
+
+  describe("with layers", () => {
+    const wrap = (target: string, id: string) => ({
+      op: "wrap",
+      target,
+      id,
+      items: ["a", "b"],
+      mode: "row",
+    })
+    const insert = (id: string, target = "page") => ({
+      op: "insert",
+      target,
+      node: { id, kind: "chart", dataset: "orders" },
+      at: { index: 0 },
+    })
+    const remove = (id: string) => ({
+      op: "remove",
+      target: `page/slots/${id}`,
+    })
+    const surface = "/orders/[id]"
+    const lowerOverlay = (layer: string, ops: unknown[]) => ({
+      ...overlay(ops),
+      id: "01JBQ3V8Z7XKQ2M4N5P6R7S8A0",
+      layer,
+      ...(layer === "team" && { scope: { team: "sales" } }),
+    })
+    const layers = (layer: string, ops: unknown[]) => ({
+      overlays: [lowerOverlay(layer, ops)],
+      surface,
+    })
+    const load = (input: unknown) => {
+      const loaded = loadOverlay(input)
+      if (!loaded.success) {
+        throw loaded.error
+      }
+      return loaded.data
+    }
+
+    it("rejects a wrap id already used on the surface", () => {
+      const result = validateOverlay(
+        overlay([
+          { op: "hide", target: "orders-table/columns/notes" },
+          wrap("dashboard", "pair"),
+          wrap("dashboard", "orders"),
+        ]),
+        {
+          layers: layers("team", [
+            wrap("dashboard", "pair"),
+            { op: "hide", target: "dashboard/slots/orders" },
+          ]),
+        }
+      )
+      expect(result.error?.issues).toEqual([
+        {
+          code: "custom",
+          path: ["ops", 1, "id"],
+          message: "The id pair is already used on this surface",
+        },
+        {
+          code: "custom",
+          path: ["ops", 2, "id"],
+          message: "The id orders is already used on this surface",
+        },
+      ])
+    })
+
+    it("rejects reusing an id the overlay itself wrapped elsewhere", () => {
+      const result = validateOverlay(
+        overlay([wrap("dashboard", "pair"), wrap("sidebar", "pair")]),
+        { layers: layers("personal", [{ op: "hide", target: "page" }]) }
+      )
+      expect(result.error?.issues.map(({ path }) => path)).toEqual([
+        ["ops", 1, "id"],
+      ])
+    })
+
+    it("lets the same scope replace its own wrap", () => {
+      const ops = [wrap("dashboard", "pair")]
+      expect(
+        validateOverlay(overlay(ops), { layers: layers("personal", ops) })
+          .success
+      ).toBe(true)
+      expect(
+        validateOverlay(overlay([wrap("dashboard", "dashboard")])).success
+      ).toBe(true)
+    })
+
+    it("rejects an insert id already used on the surface", () => {
+      const result = validateOverlay(
+        overlay([insert("pair"), insert("orders"), insert("chart")]),
+        {
+          layers: layers("team", [
+            wrap("dashboard", "pair"),
+            { op: "hide", target: "dashboard/slots/orders" },
+          ]),
+        }
+      )
+      expect(result.error?.issues).toEqual([
+        {
+          code: "custom",
+          path: ["ops", 0, "node", "id"],
+          message: "The id pair is already used on this surface",
+        },
+        {
+          code: "custom",
+          path: ["ops", 1, "node", "id"],
+          message: "The id orders is already used on this surface",
+        },
+      ])
+    })
+
+    it.each<[string, unknown[], unknown[], number[]]>([
+      [
+        "a base id only an unapplied op points at",
+        [{ op: "remove", target: "dashboard/slots/foo" }],
+        [wrap("page", "foo")],
+        [0],
+      ],
+      [
+        "an id the overlay inserts first",
+        [{ op: "hide", target: "page" }],
+        [insert("chart"), wrap("page", "chart")],
+        [1],
+      ],
+      [
+        "an id the overlay inserts and removes",
+        [{ op: "hide", target: "page" }],
+        [insert("chart"), remove("chart"), wrap("page", "chart")],
+        [],
+      ],
+      [
+        "a lower insert the overlay re-inserts and removes",
+        [insert("chart")],
+        [insert("chart"), remove("chart"), wrap("page", "chart")],
+        [2],
+      ],
+      [
+        "another scope's wrap",
+        [wrap("dashboard", "pair")],
+        [wrap("dashboard", "pair"), wrap("page", "free")],
+        [0],
+      ],
+      [
+        "its own wrap at two targets",
+        [{ op: "hide", target: "page" }],
+        [wrap("dashboard", "pair"), wrap("page", "pair")],
+        [1],
+      ],
+      [
+        "an insert over a lower wrap",
+        [wrap("dashboard", "pair")],
+        [insert("pair")],
+        [0],
+      ],
+      [
+        "an insert of a base id",
+        [{ op: "hide", target: "dashboard/slots/orders" }],
+        [insert("orders", "dashboard")],
+        [0],
+      ],
+      [
+        "an insert at another target than a lower insert",
+        [insert("chart")],
+        [insert("chart", "dashboard")],
+        [0],
+      ],
+      [
+        "a re-insert at the same target",
+        [insert("chart")],
+        [insert("chart", "shell/slots/page")],
+        [],
+      ],
+      [
+        "a wrap over its own insert, then a re-insert",
+        [{ op: "hide", target: "page" }],
+        [insert("chart"), wrap("dashboard", "chart"), insert("chart")],
+        [1],
+      ],
+      [
+        "an insert of a removed wrapper's id",
+        [wrap("page", "pair"), { op: "remove", target: "pair" }],
+        [insert("pair")],
+        [],
+      ],
+    ])("agrees with resolveLayers on %s", (_, lower, ops, expected) => {
+      const input = { ...overlay(ops), id: "01JBQ3V8Z7XKQ2M4N5P6R7S8B0" }
+      const loaded = load(input)
+      const below = lowerOverlay("team", lower)
+      const validated = validateOverlay(input, {
+        layers: { overlays: [below], surface },
+      })
+      const resolvedAfter = resolveLayers([load(below), loaded], { surface })
+      const baseIds = ["page", "dashboard", "orders"]
+      const exact = validateOverlay(input, {
+        layers: { overlays: [below], surface, baseIds },
+      })
+      const resolvedExact = resolveLayers([load(below), loaded], {
+        surface,
+        baseIds,
+      })
+
+      expect(exact.error?.issues.map(({ path }) => path[1]) ?? []).toEqual(
+        resolvedExact.unapplied
+          .filter(
+            ({ overlay, reason }) =>
+              overlay === loaded && reason === "id-collision"
+          )
+          .map(({ check }) => check.index)
+      )
+
+      expect(validated.error?.issues.map(({ path }) => path[1]) ?? []).toEqual(
+        expected
+      )
+      expect(
+        resolvedAfter.unapplied
+          .filter(
+            ({ overlay, reason }) =>
+              overlay === loaded && reason === "id-collision"
+          )
+          .map(({ check }) => check.index)
+      ).toEqual(expected)
+    })
+
+    it.each([
+      [["support", "sales"], [0]],
+      [["sales", "support"], []],
+    ])("agrees with resolveLayers on teamOrder %j", (teamOrder, expected) => {
+      const team = (scope: string, id: string, ops: unknown[]) => ({
+        ...lowerOverlay("team", ops),
+        id,
+        scope: { team: scope },
+      })
+      const below = [
+        team("sales", "01JBQ3V8Z7XKQ2M4N5P6R7S8A1", [
+          wrap("dashboard", "pair"),
+        ]),
+        team("support", "01JBQ3V8Z7XKQ2M4N5P6R7S8A2", [
+          insert("pair", "dashboard"),
+        ]),
+      ]
+      const input = overlay([insert("pair", "dashboard")])
+      const validated = validateOverlay(input, {
+        layers: { overlays: below, surface, teamOrder },
+      })
+      const resolved = resolveLayers([...below.map(load), load(input)], {
+        surface,
+        teamOrder,
+      })
+
+      expect(validated.error?.issues.map(({ path }) => path[1]) ?? []).toEqual(
+        expected
+      )
+      expect(
+        resolved.unapplied
+          .filter(({ overlay }) => overlay.layer === "personal")
+          .map(({ check }) => check.index)
+      ).toEqual(expected)
+    })
+
+    it.each([
+      [
+        "an overlay for another surface",
+        [{ ...lowerOverlay("team", [insert("x")]), surface: "/invoices" }],
+      ],
+      [
+        "a later overlay with a duplicate id",
+        [
+          lowerOverlay("team", [{ op: "hide", target: "page" }]),
+          {
+            ...lowerOverlay("team", [insert("x")]),
+            createdAt: "2026-11-02T09:30:00.000Z",
+          },
+        ],
+      ],
+    ])("agrees with resolveLayers that %s doesn't block an id", (_, lower) => {
+      const input = {
+        ...overlay([insert("x")]),
+        id: "01JBQ3V8Z7XKQ2M4N5P6R7S8B0",
+      }
+      const resolved = resolveLayers([...lower.map(load), load(input)], {
+        surface,
+      })
+
+      expect(
+        validateOverlay(input, { layers: { overlays: lower, surface } }).success
+      ).toBe(true)
+      expect(resolved.unapplied).toEqual([])
+      expect(resolved.skipped).toHaveLength(1)
+    })
+
+    it("rejects a move into a node that doesn't exist", () => {
+      const lower = lowerOverlay("team", [
+        wrap("dashboard", "pair"),
+        { op: "remove", target: "pair" },
+      ])
+      const input = overlay([
+        { op: "move", target: "dashboard/slots/c", to: { into: "pair" } },
+        {
+          op: "move",
+          target: "dashboard/slots/c",
+          to: { into: "page/slots/v" },
+        },
+      ])
+      const validate = (baseIds?: string[]) =>
+        validateOverlay(input, {
+          layers: { overlays: [lower], surface, ...(baseIds && { baseIds }) },
+        }).error?.issues
+
+      expect(validate()).toEqual([
+        {
+          code: "custom",
+          path: ["ops", 0, "to", "into"],
+          message: "The node pair doesn't exist on this surface",
+        },
+      ])
+      expect(validate(["dashboard", "c"])?.map(({ path }) => path)).toEqual([
+        ["ops", 0, "to", "into"],
+        ["ops", 1, "to", "into"],
+      ])
+      expect(
+        resolveLayers([load(lower), load(input)], {
+          surface,
+          baseIds: ["dashboard", "c"],
+        }).unapplied.map(({ check, reason }) => [check.index, reason])
+      ).toEqual([
+        [0, "missing-container"],
+        [1, "missing-container"],
+      ])
+    })
+
+    it("accepts a move into the item's own base parent", () => {
+      expect(
+        validateOverlay(
+          overlay([
+            {
+              op: "move",
+              target: "dashboard/slots/a",
+              to: { into: "dashboard" },
+            },
+          ]),
+          { layers: { overlays: [], surface, baseIds: ["a"] } }
+        ).success
+      ).toBe(true)
+    })
+
+    it("rejects an insert or wrap into a node that doesn't exist", () => {
+      const result = validateOverlay(
+        overlay([insert("x", "nowhere"), wrap("sidebar", "pair")]),
+        { layers: { overlays: [], surface, baseIds: ["dashboard"] } }
+      )
+
+      expect(result.error?.issues).toEqual([
+        {
+          code: "custom",
+          path: ["ops", 0, "target"],
+          message: "The node nowhere doesn't exist on this surface",
+        },
+        {
+          code: "custom",
+          path: ["ops", 1, "target"],
+          message: "The node sidebar doesn't exist on this surface",
+        },
+      ])
+    })
+
+    it("reports an id collision before a missing container", () => {
+      expect(
+        validateOverlay(overlay([insert("orders", "ghost")]), {
+          layers: { overlays: [], surface, baseIds: ["dashboard", "orders"] },
+        }).error?.issues.map(({ path }) => path)
+      ).toEqual([["ops", 0, "node", "id"]])
+    })
+
+    it("names the missing node by its identity", () => {
+      expect(
+        validateOverlay(
+          overlay([
+            insert("x", "page/slots/nowhere"),
+            {
+              op: "move",
+              target: "dashboard/slots/c",
+              to: { into: "page/slots/gone" },
+            },
+          ]),
+          { layers: { overlays: [], surface, baseIds: ["dashboard", "c"] } }
+        ).error?.issues.map(({ message }) => message)
+      ).toEqual([
+        "The node nowhere doesn't exist on this surface",
+        "The node gone doesn't exist on this surface",
+      ])
+    })
+
+    it.each([
+      ["mounted", []],
+      [
+        "inventory",
+        [
+          ["ops", 0, "to", "into"],
+          ["ops", 1, "target"],
+        ],
+      ],
+    ] as const)(
+      "agrees with resolveLayers on an unlisted node with %s ids",
+      (source, paths) => {
+        const input = overlay([
+          { op: "move", target: "dashboard/slots/c", to: { into: "sidebar" } },
+          insert("y", "sidebar"),
+        ])
+        const baseIds = { ids: ["dashboard", "c"], source }
+        const validated = validateOverlay(input, {
+          layers: { overlays: [], surface, baseIds },
+        })
+        const resolved = resolveLayers([load(input)], { surface, baseIds })
+
+        expect(validated.error?.issues.map(({ path }) => path) ?? []).toEqual(
+          paths
+        )
+        expect(resolved.unapplied.map(({ reason }) => reason)).toEqual(
+          source === "mounted"
+            ? ["dormant", "dormant"]
+            : ["missing-container", "missing-container"]
+        )
+      }
+    )
+
+    it("rejects an op into a removed node with mounted ids", () => {
+      const lower = lowerOverlay("team", [
+        insert("x", "dashboard"),
+        { op: "remove", target: "x" },
+      ])
+      expect(
+        validateOverlay(overlay([insert("y", "x")]), {
+          layers: {
+            overlays: [lower],
+            surface,
+            baseIds: { ids: ["dashboard"], source: "mounted" },
+          },
+        }).error?.issues.map(({ path }) => path)
+      ).toEqual([["ops", 0, "target"]])
+    })
+
+    it("uses baseIds as the exact base nodes", () => {
+      const lower = lowerOverlay("team", [
+        { op: "hide", target: "dashboard/slots/orders" },
+      ])
+      const input = overlay([insert("orders"), insert("fresh")])
+
+      expect(
+        validateOverlay(input, {
+          layers: {
+            overlays: [lower],
+            surface,
+            baseIds: ["dashboard", "page"],
+          },
+        }).success
+      ).toBe(true)
+      expect(
+        validateOverlay(input, {
+          layers: { overlays: [lower], surface, baseIds: ["fresh", "page"] },
+        }).error?.issues.map(({ path }) => path)
+      ).toEqual([["ops", 1, "node", "id"]])
+      expect(
+        validateOverlay(input, {
+          layers: { overlays: [lower], surface },
+        }).error?.issues.map(({ path }) => path)
+      ).toEqual([["ops", 0, "node", "id"]])
+    })
+
+    it("reads layers as plain data, for example after JSON", () => {
+      const options = {
+        layers: {
+          overlays: [
+            lowerOverlay("team", [
+              wrap("dashboard", "pair"),
+              { op: "rename", target: "page", label: "" },
+            ]),
+          ],
+          surface,
+          teamOrder: ["sales"],
+        },
+      }
+      const input = overlay([wrap("dashboard", "pair")])
+      const direct = validateOverlay(input, options)
+      const json = z
+        .object({
+          layers: z.object({
+            overlays: z.array(z.unknown()),
+            surface: z.string(),
+            teamOrder: z.array(z.string()),
+          }),
+        })
+        .parse(JSON.parse(JSON.stringify(options)))
+      const viaJson = validateOverlay(input, json)
+
+      expect(direct.error?.issues.map(({ path }) => path)).toEqual([
+        ["ops", 0, "id"],
+      ])
+      expect(viaJson).toEqual(direct)
+    })
+
+    it("leaves out layers that don't load", () => {
+      expect(
+        validateOverlay(overlay([wrap("dashboard", "pair")]), {
+          layers: { overlays: [{ v: 2 }, null], surface },
+        }).success
+      ).toBe(true)
+    })
+
+    it("rejects an overlay for another surface", () => {
+      const options = { layers: layers("team", [wrap("dashboard", "pair")]) }
+
+      expect(
+        validateOverlay(
+          { ...overlay([wrap("dashboard", "pair")]), surface: "/invoices" },
+          options
+        ).error?.issues
+      ).toEqual([
+        {
+          code: "custom",
+          path: ["surface"],
+          message: "Must be /orders/[id] or @app, the surface of the layers",
+        },
+      ])
+      expect(
+        validateOverlay(
+          {
+            ...overlay([
+              { op: "setMotion", target: "@app", motion: "reduced" },
+            ]),
+            surface: "@app",
+          },
+          options
+        ).success
+      ).toBe(true)
+    })
+
+    it("lets an overlay revise its own earlier version", () => {
+      const earlier = {
+        ...overlay([wrap("dashboard", "pair"), insert("chart")]),
+        createdAt: "2026-10-01T09:30:00.000Z",
+      }
+      const revised = overlay([
+        wrap("page", "pair"),
+        insert("chart", "dashboard"),
+      ])
+
+      expect(
+        validateOverlay(revised, { layers: { overlays: [earlier], surface } })
+          .success
+      ).toBe(true)
+      expect(
+        validateOverlay(
+          { ...revised, id: "01JBQ3V8Z7XKQ2M4N5P6R7S8B0" },
+          { layers: { overlays: [earlier], surface } }
+        ).error?.issues.map(({ path }) => path)
+      ).toEqual([
+        ["ops", 0, "id"],
+        ["ops", 1, "node", "id"],
+      ])
+    })
+
+    it("throws on bad layers, even when the overlay doesn't parse", () => {
+      for (const input of [overlay([wrap("dashboard", "pair")]), { v: 2 }]) {
+        expect(() =>
+          validateOverlay(input, {
+            // @ts-expect-error JavaScript callers can leave the surface out.
+            layers: { overlays: [] },
+          })
+        ).toThrow(TypeError)
+        expect(() =>
+          validateOverlay(input, {
+            // @ts-expect-error JavaScript callers can pass anything.
+            layers: { overlays: [], surface, baseIds: "x" },
+          })
+        ).toThrow(TypeError)
+        expect(() =>
+          validateOverlay(input, {
+            layers: {
+              overlays: [],
+              surface,
+              // @ts-expect-error The layers are plain data, so ids is an array.
+              baseIds: { ids: new Set(["x"]), source: "mounted" },
+            },
+          })
+        ).toThrow(TypeError)
+        expect(() =>
+          validateOverlay(input, {
+            // @ts-expect-error The layers are plain data, so baseIds is an array.
+            layers: { overlays: [], surface, baseIds: new Set(["x"]) },
+          })
+        ).toThrow(TypeError)
+      }
+    })
   })
 })

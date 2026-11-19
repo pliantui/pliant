@@ -8,11 +8,61 @@ import {
 } from "@pliantui/contract"
 
 import { checkOp, type OpCheck, type OpContext } from "./check-op"
+import { loadOverlay, type LoadedOverlay } from "./load-overlay"
+import { identityOf } from "./node-identity"
+import { scopeKeyOf } from "./overlay-scope"
 import { ownEntries } from "./own-entries"
+import { applyOp, createResolution, readBaseIds } from "./resolution"
 import type { Result } from "./result"
+import { checkSurface, surfaceOrder } from "./surface-order"
 import type { WithOps } from "./with-ops"
 
 export type ValidatedOverlay = WithOps<Op>
+
+/** The layers an overlay will apply on top of, as plain data. */
+export interface ValidateOverlayLayers {
+  /**
+   * The saved overlays below the new one, as stored: what `loadOverlay`
+   * reads. Overlays that don't load are left out, as they can't be resolved
+   * either. An overlay with the new overlay's id is left out too, since the
+   * new overlay replaces it.
+   */
+  readonly overlays: readonly unknown[]
+  /** The surface the layers resolve for, as in `resolveLayers`. */
+  readonly surface: string
+  /**
+   * The surface's known node ids, as in `resolveLayers`, as plain data: an
+   * array of ids (the full inventory), or `{ ids, source }` with `ids` an
+   * array. Exact when given, approximated from the ops when omitted.
+   */
+  readonly baseIds?:
+    | readonly string[]
+    | {
+        readonly ids: readonly string[]
+        readonly source: "inventory" | "mounted"
+      }
+    | undefined
+  /** Team ids, highest precedence first, as in `resolveLayers`. */
+  readonly teamOrder?: readonly string[] | undefined
+}
+
+/** How `validateOverlay` checks an overlay beyond its own shape. */
+export interface ValidateOverlayOptions {
+  /**
+   * The layers the overlay will apply on top of. The overlay is validated as
+   * if it applied last, after all of them, so pass only the layers below it.
+   * When given, the overlay must be for `layers.surface` or `@app`, and these
+   * are invalid, exactly as `resolveLayers` would report them: an `insert` or
+   * `wrap` whose id is already used on the surface (`id-collision`, at the
+   * id), and a `move … into` a node that doesn't exist or an `insert` or
+   * `wrap` into one (`missing-container`, at `to.into` or `target`). A
+   * `dormant` op, into a node that mounted `baseIds` don't list yet, isn't
+   * an issue: it applies once the node mounts. Throws a `TypeError` when
+   * `layers.surface` isn't a string or `layers.baseIds` isn't an array of ids
+   * or `{ ids, source }` with an array, whatever the input.
+   */
+  readonly layers?: ValidateOverlayLayers | undefined
+}
 
 const [overlayVariant] = overlaySchema.out.options
 const opsListSchema = overlayVariant.shape.ops
@@ -72,7 +122,79 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
   }
 }
 
-export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
+function layerIssues(
+  overlay: LoadedOverlay,
+  { overlays, surface, baseIds, teamOrder = [] }: ValidateOverlayLayers
+): z.core.$ZodIssue[] {
+  if (overlay.surface !== surface && overlay.surface !== "@app") {
+    return [
+      {
+        code: "custom",
+        path: ["surface"],
+        message: `Must be ${surface} or @app, the surface of the layers`,
+      },
+    ]
+  }
+  const below = overlays.flatMap((input) => {
+    const loaded = loadOverlay(input)
+    return loaded.success && loaded.data.id !== overlay.id ? [loaded.data] : []
+  })
+  const ordered = surfaceOrder(below, surface, teamOrder)
+  const state = createResolution(baseIds)
+  for (const { overlay: lower, reason } of ordered) {
+    const scope = scopeKeyOf(lower)
+    for (const check of lower.ops) {
+      if (!reason && check.status === "valid") {
+        applyOp(state, { check, overlay: lower }, scope)
+      }
+    }
+  }
+  const scope = scopeKeyOf(overlay)
+  return overlay.ops.flatMap((check): z.core.$ZodIssue[] => {
+    if (check.status !== "valid") {
+      return []
+    }
+    const reason = applyOp(state, { check, overlay }, scope)
+    const { op, index } = check
+    if (reason === "missing-container") {
+      const into = op.op === "move" && "into" in op.to ? op.to.into : undefined
+      return [
+        {
+          code: "custom",
+          path:
+            into === undefined
+              ? ["ops", index, "target"]
+              : ["ops", index, "to", "into"],
+          message: `The node ${identityOf(into ?? op.target)} doesn't exist on this surface`,
+        },
+      ]
+    }
+    return reason === "id-collision" && (op.op === "insert" || op.op === "wrap")
+      ? [
+          {
+            code: "custom",
+            path:
+              op.op === "insert"
+                ? ["ops", index, "node", "id"]
+                : ["ops", index, "id"],
+            message: `The id ${op.op === "insert" ? op.node.id : op.id} is already used on this surface`,
+          },
+        ]
+      : []
+  })
+}
+
+export function validateOverlay(
+  input: unknown,
+  { layers }: ValidateOverlayOptions = {}
+): Result<ValidatedOverlay> {
+  if (layers) {
+    checkSurface(layers.surface)
+    const baseIds = readBaseIds(layers.baseIds)
+    if (baseIds && !Array.isArray(baseIds.ids)) {
+      throw new TypeError("layers.baseIds must list node ids in an array")
+    }
+  }
   const entries = ownEntries(input)
   const result = overlaySchema.safeParse(entries ?? input)
   const envelopeIssues = result.error?.issues ?? []
@@ -95,7 +217,14 @@ export function validateOverlay(input: unknown): Result<ValidatedOverlay> {
       ? { ops: [], issues: [], context: {} }
       : fallbackOf(entries)
   const checks = ops.map((op, index) => checkOp(op, index, context))
-  const issues = [...envelopeIssues, ...listIssues, ...checks.flatMap(issuesOf)]
+  const issues = [
+    ...envelopeIssues,
+    ...listIssues,
+    ...checks.flatMap(issuesOf),
+    ...(result.success && layers
+      ? layerIssues({ ...result.data, ops: checks }, layers)
+      : []),
+  ]
   if (!result.success || issues.length > 0) {
     return { success: false, error: new z.ZodError(issues) }
   }
