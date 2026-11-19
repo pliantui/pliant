@@ -17,10 +17,6 @@ export const formatSchema = z.discriminatedUnion("type", [
     type: z.literal("percent"),
     decimals: decimalsSchema.optional(),
   }),
-  /**
-   * Currency values are IEEE 754 doubles, always rounded for display to the
-   * currency's minor units (2 for USD, 0 for JPY) unless `decimals` is set.
-   */
   z.strictObject({
     type: z.literal("currency"),
     currency: z
@@ -28,6 +24,11 @@ export const formatSchema = z.discriminatedUnion("type", [
       .regex(/^[A-Z]{3}$/)
       .optional(),
     display: z.enum(["symbol", "narrowSymbol", "code", "name"]).optional(),
+    /**
+     * Currency values are IEEE 754 doubles, displayed rounded to `decimals`, or
+     * to the currency's minor units (2 for USD, 0 for JPY) when `decimals` is
+     * unset.
+     */
     decimals: decimalsSchema.optional(),
   }),
   z.strictObject({
