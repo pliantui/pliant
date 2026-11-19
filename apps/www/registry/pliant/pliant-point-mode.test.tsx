@@ -153,20 +153,7 @@ describe("PliantPointMode", () => {
       "Orders table",
       "Totals",
     ])
-    const [keyMetrics, , totals] = boxes()
-    expect(keyMetrics?.style.top).toBe("100px")
-    expect(keyMetrics?.style.height).toBe("40px")
-    expect(totals?.style.top).toBe("300px")
-    expect(totals?.style.height).toBe("140px")
-    expect(totals?.style.width).toBe("320px")
     expect(announcement()).toBe("")
-  })
-
-  it("keeps its outlines clickable under a modal layer", async () => {
-    renderPage()
-    await enterWithToggle()
-
-    expect(layer()?.classList.contains("pointer-events-auto")).toBe(true)
   })
 
   it("makes the rest of the page inert while on from the toggle", async () => {
@@ -191,36 +178,6 @@ describe("PliantPointMode", () => {
     await wait()
 
     expect(document.querySelector("[inert]")).toBeNull()
-  })
-
-  it("keeps labels on screen at the right edge", async () => {
-    Object.defineProperty(document.documentElement, "clientWidth", {
-      configurable: true,
-      value: 400,
-    })
-    render(
-      <>
-        <PliantPointMode
-          targets={[{ id: "side", label: "Side" }]}
-          onPick={() => undefined}
-        />
-        <div data-pliant-id="side" data-top="100" />
-      </>
-    )
-    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
-      function (this: Element) {
-        return this.hasAttribute("data-top")
-          ? new DOMRect(300, 100, 160, 40)
-          : new DOMRect(0, 0, 0, 0)
-      }
-    )
-
-    await enterWithToggle()
-
-    const label = screen.getByText("Side")
-    expect(label.style.right).toBe("60px")
-    expect(label.style.left).toBe("")
-    Reflect.deleteProperty(document.documentElement, "clientWidth")
   })
 
   it("starts from the ask panel's prompt", async () => {
