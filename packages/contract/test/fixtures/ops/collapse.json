@@ -6,6 +6,12 @@
       "items": ["fax", "middleName"],
       "into": "more",
       "label": "More fields"
+    },
+    {
+      "op": "collapse",
+      "target": "ticket-form",
+      "items": ["fax"],
+      "into": "none"
     }
   ],
   "invalid": [
@@ -26,6 +32,19 @@
       "target": "ticket-form",
       "items": ["fax", "fax"],
       "into": "more"
+    },
+    {
+      "op": "collapse",
+      "target": "ticket-form",
+      "items": ["fax"],
+      "into": "none",
+      "label": "More fields"
+    },
+    {
+      "op": "collapse",
+      "target": "ticket-form",
+      "items": [],
+      "into": "none"
     }
   ]
 }

@@ -11,12 +11,12 @@ interface PliantNodeProps {
  * until the surface's layers have loaded.
  *
  * ```tsx
- * <div {...usePliantNode("orders-table")}>…</div>
+ * <div {...usePliantNodeProps("orders-table")}>…</div>
  * ```
  *
  * @experimental
  */
-export function usePliantNode(id: string): PliantNodeProps {
+export function usePliantNodeProps(id: string): PliantNodeProps {
   const ready = usePliantStatus().status === "ready"
   return {
     "data-pliant-id": id,

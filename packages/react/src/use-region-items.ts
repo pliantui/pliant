@@ -1,8 +1,25 @@
-import { useEffectEvent, useId, useLayoutEffect, useState } from "react"
+import {
+  useEffectEvent,
+  useId,
+  useLayoutEffect,
+  useState,
+  type MouseEvent,
+} from "react"
 
 import type { RegionEntry } from "@pliantui/core"
 
 type Collapse = NonNullable<RegionEntry["collapsed"]>
+
+type ClickHandler = (event: MouseEvent<HTMLButtonElement>) => void
+
+interface RegionTriggerProps {
+  readonly id: string
+  readonly type: "button"
+  readonly "aria-expanded": boolean
+  readonly "aria-controls": string
+  readonly "data-pliant-collapse": Collapse["into"]
+  readonly onClick: ClickHandler
+}
 
 /**
  * What a list of region entries renders, from `useRegionItems`: an entry,
@@ -16,6 +33,8 @@ export type RegionItem =
       /** The item's React key. */
       readonly key: string
       readonly entry: RegionEntry
+      /** The key of the collapse that holds the entry, if one does. */
+      readonly group: string | undefined
       /**
        * `hidden` when the entry is hidden or its collapse is closed. Pass it
        * to `PliantActivity`, so the entry keeps its state.
@@ -32,18 +51,21 @@ export type RegionItem =
       readonly kind: "trigger"
       /** The item's React key. */
       readonly key: string
+      /** The collapse's key, the `group` of the entries it holds. */
+      readonly group: string
       readonly into: Collapse["into"]
       readonly label: string | undefined
       readonly open: boolean
-      /** Props for the button that opens and closes the collapse. */
-      readonly props: {
-        readonly id: string
-        readonly type: "button"
-        readonly "aria-expanded": boolean
-        readonly "aria-controls": string
-        readonly "data-pliant-collapse": Collapse["into"]
-        readonly onClick: () => void
-      }
+      /** The keys of the entry items the collapse holds, in order. */
+      readonly members: readonly string[]
+      /**
+       * Props for the button that opens and closes the collapse. Pass your
+       * own `onClick` here rather than after the spread: it runs first, and
+       * the collapse toggles unless it calls `event.preventDefault()`.
+       */
+      readonly getTriggerProps: (props?: {
+        readonly onClick?: ClickHandler | undefined
+      }) => RegionTriggerProps
     }
 
 interface CollapseGroup {
@@ -92,53 +114,70 @@ export function useRegionItems(
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
   const baseId = useId()
   const items: RegionItem[] = []
+
+  function toggle(group: string) {
+    setOpen((current) => {
+      const next = new Set(current)
+      if (!next.delete(group)) {
+        next.add(group)
+      }
+      return next
+    })
+  }
+
   const closed: (readonly [string, string])[] = []
 
-  function entryItem(entry: RegionEntry, hidden: boolean): RegionItem {
+  function entryItem(
+    entry: RegionEntry,
+    group: string | undefined,
+    hidden: boolean
+  ) {
     return {
       kind: "entry",
       key: entry.id,
       entry,
+      group,
       mode: entry.visible && !hidden ? "visible" : "hidden",
       props: {
         id: `${baseId}${entry.id}`,
         "data-pliant-id": entry.id,
         "data-pliant-pinned": entry.pinned,
       },
-    }
+    } satisfies RegionItem
   }
 
   for (const part of groupsOf(entries)) {
     if (part.kind !== "collapse") {
-      items.push(entryItem(part, false))
+      items.push(entryItem(part, undefined, false))
       continue
     }
     const isOpen = open.has(part.key)
     const id = `${baseId}collapse-${encodeURIComponent(part.key)}`
-    const members = part.entries.map((entry) => entryItem(entry, !isOpen))
+    const members = part.entries.map((entry) =>
+      entryItem(entry, part.key, !isOpen)
+    )
     if (part.entries.some((entry) => entry.visible)) {
       items.push({
         kind: "trigger",
         key: `collapse:${part.key}`,
+        group: part.key,
         into: part.collapse.into,
         label: part.collapse.label,
         open: isOpen,
-        props: {
+        members: members.map((member) => member.key),
+        getTriggerProps: (props) => ({
           id,
           type: "button",
           "aria-expanded": isOpen,
           "aria-controls": members.map((member) => member.props.id).join(" "),
           "data-pliant-collapse": part.collapse.into,
-          onClick: () => {
-            setOpen((current) => {
-              const next = new Set(current)
-              if (!next.delete(part.key)) {
-                next.add(part.key)
-              }
-              return next
-            })
+          onClick: (event) => {
+            props?.onClick?.(event)
+            if (!event.defaultPrevented) {
+              toggle(part.key)
+            }
           },
-        },
+        }),
       })
     }
     items.push(...members)
