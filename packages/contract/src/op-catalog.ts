@@ -2,17 +2,25 @@ import type { Capability } from "./capability"
 import type { Layer } from "./layer"
 import type { OpName } from "./op"
 
+type AppliesTo = "target" | "parent" | "surface" | "app"
+
 export interface OpDefinition {
-  readonly capability: Capability | null
-  readonly appliesTo: "target" | "parent" | "surface" | "app"
+  /**
+   * The capability the op needs, or `null` for none. An op whose shapes need
+   * different capabilities lists one per `args` list, in the same order, and
+   * `appliesTo` does the same.
+   */
+  readonly capability: Capability | null | readonly Capability[]
+  readonly appliesTo: AppliesTo | readonly AppliesTo[]
   readonly layers: readonly Layer[]
   /**
    * The op's top-level argument keys, without `op` and `target`: one list per
-   * shape, in no particular order. An op that fails its schema comes from a
-   * newer version when it passes after removing every key other than `op` and
-   * `target` that appears in none of these lists. Unknown keys nested inside an
-   * argument, a new value for a shape's discriminator, and a key added to one
-   * shape that another shape already has all leave the op invalid.
+   * shape, in no particular order unless `capability` is a list. An op that
+   * fails its schema comes from a newer version when it passes after removing
+   * every key other than `op` and `target` that appears in none of these
+   * lists. Unknown keys nested inside an argument, a new value for a shape's
+   * discriminator, and a key added to one shape that another shape already has
+   * all leave the op invalid.
    */
   readonly args: readonly (readonly string[])[]
 }
@@ -102,10 +110,10 @@ export const opCatalog: Readonly<Record<OpName, OpDefinition>> = {
     args: [[]],
   },
   setDefault: {
-    capability: "form",
-    appliesTo: "parent",
+    capability: ["form", "defaults"],
+    appliesTo: ["parent", "target"],
     layers: anyLayer,
-    args: [["value"]],
+    args: [["value"], ["prop", "value"]],
   },
   setPresentation: {
     capability: "presentation",

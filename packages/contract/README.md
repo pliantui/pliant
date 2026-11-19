@@ -8,7 +8,7 @@ Pliant is in early development. See https://github.com/pliantui/pliant.
 
 `schema/` holds JSON Schemas for overlays, ops, saved views and manifests, the op catalog as data in `catalog.json`, and the function catalog in `functions.json`. Patterns are ECMA-262 regular expressions: `\d` matches only ASCII digits and `$` matches only at the end of the string (Python's `re` differs on both). `format: date-time` (RFC 3339) must be checked. String lengths count Unicode code points, as `maxLength` does.
 
-`catalog.json` is `{ "contract": 1, "ops": { [name]: { capability, layers, args } } }`. `capability` is checked against manifests at resolution time; `null` means none is needed. `layers` and each `args` list are unordered. `args` holds one list of top-level argument keys per shape, without `op` and `target`. New ops and fields may be added within contract 1, so ignore keys you don't know.
+`catalog.json` is `{ "contract": 1, "ops": { [name]: { capability, layers, args } } }`. `capability` is checked against manifests at resolution time; `null` means none is needed. `args` holds one list of top-level argument keys per shape, without `op` and `target`. When an op's shapes need different capabilities, `capability` is a list with one entry per `args` list, in the same order: `setDefault` needs `form` on the field's parent without `prop`, and `defaults` on the target with it. `layers` and the keys in each `args` list are unordered. New ops and fields may be added within contract 1, so ignore keys you don't know.
 
 Before anything else, reject an overlay, saved view or manifest if any object in it, at any depth, has a key named `__proto__`, `constructor` or `prototype`. JSON parsers can produce these keys, and some runtimes treat them specially.
 
@@ -22,13 +22,15 @@ To validate an overlay:
    - **newer** if it is valid once every key other than `op` and `target` that appears in none of its `args` lists is removed;
    - **invalid** otherwise.
 
-   Rules JSON Schema can't express: a `move` with `to.into` needs a target that ends in `/slots/<id>` and whose node id doesn't end in `[]`, and `to.into` can't be the target or start with the target followed by `/`; the `field`s in a value matching `op.json`'s `#/$defs/sort` are unique; a value matching `#/$defs/expression` has at most 128 nodes.
+   Rules JSON Schema can't express: a `move` with `to.into` needs a target that ends in `/slots/<id>` and whose node id doesn't end in `[]`, and `to.into` can't be the target or start with the target followed by `/`; a `setDefault` without `prop` targets an address ending in `/fields/<id>`, and one with `prop` targets a node address (no `/columns/`, `/fields/`, `/items/` or `/actions/` segment) and has a `value` that is a string of 1 to 64 characters, a number or a boolean; the `field`s in a value matching `op.json`'s `#/$defs/sort` are unique; a value matching `#/$defs/expression` has at most 128 nodes.
 
 A `remove` targets a slot address outside a template or the bare id of a node. Whether a bare id names a node the user inserted or wrapped is checked at resolution time, not during validation.
 
 When loading a saved overlay, apply only valid ops, flag unknown and newer ones, and keep every op unchanged when saving it again. Reject an AI answer or an import unless every op is valid.
 
-A saved view also needs every overlay to have the view's `surface` and `layer`, the same `scope.org` and `scope.team` as the others, and a unique `id`. In a manifest, a prop's `default` and `semantic` values must be among its `values`.
+A `setDefault` with `prop` also needs `prop` declared in the target's `defaults` capability and a `value` that fits the declaration: one of its `values`, a boolean for `type: "boolean"`, a number from `min` to `max` for `type: "number"`, or an ISO 8601 calendar date (`YYYY-MM-DD`) for `type: "date"`. These values are never data values. A field's default, without `prop`, is a data value and must parse with the field's schema.
+
+A saved view also needs every overlay to have the view's `surface` and `layer`, the same `scope.org` and `scope.team` as the others, and a unique `id`. In a manifest, a prop's `default` and `semantic` values must be among its `values`. A `defaults` declaration of `type: "number"` needs `min` at most `max`.
 
 ## Function catalog
 

@@ -34,6 +34,16 @@ describe("checkOp", () => {
       { op: "setLayout", target: "dashboard", mode: "row", gap: 2, wrap: true },
       ["gap", "wrap"],
     ],
+    [
+      {
+        op: "setDefault",
+        target: "app-sidebar",
+        prop: "defaultOpen",
+        value: true,
+        at: "md",
+      },
+      ["at"],
+    ],
   ])("treats unknown top-level arguments as newer: %j", (op, keys) => {
     expect(check(op)).toEqual({ index: 0, status: "newer", op, keys })
   })
@@ -66,12 +76,38 @@ describe("checkOp", () => {
     },
     { op: "setPresentation", target: "edit-order", as: "popover" },
     { op: "rename", target: "orders-table/columns/notes", label: "" },
+    { op: "setDefault", target: "settings-tabs", value: "activity" },
+    {
+      op: "setDefault",
+      target: "ticket-form/fields/priority",
+      prop: "defaultValue",
+      value: "high",
+    },
+    {
+      op: "setDefault",
+      target: "app-sidebar",
+      prop: "defaultOpen",
+      value: null,
+    },
   ])("treats %j as invalid, with its error", (op) => {
     const result = check(op)
     expect(result.status).toBe("invalid")
     expect(
       result.status === "invalid" && result.error.issues.length
     ).toBeGreaterThan(0)
+  })
+
+  it.each([
+    { op: "setDefault", target: "ticket-form/fields/tags", value: ["a", "b"] },
+    {
+      op: "setDefault",
+      target: "settings-tabs",
+      prop: "defaultValue",
+      value: "activity",
+    },
+    { op: "setDefault", target: "orders-table", prop: "pageSize", value: 50 },
+  ])("accepts both setDefault shapes: %j", (op) => {
+    expect(check(op)).toEqual({ index: 0, status: "valid", op })
   })
 
   it("keeps the original op for ops it can't apply", () => {

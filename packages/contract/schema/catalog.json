@@ -191,7 +191,10 @@
       ]
     },
     "setDefault": {
-      "capability": "form",
+      "capability": [
+        "form",
+        "defaults"
+      ],
       "layers": [
         "org",
         "team",
@@ -200,6 +203,10 @@
       ],
       "args": [
         [
+          "value"
+        ],
+        [
+          "prop",
           "value"
         ]
       ]

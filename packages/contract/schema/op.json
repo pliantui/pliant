@@ -669,9 +669,12 @@
           "const": "setDefault"
         },
         "target": {
+          "$ref": "#/$defs/address"
+        },
+        "prop": {
           "type": "string",
-          "maxLength": 256,
-          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\\[\\])?(?:\\/(?:(?:columns|fields|items|actions)\\/[A-Za-z][A-Za-z0-9_-]*|slots\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*))*\\/fields\\/[A-Za-z][A-Za-z0-9_-]*$"
+          "maxLength": 64,
+          "pattern": "^[a-z][A-Za-z0-9]*$"
         },
         "value": {
           "anyOf": [

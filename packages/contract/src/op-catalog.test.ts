@@ -4,6 +4,11 @@ import * as z from "zod"
 import { opSchemas } from "./op"
 import { opCatalog } from "./op-catalog"
 
+// setDefault is one object refined into two shapes: with and without `prop`.
+const refinedShapes: Record<string, string[][]> = {
+  setDefault: [["value"], ["prop", "value"]],
+}
+
 function argsOf(schema: z.core.$ZodType): string[][] {
   if (schema instanceof z.ZodObject) {
     return [
@@ -37,10 +42,29 @@ describe("opCatalog", () => {
       Object.fromEntries(
         Object.entries(opSchemas).map(([name, schema]) => [
           name,
-          sorted(argsOf(schema)),
+          sorted(refinedShapes[name] ?? argsOf(schema)),
         ])
       )
     )
+  })
+
+  it("lists one capability and one appliesTo per shape when they differ", () => {
+    for (const { capability, appliesTo, args } of Object.values(opCatalog)) {
+      if (Array.isArray(capability)) {
+        expect(capability).toHaveLength(args.length)
+      }
+      if (Array.isArray(appliesTo)) {
+        expect(appliesTo).toHaveLength(args.length)
+      }
+    }
+    expect([...new Set(refinedShapes["setDefault"]?.flat())].sort()).toEqual(
+      argsOf(opSchemas.setDefault).flat().sort()
+    )
+    expect(opCatalog.setDefault).toMatchObject({
+      capability: ["form", "defaults"],
+      appliesTo: ["parent", "target"],
+      args: [["value"], ["prop", "value"]],
+    })
   })
 
   it("matches the published file", async () => {

@@ -62,6 +62,59 @@
         "label": true,
         "hideable": true
       }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultValue": {
+            "values": ["overview", "activity"]
+          },
+          "defaultOpen": {
+            "type": "boolean",
+            "persist": true
+          },
+          "defaultSize": {
+            "type": "number",
+            "min": 10,
+            "max": 90,
+            "persist": true
+          },
+          "defaultMonth": {
+            "type": "date"
+          },
+          "pageSize": {
+            "type": "number",
+            "min": 10,
+            "max": 10,
+            "persist": false
+          }
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {}
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultSize": {
+            "type": "number",
+            "min": -1.5,
+            "max": 0
+          }
+        }
+      }
     }
   ],
   "invalid": [
@@ -247,6 +300,188 @@
         "label": true,
         "hideable": true
       }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultValue": {
+            "values": []
+          }
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultValue": {
+            "values": ["a", "a"]
+          }
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultValue": {
+            "values": [""]
+          }
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultValue": {
+            "values": ["a"],
+            "default": "a"
+          }
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultValue": {
+            "values": ["a"],
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultValue": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultValue": {}
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultOpen": {
+            "type": "boolean",
+            "values": ["a"]
+          }
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultOpen": {
+            "type": "boolean",
+            "persist": "yes"
+          }
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultSize": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultSize": {
+            "type": "number",
+            "min": 10
+          }
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultSize": {
+            "type": "number",
+            "min": "10",
+            "max": 90
+          }
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "defaultMonth": {
+            "type": "date",
+            "min": "2026-01-01"
+          }
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": {
+          "DefaultOpen": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "kind": "tabs",
+      "version": 1,
+      "description": "Tabbed panels",
+      "capabilities": {
+        "defaults": true
+      }
     }
   ],
   "crossField": [
@@ -316,6 +551,24 @@
       },
       "message": "Must not have a constructor key",
       "path": ["capabilities", "props", "constructor"]
+    },
+    {
+      "value": {
+        "kind": "tabs",
+        "version": 1,
+        "description": "Tabbed panels",
+        "capabilities": {
+          "defaults": {
+            "defaultSize": {
+              "type": "number",
+              "min": 90,
+              "max": 10
+            }
+          }
+        }
+      },
+      "message": "Must be at least min",
+      "path": ["capabilities", "defaults", "defaultSize", "max"]
     }
   ]
 }

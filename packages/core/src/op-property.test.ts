@@ -95,6 +95,24 @@ const cases: [Op, OpProperty[]][] = [
     [{ address: "ticket-form/fields/priority", property: "default" }],
   ],
   [
+    {
+      op: "setDefault",
+      target: "settings-tabs",
+      prop: "defaultValue",
+      value: "activity",
+    },
+    [{ address: "settings-tabs", property: "defaults.defaultValue" }],
+  ],
+  [
+    {
+      op: "setDefault",
+      target: "workspace/slots/panels",
+      prop: "defaultSize",
+      value: 35,
+    },
+    [{ address: "panels", property: "defaults.defaultSize" }],
+  ],
+  [
     { op: "setPresentation", target: "edit-order", as: "sheet", side: "right" },
     [{ address: "edit-order", property: "presentation" }],
   ],
