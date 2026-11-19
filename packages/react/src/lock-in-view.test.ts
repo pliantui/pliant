@@ -322,6 +322,107 @@ describe("lockIn", () => {
     expect(lockedIn).toBeGreaterThan(seeds / 2)
   }, 600_000)
 
+  it("keeps changes made during a preview, rendering as before", async () => {
+    const changed: string[] = []
+    let moved = 0
+    const mounted = [
+      "dashboard",
+      "sidebar",
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "orders-table",
+    ]
+    for (let seed = start; seed < start + seeds; seed++) {
+      const random = createRandom(seed)
+      const ops = createOps(random)
+      const personalChanges = Array.from({ length: random.random(3) }, () =>
+        ops(1 + random.random(3))
+      )
+      const sessionChanges = Array.from({ length: random.random(4) }, () =>
+        ops(1 + random.random(3))
+      )
+      const previewed = ops(1 + random.random(5))
+      // Inserting or removing a node during a preview whose ops change
+      // layer can change what it applies to, since removals are scoped.
+      const clicks = Array.from({ length: 1 + random.random(3) }, () =>
+        ops(1 + random.random(2)).filter(
+          ({ op }) =>
+            !["insert", "wrap", "remove", "removeUserItem"].includes(op)
+        )
+      ).filter((changes) => changes.length > 0)
+      const end = random.pick(["lockIn", "discard"] as const)
+      const run = async (withPreview: boolean) => {
+        sessionStorage.clear()
+        const saved: unknown[] = []
+        const store = await createStore(mounted, {
+          storage: {
+            load: () => ({}),
+            save: (_surface, overlay) => {
+              saved.push(overlay)
+            },
+          },
+        })
+        for (const changes of personalChanges) {
+          store.actions.applyOps("personal", changes)
+        }
+        for (const changes of sessionChanges) {
+          store.actions.applyOps("session", changes)
+        }
+        const shown =
+          withPreview &&
+          previewed.length > 0 &&
+          store.actions.preview(answer(seed, previewed)).success
+        for (const changes of clicks) {
+          store.actions.applyOps("session", changes)
+        }
+        return { store, shown, saved }
+      }
+      const { store, shown, saved } = await run(true)
+      if (!shown) {
+        continue
+      }
+      // Discarding shows what the same changes show without the preview.
+      const expected =
+        end === "lockIn"
+          ? rendered(store.getResolved())
+          : rendered((await run(false)).store.getResolved())
+      store.flush()
+      const savedBefore = saved.length
+      if (end === "lockIn") {
+        expect(store.actions.lockIn().success).toBe(true)
+      } else {
+        store.actions.discard()
+      }
+      store.flush()
+      if (
+        saved
+          .slice(savedBefore)
+          .some(
+            (overlay) =>
+              typeof overlay === "object" &&
+              overlay !== null &&
+              "source" in overlay &&
+              overlay.source === "manual"
+          )
+      ) {
+        moved++
+      }
+      const after = rendered(store.getResolved())
+      for (const key of Object.keys(expected) as (keyof typeof expected)[]) {
+        if (expected[key] !== after[key]) {
+          changed.push(`seed ${String(seed)} (${end}): ${key}`)
+        }
+      }
+    }
+
+    expect(changed).toEqual([])
+    expect(moved).toBeGreaterThan(seeds / 4)
+  }, 600_000)
+
   it("coalesces changes without changing what renders", async () => {
     const changed: string[] = []
     const mounted = [
