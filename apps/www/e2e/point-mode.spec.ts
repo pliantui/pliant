@@ -210,6 +210,49 @@ test("waits for a native modal dialog to close", async ({ page, errors }) => {
   expect(errors).toEqual([])
 })
 
+test("keeps its outlines clickable under a modal layer", async ({
+  page,
+  errors,
+}) => {
+  await load(page)
+  await page.getByRole("button", { name: "Point" }).click()
+  await expect(keyMetricsBox(page)).toBeFocused()
+  await page.evaluate(() => {
+    document.body.style.pointerEvents = "none"
+  })
+
+  await keyMetricsBox(page).click()
+
+  await expect(layer(page)).toBeHidden()
+  await expectAskingAboutKeyMetrics(page)
+  expect(errors).toEqual([])
+})
+
+test("keeps a label on screen for a target at the right edge", async ({
+  page,
+  errors,
+}) => {
+  await load(page)
+  await page
+    .getByRole("region", { name: "Key metrics" })
+    .evaluate((section) => {
+      section.style.position = "fixed"
+      section.style.top = "200px"
+      section.style.right = "0"
+      section.style.width = "40px"
+    })
+
+  await page.keyboard.down("Alt")
+  const label = layer(page).getByText("Key metrics", { exact: true })
+  await expect(label).toBeVisible()
+  const box = await label.boundingBox()
+  const width = await page.evaluate(() => document.documentElement.clientWidth)
+  await page.keyboard.up("Alt")
+
+  expect(box && box.x >= 0 && box.x + box.width <= width).toBe(true)
+  expect(errors).toEqual([])
+})
+
 async function accessibilityTree(page: Page) {
   const client = await page.context().newCDPSession(page)
   const { nodes } = await client.send("Accessibility.getFullAXTree")

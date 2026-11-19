@@ -45,6 +45,13 @@ Everything in this repository and on GitHub (code, comments, docs, READMEs, chan
 - Link an issue in a comment only when it explains current behaviour, such as a known upstream bug, never to mark something as not done.
 - Changesets are release notes: say what changed for users, in plain language.
 
+## Tests
+
+- Tests assert behaviour a user or an API caller can observe. Query UI by role or label, as the user perceives it.
+- Never assert implementation details: exact class strings, internal state or private functions. Never read source text.
+- Every test must fail when the behaviour it describes breaks. Check a new test by breaking that behaviour locally and watching it fail.
+- Layout and visual order are tested in the browser with Playwright (`apps/www/e2e`), not in jsdom or happy-dom, which don't apply CSS.
+
 ## Checks
 
 Run these before opening a pull request; all must pass:
