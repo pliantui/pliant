@@ -1,16 +1,10 @@
 import { readFile } from "node:fs/promises"
-import { fileURLToPath } from "node:url"
-import { anthropic } from "@ai-sdk/anthropic"
-import { wrapLanguageModel } from "ai"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import * as z from "zod"
 
-import {
-  askRequestSchema,
-  askResponseSchema,
-  createPliantHandler,
-} from "@pliantui/server"
-import { recordingMiddleware } from "@pliantui/server/recordings"
+import { askRequestSchema, askResponseSchema } from "@pliantui/server"
+
+import { POST } from "./route"
 
 const demoSchema = z.strictObject({
   surface: z.string(),
@@ -38,27 +32,18 @@ const asks = demo.targets.flatMap(({ target, context, prompts }) =>
   )
 )
 
-const handler = createPliantHandler({
-  model: wrapLanguageModel({
-    model: anthropic("claude-haiku-5-5"),
-    middleware: recordingMiddleware({
-      mode: "replay",
-      directory: fileURLToPath(new URL("../../../recordings", import.meta.url)),
-    }),
-  }),
-  getUser: () => "anonymous",
-})
-
 afterEach(() => {
+  vi.unstubAllEnvs()
   vi.restoreAllMocks()
 })
 
 describe("committed recordings", () => {
   it("replay every demo ask to its recorded answer", async () => {
+    vi.stubEnv("PLIANT_ASK_ENABLED", "1")
     vi.spyOn(console, "warn").mockImplementation(() => undefined)
     const answers: unknown[] = []
     for (const ask of asks) {
-      const response = await handler(
+      const response = await POST(
         new Request("http://localhost/api/pliant", {
           method: "POST",
           headers: { "content-type": "application/json" },
