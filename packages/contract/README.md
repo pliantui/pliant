@@ -45,3 +45,7 @@ A saved view also needs every overlay to have the view's `surface` and `layer`, 
 A SQL translation must give the same results as `rules` and `describe` say, even where the dialect's own functions differ. Where the database raises an error on floating-point overflow instead of returning an infinity, the translation must guard against it or not compile the function.
 
 The `in` function takes at most 15 values, because a function takes at most 16 arguments. The 100-value limit is for the `in` filter operator.
+
+## Flags
+
+`flagsSchema` checks the flags set on one address in `pliant.config.ts`. `primary` marks the surface's primary action. It is set by address, never derived from position, because a user's reorder would change it. An address can't be both `primary` and `destructive`, since a destructive action never sits next to or above the primary one. A surface has at most one `primary` action; `flagsSchema` sees one address at a time, so that rule is checked where a config's flags are read together.
