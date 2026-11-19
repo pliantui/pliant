@@ -15,12 +15,12 @@
         "lucide-react",
         "zod"
       ],
-      "registryDependencies": ["button", "collapsible"],
+      "registryDependencies": ["button"],
       "files": [
         {
           "path": "registry/pliant/pliant-region.tsx",
           "type": "registry:component",
-          "target": "components/pliant/pliant-region.tsx"
+          "target": "@components/pliant/pliant-region.tsx"
         }
       ]
     }

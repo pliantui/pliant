@@ -134,7 +134,7 @@ describe("PliantRegion", () => {
       )
     }
     expect(region().getAttribute("data-slot")).toBe("pliant-region")
-    expect(region().className).toBe("flex-col grid gap-6")
+    expect(region().className).toBe("grid gap-6")
   })
 
   it("reorders slots and keeps their state and focus", async () => {
@@ -185,8 +185,34 @@ describe("PliantRegion", () => {
     const wrapper = region("money")
     expect(idsIn(wrapper)).toEqual(["revenue", "overdue"])
     expect(wrapper.className).toBe(
-      "flex flex-col gap-[inherit] md:grid md:grid-cols-2 lg:grid lg:grid-cols-2 xl:grid xl:grid-cols-2 2xl:grid 2xl:grid-cols-2"
+      "grid gap-[inherit] md:grid md:grid-cols-2 lg:grid lg:grid-cols-2 xl:grid xl:grid-cols-2 2xl:grid 2xl:grid-cols-2 md:col-span-full"
     )
+  })
+
+  it("spans a wide wrapper over its container unless a span is set", async () => {
+    await renderRegion([
+      {
+        op: "wrap",
+        target: "key-metrics",
+        id: "money",
+        items: ["revenue", "overdue"],
+        mode: "row",
+      },
+      { op: "setLayout", target: "money", mode: "stack", at: "lg" },
+      {
+        op: "wrap",
+        target: "key-metrics",
+        id: "counts",
+        items: ["orders", "money"],
+        mode: "grid",
+        columns: 2,
+      },
+      { op: "span", target: slot("counts"), columns: 3 },
+    ])
+
+    expect(region("money").className).toContain("md:col-span-full lg:col-auto")
+    expect(region("counts").className).toContain("md:col-span-3")
+    expect(region("counts").className).not.toContain("col-span-full")
   })
 
   it("applies layouts from their breakpoint up, over the developer's", async () => {
@@ -208,7 +234,7 @@ describe("PliantRegion", () => {
     await mounted()
 
     expect(region().className).toBe(
-      "flex-col grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid md:grid-cols-3 lg:grid lg:grid-cols-3 xl:grid xl:grid-cols-3 2xl:grid 2xl:grid-cols-3"
+      "grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid md:grid-cols-3 lg:grid lg:grid-cols-3 xl:grid xl:grid-cols-3 2xl:grid 2xl:grid-cols-3"
     )
     expect(region("revenue").className).toBe("lg:*:col-span-2")
     expect(region("orders").hasAttribute("class")).toBe(false)
@@ -228,31 +254,81 @@ describe("PliantRegion", () => {
     expect(region().className).toContain("flex flex-row items-center")
   })
 
-  it("groups collapsed slots in a disclosure that keeps their state", async () => {
-    await renderRegion([
-      {
-        op: "collapse",
-        target: "key-metrics",
-        items: ["orders", "overdue"],
-        into: "more",
-        label: "More metrics",
-      },
-    ])
+  it("collapses slots behind a trigger and keeps their state", async () => {
+    await renderRegion()
+    fireEvent.click(screen.getByRole("button", { name: "Orders 0" }))
+
+    apply({
+      op: "collapse",
+      target: "key-metrics",
+      items: ["orders", "overdue"],
+      into: "more",
+      label: "More metrics",
+    })
     const trigger = screen.getByRole("button", { name: "More metrics" })
     expect(trigger.getAttribute("aria-expanded")).toBe("false")
-    expect(screen.queryByRole("button", { name: "Orders 0" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Orders 1" })).toBeNull()
 
     fireEvent.click(trigger)
-    fireEvent.click(screen.getByRole("button", { name: "Orders 0" }))
+    expect(trigger.getAttribute("aria-expanded")).toBe("true")
+    fireEvent.click(screen.getByRole("button", { name: "Orders 1" }))
     fireEvent.click(trigger)
     fireEvent.click(trigger)
 
-    expect(screen.getByRole("button", { name: "Orders 1" })).toBeTruthy()
-    expect(
-      [...region().querySelectorAll("[data-pliant-id]")].map((element) =>
-        element.getAttribute("data-pliant-id")
-      )
-    ).toEqual(["revenue", "orders", "overdue"])
+    expect(screen.getByRole("button", { name: "Orders 2" })).toBeTruthy()
+  })
+
+  it("lays out collapsed slots in place, with the container's layout", async () => {
+    await renderRegion(
+      [
+        {
+          op: "collapse",
+          target: "key-metrics",
+          items: ["revenue"],
+          into: "more",
+        },
+      ],
+      <PliantRegion
+        id="key-metrics"
+        slots={slots}
+        className="grid grid-cols-3 rounded-xl border p-4"
+      />
+    )
+
+    expect(idsIn(region())).toEqual([null, "revenue", "orders", "overdue"])
+    const trigger = region().firstElementChild
+    expect(trigger?.textContent).toBe("More")
+    expect(trigger?.getAttribute("data-pliant-collapse")).toBe("more")
+    expect(trigger?.className).toContain("col-span-full")
+    expect(region().querySelectorAll(".border")).toHaveLength(0)
+  })
+
+  it("keeps rendering a slot moved out of a region it hides or collapses", async () => {
+    const page = (
+      <PliantRegion
+        id="outer"
+        slots={{
+          top: <p>Top</p>,
+          details: <PliantRegion id="inner" slots={{ card: <p>Card</p> }} />,
+        }}
+      />
+    )
+    await renderRegion(
+      [{ op: "move", target: slot("card", "inner"), to: { into: "outer" } }],
+      page
+    )
+    expect(idsIn(region("outer"))).toEqual(["top", "details", "card"])
+
+    apply({ op: "hide", target: slot("details", "outer") })
+    await mounted()
+    expect(region("card").textContent).toBe("Card")
+
+    apply(
+      { op: "show", target: slot("details", "outer") },
+      { op: "collapse", target: "outer", items: ["details"], into: "more" }
+    )
+    await mounted()
+    expect(region("card").textContent).toBe("Card")
   })
 
   it("renders a slot moved in from another region, and not in its own", async () => {
@@ -306,7 +382,7 @@ describe("PliantRegion", () => {
     )
 
     expect(html).toBe(
-      '<div data-slot="pliant-region" data-pliant-id="key-metrics" data-pliant-pending="" class="flex flex-col gap-4"><!--&--><div data-pliant-id="revenue" style="display:contents">Revenue</div><!--/&--></div>'
+      '<div data-slot="pliant-region" data-pliant-id="key-metrics" data-pliant-pending="" class="grid gap-4"><!--&--><div data-pliant-id="revenue" style="display:contents">Revenue</div><!--/&--></div>'
     )
   })
 
