@@ -1,5 +1,6 @@
+import type { MouseEvent } from "react"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { RegionEntry } from "@pliantui/core"
 
@@ -18,7 +19,7 @@ function Items({ entries }: { entries: readonly RegionEntry[] }) {
   const items = useRegionItems(entries)
   return items.map((item) =>
     item.kind === "trigger" ? (
-      <button key={item.key} {...item.props}>
+      <button key={item.key} {...item.getTriggerProps()}>
         {item.label ?? "More"}
       </button>
     ) : (
@@ -128,6 +129,65 @@ describe("useRegionItems", () => {
       ?.split(" ")
       .map((id) => document.getElementById(id)?.getAttribute("data-pliant-id"))
     expect(controls).toEqual(["orders", "overdue"])
+  })
+
+  it("gives each item its collapse group, and each trigger its members", () => {
+    function Groups() {
+      const items = useRegionItems([
+        slot("revenue"),
+        slot("orders", { collapsed: more }),
+        slot("overdue", { collapsed: more }),
+      ])
+      return (
+        <output>
+          {JSON.stringify(
+            items.map((item) =>
+              item.kind === "trigger"
+                ? { key: item.key, group: item.group, members: item.members }
+                : { key: item.key, group: item.group ?? null }
+            )
+          )}
+        </output>
+      )
+    }
+    render(<Groups />)
+
+    expect(JSON.parse(screen.getByRole("status").textContent)).toEqual([
+      { key: "revenue", group: null },
+      {
+        key: "collapse:more:More metrics",
+        group: "more:More metrics",
+        members: ["orders", "overdue"],
+      },
+      { key: "orders", group: "more:More metrics" },
+      { key: "overdue", group: "more:More metrics" },
+    ])
+  })
+
+  it("runs the trigger's own onClick first, and lets it prevent the toggle", () => {
+    const onClick = vi.fn((event: MouseEvent<HTMLButtonElement>) => {
+      if (onClick.mock.calls.length > 1) {
+        event.preventDefault()
+      }
+    })
+    function Trigger() {
+      const trigger = useRegionItems([
+        slot("orders", { collapsed: more }),
+      ]).find((item) => item.kind === "trigger")
+      return (
+        <button {...trigger?.getTriggerProps({ onClick })}>
+          {trigger?.label}
+        </button>
+      )
+    }
+    render(<Trigger />)
+    const button = screen.getByRole("button", { name: "More metrics" })
+
+    fireEvent.click(button)
+    expect(button.getAttribute("aria-expanded")).toBe("true")
+    fireEvent.click(button)
+    expect(button.getAttribute("aria-expanded")).toBe("true")
+    expect(onClick).toHaveBeenCalledTimes(2)
   })
 
   it("leaves out the trigger when its entries are all hidden", () => {

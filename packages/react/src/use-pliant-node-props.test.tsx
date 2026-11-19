@@ -4,17 +4,17 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import { PliantRoot } from "./pliant-root"
 import type { StorageAdapter, StoredLayers } from "./storage-adapter"
-import { usePliantNode } from "./use-pliant-node"
+import { usePliantNodeProps } from "./use-pliant-node-props"
 
 function Node() {
-  return <div role="region" {...usePliantNode("orders-table")} />
+  return <div role="region" {...usePliantNodeProps("orders-table")} />
 }
 
 afterEach(() => {
   cleanup()
 })
 
-describe("usePliantNode", () => {
+describe("usePliantNodeProps", () => {
   it("marks the node pending until the layers load", async () => {
     let resolve: (value: StoredLayers) => void = () => undefined
     const storage: StorageAdapter = {
