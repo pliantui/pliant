@@ -11,6 +11,7 @@ import { expressionSchema } from "./expression"
 import { filterSchema } from "./filter"
 import { formatSchema } from "./format"
 import { itemIdSchema } from "./identifier"
+import { languageTagSchema } from "./language-tag"
 import { breakpointSchema } from "./layout"
 import { manifestSchema } from "./manifest"
 import { opSchema } from "./op"
@@ -53,6 +54,7 @@ const definitions = {
   filter: filterSchema,
   format: formatSchema,
   itemId: itemIdSchema,
+  languageTag: languageTagSchema,
   sort: sortSchema,
   surface: surfaceSchema,
 }

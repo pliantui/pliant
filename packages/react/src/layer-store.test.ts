@@ -156,6 +156,29 @@ describe("createLayerStore", () => {
       expect(widthOf(store.getResolved(), "total")).toBe(200)
     })
 
+    describe("lang", () => {
+      afterEach(() => {
+        document.documentElement.removeAttribute("lang")
+      })
+
+      it("records the page's language", () => {
+        document.documentElement.lang = "fr-CA"
+        const { store } = setup()
+        const result = store.actions.applyOps("personal", [width("total", 200)])
+
+        expect(result.success && result.overlay.lang).toBe("fr-CA")
+      })
+
+      it.each(["", "en_US"])("leaves out a page language of %j", (lang) => {
+        document.documentElement.lang = lang
+        const { store } = setup()
+        const result = store.actions.applyOps("personal", [width("total", 200)])
+
+        expect(result.success && "lang" in result.overlay).toBe(false)
+        expect(result.success).toBe(true)
+      })
+    })
+
     it("rejects an invalid op with the formatted error", () => {
       const { store } = setup()
       const before = store.getResolved()

@@ -1,6 +1,7 @@
 import * as z from "zod"
 
 import { kebabIdSchema, kindSchema } from "./identifier"
+import { languageTagSchema } from "./language-tag"
 import { withoutReservedKeys } from "./reserved-keys"
 import { surfaceSchema } from "./surface"
 import { textSchema } from "./text"
@@ -55,6 +56,10 @@ const overlayShape = {
       .optional(),
   }),
   source: z.enum(["ai", "manual", "chip", "share", "promote"]),
+  lang: languageTagSchema.optional().meta({
+    description:
+      "The BCP 47 language tag of the overlay's plain label strings, filled from the UI locale when the overlay is created.",
+  }),
   explain: z
     .array(textSchema(200, { min: 1 }))
     .max(500)

@@ -44,7 +44,8 @@ export interface PliantStore {
    * Applies ops as one overlay on the personal or session layer, made with
    * `source: "manual"`, `createdBy: "local"` and `basis.manifests: {}`. The
    * manifest versions aren't known here yet; they must be filled in before
-   * migrations rely on them.
+   * migrations rely on them. `lang` is the page's `<html lang>` when it is
+   * a well-formed language tag, and is left out otherwise.
    *
    * `createdAt` always sorts after every loaded personal and session
    * overlay. So a saved overlay dated in the future, from a clock that ran
