@@ -9,9 +9,11 @@ import {
 } from "./op-property"
 import { placementOf, type ResolvedPlacement } from "./placement"
 import type {
+  BaseIds,
   ResolvedItemPlacement,
   ResolvedOp,
   ResolvedProperty,
+  ResolveLayersOptions,
   UnappliedReason,
 } from "./resolve-layers"
 
@@ -61,6 +63,9 @@ export interface Resolution {
   // at before anything created them.
   readonly base: Set<string>
   readonly exactBase: boolean
+  // The base ids are only the nodes mounted now, so an unknown container may
+  // still mount: an op into it is dormant, not missing.
+  readonly mounted: boolean
   // Created node id to its version, which changes each time the node is
   // created again or its wrap is replaced.
   readonly versions: Map<string, number>
@@ -68,26 +73,46 @@ export interface Resolution {
   readonly createdIn: Map<string, string>
 }
 
-function checkBaseIds(baseIds: unknown): void {
-  if (
-    baseIds !== undefined &&
-    !Array.isArray(baseIds) &&
-    !(baseIds instanceof Set)
-  ) {
-    throw new TypeError("baseIds must be an array or a Set of node ids")
+function isIdList(
+  ids: unknown
+): ids is ReadonlySet<string> | readonly string[] {
+  return Array.isArray(ids) || ids instanceof Set
+}
+
+/**
+ * Reads `baseIds` as `{ ids, source }`: a bare set or array of ids is the
+ * full inventory. Throws a `TypeError` for anything else.
+ */
+export function readBaseIds(baseIds: unknown): BaseIds | undefined {
+  if (baseIds === undefined) {
+    return undefined
   }
+  if (isIdList(baseIds)) {
+    return { ids: baseIds, source: "inventory" }
+  }
+  if (typeof baseIds === "object" && baseIds !== null && "ids" in baseIds) {
+    const { ids } = baseIds
+    const source = "source" in baseIds ? baseIds.source : undefined
+    if (isIdList(ids) && (source === "inventory" || source === "mounted")) {
+      return { ids, source }
+    }
+  }
+  throw new TypeError(
+    'baseIds must be node ids, or { ids, source: "inventory" | "mounted" }'
+  )
 }
 
 export function createResolution(
-  baseIds?: ReadonlySet<string> | readonly string[]
+  baseIds?: ResolveLayersOptions["baseIds"]
 ): Resolution {
-  checkBaseIds(baseIds)
+  const read = readBaseIds(baseIds)
   return {
     nodes: new Map(),
     placements: new Map(),
     created: new Set(),
-    base: new Set<string>(baseIds),
-    exactBase: baseIds !== undefined,
+    base: new Set<string>(read?.ids),
+    exactBase: read !== undefined,
+    mounted: read?.source === "mounted",
     versions: new Map(),
     createdIn: new Map(),
   }
@@ -164,7 +189,7 @@ function baseParentOf(state: Resolution, id: string): string | undefined {
 /**
  * The container an item sits in when no placement of its own holds: its
  * base parent, or, when that node was removed, where that node sits, up the
- * chain (pending the owner's ruling). With no node left in the chain, as in a
+ * chain. With no node left in the chain, as in a
  * cycle of removed nodes, it is the surface (cycles aren't rejected yet:
  * https://github.com/pliantui/pliant/issues/26). `memo` maps removed nodes to the
  * container their items go to, so a resolved chain is walked once.
@@ -243,13 +268,11 @@ function place(
   }
 }
 
-// A `move … into`, `insert` or `wrap` whose container doesn't exist yet, or
-// was removed, needs updating (spec 5.4 rule 3), pending the owner's ruling.
-// A node exists when it is a base node, created and live, or the item's own
-// base parent.
-// Without `baseIds` an unknown id counts as a base node, so only a removed
-// one is missing.
-function missingContainer(state: Resolution, op: Op): boolean {
+// The container a `move … into`, `insert` or `wrap` needs, when it doesn't
+// exist. A node exists when it is a base node, created and live, or the
+// item's own base parent. Without `baseIds` an unknown id counts as a base
+// node, so only a removed one is absent.
+function absentContainer(state: Resolution, op: Op): string | undefined {
   if (op.op === "insert" || op.op === "wrap") {
     // The created node's own earlier base parent, and a wrap's items' base
     // parents, count as existing, as for a move.
@@ -263,18 +286,40 @@ function missingContainer(state: Resolution, op: Op): boolean {
     return parents.every(
       (parent) => versionOf(state, target, parent) === undefined
     )
+      ? target
+      : undefined
   }
   if (op.op !== "move" || !("into" in op.to)) {
-    return false
+    return undefined
   }
+  const into = identityOf(op.to.into)
   const item = identityOf(op.target)
-  return (
-    versionOf(
-      state,
-      identityOf(op.to.into),
-      baseParentOf(state, item) ?? parentOf(op.target)
-    ) === undefined
-  )
+  return versionOf(
+    state,
+    into,
+    baseParentOf(state, item) ?? parentOf(op.target)
+  ) === undefined
+    ? into
+    : undefined
+}
+
+/**
+ * Why an op can't apply into its container: `missing-container` when the
+ * container was removed, or `baseIds` is the full inventory and doesn't list
+ * it; `dormant` when `baseIds` lists only mounted nodes, so the container may
+ * mount later.
+ */
+function containerReason(
+  state: Resolution,
+  op: Op
+): "dormant" | "missing-container" | undefined {
+  const container = absentContainer(state, op)
+  if (container === undefined) {
+    return undefined
+  }
+  return state.mounted && !isRemoved(state, container)
+    ? "dormant"
+    : "missing-container"
 }
 
 function write(
@@ -393,8 +438,9 @@ export function applyOp(
     if (collides(state, op, scope)) {
       return "id-collision"
     }
-    if (missingContainer(state, op)) {
-      return "missing-container"
+    const absent = containerReason(state, op)
+    if (absent) {
+      return absent
     }
     const id = op.op === "insert" ? op.node.id : op.id
     // A node created again starts over where it is created: nothing that
@@ -413,8 +459,9 @@ export function applyOp(
     state.created.add(id)
     state.createdIn.set(id, identityOf(op.target))
   }
-  if (op.op === "move" && missingContainer(state, op)) {
-    return "missing-container"
+  const absent = op.op === "move" ? containerReason(state, op) : undefined
+  if (absent) {
+    return absent
   }
   for (const { address, property, breakpoint } of opProperties(op)) {
     if (property === "placement") {

@@ -1703,6 +1703,84 @@ describe("resolveLayers", () => {
         })
       })
 
+      describe("with mounted baseIds", () => {
+        const ops = [
+          move("dashboard/slots/c", "sidebar"),
+          insertAt("sidebar", "y"),
+          wrap("sidebar", "w", ["a", "b"]),
+        ]
+        const ids = ["dashboard", "a", "b", "c"]
+
+        it.each([
+          ["mounted", "dormant"],
+          ["inventory", "missing-container"],
+        ] as const)(
+          "reports an op into an unlisted node with %s ids as %s",
+          (source, reason) => {
+            const overlay = overlays()
+            const personal = overlay("personal", ops)
+            const { placements, properties, unapplied } = resolve([personal], {
+              baseIds: { ids, source },
+            })
+
+            expect(unapplied).toEqual(
+              personal.ops.map((check) => ({
+                check,
+                overlay: personal,
+                reason,
+              }))
+            )
+            expect(placements.size).toBe(0)
+            expect(properties.size).toBe(0)
+          }
+        )
+
+        it("applies the ops once the node is listed", () => {
+          const overlay = overlays()
+          const personal = overlay("personal", ops)
+          const { placements, unapplied } = resolve([personal], {
+            baseIds: { ids: [...ids, "sidebar"], source: "mounted" },
+          })
+
+          expect(unapplied).toEqual([])
+          expect(placements.get("c")?.container).toBe("sidebar")
+          expect(placements.get("a")?.container).toBe("w")
+        })
+
+        it("still reports an op into a removed node as missing", () => {
+          const overlay = overlays()
+          const personal = overlay("personal", [
+            insertAt("dashboard", "x"),
+            removeNode("x"),
+            move("dashboard/slots/c", "x"),
+            insertAt("x", "y"),
+            wrap("x", "w", ["a", "b"]),
+          ])
+          const { unapplied } = resolve([personal], {
+            baseIds: { ids, source: "mounted" },
+          })
+
+          expect(unapplied.map(({ check, reason }) => [check, reason])).toEqual(
+            personal.ops.slice(2).map((check) => [check, "missing-container"])
+          )
+        })
+
+        it("lets a wrap into its items' own base parent apply, and otherwise waits", () => {
+          const overlay = overlays()
+          const pinned = overlay("personal", [
+            { op: "pin", target: "page/slots/a", where: "start" },
+            wrap("page", "w", ["a", "b"]),
+          ])
+          const bare = overlay("personal", [wrap("page", "w", ["a", "b"])])
+          const baseIds = { ids: ["a", "b"], source: "mounted" as const }
+
+          expect(resolve([pinned], { baseIds }).unapplied).toEqual([])
+          expect(
+            resolve([bare], { baseIds }).unapplied.map(({ reason }) => reason)
+          ).toEqual(["dormant"])
+        })
+      })
+
       it("reports an id collision before a missing container", () => {
         const overlay = overlays()
         const personal = overlay("personal", [insertAt("ghost", "orders")])
@@ -1750,6 +1828,23 @@ describe("resolveLayers", () => {
           placement: { container: "dashboard" },
           overridden: [{ check: personal.ops[0], overlay: personal }],
         })
+      })
+
+      it.each([
+        ["the wrapper's own", "dashboard/slots/w"],
+        ["its second item's", "dashboard/slots/b"],
+      ])("lets a wrap target %s unlisted base parent", (_, pinned) => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          { op: "pin", target: pinned, where: "start" },
+          wrap("dashboard", "w", ["a", "b"]),
+        ])
+        for (const source of ["inventory", "mounted"] as const) {
+          const { unapplied } = resolve([personal], {
+            baseIds: { ids: ["a", "b"], source },
+          })
+          expect(unapplied).toEqual([])
+        }
       })
 
       it("lets a wrap target its items' own unlisted base parent", () => {
@@ -2261,9 +2356,15 @@ describe("resolveLayers", () => {
       expect(resolve(different).skipped).toHaveLength(2)
     })
 
-    it("throws when baseIds isn't an array or a Set", () => {
+    it("throws when baseIds isn't ids or { ids, source }", () => {
       const overlay = overlays()
-      for (const baseIds of ["dashboard", null]) {
+      for (const baseIds of [
+        "dashboard",
+        null,
+        { ids: ["a"] },
+        { ids: ["a"], source: "scan" },
+        { ids: "a", source: "mounted" },
+      ]) {
         expect(() =>
           // @ts-expect-error JavaScript callers can pass anything.
           resolve([overlay("team", [hide])], { baseIds })
@@ -2473,7 +2574,7 @@ describe("resolveLayers", () => {
     let followed = 0
     const expectPlacementsHold = (
       input: readonly LoadedOverlay[],
-      baseIds: readonly string[] | undefined
+      baseIds: ResolveLayersOptions["baseIds"]
     ) => {
       const state: Resolution = createResolution(baseIds)
       for (const { overlay, reason } of surfaceOrder(input, surface, [])) {
@@ -2544,7 +2645,13 @@ describe("resolveLayers", () => {
       for (let seed = 1; seed <= 300; seed++) {
         const next = random(seed)
         const input = generate(next)
-        const options = seed % 2 === 0 ? { baseIds: ["dashboard", "a"] } : {}
+        const ids = ["dashboard", "a"]
+        // Every third set has no baseIds, inventory ids or mounted ids.
+        const options = [
+          {},
+          { baseIds: ids },
+          { baseIds: { ids, source: "mounted" as const } },
+        ][seed % 3]
         const resolved = resolve(input, options)
         const applied = new Map<OpCheck, number>()
         for (const [item, placed] of resolved.placements) {
@@ -2601,7 +2708,7 @@ describe("resolveLayers", () => {
             }
           }
         }
-        expectPlacementsHold(input, options.baseIds)
+        expectPlacementsHold(input, options?.baseIds)
         const shuffled: LoadedOverlay[] = []
         for (const overlay of input) {
           shuffled.splice(

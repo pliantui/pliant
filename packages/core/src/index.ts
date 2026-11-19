@@ -5,6 +5,7 @@ export { type OpPropertyKey } from "./op-property"
 export { type PlacementPosition } from "./placement"
 export {
   resolveLayers,
+  type BaseIds,
   type ResolveLayersOptions,
   type ResolvedItemPlacement,
   type ResolvedLayers,

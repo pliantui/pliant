@@ -12,7 +12,7 @@ import { loadOverlay, type LoadedOverlay } from "./load-overlay"
 import { identityOf } from "./node-identity"
 import { scopeKeyOf } from "./overlay-scope"
 import { ownEntries } from "./own-entries"
-import { applyOp, createResolution } from "./resolution"
+import { applyOp, createResolution, readBaseIds } from "./resolution"
 import type { Result } from "./result"
 import { checkSurface, surfaceOrder } from "./surface-order"
 import type { WithOps } from "./with-ops"
@@ -31,10 +31,17 @@ export interface ValidateOverlayLayers {
   /** The surface the layers resolve for, as in `resolveLayers`. */
   readonly surface: string
   /**
-   * The surface's known node ids, as in `resolveLayers`: exact when given,
-   * approximated from the ops when omitted.
+   * The surface's known node ids, as in `resolveLayers`, as plain data: an
+   * array of ids (the full inventory), or `{ ids, source }` with `ids` an
+   * array. Exact when given, approximated from the ops when omitted.
    */
-  readonly baseIds?: readonly string[] | undefined
+  readonly baseIds?:
+    | readonly string[]
+    | {
+        readonly ids: readonly string[]
+        readonly source: "inventory" | "mounted"
+      }
+    | undefined
   /** Team ids, highest precedence first, as in `resolveLayers`. */
   readonly teamOrder?: readonly string[] | undefined
 }
@@ -48,9 +55,11 @@ export interface ValidateOverlayOptions {
    * are invalid, exactly as `resolveLayers` would report them: an `insert` or
    * `wrap` whose id is already used on the surface (`id-collision`, at the
    * id), and a `move … into` a node that doesn't exist or an `insert` or
-   * `wrap` into one (`missing-container`, at `to.into` or `target`).
-   * Throws a `TypeError` when `layers.surface` isn't a string or
-   * `layers.baseIds` isn't an array, whatever the input.
+   * `wrap` into one (`missing-container`, at `to.into` or `target`). A
+   * `dormant` op, into a node that mounted `baseIds` don't list yet, isn't
+   * an issue: it applies once the node mounts. Throws a `TypeError` when
+   * `layers.surface` isn't a string or `layers.baseIds` isn't an array of ids
+   * or `{ ids, source }` with an array, whatever the input.
    */
   readonly layers?: ValidateOverlayLayers | undefined
 }
@@ -181,8 +190,9 @@ export function validateOverlay(
 ): Result<ValidatedOverlay> {
   if (layers) {
     checkSurface(layers.surface)
-    if (layers.baseIds !== undefined && !Array.isArray(layers.baseIds)) {
-      throw new TypeError("layers.baseIds must be an array of node ids")
+    const baseIds = readBaseIds(layers.baseIds)
+    if (baseIds && !Array.isArray(baseIds.ids)) {
+      throw new TypeError("layers.baseIds must list node ids in an array")
     }
   }
   const entries = ownEntries(input)

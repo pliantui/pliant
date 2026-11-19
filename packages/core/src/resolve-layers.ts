@@ -28,6 +28,9 @@ import { surfaceOrder } from "./surface-order"
  * first op that placed it, in resolution order: if a team pins
  * `sidebar/slots/a` and a personal overlay pins `dashboard/slots/a`, `a` stays
  * in `sidebar`. A node created again starts over in its new base parent.
+ * The parent an item was created in isn't versioned yet, so an item created
+ * in a node that is later created again goes back into it
+ * (https://github.com/pliantui/pliant/issues/28).
  * When the base parent is a node that was removed, the item sits where that
  * node would, up the chain; with no live node left, as in a cycle of removed
  * nodes, it sits on `@surface`. Ops that create a container cycle aren't
@@ -36,9 +39,10 @@ import { surfaceOrder } from "./surface-order"
  * A `pin`, reorder, `promote` or `demote` applied while the item has no
  * placement that holds and its base parent is a removed node follows the
  * base: it always holds, and positions the item wherever its base parent
- * chain resolves once every op has applied, even if that changes later
- * (pending the owner's ruling). Later position ops on the item follow the
- * base too, until a `move … into` or wrap places it.
+ * chain resolves once every op has applied, even if that changes later.
+ * Later position ops on the item follow the base too, until a `move … into`
+ * or wrap places it. Such a pin isn't tied to the base parent's version yet
+ * (https://github.com/pliantui/pliant/issues/27).
  */
 export interface ResolvedItemPlacement extends ResolvedPlacement {
   /** The placement op that holds, absent when none does. */
@@ -104,11 +108,15 @@ export type SkippedOp =
  * op in the resolution order pointed at before anything created it.
  * `missing-container` means a `move … into` names a node, or an `insert` or
  * `wrap` targets one, that doesn't exist when it applies: one that was
- * removed, or, with `baseIds`, one that is neither listed, created, nor the
- * item's own base parent.
+ * removed, or, with inventory `baseIds`, one that is neither listed,
+ * created, nor the item's own base parent. With mounted `baseIds`, such an
+ * unlisted node that was never removed may just not be mounted yet, so the
+ * op is `dormant` instead: it applies once the caller resolves again with
+ * the node in `baseIds`.
  */
 export type UnappliedReason =
   | "cross-layer-remove"
+  | "dormant"
   | "id-collision"
   | "missing-container"
   | "nothing-to-remove"
@@ -116,6 +124,18 @@ export type UnappliedReason =
 /** A valid op that didn't apply, and why. */
 export interface UnappliedOp extends ResolvedOp {
   readonly reason: UnappliedReason
+}
+
+/**
+ * The surface's known node ids, and where they come from: `"inventory"` for
+ * the full `pliantui scan` inventory, where an unlisted node doesn't exist,
+ * or `"mounted"` for the nodes mounted now (such as `PliantRegion` slot
+ * keys), where an unlisted node may mount later (spec 5.2, dormant vs
+ * dangling).
+ */
+export interface BaseIds {
+  readonly ids: ReadonlySet<string> | readonly string[]
+  readonly source: "inventory" | "mounted"
 }
 
 /** What `resolveLayers` resolves for, and how. */
@@ -126,15 +146,23 @@ export interface ResolveLayersOptions {
    */
   readonly surface: string
   /**
-   * The surface's known node ids, from the `pliantui scan` inventory. When
-   * given, they are exactly the base nodes: an `insert` or `wrap` collides
-   * with a base node only if its id is listed.
+   * The surface's known node ids. When given, they are exactly the base
+   * nodes: an `insert` or `wrap` collides with a base node only if its id is
+   * listed. A bare set or array of ids is the full inventory, the same as
+   * `{ ids, source: "inventory" }`.
+   *
+   * With `"inventory"`, an op into an unlisted node that was never created
+   * is `missing-container`. With `"mounted"`, it is `dormant`: it applies
+   * once the node mounts and the caller resolves again with it listed. An
+   * op into a removed node is `missing-container` either way.
    *
    * When omitted, a base node is approximated as an id some op pointed at,
-   * in resolution order, before any insert or wrap created it. That guess is
-   * meant only for using core directly; Pliant's runtime always passes ids.
+   * in resolution order, before any insert or wrap created it, and an
+   * unknown container counts as a base node. That guess is meant only for
+   * using core directly; Pliant's runtime always passes ids.
    */
-  readonly baseIds?: ReadonlySet<string> | readonly string[] | undefined
+  readonly baseIds?:
+    BaseIds | ReadonlySet<string> | readonly string[] | undefined
   /**
    * Team ids, highest precedence first. Overlays from teams not listed rank
    * below the listed ones, and among themselves by ascending team id, so the
@@ -186,7 +214,7 @@ export interface ResolvedLayers {
  * Both lists follow the resolution order.
  *
  * Throws a `TypeError` when `surface` isn't a string, or `baseIds` isn't
- * an array or a `Set`.
+ * node ids or `{ ids, source }`.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],

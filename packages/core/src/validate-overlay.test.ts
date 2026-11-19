@@ -711,6 +711,55 @@ describe("validateOverlay", () => {
       ])
     })
 
+    it.each([
+      ["mounted", []],
+      [
+        "inventory",
+        [
+          ["ops", 0, "to", "into"],
+          ["ops", 1, "target"],
+        ],
+      ],
+    ] as const)(
+      "agrees with resolveLayers on an unlisted node with %s ids",
+      (source, paths) => {
+        const input = overlay([
+          { op: "move", target: "dashboard/slots/c", to: { into: "sidebar" } },
+          insert("y", "sidebar"),
+        ])
+        const baseIds = { ids: ["dashboard", "c"], source }
+        const validated = validateOverlay(input, {
+          layers: { overlays: [], surface, baseIds },
+        })
+        const resolved = resolveLayers([load(input)], { surface, baseIds })
+
+        expect(validated.error?.issues.map(({ path }) => path) ?? []).toEqual(
+          paths
+        )
+        expect(resolved.unapplied.map(({ reason }) => reason)).toEqual(
+          source === "mounted"
+            ? ["dormant", "dormant"]
+            : ["missing-container", "missing-container"]
+        )
+      }
+    )
+
+    it("rejects an op into a removed node with mounted ids", () => {
+      const lower = lowerOverlay("team", [
+        insert("x", "dashboard"),
+        { op: "remove", target: "x" },
+      ])
+      expect(
+        validateOverlay(overlay([insert("y", "x")]), {
+          layers: {
+            overlays: [lower],
+            surface,
+            baseIds: { ids: ["dashboard"], source: "mounted" },
+          },
+        }).error?.issues.map(({ path }) => path)
+      ).toEqual([["ops", 0, "target"]])
+    })
+
     it("uses baseIds as the exact base nodes", () => {
       const lower = lowerOverlay("team", [
         { op: "hide", target: "dashboard/slots/orders" },
@@ -843,6 +892,16 @@ describe("validateOverlay", () => {
           validateOverlay(input, {
             // @ts-expect-error JavaScript callers can pass anything.
             layers: { overlays: [], surface, baseIds: "x" },
+          })
+        ).toThrow(TypeError)
+        expect(() =>
+          validateOverlay(input, {
+            layers: {
+              overlays: [],
+              surface,
+              // @ts-expect-error The layers are plain data, so ids is an array.
+              baseIds: { ids: new Set(["x"]), source: "mounted" },
+            },
           })
         ).toThrow(TypeError)
         expect(() =>
