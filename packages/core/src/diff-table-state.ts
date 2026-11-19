@@ -6,14 +6,8 @@ import {
   type CompiledTableState,
   type CompileTableStateOptions,
 } from "./compile-table-state"
-import { identityOf } from "./node-identity"
+import { placementOps } from "./diff-column-placement"
 import type { ResolvedLayers } from "./resolve-layers"
-import { columnPositions, layoutColumns } from "./table-columns"
-
-type Reorder =
-  | { readonly before: string }
-  | { readonly after: string }
-  | { readonly index: number }
 
 // TanStack's default column size.
 const defaultSize = 150
@@ -40,16 +34,6 @@ export interface TableStateDiff {
   readonly unmapped: string[]
 }
 
-type Side = "start" | "end" | "none"
-
-function sideOf(pinning: CompiledTableState["columnPinning"], column: string) {
-  return pinning.start.includes(column)
-    ? "start"
-    : pinning.end.includes(column)
-      ? "end"
-      : "none"
-}
-
 function filterOf(field: string, value: unknown) {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? filterSchema.safeParse({ ...value, field }).data
@@ -62,43 +46,6 @@ function unique(ids: readonly string[], known: ReadonlySet<string>) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
-}
-
-// The items of `current` that already sit in `target`'s order: a longest
-// increasing subsequence of their places in `target`.
-function inOrder(current: readonly string[], target: readonly string[]) {
-  const place = new Map(target.map((item, index) => [item, index]))
-  const tails: number[] = []
-  const previous: number[] = []
-  current.forEach((item, index) => {
-    const value = place.get(item) ?? -1
-    let low = 0
-    let high = tails.length
-    while (low < high) {
-      const middle = (low + high) >> 1
-      const tail = tails[middle] ?? 0
-      if ((place.get(current[tail] ?? "") ?? -1) < value) {
-        low = middle + 1
-      } else {
-        high = middle
-      }
-    }
-    previous[index] = low > 0 ? (tails[low - 1] ?? -1) : -1
-    tails[low] = index
-  })
-  const kept = new Set<string>()
-  for (
-    let index = tails.at(-1) ?? -1;
-    index >= 0;
-    index = previous[index] ?? -1
-  ) {
-    kept.add(current[index] ?? "")
-  }
-  return kept
-}
-
-function sameOrder(a: readonly string[], b: readonly string[]) {
-  return a.length === b.length && a.every((item, index) => item === b[index])
 }
 
 /**
@@ -122,11 +69,19 @@ function sameOrder(a: readonly string[], b: readonly string[]) {
  *   `clearFilter` per removed filter. Other values are listed in `unmapped`.
  * - `columnPinning` becomes `pin` per column that changes side. The order
  *   within a side is the canonical one `compileTableState` gives, so it isn't
- *   compared. `columnOrder` becomes the fewest `move`s that put the unpinned
- *   columns in `next`'s order, anchored on their neighbours. Since `pin` and
- *   `move` set the same placement, a move also unpins a column pinned by an
- *   op. A column the base pins and `next` unpins keeps its place: moving it
- *   would pin it again.
+ *   compared.
+ * - The unpinned columns end up in `next`'s `columnOrder`, or, when only the
+ *   pinning changed, in the order the table showed, as TanStack keeps it:
+ *   an unpinned column comes back where it sat in `columnOrder`, and the
+ *   columns anchored on a newly pinned one stay where they were. This takes
+ *   the fewest `move`s found, each anchored on a nearby column, that compile
+ *   into that order. A column a lower layer anchored on a moved one travels
+ *   with it, so it is moved too when it would end up out of place. Since
+ *   `pin` and `move` set the same placement, a move also unpins a column
+ *   pinned by an op, and replaces its `pin none`.
+ * - A column the base pins is unpinned by `pin none` and keeps its base
+ *   place, since a move would pin it again. The other columns are anchored
+ *   around it, but two such columns keep their base order between them.
  */
 export function diffTableState(
   resolved: Pick<ResolvedLayers, "properties" | "placements">,
@@ -240,101 +195,4 @@ export function diffTableState(
     }
   }
   return { ops, unmapped }
-}
-
-function placementOps(
-  { placements }: Pick<ResolvedLayers, "placements">,
-  next: Partial<CompiledTableState>,
-  previous: CompiledTableState,
-  { table, columns, base = {} }: CompileTableStateOptions
-) {
-  const ops = new Map<string, Op>()
-  if (next.columnOrder === undefined && next.columnPinning === undefined) {
-    return ops
-  }
-  const ids = [...new Set(columns)]
-  const known = new Set(ids)
-  const target = (column: string) => `${table}/columns/${column}`
-  const positions = columnPositions(placements, identityOf(table), ids)
-  const pinning = next.columnPinning ?? previous.columnPinning
-
-  for (const column of ids) {
-    const side: Side = sideOf(pinning, column)
-    if (sideOf(previous.columnPinning, column) !== side) {
-      positions.set(column, { pin: side })
-      ops.set(column, { op: "pin", target: target(column), where: side })
-    }
-  }
-
-  if (
-    next.columnOrder === undefined ||
-    compareData(next.columnOrder, previous.columnOrder) === 0
-  ) {
-    return ops
-  }
-  const center = new Set(ids.filter((id) => sideOf(pinning, id) === "none"))
-  const wanted = unique([...next.columnOrder, ...ids], known).filter((id) =>
-    center.has(id)
-  )
-  const basePinned = new Set([
-    ...(base.columnPinning?.start ?? []),
-    ...(base.columnPinning?.end ?? []),
-  ])
-  const orderOf = (moves: ReadonlyMap<string, Reorder>) =>
-    layoutColumns(
-      ids,
-      base,
-      (column) => moves.get(column) ?? positions.get(column)
-    ).columnOrder.filter((id) => center.has(id))
-
-  const current = orderOf(new Map())
-  if (sameOrder(current, wanted)) {
-    return ops
-  }
-  const kept = inOrder(current, wanted)
-  const movable = (column: string) =>
-    !kept.has(column) && !basePinned.has(column)
-  // Anchoring on the previous column fails when another column is already
-  // anchored after it, and sorts first; the next column's `before` side
-  // may be free. Moving every column always works.
-  const anchored = (forward: boolean) => {
-    const order = forward ? wanted : wanted.toReversed()
-    const end = order.find((column) => !movable(column))
-    const moves = new Map<string, Reorder>()
-    order.forEach((column, index) => {
-      const neighbour = order[index - 1]
-      if (movable(column)) {
-        moves.set(
-          column,
-          neighbour !== undefined
-            ? forward
-              ? { after: neighbour }
-              : { before: neighbour }
-            : end !== undefined
-              ? forward
-                ? { before: end }
-                : { after: end }
-              : { index: 0 }
-        )
-      }
-    })
-    return moves
-  }
-  const chain = wanted.filter((column) => !basePinned.has(column))
-  const moves =
-    [anchored(true), anchored(false)].find((candidate) =>
-      sameOrder(orderOf(candidate), wanted)
-    ) ??
-    new Map(
-      chain.map((column, index) => {
-        const before = chain[index - 1]
-        const to: Reorder =
-          before === undefined ? { index: 0 } : { after: before }
-        return [column, to]
-      })
-    )
-  for (const [column, to] of moves) {
-    ops.set(column, { op: "move", target: target(column), to })
-  }
-  return ops
 }

@@ -1,4 +1,5 @@
 export { type OpCheck } from "./check-op"
+export { compareData } from "./compare-data"
 export {
   compileTableState,
   type ColumnSizeLimits,

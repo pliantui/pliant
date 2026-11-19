@@ -9,7 +9,7 @@ import {
 } from "./compile-table-state"
 import { diffTableState, type DiffTableStateOptions } from "./diff-table-state"
 import { loadOverlay, type LoadedOverlay } from "./load-overlay"
-import { resolveLayers } from "./resolve-layers"
+import { resolveLayers, type ResolvedLayers } from "./resolve-layers"
 
 const table = "orders-table"
 const columns = [
@@ -26,7 +26,10 @@ const column = (id: string) => `${table}/columns/${id}`
 
 let sequence = 0
 
-function overlay(layer: "team" | "session", ops: unknown[]): LoadedOverlay {
+function overlay(
+  layer: "team" | "personal" | "session",
+  ops: unknown[]
+): LoadedOverlay {
   sequence++
   const result = loadOverlay({
     v: 1,
@@ -223,7 +226,7 @@ describe("diffTableState", () => {
     ])
   })
 
-  it("pins and unpins columns, accepting the canonical order", () => {
+  it("pins and unpins columns, accepting the canonical order, and keeps an unpinned column where the table showed it", () => {
     const { previous, diff, apply } = setup([
       { op: "pin", target: column("notes"), where: "start" },
     ])
@@ -234,7 +237,7 @@ describe("diffTableState", () => {
       { op: "pin", target: column("id"), where: "start" },
       { op: "pin", target: column("region"), where: "end" },
       { op: "pin", target: column("value"), where: "start" },
-      { op: "pin", target: column("notes"), where: "none" },
+      { op: "move", target: column("notes"), to: { before: "customer" } },
     ])
     expect(apply(ops).columnPinning).toEqual({
       start: ["id", "value"],
@@ -328,159 +331,406 @@ describe("diffTableState", () => {
     expect(ops).toEqual([{ op: "pin", target: column("notes"), where: "none" }])
     expect(apply(ops).columnPinning).toEqual({ start: [], end: [] })
   })
+})
 
-  describe("round trip", () => {
-    function random(seed: number) {
-      let state = seed
-      return () => {
-        state = (state + 0x6d2b79f5) | 0
-        let t = Math.imul(state ^ (state >>> 15), 1 | state)
-        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-      }
+function expectValid(resolved: ResolvedLayers) {
+  expect(resolved.skipped).toEqual([])
+  for (const ops of resolved.properties.values()) {
+    for (const property of ops.values()) {
+      expect(property.winner.check.status).toBe("valid")
     }
+  }
+}
 
-    function generator(next: () => number) {
-      const int = (max: number) => Math.floor(next() * max)
-      const pick = <T>(items: readonly T[]): T => {
-        const item = items[int(items.length)]
-        if (item === undefined) {
-          throw new Error("Empty list")
-        }
-        return item
+/** A table whose changes are applied as one session overlay each, on top. */
+function history(
+  options: Partial<DiffTableStateOptions> = {},
+  team: unknown[] = []
+) {
+  const all = { table, columns, ...options }
+  const overlays = team.length > 0 ? [overlay("team", team)] : []
+  let resolved = resolveLayers(overlays, { surface: "/orders" })
+  expectValid(resolved)
+  return {
+    get resolved() {
+      return resolved
+    },
+    state: () => compileTableState(resolved, all),
+    diff: (next: Partial<CompiledTableState>) =>
+      diffTableState(resolved, next, all),
+    apply(ops: readonly Op[]) {
+      if (ops.length > 0) {
+        overlays.push(overlay("session", [...ops]))
+        resolved = resolveLayers(overlays, { surface: "/orders" })
+        expectValid(resolved)
       }
-      const some = <T>(items: readonly T[], chance = 0.3) =>
-        items.filter(() => next() < chance)
-      const shuffle = <T>(items: readonly T[]) =>
-        items
-          .map((item) => ({ item, key: next() }))
-          .sort((a, b) => a.key - b.key)
-          .map(({ item }) => item)
-      const filter = (): FilterValue =>
-        pick<FilterValue>([
-          { operator: "eq", value: int(100) },
-          { operator: "contains", value: "ac" },
-          { operator: "between", value: [int(50), 50 + int(50)] },
-          { operator: "isNull" },
-          { operator: "in", value: ["paid", "overdue"] },
-        ])
-      return { int, pick, some, shuffle, filter }
-    }
+      return compileTableState(resolved, all)
+    },
+  }
+}
 
-    function lowerOps(g: ReturnType<typeof generator>): unknown[] {
-      return g.some(columns, 0.5).flatMap((id) =>
-        g.pick([
-          [{ op: g.pick(["hide", "show"]), target: column(id) }],
-          [
-            {
-              op: "setColumnWidth",
-              target: column(id),
-              width: 16 + g.int(500),
-            },
-          ],
-          [
-            {
-              op: "move",
-              target: column(id),
-              to: g.pick([
-                { before: g.pick(columns) },
-                { after: g.pick(columns) },
-                { index: g.int(columns.length) },
-              ]),
-            },
-          ],
-          [
-            {
-              op: "pin",
-              target: column(id),
-              where: g.pick(["start", "end", "sticky", "none"]),
-            },
-          ],
-          [
-            {
-              op: "setFilter",
-              target: table,
-              filter: { field: id, ...g.filter() },
-            },
-          ],
-        ])
-      )
-    }
+const centerOf = (
+  state: Pick<CompiledTableState, "columnOrder" | "columnPinning">,
+  ids: readonly string[] = columns
+) =>
+  [...new Set([...state.columnOrder, ...ids])].filter(
+    (id) =>
+      ids.includes(id) &&
+      !state.columnPinning.start.includes(id) &&
+      !state.columnPinning.end.includes(id)
+  )
 
-    function randomState(g: ReturnType<typeof generator>): CompiledTableState {
-      const pinned = g.some(columns)
-      const start = pinned.filter((_, index) => index % 2 === 0)
-      return {
-        sorting: g
-          .some(columns, 0.2)
-          .map((id) => ({ id, desc: g.int(2) === 1 })),
-        columnVisibility: Object.fromEntries(
-          g.some(columns).map((id) => [id, g.int(2) === 1])
-        ),
-        columnOrder: g.shuffle(columns),
-        columnPinning: {
-          start,
-          end: pinned.filter((id) => !start.includes(id)),
-        },
-        columnSizing: Object.fromEntries(
-          g.some(columns).map((id) => [id, 16 + g.int(800)])
-        ),
-        columnFilters: g.some(columns).map((id) => ({ id, value: g.filter() })),
-        grouping: g.some(columns, 0.15),
-        pagination: { pageIndex: g.int(5), pageSize: g.pick([10, 20, 50]) },
-      }
-    }
+describe("diffTableState pinning", () => {
+  const letters = ["a", "b", "c", "d", "e"]
 
-    function canonical(state: CompiledTableState) {
-      const side = (id: string) =>
-        state.columnPinning.start.includes(id)
-          ? "start"
-          : state.columnPinning.end.includes(id)
-            ? "end"
-            : "none"
-      return {
-        sorting: state.sorting,
-        grouping: state.grouping,
-        pagination: state.pagination,
-        visible: columns.map((id) => state.columnVisibility[id] !== false),
-        sizes: columns.map((id) => state.columnSizing[id] ?? 150),
-        filters: Object.fromEntries(
-          state.columnFilters.map(({ id, value }) => [id, value])
-        ),
-        sides: columns.map(side),
-        center: [...new Set([...state.columnOrder, ...columns])].filter(
-          (id) => side(id) === "none"
-        ),
-      }
-    }
-
-    it("compiles the diff back into the target state", () => {
-      for (let seed = 1; seed <= 300; seed++) {
-        const g = generator(random(seed))
-        const base: Partial<CompiledTableState> = {
-          sorting: g.some(columns, 0.2).map((id) => ({ id, desc: false })),
-          columnVisibility: Object.fromEntries(
-            g.some(columns).map((id) => [id, false])
-          ),
-          columnOrder: g.shuffle(columns),
-          columnSizing: Object.fromEntries(
-            g.some(columns).map((id) => [id, 40 + g.int(400)])
-          ),
-          grouping: g.some(columns, 0.1),
-          pagination: { pageIndex: 0, pageSize: 20 },
-        }
-        const { diff, apply } = setup(lowerOps(g), { base }, [
-          ...(g.int(2) === 1
-            ? [{ op: "setPage", target: table, index: g.int(4) }]
-            : []),
-        ])
-        const next = randomState(g)
-        const { ops, unmapped } = diff(next)
-        expect(unmapped).toEqual([])
-        expect(canonical(apply(ops)), `seed ${String(seed)}`).toEqual(
-          canonical(next)
-        )
-      }
-    })
+  it("keeps the columns anchored on a newly pinned one in place", () => {
+    const t = history({ columns: letters })
+    t.apply(t.diff({ columnOrder: ["b", "c", "a", "d", "e"] }).ops)
+    const { ops } = t.diff({ columnPinning: { start: ["c"], end: [] } })
+    expect(ops).toHaveLength(2)
+    expect(centerOf(t.apply(ops), letters)).toEqual(["b", "a", "d", "e"])
   })
+
+  it("keeps a moved column in place when another is pinned to the end", () => {
+    const t = history({ columns: letters })
+    t.apply(t.diff({ columnOrder: ["e", "a", "b", "c", "d"] }).ops)
+    const { ops } = t.diff({ columnPinning: { start: [], end: ["b"] } })
+    expect(ops).toEqual([{ op: "pin", target: column("b"), where: "end" }])
+    expect(centerOf(t.apply(ops), letters)).toEqual(["e", "a", "c", "d"])
+  })
+
+  it("unpins a column where the table shows it", () => {
+    const t = history({ columns: letters })
+    t.apply(t.diff({ columnPinning: { start: ["d"], end: [] } }).ops)
+    const { ops } = t.diff({ columnPinning: { start: [], end: [] } })
+    expect(ops).toEqual([
+      { op: "move", target: column("d"), to: { before: "a" } },
+    ])
+    expect(centerOf(t.apply(ops), letters)).toEqual(["d", "a", "b", "c", "e"])
+  })
+
+  it("reorders around a base-pinned column it unpins", () => {
+    const t = history({
+      columns: letters,
+      base: { columnPinning: { start: ["c"], end: [] } },
+    })
+    const { ops } = t.diff({
+      columnPinning: { start: [], end: [] },
+      columnOrder: ["c", "a", "b", "d", "e"],
+    })
+    expect(ops).toHaveLength(3)
+    expect(ops).toContainEqual({
+      op: "pin",
+      target: column("c"),
+      where: "none",
+    })
+    expect(centerOf(t.apply(ops), letters)).toEqual(["c", "a", "b", "d", "e"])
+  })
+})
+
+function random(seed: number) {
+  let state = seed
+  return () => {
+    state = (state + 0x6d2b79f5) | 0
+    let t = Math.imul(state ^ (state >>> 15), 1 | state)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function generator(seed: number) {
+  const next = random(seed)
+  const int = (max: number) => Math.floor(next() * max)
+  const pick = <T>(items: readonly T[]): T => {
+    const item = items[int(items.length)]
+    if (item === undefined) {
+      throw new Error("Empty list")
+    }
+    return item
+  }
+  const some = <T>(items: readonly T[], chance = 0.3) =>
+    items.filter(() => next() < chance)
+  const shuffle = <T>(items: readonly T[]) =>
+    items
+      .map((item) => ({ item, key: next() }))
+      .sort((a, b) => a.key - b.key)
+      .map(({ item }) => item)
+  const filter = (): FilterValue =>
+    pick<FilterValue>([
+      { operator: "eq", value: int(100) },
+      { operator: "contains", value: "ac" },
+      { operator: "between", value: [int(50), 50 + int(50)] },
+      { operator: "isNull" },
+      { operator: "in", value: ["paid", "overdue"] },
+    ])
+  return { chance: next, int, pick, some, shuffle, filter }
+}
+
+type Generator = ReturnType<typeof generator>
+
+function teamOps(g: Generator): unknown[] {
+  return g.some(columns, 0.4).flatMap((id) =>
+    g.pick([
+      [{ op: g.pick(["hide", "show"]), target: column(id) }],
+      [{ op: "setColumnWidth", target: column(id), width: 16 + g.int(500) }],
+      [
+        {
+          op: "move",
+          target: column(id),
+          to: g.pick([
+            { before: g.pick(columns) },
+            { after: g.pick(columns) },
+            { index: g.int(columns.length) },
+          ]),
+        },
+      ],
+      [
+        {
+          op: "pin",
+          target: column(id),
+          where: g.pick(["start", "end", "sticky", "none"]),
+        },
+      ],
+      [
+        {
+          op: "setFilter",
+          target: table,
+          filter: { field: id, ...g.filter() },
+        },
+      ],
+    ])
+  )
+}
+
+function baseOf(g: Generator): Partial<CompiledTableState> {
+  const pinned = g.some(columns, 0.2)
+  return {
+    sorting: g.some(columns, 0.2).map((id) => ({ id, desc: false })),
+    columnVisibility: Object.fromEntries(
+      g.some(columns).map((id) => [id, false])
+    ),
+    columnOrder: g.some(g.shuffle(columns), 0.6),
+    columnPinning: {
+      start: pinned.filter((_, index) => index % 2 === 0),
+      end: pinned.filter((_, index) => index % 2 === 1),
+    },
+    columnSizing: Object.fromEntries(
+      g.some(columns).map((id) => [id, 40 + g.int(400)])
+    ),
+    columnFilters: g.some(columns, 0.2).map((id) => ({ id, value: "raw" })),
+    grouping: g.some(columns, 0.1),
+    pagination: { pageIndex: 0, pageSize: 20 },
+  }
+}
+
+// A random state the table could report. Base-pinned columns it unpins
+// keep their base order among themselves, the one thing the ops can't
+// change (see `diffTableState`).
+function stateOf(
+  g: Generator,
+  base: Partial<CompiledTableState>,
+  previous: CompiledTableState
+): CompiledTableState {
+  const pinned = g.some(columns, 0.3)
+  const start = pinned.filter((_, index) => index % 2 === 0)
+  const end = pinned.filter((id) => !start.includes(id))
+  const order = g.shuffle(columns)
+  const basePinned = [
+    ...(base.columnPinning?.start ?? []),
+    ...(base.columnPinning?.end ?? []),
+  ]
+  const fixed = basePinned.filter((id) => !pinned.includes(id))
+  const baseOrder = [...new Set([...(base.columnOrder ?? []), ...columns])]
+  const fixedInOrder = baseOrder.filter((id) => fixed.includes(id))
+  const columnOrder = order.map((id) =>
+    fixed.includes(id) ? (fixedInOrder.shift() ?? id) : id
+  )
+  return {
+    sorting: g.some(columns, 0.2).map((id) => ({ id, desc: g.int(2) === 1 })),
+    columnVisibility: Object.fromEntries(
+      g.some(columns).map((id) => [id, g.int(2) === 1])
+    ),
+    // A partial order lists the rest in definition order, which could put
+    // those columns out of their base order.
+    columnOrder:
+      fixed.length === 0 && g.chance() < 0.3
+        ? columnOrder.slice(0, 3)
+        : columnOrder,
+    columnPinning: { start, end },
+    columnSizing: Object.fromEntries(
+      g.some(columns).map((id) => [id, 16 + g.int(800)])
+    ),
+    columnFilters: [
+      ...previous.columnFilters.filter(() => g.chance() < 0.5),
+      ...g
+        .some(columns, 0.2)
+        .map((id) => ({ id, value: g.chance() < 0.2 ? "raw" : g.filter() })),
+    ].filter(
+      (filter, index, all) =>
+        all.findIndex(({ id }) => id === filter.id) === index
+    ),
+    grouping: g.some(columns, 0.15).slice(0, 4),
+    pagination: { pageIndex: g.int(5), pageSize: g.pick([10, 20, 50]) },
+  }
+}
+
+function canonical(state: CompiledTableState, unmapped: readonly string[]) {
+  const side = (id: string) =>
+    state.columnPinning.start.includes(id)
+      ? "start"
+      : state.columnPinning.end.includes(id)
+        ? "end"
+        : "none"
+  return {
+    sorting: state.sorting,
+    grouping: state.grouping,
+    pagination: state.pagination,
+    visible: columns.map((id) => state.columnVisibility[id] !== false),
+    sizes: columns.map((id) => state.columnSizing[id] ?? 150),
+    filters: Object.fromEntries(
+      state.columnFilters
+        .filter(({ id }) => !unmapped.includes(id))
+        .map(({ id, value }) => [id, value])
+    ),
+    sides: columns.map(side),
+    center: centerOf(state),
+  }
+}
+
+describe("diffTableState round trip", () => {
+  it("compiles every diff of a chain back into its target", () => {
+    for (let seed = 1; seed <= 1000; seed++) {
+      const g = generator(seed)
+      const base = baseOf(g)
+      const t = history({ base }, teamOps(g))
+      for (let step = 0; step < 4; step++) {
+        const previous = t.state()
+        const kind = g.pick(["state", "pins", "drag"] as const)
+        const label = `seed ${String(seed)}, step ${String(step)}, ${kind}`
+        if (kind === "state") {
+          const next = stateOf(g, base, previous)
+          const { ops, unmapped } = t.diff(next)
+          expect(
+            unmapped.every((id) =>
+              next.columnFilters.some(
+                (filter) => filter.id === id && filter.value === "raw"
+              )
+            ),
+            label
+          ).toBe(true)
+          const after = t.apply(ops)
+          expect(canonical(after, unmapped), label).toEqual(
+            canonical(
+              {
+                ...next,
+                columnFilters: next.columnFilters.filter(
+                  ({ id, value }) =>
+                    value !== "raw" ||
+                    previous.columnFilters.some(
+                      (filter) => filter.id === id && filter.value === "raw"
+                    )
+                ),
+              },
+              unmapped
+            )
+          )
+        } else if (kind === "pins") {
+          const basePinned = [
+            ...(base.columnPinning?.start ?? []),
+            ...(base.columnPinning?.end ?? []),
+          ]
+          const toggled = g.pick(
+            columns.filter((id) => !basePinned.includes(id))
+          )
+          const { start, end } = previous.columnPinning
+          const columnPinning =
+            start.includes(toggled) || end.includes(toggled)
+              ? {
+                  start: start.filter((id) => id !== toggled),
+                  end: end.filter((id) => id !== toggled),
+                }
+              : g.chance() < 0.5
+                ? { start: [...start, toggled], end }
+                : { start, end: [...end, toggled] }
+          const after = t.apply(t.diff({ columnPinning }).ops)
+          expect(after.columnPinning, label).toEqual(
+            compileTableState(t.resolved, {
+              table,
+              columns,
+              base,
+            }).columnPinning
+          )
+          expect(centerOf(after), label).toEqual(
+            centerOf({ columnOrder: previous.columnOrder, columnPinning })
+          )
+        } else {
+          // A column the base pins can't move without being pinned again.
+          const center = centerOf(previous)
+          const basePinned = [
+            ...(base.columnPinning?.start ?? []),
+            ...(base.columnPinning?.end ?? []),
+          ]
+          const draggable = center.filter((id) => !basePinned.includes(id))
+          if (draggable.length === 0) {
+            continue
+          }
+          const dragged = g.pick(draggable)
+          const rest = center.filter((id) => id !== dragged)
+          const at = g.int(rest.length + 1)
+          const wanted = [...rest.slice(0, at), dragged, ...rest.slice(at)]
+          const after = t.apply(t.diff({ columnOrder: wanted }).ops)
+          expect(centerOf(after), label).toEqual(wanted)
+        }
+      }
+    }
+  }, 30_000)
+})
+
+describe("diffTableState moves", () => {
+  // Columns anchored on `column`, which travel with it when it moves.
+  function dependantsOf(resolved: ResolvedLayers, dragged: string) {
+    return columns.filter((id) => {
+      const position = resolved.placements.get(column(id))?.position
+      return (
+        position !== undefined &&
+        (("before" in position && position.before === dragged) ||
+          ("after" in position && position.after === dragged))
+      )
+    })
+  }
+
+  it("moves the dragged column, and only the columns anchored on it", () => {
+    const counts = new Map<number, number>()
+    let drags = 0
+    let over = 0
+    for (let seed = 1; seed <= 500; seed++) {
+      const g = generator(seed)
+      const t = history({ base: { columnOrder: g.shuffle(columns) } })
+      for (let drag = 0; drag < 20; drag++) {
+        const order = t.state().columnOrder
+        const dragged = g.pick(order)
+        const rest = order.filter((id) => id !== dragged)
+        const at = g.int(rest.length + 1)
+        const wanted = [...rest.slice(0, at), dragged, ...rest.slice(at)]
+        if (wanted.join() === order.join()) {
+          continue
+        }
+        const dependants = dependantsOf(t.resolved, dragged)
+        const { ops } = t.diff({ columnOrder: wanted })
+        const label = `seed ${String(seed)}, drag ${String(drag)}`
+        expect(ops.length, label).toBeGreaterThan(0)
+        if (dependants.length === 0) {
+          expect(ops, label).toHaveLength(1)
+        }
+        drags++
+        over += ops.length > 1 + dependants.length ? 1 : 0
+        counts.set(ops.length, (counts.get(ops.length) ?? 0) + 1)
+        expect(t.apply(ops).columnOrder, label).toEqual(wanted)
+      }
+    }
+    // Columns anchored on the dragged one travel with it, and a few
+    // histories need more moves than re-anchoring those.
+    expect(over).toBeLessThan(drags / 100)
+    expect(counts.get(1) ?? 0).toBeGreaterThan(drags * 0.7)
+  }, 30_000)
 })
