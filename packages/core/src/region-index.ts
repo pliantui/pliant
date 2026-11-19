@@ -3,7 +3,7 @@ import type { Op } from "@pliantui/contract"
 import { compareOrdered } from "./compare-ordered"
 import { identityOf } from "./node-identity"
 import { placementOf, type PlacementPosition } from "./placement"
-import type { ResolvedLayers } from "./resolve-layers"
+import type { ResolvedLayers, ResolvedOp } from "./resolve-layers"
 
 export type CreatingOp = Extract<Op, { op: "insert" | "wrap" }>
 
@@ -15,6 +15,8 @@ export interface Creation {
 
 /** The resolved layers indexed by container, for resolving regions. */
 export interface RegionIndex {
+  /** The surface's known node ids the layers resolved with, if any. */
+  readonly known: ReadonlySet<string> | undefined
   /** Every node an op created, live or removed, by id. */
   readonly creations: ReadonlyMap<string, Creation>
   /**
@@ -66,14 +68,20 @@ function listIn<T>(map: Map<string, T[]>, key: string, value: T): void {
 const indexes = new WeakMap<ResolvedLayers, RegionIndex>()
 
 /**
- * Indexes the layers once, in time linear in their size. A node's history
- * is its placement ops in the order applied, then the one that holds.
+ * Indexes the layers once, in time linear in their size, apart from sorting
+ * each node's placement ops back into the order they applied in.
  */
 export function regionIndexOf(layers: ResolvedLayers): RegionIndex {
   const cached = indexes.get(layers)
   if (cached) {
     return cached
   }
+  const rank = new Map(
+    layers.overlays.map((overlay, index) => [overlay, index])
+  )
+  const applied = (a: ResolvedOp, b: ResolvedOp) =>
+    (rank.get(a.overlay) ?? 0) - (rank.get(b.overlay) ?? 0) ||
+    a.check.index - b.check.index
   const creations = new Map<string, Creation>()
   const contents = new Map<string, string[]>()
   const traces = new Map<string, Map<string, PlacementPosition | undefined>>()
@@ -111,7 +119,8 @@ export function regionIndexOf(layers: ResolvedLayers): RegionIndex {
       continue
     }
     let current = creations.get(id)?.op.target
-    for (const { check } of winner ? [...overridden, winner] : overridden) {
+    const history = winner ? [...overridden, winner] : [...overridden]
+    for (const { check } of history.sort(applied)) {
       const placement = placementOf(
         check.op,
         id,
@@ -133,7 +142,12 @@ export function regionIndexOf(layers: ResolvedLayers): RegionIndex {
   for (const list of contents.values()) {
     list.sort(compareOrdered)
   }
-  const index = { creations, contents, traces }
+  const index = {
+    known: layers.baseIds && new Set(layers.baseIds.ids),
+    creations,
+    contents,
+    traces,
+  }
   indexes.set(layers, index)
   return index
 }

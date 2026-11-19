@@ -60,11 +60,7 @@ function layersOf(ops: unknown[]): ResolvedLayers {
 }
 
 function region(ops: unknown[], id = "dashboard", slots = dashboard) {
-  return resolveRegion(layersOf(ops), {
-    id,
-    slots,
-    baseIds: { ids: mounted, source: "mounted" },
-  })
+  return resolveRegion(layersOf(ops), { id, slots })
 }
 
 type Shape = string | Readonly<Record<string, readonly Shape[]>>
@@ -430,6 +426,17 @@ describe("resolveRegion", () => {
       ).toEqual(["a", "x", "b", "c", "d"])
     })
 
+    it("replays an item's placements in the order they applied", () => {
+      expect(
+        order([
+          move("a", { after: "d" }),
+          wrap("w", ["b", "a", "c"]),
+          insert("x", { after: "a" }, "w"),
+          wrap("w", ["d", "b", "c"]),
+        ])
+      ).toEqual([{ w: ["d", "b", "c", "x"] }, "a"])
+    })
+
     it("resolves deeply nested wrappers", () => {
       const depth = 10_000
       const slots = Array.from({ length: depth + 1 }, (_, i) => `s${String(i)}`)
@@ -476,13 +483,35 @@ describe("resolveRegion", () => {
     })
 
     it("renders every placed node without known ids", () => {
-      const layers = layersOf(unknown)
+      const layers = resolveLayers(overlaysOf(unknown), { surface })
 
       expect(
         shapeOf(
           resolveRegion(layers, { id: "dashboard", slots: dashboard }).entries
         )
       ).toEqual(["zz", "d", "a", "b", "c"])
+    })
+
+    it("renders a wrapped item only when it is known or created", () => {
+      expect(order([wrap("w", ["a", "zz"])])).toEqual([
+        { w: ["a"] },
+        "b",
+        "c",
+        "d",
+      ])
+      expect(order([insert("x", { index: 0 }), wrap("w", ["x", "a"])])).toEqual(
+        [{ w: ["x", "a"] }, "b", "c", "d"]
+      )
+
+      const layers = resolveLayers(overlaysOf([wrap("w", ["s", "a"])]), {
+        surface,
+        baseIds: { ids: ["dashboard", ...dashboard], source: "mounted" },
+      })
+      expect(
+        shapeOf(
+          resolveRegion(layers, { id: "dashboard", slots: dashboard }).entries
+        )
+      ).toEqual([{ w: ["a"] }, "b", "c", "d"])
     })
 
     it("keeps a slot whose move into an unmounted node is dormant", () => {
@@ -655,6 +684,38 @@ describe("resolveRegion", () => {
         return spy.mock.calls.length
       } finally {
         spy.mockRestore()
+      }
+    }
+
+    expect(reads(4000) / reads(1000)).toBeLessThan(6)
+  })
+
+  it("scales linearly with many regions and known ids", () => {
+    const reads = (size: number) => {
+      const regions = Array.from({ length: size }, (_, i) => `r${String(i)}`)
+      const slotsOf = (r: string) => [`${r}-a`, `${r}-b`, `${r}-c`]
+      const layers = resolveLayers(
+        overlaysOf(regions.map((r) => move(`${r}-a`, { after: `${r}-c` }, r))),
+        {
+          surface,
+          baseIds: {
+            ids: [...regions, ...regions.flatMap(slotsOf)],
+            source: "mounted",
+          },
+        }
+      )
+      const gets = vi.spyOn(Map.prototype, "get")
+      const adds = vi.spyOn(Set.prototype, "add")
+      try {
+        for (const r of regions) {
+          expect(
+            resolveRegion(layers, { id: r, slots: slotsOf(r) }).entries
+          ).toHaveLength(3)
+        }
+        return gets.mock.calls.length + adds.mock.calls.length
+      } finally {
+        gets.mockRestore()
+        adds.mockRestore()
       }
     }
 

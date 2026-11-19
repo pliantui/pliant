@@ -5,8 +5,7 @@ import { identityOf } from "./node-identity"
 import { orderItems } from "./order-items"
 import type { PlacementPosition } from "./placement"
 import { regionIndexOf, type CreatingOp } from "./region-index"
-import { readBaseIds } from "./resolution"
-import type { ResolvedLayers, ResolveLayersOptions } from "./resolve-layers"
+import type { ResolvedLayers } from "./resolve-layers"
 
 type InsertOp = Extract<Op, { op: "insert" }>
 type LayoutOp = Extract<Op, { op: "setLayout" | "wrap" }>
@@ -98,13 +97,6 @@ export interface ResolveRegionOptions {
   readonly id: string
   /** The region's slot ids in base order: its slots object's key order. */
   readonly slots: readonly string[]
-  /**
-   * The surface's known node ids, as passed to `resolveLayers`. A node an op
-   * placed here that isn't listed, created, or one of `slots` doesn't exist
-   * or isn't mounted, so it isn't rendered. When omitted, every placed node
-   * is.
-   */
-  readonly baseIds?: ResolveLayersOptions["baseIds"]
 }
 
 interface Container {
@@ -151,8 +143,12 @@ function anchorOf(position: PlacementPosition): string | undefined {
  * `items` as its base order.
  *
  * A region holds its slots, minus those an op placed in another node, plus
- * the known nodes an op moved, wrapped or inserted into it. A removed node is
- * gone; a removed wrapper's nodes are back where they were before it.
+ * the nodes an op moved, wrapped or inserted into it. A removed node is
+ * gone; a removed wrapper's nodes are back where they were before it. When
+ * the layers resolved with `baseIds`, a node other than the region's own
+ * slots renders only when it is listed there or an op created it: one that
+ * isn't doesn't exist or isn't mounted, so it only keeps its place as an
+ * anchor. Without `baseIds`, every placed node renders.
  *
  * The order starts from the base order, then every other node by id. Nodes
  * that were in the container and left it (moved out, wrapped, removed) stay
@@ -164,13 +160,18 @@ function anchorOf(position: PlacementPosition): string | undefined {
  * 1. its placement in the container, then its latest position there before
  *    it left (wrap membership is the wrapper's base order, not a position);
  * 2. in the node it was created in, an inserted node's insert `at`, or a
- *    wrapper's place right before its first item;
+ *    wrapper's place right before its first listed item that is in the
+ *    order here. An item never shown here is in the order at its base place
+ *    when it is one of the region's slots, so `move a into sidebar` then
+ *    `wrap w [a, d]` puts the wrapper first;
  * 3. created in a node that was removed, its insert `at` when the anchor is
  *    here, else right after that node's place.
  *
  * An anchor that isn't in the order, or is the node itself, doesn't apply,
  * nor does a position that keeps the node in place (`pin sticky`, `pin
- * none`). The order then follows `orderItems`, shared with tables:
+ * none`). An anchor on a removed inserted node keeps working from that
+ * node's old place; spec 5.4 rule 3 may later flag such an op "needs
+ * updating" instead. The order then follows `orderItems`, shared with tables:
  *
  * - `move before` or `after` puts a node next to its anchor, and it travels
  *   with it; nodes on the same anchor keep their order. A cycle of anchors
@@ -187,11 +188,9 @@ function anchorOf(position: PlacementPosition): string | undefined {
  */
 export function resolveRegion(
   layers: ResolvedLayers,
-  { id, slots, baseIds }: ResolveRegionOptions
+  { id, slots }: ResolveRegionOptions
 ): ResolvedRegion {
-  const { creations, contents, traces } = regionIndexOf(layers)
-  const knownIds = readBaseIds(baseIds)
-  const known = knownIds && new Set(knownIds.ids)
+  const { known, creations, contents, traces } = regionIndexOf(layers)
   const live = (node: string) => creations.get(node)?.live === true
   const seen = new Set([id])
 
@@ -239,7 +238,7 @@ export function resolveRegion(
         (node) =>
           !seen.has(node) &&
           containerOf(node, container) === container &&
-          (inBase.has(node) ||
+          ((container === id && inBase.has(node)) ||
             creations.has(node) ||
             known === undefined ||
             known.has(node))

@@ -94,9 +94,9 @@ export interface OrderItemsOptions {
  *   its own place.
  * - Items pinned `start` or `end` go first or last, in their order from
  *   `items`.
- * - An item at `{ index }` is placed at that index among the unpinned items,
- *   or right after the item placed at a lower index, with the items anchored
- *   on it. Ties keep their order from `items`.
+ * - An item at `{ index }` is placed at that index among the rendered
+ *   unpinned items, or right after the item placed at a lower index, with
+ *   the items anchored on it. Ties keep their order from `items`.
  * - Every other item (no position, `sticky`, `none`, `promoted`) keeps its
  *   place.
  *

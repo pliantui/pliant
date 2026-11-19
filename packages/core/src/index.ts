@@ -26,6 +26,7 @@ export {
   resolveRegion,
   type RegionEntry,
   type RegionLayout,
+  type ByBreakpoint,
   type ResolvedRegion,
   type ResolveRegionOptions,
 } from "./resolve-region"
