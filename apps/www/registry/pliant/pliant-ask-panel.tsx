@@ -159,11 +159,17 @@ function sessionNote(ops: readonly Op[]) {
  * focus is inside it. Closing it cancels an ask in progress but keeps the
  * preview, which the trigger then marks with `data-preview`. The prompt is
  * kept when the target changes, so the same ask can go to another target.
+ *
+ * Focus moves to the prompt whenever the panel opens, and when its parent
+ * sets `target` while it is open, so a target picked elsewhere on the page,
+ * as with `PliantPointMode`, can be asked about right away.
  */
 function PliantAskPanel({
   endpoint,
   targets,
+  target: targetProp,
   defaultTarget,
+  onTargetChange,
   placeholder = "Describe a change",
   trigger,
   open,
@@ -174,8 +180,11 @@ function PliantAskPanel({
   endpoint: string
   /** The nodes users can ask about, in picker order. */
   targets: readonly PliantAskTarget[]
+  /** The id of the picked target, when the parent controls it. */
+  target?: string
   /** The id of the target picked first. Defaults to the first target. */
   defaultTarget?: string
+  onTargetChange?: (target: string) => void
   /** The prompt's placeholder. */
   placeholder?: string
   /** The element that opens the panel. Defaults to an "Ask" button. */
@@ -189,16 +198,18 @@ function PliantAskPanel({
   const preview = usePreview()
   const ready = usePliantStatus().status === "ready"
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen)
-  const [targetId, setTargetId] = React.useState(defaultTarget)
+  const [uncontrolledTarget, setUncontrolledTarget] =
+    React.useState(defaultTarget)
   const [prompt, setPrompt] = React.useState("")
   const [state, setState] = React.useState<AskState>({ status: "idle" })
   const request = React.useRef<AbortController | null>(null)
-  const focusOnOpen = React.useRef(false)
   const promptRef = React.useRef<HTMLTextAreaElement>(null)
   const triggerRef = React.useRef<HTMLButtonElement>(null)
   const panelRef = React.useRef<HTMLElement>(null)
   const id = React.useId()
   const isOpen = open ?? uncontrolledOpen
+  const targetId = targetProp ?? uncontrolledTarget
+  const [focusRequest, setFocusRequest] = React.useState(0)
 
   React.useEffect(
     () => () => {
@@ -210,8 +221,26 @@ function PliantAskPanel({
   const [wasOpen, setWasOpen] = React.useState(isOpen)
   if (wasOpen !== isOpen) {
     setWasOpen(isOpen)
-    if (!isOpen && state.status === "asking") {
+    if (isOpen) {
+      setFocusRequest((count) => count + 1)
+    } else if (state.status === "asking") {
       setState({ status: "cancelled" })
+    }
+  }
+
+  // The last target the picker set, to tell the parent's own changes apart.
+  const [pickedTarget, setPickedTarget] = React.useState(targetProp)
+  const [seenTarget, setSeenTarget] = React.useState(targetProp)
+  if (seenTarget !== targetProp) {
+    setSeenTarget(targetProp)
+    if (targetProp !== pickedTarget) {
+      setPickedTarget(targetProp)
+      if (state.status !== "asking") {
+        setState({ status: "idle" })
+      }
+      if (isOpen) {
+        setFocusRequest((count) => count + 1)
+      }
     }
   }
 
@@ -223,11 +252,10 @@ function PliantAskPanel({
   }, [isOpen])
 
   React.useEffect(() => {
-    if (isOpen && focusOnOpen.current) {
-      focusOnOpen.current = false
+    if (focusRequest > 0) {
       promptRef.current?.focus()
     }
-  }, [isOpen])
+  }, [focusRequest])
 
   const target =
     targets.find((candidate) => candidate.id === targetId) ?? targets[0]
@@ -329,7 +357,6 @@ function PliantAskPanel({
           if (isOpen) {
             close()
           } else {
-            focusOnOpen.current = true
             setOpen(true)
           }
         }}
@@ -399,7 +426,11 @@ function PliantAskPanel({
               <Select
                 value={target?.id ?? ""}
                 onValueChange={(next) => {
-                  setTargetId(next)
+                  if (targetProp === undefined) {
+                    setUncontrolledTarget(next)
+                  }
+                  setPickedTarget(next)
+                  onTargetChange?.(next)
                   setState({ status: "idle" })
                 }}
                 disabled={asking}

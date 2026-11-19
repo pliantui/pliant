@@ -619,6 +619,72 @@ describe("PliantAskPanel", () => {
     expect(screen.getByText("Revenue").closest("[aria-hidden]")).toBeNull()
   })
 
+  it("asks about the target its parent picks", async () => {
+    answer({ status: "clarify", question: "Which column?" })
+    await renderPanel({ target: "orders-table" })
+
+    expect(screen.getByRole("combobox", { name: "Change" }).textContent).toBe(
+      "Orders table"
+    )
+    await ask("make it nicer")
+
+    expect(requestBody()).toMatchObject({ target: "orders-table" })
+  })
+
+  it("focuses the prompt when its parent opens it", async () => {
+    const { rerender } = await renderPanel({ open: false })
+    expect(screen.queryByRole("complementary")).toBeNull()
+
+    rerender(page({ open: true }))
+    await settle()
+
+    expect(document.activeElement).toBe(prompt())
+  })
+
+  it("focuses the prompt and clears the answer when its parent sets the target", async () => {
+    answer({ status: "clarify", question: "Which card?" })
+    const { rerender } = await renderPanel({ target: "key-metrics" })
+    await ask("reorder")
+    expect(status()).toBe("Which card?")
+    screen.getByRole("button", { name: "Close" }).focus()
+
+    rerender(page({ target: "orders-table" }))
+    await settle()
+
+    expect(screen.getByRole("combobox", { name: "Change" }).textContent).toBe(
+      "Orders table"
+    )
+    expect(status()).toBe("")
+    expect(document.activeElement).toBe(prompt())
+    expect(prompt()).toHaveProperty("value", "reorder")
+  })
+
+  it("reports picks to its parent without moving focus", async () => {
+    const onTargetChange = vi.fn()
+    function Controlled() {
+      const [target, setTarget] = React.useState("key-metrics")
+      return page({
+        target,
+        onTargetChange: (next) => {
+          onTargetChange(next)
+          setTarget(next)
+        },
+      })
+    }
+    render(<Controlled />)
+    await settle()
+    const picker = screen.getByRole("combobox", { name: "Change" })
+
+    fireEvent.keyDown(picker, { key: "Enter" })
+    await settle()
+    fireEvent.click(screen.getByRole("option", { name: "Orders table" }))
+    await settle()
+
+    expect(onTargetChange).toHaveBeenCalledWith("orders-table")
+    expect(picker.textContent).toBe("Orders table")
+    expect(document.activeElement).not.toBe(prompt())
+  })
+
   it("renders answers as text, never as HTML", async () => {
     await renderPanel()
     answer({ status: "clarify", question: "<img src=x onerror=alert(1)>" })
