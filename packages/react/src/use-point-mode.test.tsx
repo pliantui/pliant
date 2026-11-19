@@ -1,4 +1,4 @@
-import { createRef, type ComponentProps } from "react"
+import { createRef, type ComponentProps, type MouseEvent } from "react"
 import {
   act,
   cleanup,
@@ -26,12 +26,14 @@ function PointMode({
   labelWidth,
   inline = false,
   layer,
+  onTriggerClick,
 }: {
   targets: readonly { id: string; label: string }[]
   onPick: (id: string) => void
   labelWidth?: number
   inline?: boolean
   layer?: Parameters<ReturnType<typeof usePointMode>["getLayerProps"]>[0]
+  onTriggerClick?: (event: MouseEvent<HTMLButtonElement>) => void
 }) {
   const { mode, boxes, announcement, pick, getTriggerProps, getLayerProps } =
     usePointMode({ targets, onPick, labelWidth })
@@ -66,7 +68,7 @@ function PointMode({
   )
   return (
     <>
-      <button type="button" {...getTriggerProps()}>
+      <button type="button" {...getTriggerProps({ onClick: onTriggerClick })}>
         Point
       </button>
       <span role="status">{announcement}</span>
@@ -856,5 +858,22 @@ describe("usePointMode", () => {
     expect(document.activeElement).toBe(first)
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Tab" })
     expect(document.activeElement).not.toBe(first)
+  })
+
+  it("lets the app's trigger click keep point mode off", async () => {
+    render(
+      <PointMode
+        targets={targets}
+        onPick={() => undefined}
+        onTriggerClick={(event) => {
+          event.preventDefault()
+        }}
+      />
+    )
+
+    await enterWithToggle()
+
+    expect(layer()).toBeNull()
+    expect(toggle().getAttribute("aria-pressed")).toBe("false")
   })
 })

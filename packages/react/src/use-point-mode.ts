@@ -22,9 +22,6 @@ import {
   makeOthersInert,
 } from "./point-mode-layers"
 
-type ClickHandler = (event: ReactMouseEvent<HTMLElement>) => void
-type KeyDownHandler = (event: ReactKeyboardEvent<HTMLElement>) => void
-
 // Long enough that Alt pressed as part of a shortcut never lights the page up.
 const holdDelay = 250
 
@@ -88,7 +85,7 @@ export function usePointMode({
   const [mode, setMode] = useState<"hold" | "toggle" | null>(null)
   const [boxes, setBoxes] = useState<readonly PointModeBox[]>([])
   const [announcement, setAnnouncement] = useState("")
-  const layerRef = useRef<HTMLDivElement>(null)
+  const layerRef = useRef<HTMLElement>(null)
   const returnFocus = useRef<HTMLElement | null>(null)
   const focusOnShow = useRef(false)
   const holdTimer = useRef<number | undefined>(undefined)
@@ -305,24 +302,38 @@ export function usePointMode({
     boxes,
     announcement,
     pick,
-    getTriggerProps: (props?: { readonly onClick?: ClickHandler }) => ({
+    getTriggerProps: <TElement extends HTMLElement = HTMLElement>(props?: {
+      readonly onClick?:
+        ((event: ReactMouseEvent<TElement>) => void) | undefined
+    }) => ({
       "aria-pressed": active,
       "aria-keyshortcuts": "Meta+Period Control+Period",
       "data-state": active ? ("on" as const) : ("off" as const),
-      onClick: composeHandler(props?.onClick, toggle),
+      onClick: composeHandler<ReactMouseEvent<TElement>>(
+        props?.onClick,
+        toggle
+      ),
     }),
-    getLayerProps: (props?: {
-      readonly ref?: Ref<HTMLDivElement> | undefined
-      readonly onClick?: ClickHandler | undefined
-      readonly onKeyDown?: KeyDownHandler | undefined
+    getLayerProps: <TElement extends HTMLElement = HTMLElement>(props?: {
+      readonly ref?: Ref<TElement> | undefined
+      readonly onClick?:
+        ((event: ReactMouseEvent<TElement>) => void) | undefined
+      readonly onKeyDown?:
+        ((event: ReactKeyboardEvent<TElement>) => void) | undefined
     }) => ({
       ref: composeRef(props?.ref, layerRef),
       role: mode === "toggle" ? ("dialog" as const) : ("group" as const),
       "aria-modal": mode === "toggle" ? true : undefined,
       "data-slot": "pliant-point-mode",
       "data-mode": mode ?? undefined,
-      onClick: composeHandler(props?.onClick, leaveOnBackdrop),
-      onKeyDown: composeHandler(props?.onKeyDown, moveFocus),
+      onClick: composeHandler<ReactMouseEvent<TElement>>(
+        props?.onClick,
+        leaveOnBackdrop
+      ),
+      onKeyDown: composeHandler<ReactKeyboardEvent<TElement>>(
+        props?.onKeyDown,
+        moveFocus
+      ),
     }),
   }
 }

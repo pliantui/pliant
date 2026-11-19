@@ -14,6 +14,7 @@ import {
 import type { Op } from "@pliantui/contract"
 
 import { composeHandler, composeRef } from "./compose-props"
+import { isDevelopment } from "./is-development"
 import { revealTarget } from "./reveal-target"
 import { usePliantStatus } from "./use-pliant-status"
 import { usePliantStore } from "./use-pliant-store"
@@ -25,19 +26,6 @@ type AskAnswer =
   | { readonly status: "clarify"; readonly question: string }
   | { readonly status: "unavailable"; readonly reason: string }
   | { readonly status: "error"; readonly message: string }
-
-// Bundlers replace `process.env.NODE_ENV`; where none did and there is no
-// `process`, this is a browser build that isn't development.
-function logInDevelopment(error: unknown) {
-  try {
-    if (process.env.NODE_ENV === "production") {
-      return
-    }
-  } catch {
-    return
-  }
-  console.error(error)
-}
 
 /**
  * Where an ask stands: nothing yet, in progress, answered with a question,
@@ -254,7 +242,9 @@ export function useAskPanel<TTarget extends { readonly id: string }>({
       answer = await send({ surface, target, prompt: text }, controller.signal)
     } catch (error) {
       if (!controller.signal.aborted) {
-        logInDevelopment(error)
+        if (isDevelopment) {
+          console.error(error)
+        }
       }
       answer = {
         status: "error",
@@ -326,31 +316,31 @@ export function useAskPanel<TTarget extends { readonly id: string }>({
     cancel,
     lockIn,
     discard,
-    getTriggerProps: (props?: {
-      readonly ref?: Ref<HTMLElement> | undefined
-      readonly onClick?: ((event: MouseEvent<HTMLElement>) => void) | undefined
+    getTriggerProps: <TElement extends HTMLElement = HTMLElement>(props?: {
+      readonly ref?: Ref<TElement> | undefined
+      readonly onClick?: ((event: MouseEvent<TElement>) => void) | undefined
     }) => ({
       ref: composeRef(props?.ref, triggerRef),
       "aria-expanded": open,
       "aria-controls": open ? panelId : undefined,
       "data-state": open ? ("open" as const) : ("closed" as const),
       "data-preview": preview !== null ? "" : undefined,
-      onClick: composeHandler(props?.onClick, () => {
+      onClick: composeHandler<MouseEvent<TElement>>(props?.onClick, () => {
         setOpen(!open)
       }),
     }),
-    getPanelProps: (props?: {
-      readonly ref?: Ref<HTMLElement> | undefined
+    getPanelProps: <TElement extends HTMLElement = HTMLElement>(props?: {
+      readonly ref?: Ref<TElement> | undefined
       readonly onKeyDown?:
-        ((event: KeyboardEvent<HTMLElement>) => void) | undefined
+        ((event: KeyboardEvent<TElement>) => void) | undefined
     }) => ({
       ref: composeRef(props?.ref, panelRef),
       id: panelId,
       "data-slot": "pliant-ask-panel",
       "data-state": "open" as const,
-      onKeyDown: composeHandler(
+      onKeyDown: composeHandler<KeyboardEvent<TElement>>(
         props?.onKeyDown,
-        (event: KeyboardEvent<HTMLElement>) => {
+        (event) => {
           if (
             event.key === "Escape" &&
             !event.nativeEvent.isComposing &&
@@ -363,10 +353,10 @@ export function useAskPanel<TTarget extends { readonly id: string }>({
         }
       ),
     }),
-    getPickerProps: (props?: {
-      readonly onBlur?: ((event: FocusEvent<HTMLElement>) => void) | undefined
+    getPickerProps: <TElement extends HTMLElement = HTMLElement>(props?: {
+      readonly onBlur?: ((event: FocusEvent<TElement>) => void) | undefined
     }) => ({
-      onBlur: composeHandler(props?.onBlur, () => {
+      onBlur: composeHandler<FocusEvent<TElement>>(props?.onBlur, () => {
         setPickerTarget(undefined)
       }),
     }),
