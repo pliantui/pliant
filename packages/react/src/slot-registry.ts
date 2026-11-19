@@ -6,6 +6,7 @@ interface Declaration {
   readonly rank: number
   readonly region: string
   readonly slots: Readonly<Record<string, ReactNode>>
+  retiring: boolean
 }
 
 /**
@@ -25,6 +26,12 @@ export interface SlotRegistry {
     region: string,
     slots: Readonly<Record<string, ReactNode>>
   ) => () => void
+  /**
+   * Marks what `owner` declared as about to be undeclared: it no longer
+   * wins over another declaration of a slot, nor counts as a duplicate,
+   * until `owner` declares again.
+   */
+  readonly retire: (owner: object) => void
   /** The content of a declared slot, or `undefined`. */
   readonly getContent: (id: string) => ReactNode
   /** Calls `listener` when the content of slot `id` changes. */
@@ -35,6 +42,7 @@ const isDevelopment = process.env.NODE_ENV !== "production"
 
 export function createSlotRegistry(): SlotRegistry {
   const declarations = new Map<object, Declaration>()
+  const ownersById = new Map<string, Set<object>>()
   const ranks = new WeakMap<object, number>()
   const listeners = new Map<string, Set<() => void>>()
   const warned = new Set<string>()
@@ -47,13 +55,18 @@ export function createSlotRegistry(): SlotRegistry {
     }
   }
 
+  // An active declaration wins over a retiring one, then the first owner.
   function ownerOf(id: string, except?: object) {
     let first: Declaration | undefined
-    for (const [owner, declaration] of declarations) {
+    for (const owner of ownersById.get(id) ?? []) {
+      const declaration = declarations.get(owner)
       if (
         owner !== except &&
-        Object.hasOwn(declaration.slots, id) &&
-        (!first || declaration.rank < first.rank)
+        declaration &&
+        (!first ||
+          (first.retiring && !declaration.retiring) ||
+          (first.retiring === declaration.retiring &&
+            declaration.rank < first.rank))
       ) {
         first = declaration
       }
@@ -77,9 +90,31 @@ export function createSlotRegistry(): SlotRegistry {
     }
   }
 
+  function index(owner: object, ids: readonly string[], add: boolean) {
+    for (const id of ids) {
+      let owners = ownersById.get(id)
+      if (add) {
+        if (!owners) {
+          owners = new Set()
+          ownersById.set(id, owners)
+        }
+        owners.add(owner)
+      } else if (owners) {
+        owners.delete(owner)
+        if (owners.size === 0) {
+          ownersById.delete(id)
+        }
+      }
+    }
+  }
+
   function check(owner: object, { region, slots }: Declaration) {
     for (const [other, declaration] of declarations) {
-      if (other !== owner && declaration.region === region) {
+      if (
+        other !== owner &&
+        !declaration.retiring &&
+        declaration.region === region
+      ) {
         warnOnce(
           `Pliant: two mounted regions use the id "${region}". Region ids must be unique within a surface.`
         )
@@ -92,7 +127,7 @@ export function createSlotRegistry(): SlotRegistry {
         )
       }
       const other = ownerOf(id, owner)
-      if (other) {
+      if (other && !other.retiring) {
         warnOnce(
           `Pliant: regions "${other.region}" and "${region}" both declare a slot "${id}". Slot ids must be unique within a surface.`
         )
@@ -110,28 +145,39 @@ export function createSlotRegistry(): SlotRegistry {
       rank = nextRank++
       ranks.set(owner, rank)
     }
-    const declaration: Declaration = { rank, region, slots }
+    const declaration: Declaration = { rank, region, slots, retiring: false }
     if (isDevelopment) {
       check(owner, declaration)
     }
-    const previous = declarations.get(owner)
-    update(
-      new Set([...Object.keys(previous?.slots ?? {}), ...Object.keys(slots)]),
-      () => {
-        declarations.set(owner, declaration)
-      }
-    )
+    const previous = Object.keys(declarations.get(owner)?.slots ?? {})
+    const ids = Object.keys(slots)
+    update(new Set([...previous, ...ids]), () => {
+      index(owner, previous, false)
+      declarations.set(owner, declaration)
+      index(owner, ids, true)
+    })
     return () => {
       if (declarations.get(owner) === declaration) {
-        update(Object.keys(slots), () => {
+        update(ids, () => {
           declarations.delete(owner)
+          index(owner, ids, false)
         })
       }
     }
   }
 
+  function retire(owner: object) {
+    const declaration = declarations.get(owner)
+    if (declaration && !declaration.retiring) {
+      update(Object.keys(declaration.slots), () => {
+        declaration.retiring = true
+      })
+    }
+  }
+
   return {
     declare,
+    retire,
     getContent,
     subscribe(id, listener) {
       let set = listeners.get(id)

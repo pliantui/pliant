@@ -89,6 +89,25 @@ describe("createSlotRegistry", () => {
     expect(registry.getContent("revenue")).toBe("Revenue")
   })
 
+  it("lets a retiring declaration lose, without counting as a duplicate", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    const registry = createSlotRegistry()
+    const listener = vi.fn()
+    registry.subscribe("revenue", listener)
+    const old = {}
+    registry.declare(old, "dashboard", { revenue: "Old" })
+
+    registry.retire(old)
+    expect(registry.getContent("revenue")).toBe("Old")
+    registry.declare({}, "dashboard", { revenue: "New" })
+    expect(registry.getContent("revenue")).toBe("New")
+    expect(warn).not.toHaveBeenCalled()
+
+    registry.declare(old, "dashboard", { revenue: "Old" })
+    expect(registry.getContent("revenue")).toBe("Old")
+    expect(listener).toHaveBeenCalledTimes(3)
+  })
+
   it("warns once about slot ids that aren't kebab-case", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
     const registry = createSlotRegistry()

@@ -14,8 +14,13 @@ export interface RetainScope {
  * stay registered.
  */
 export interface Retention {
-  /** Holds what `scope` and the scopes in it release, until called back. */
+  /**
+   * Holds what `scope` and the scopes in it release, until called back.
+   * What it held is released on the next `settle`.
+   */
   readonly hold: (scope: RetainScope) => () => void
+  /** Releases, after the current commit, what no scope holds any more. */
+  readonly settle: () => void
   /**
    * Runs `release`: at once outside any scope, else after the current
    * commit, and only once no scope around `scope` holds it.
@@ -41,7 +46,7 @@ export function createRetention(): Retention {
   const waiting = new Set<Waiting>()
   let scheduled = false
 
-  // A scope's hold is set in a layout effect, after React cleaned up the
+  // A scope's hold is set in an insertion effect, after React cleaned up the
   // effects it hides, so releases wait for the end of the commit.
   function settle() {
     scheduled = false
@@ -68,10 +73,10 @@ export function createRetention(): Retention {
         if (holding) {
           holding = false
           scope.held--
-          schedule()
         }
       }
     },
+    settle: schedule,
     release(scope, release) {
       if (scope === null) {
         release()

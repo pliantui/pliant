@@ -29,6 +29,7 @@ export function useRegionSlots(
   useLayoutEffect(() => {
     const undeclare = store.slots.declare(owner, id, slots)
     return () => {
+      store.slots.retire(owner)
       store.retention.release(scope, undeclare)
     }
   }, [store, scope, owner, id, slots])
