@@ -35,8 +35,8 @@ A saved view also needs every overlay to have the view's `surface` and `layer`, 
 A storage adapter stores and returns each overlay as a record that `stored-overlay.json` and `storedOverlaySchema` describe: `{ overlay, etag, version, updatedAt }`.
 
 - `overlay` is checked as a saved overlay: the record is valid even when some ops are unknown, newer or invalid, and the adapter keeps every op and unknown field unchanged.
-- `etag` is an opaque string of 1 to 256 characters. The adapter changes it on every save, and clients only compare it for equality.
-- `version` is an integer from 1. It is the version `basis.layers` records, and clients compare versions to tell that a layer changed.
+- `etag` is an opaque string of 1 to 256 characters. Every successful save gives the overlay an etag it has never had before. Clients only compare etags for equality.
+- `version` is an integer from 1. The adapter increases it on every save. For a team or org overlay it is the version that `basis.layers` records, and clients compare versions to tell that a layer changed.
 - `updatedAt` is an RFC 3339 date-time with an offset, like `createdAt`.
 
 The adapter methods and the `conflict` result of a conditional save belong to `@pliantui/react`, not to the contract.
