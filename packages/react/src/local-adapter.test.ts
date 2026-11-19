@@ -1,0 +1,82 @@
+import { beforeEach, describe, expect, it } from "vitest"
+
+import type { Overlay } from "@pliantui/contract"
+
+import { localAdapter } from "./local-adapter"
+
+const key = "pliant:/orders"
+
+function overlay(id: string, width: number): Overlay {
+  return {
+    v: 1,
+    id,
+    surface: "/orders",
+    layer: "personal",
+    ops: [
+      { op: "setColumnWidth", target: "orders-table/columns/total", width },
+    ],
+    basis: { contract: 1, core: "0.0.0", manifests: {} },
+    source: "manual",
+    createdBy: "local",
+    createdAt: "2026-11-19T00:00:00.000Z",
+  }
+}
+
+beforeEach(() => {
+  localStorage.clear()
+})
+
+describe("localAdapter", () => {
+  it("saves personal versions per surface and loads them back", () => {
+    const adapter = localAdapter()
+    void adapter.save("/orders", overlay("01KAB0000000000000000000P1", 200))
+    void adapter.save("/orders", overlay("01KAB0000000000000000000P2", 220))
+    void adapter.save("/orders", overlay("01KAB0000000000000000000P1", 240))
+
+    expect(adapter.load("/orders")).toEqual({
+      personal: [
+        overlay("01KAB0000000000000000000P2", 220),
+        overlay("01KAB0000000000000000000P1", 240),
+      ],
+    })
+    expect(adapter.load("/invoices")).toEqual({ personal: [] })
+    expect(JSON.parse(localStorage.getItem(key) ?? "null")).toMatchObject({
+      v: 1,
+    })
+  })
+
+  it("keeps saved entries it doesn't understand", () => {
+    const unknown = { ...overlay("01KAB0000000000000000000P1", 200), extra: 1 }
+    localStorage.setItem(key, JSON.stringify({ v: 1, personal: [7, unknown] }))
+    const adapter = localAdapter()
+    void adapter.save("/orders", overlay("01KAB0000000000000000000P2", 220))
+
+    expect(adapter.load("/orders")).toEqual({
+      personal: [7, unknown, overlay("01KAB0000000000000000000P2", 220)],
+    })
+  })
+
+  it.each([
+    ["JSON that doesn't parse", "{"],
+    ["a value that isn't an object", "42"],
+    ["a document without a version", JSON.stringify({ personal: [] })],
+    [
+      "personal overlays that aren't a list",
+      JSON.stringify({ v: 1, personal: {} }),
+    ],
+  ])("loads %s as no overlays", (_name, value) => {
+    localStorage.setItem(key, value)
+
+    expect(localAdapter().load("/orders")).toEqual({ personal: [] })
+  })
+
+  it("never overwrites data written by a newer version", () => {
+    const newer = JSON.stringify({ v: 2, layers: [] })
+    localStorage.setItem(key, newer)
+    const adapter = localAdapter()
+    void adapter.save("/orders", overlay("01KAB0000000000000000000P1", 200))
+
+    expect(adapter.load("/orders")).toEqual({ personal: [] })
+    expect(localStorage.getItem(key)).toBe(newer)
+  })
+})

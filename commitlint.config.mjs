@@ -8,7 +8,17 @@ export default {
     "scope-enum": [
       2,
       "always",
-      ["contract", "core", "server", "pliantui", "www", "tests", "ci", "repo"],
+      [
+        "contract",
+        "core",
+        "react",
+        "server",
+        "pliantui",
+        "www",
+        "tests",
+        "ci",
+        "repo",
+      ],
     ],
   },
 }

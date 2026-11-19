@@ -1,0 +1,15 @@
+import { useLayoutEffect } from "react"
+
+import { useLayerStore } from "./pliant-context"
+
+/**
+ * Registers node ids as mounted while the calling component is, so ops into
+ * them apply instead of staying dormant. Changes are batched, and resolve
+ * again only when the set of mounted ids changes.
+ *
+ * @experimental
+ */
+export function useMountedNodes(ids: readonly string[]) {
+  const store = useLayerStore("useMountedNodes")
+  useLayoutEffect(() => store.registerNodes(ids), [store, ids])
+}

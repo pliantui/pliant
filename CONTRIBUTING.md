@@ -22,6 +22,7 @@ apps
 packages
 ├── contract
 ├── core
+├── react
 ├── pliantui
 ├── server
 └── tests
@@ -33,6 +34,7 @@ packages
 | `apps/www/content`  | The documentation, written in MDX.                  |
 | `packages/contract` | The `@pliantui/contract` package.                   |
 | `packages/core`     | The `@pliantui/core` package.                       |
+| `packages/react`    | The `@pliantui/react` package.                      |
 | `packages/server`   | The `@pliantui/server` package.                     |
 | `packages/pliantui` | The `pliantui` CLI.                                 |
 | `packages/tests`    | Integration tests.                                  |
@@ -116,7 +118,7 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org): `cat
 - `revert`: reverts a previous commit
 - `chore`: anything else
 
-The scope is required and is one of `contract`, `core`, `server`, `pliantui`, `www`, `tests`, `ci` or `repo`. Write the message in the imperative mood, in lowercase, with no trailing period.
+The scope is required and is one of `contract`, `core`, `react`, `server`, `pliantui`, `www`, `tests`, `ci` or `repo`. Write the message in the imperative mood, in lowercase, with no trailing period.
 
 For example: `feat(core): add layer resolution`. Retitle reverts to match, for example `revert(core): add layer resolution`.
 
