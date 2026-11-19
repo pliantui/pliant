@@ -2,5 +2,27 @@
   "$schema": "https://ui.shadcn.com/schema/registry.json",
   "name": "pliant",
   "homepage": "https://pliantui.dev",
-  "items": []
+  "items": [
+    {
+      "name": "pliant-region",
+      "type": "registry:component",
+      "title": "Pliant Region",
+      "description": "A region whose slots users can reorder, hide, resize, wrap and collapse with Pliant overlays.",
+      "dependencies": [
+        "@pliantui/core",
+        "@pliantui/react",
+        "cn",
+        "lucide-react",
+        "zod"
+      ],
+      "registryDependencies": ["button", "collapsible"],
+      "files": [
+        {
+          "path": "registry/pliant/pliant-region.tsx",
+          "type": "registry:component",
+          "target": "components/pliant/pliant-region.tsx"
+        }
+      ]
+    }
+  ]
 }
