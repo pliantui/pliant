@@ -105,7 +105,8 @@ export interface PliantStore {
   ) => OverlayResult
   /**
    * Shows a session overlay, such as an AI answer, on top of every layer
-   * until `lockIn` or `discard`. It replaces the current preview.
+   * until `lockIn` or `discard`. It replaces the current preview, which
+   * ends as on `discard`, keeping the changes made while it showed.
    */
   readonly preview: (overlay: unknown) => OverlayResult
   /**
@@ -132,7 +133,9 @@ export interface PliantStore {
    *
    * Changes made to the session layer while the preview showed (a click on
    * a column the preview sorts, say) end up as on `discard`, above the
-   * locked version, so the user's latest choice keeps winning.
+   * locked version, so the user's latest choice keeps winning. When they
+   * can't keep rendering as they did (a removal that applied only in the
+   * preview's layer, say), nothing changes and the result says why.
    */
   readonly lockIn: () => LockInResult
   /**
@@ -142,8 +145,10 @@ export interface PliantStore {
    * to the same whole-value properties; the rest stay in the session layer,
    * above every other session change. What renders is what the same changes
    * render without the preview. A change that would render differently as
-   * a personal version (a move whose history a session move depends on,
-   * say) stays in the session layer.
+   * a personal version (a move while a session move is in the history,
+   * say) stays in the session layer, and when none can move, every change
+   * stays where it was. Changes made while the preview showed are the
+   * session overlays dated after it, so they are found after a reload too.
    */
   readonly discard: () => void
   /** Loads the layers from the storage adapter again, as after an error. */
@@ -242,8 +247,6 @@ export function createLayerStore({
   let personal: readonly unknown[] = []
   let session: readonly unknown[] = []
   let previewed: object | null = null
-  // The ids of the session overlays changes made while a preview showed.
-  let duringPreview = new Set<unknown>()
   let pending: PendingVersion | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   let lastTime = 0
@@ -481,9 +484,6 @@ export function createLayerStore({
         ...session.filter((saved) => idOf(saved) !== overlay.id),
         overlay,
       ]
-      if (previewed !== null) {
-        duringPreview.add(overlay.id)
-      }
       mirror()
     }
     changeLayers()
@@ -504,6 +504,9 @@ export function createLayerStore({
         success: false,
         error: "layer: A preview must be a session overlay",
       }
+    }
+    if (previewed !== null) {
+      endPreview()
     }
     // Restamped so the preview sorts after every session change made before
     // it, whatever the clock of the server that made it.
@@ -551,34 +554,49 @@ export function createLayerStore({
   }
 
   // Takes the changes made while the preview showed out of the session
-  // layer, in the order they were made.
+  // layer, in the order they were made: the session overlays dated after
+  // it. Both dates come from `tick`, and survive a reload with the session
+  // layer, so this needs no record of its own.
   function takeManual() {
-    const taken = session.filter((input) => duringPreview.has(idOf(input)))
-    session = session.filter((input) => !duringPreview.has(idOf(input)))
-    duringPreview = new Set()
+    const before = session
+    const since = load(previewed)?.createdAt
+    const during = (input: unknown) => {
+      const createdAt = load(input)?.createdAt
+      return since !== undefined && createdAt !== undefined && createdAt > since
+    }
+    session = session.filter((input) => !during(input))
     return {
-      overlays: taken.flatMap((input) => load(input) ?? []),
+      overlays: before.flatMap((input) =>
+        during(input) ? (load(input) ?? []) : []
+      ),
       restore() {
-        session = [...session, ...taken]
-        for (const input of taken) {
-          duringPreview.add(idOf(input))
-        }
+        session = before
       },
     }
   }
 
-  // Puts the changes made while a preview showed back once it has ended:
-  // the ones the personal layer accepts as a personal version above the
-  // others (above the locked one, too), dropping the earlier session ops
-  // they overrode, and the rest in their session overlays, above every
-  // other one, where they showed. A change that would render differently
-  // from `target` (what showed before the preview ended, less the preview
-  // itself on discard), such as a move whose history a session op still
-  // depends on, stays in the session layer.
+  /**
+   * Where the changes made while a preview showed go once it has ended,
+   * on top of `lower`: the ones the personal layer accepts as a personal
+   * version above the others (above the locked one, too), dropping the
+   * earlier session ops they overrode, and the rest in their session
+   * overlays, above every other one, where they showed. A change that
+   * would render differently from `target` (what showed before the preview
+   * ended, less the preview itself on discard), such as a move whose
+   * history a session op still depends on, stays in the session layer.
+   * `undefined` when even that renders differently, as when a removal
+   * applied only in the session layer the preview was in.
+   */
   function settleManual(
     overlays: readonly LoadedOverlay[],
-    target: ReturnType<typeof viewOf>
-  ) {
+    target: ReturnType<typeof viewOf>,
+    lower: {
+      readonly personal: readonly unknown[]
+      readonly session: readonly unknown[]
+    }
+  ):
+    | { readonly version?: ValidatedOverlay; readonly session: unknown[] }
+    | undefined {
     const changes = overlays.flatMap((overlay, at) =>
       overlay.ops.flatMap((check) =>
         check.status === "valid"
@@ -587,19 +605,32 @@ export function createLayerStore({
       )
     )
     if (changes.length === 0) {
-      return
+      return { session: [...lower.session] }
     }
+    // A change whose effect depends on history (a move, say) keeps its
+    // place in that history: below a session op that also does, it would
+    // apply in another order.
+    const historyInSession = lower.session.some((input) =>
+      load(input)?.ops.some(
+        (check) => check.status === "valid" && dependsOnHistory(check.op)
+      )
+    )
     let toPersonal = new Set(
-      changes.filter(({ op }) => opCatalog[op.op].layers.includes("personal"))
+      changes.filter(
+        ({ op }) =>
+          opCatalog[op.op].layers.includes("personal") &&
+          !(historyInSession && dependsOnHistory(op))
+      )
     )
     for (;;) {
       const time = tick()
       const personalOps = changes
         .filter((change) => toPersonal.has(change))
         .map(({ op }) => op)
+      const below = [...org, ...team, ...lower.personal]
       const version =
         personalOps.length > 0
-          ? validate(
+          ? validateOverlay(
               {
                 v: 1,
                 id: generateId(time),
@@ -615,7 +646,14 @@ export function createLayerStore({
                 createdBy: "local",
                 createdAt: new Date(time).toISOString(),
               },
-              "personal"
+              {
+                layers: {
+                  overlays: below,
+                  surface,
+                  baseIds: { ids: mountedIds, source: "mounted" },
+                  teamOrder,
+                },
+              }
             )
           : undefined
       if (version && !version.success) {
@@ -623,7 +661,7 @@ export function createLayerStore({
         continue
       }
       const { kept: trimmed } = withoutProperties(
-        session,
+        lower.session,
         new Set(
           personalOps.flatMap((op) =>
             dependsOnHistory(op) ? [] : propertiesOf(op)
@@ -651,38 +689,61 @@ export function createLayerStore({
             ]
           : []
       })
-      const above = [
-        ...org,
-        ...team,
-        ...personal,
-        ...(version ? [version.overlay] : []),
-      ]
       const nextSession = [...trimmed, ...left]
       const differing = differingProperties(
         target,
-        viewOf(resolve([...above, ...nextSession]))
-      )
-      if (differing.size > 0 && toPersonal.size > 0) {
-        const involved = [...toPersonal].filter(({ op }) =>
-          propertiesOf(op).some((property) => differing.has(property))
+        viewOf(
+          resolve([
+            ...below,
+            ...(version ? [version.data] : []),
+            ...nextSession,
+          ])
         )
-        toPersonal =
-          involved.length > 0
-            ? new Set(
-                [...toPersonal].filter((change) => !involved.includes(change))
-              )
-            : new Set()
-        continue
+      )
+      if (differing.size === 0) {
+        return {
+          ...(version ? { version: version.data } : {}),
+          session: nextSession,
+        }
       }
-      if (version) {
-        flush()
-        personal = [...personal, version.overlay]
-        unsaved.set(version.overlay.id, version.overlay)
-        persist()
+      if (toPersonal.size === 0) {
+        return undefined
       }
-      session = nextSession
+      const involved = [...toPersonal].filter(({ op }) =>
+        propertiesOf(op).some((property) => differing.has(property))
+      )
+      toPersonal =
+        involved.length > 0
+          ? new Set(
+              [...toPersonal].filter((change) => !involved.includes(change))
+            )
+          : new Set()
+    }
+  }
+
+  function savePersonal(overlay: ValidatedOverlay) {
+    personal = [...personal, overlay]
+    unsaved.set(overlay.id, overlay)
+    persist()
+  }
+
+  // Ends the preview as `discard` does, keeping the changes made while it
+  // showed. When they can't move without rendering differently, they stay
+  // where they were, which renders the same.
+  function endPreview() {
+    const target = viewOf(resolve([...org, ...team, ...personal, ...session]))
+    const manual = takeManual()
+    previewed = null
+    const settled = settleManual(manual.overlays, target, { personal, session })
+    if (!settled) {
+      manual.restore()
       return
     }
+    if (settled.version) {
+      flush()
+      savePersonal(settled.version)
+    }
+    session = settled.session
   }
 
   function lockIn(): LockInResult {
@@ -895,15 +956,27 @@ export function createLayerStore({
         manual.restore()
         return { success: false, error: "The preview has no valid ops" }
       }
+      const settled = settleManual(manual.overlays, shown, {
+        personal: [...personal, ...(locked ? [locked.overlay] : [])],
+        session: nextSession,
+      })
+      if (!settled) {
+        manual.restore()
+        return {
+          success: false,
+          error:
+            "The changes made while the preview showed would render differently once it is locked in",
+        }
+      }
       flush()
       if (locked) {
-        personal = [...personal, locked.overlay]
-        unsaved.set(locked.overlay.id, locked.overlay)
-        persist()
+        savePersonal(locked.overlay)
       }
-      session = nextSession
+      if (settled.version) {
+        savePersonal(settled.version)
+      }
+      session = settled.session
       previewed = null
-      settleManual(manual.overlays, shown)
       mirror()
       changeLayers()
       return {
@@ -916,9 +989,7 @@ export function createLayerStore({
 
   function discard() {
     if (previewed !== null) {
-      previewed = null
-      const target = viewOf(resolve([...org, ...team, ...personal, ...session]))
-      settleManual(takeManual().overlays, target)
+      endPreview()
       mirror()
       changeLayers()
     }
