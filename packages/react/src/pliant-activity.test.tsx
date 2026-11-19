@@ -75,7 +75,7 @@ afterEach(() => {
 })
 
 describe("PliantActivity", () => {
-  it("holds before the layout phase, in the commit that hides", () => {
+  it("holds from the mutation phase that hides to the layout phase that shows", () => {
     const scopes: RetainScope[] = []
     const held: number[] = []
     function Scope() {
@@ -107,7 +107,7 @@ describe("PliantActivity", () => {
     rerender(<Tree mode="hidden" />)
     rerender(<Tree mode="visible" />)
 
-    expect(held).toEqual([-1, 1, 0])
+    expect(held).toEqual([-1, 1, 1])
   })
 
   it("keeps a region registered while hidden, until it unmounts", async () => {
@@ -136,6 +136,37 @@ describe("PliantActivity", () => {
     rerender(<Page mode="hidden">{region}</Page>)
     rerender(<Page>{region}</Page>)
     expect(outputs()[0]).toBe("Card")
+    await settled()
+    expect(outputs()).toEqual(["Card", "inner,card"])
+  })
+
+  it("keeps holding when an activity around a hidden one shows", async () => {
+    function Nested({
+      outer,
+      inner,
+    }: {
+      outer: "visible" | "hidden"
+      inner: "visible" | "hidden"
+    }) {
+      return (
+        <Page mode={outer}>
+          <PliantActivity mode={inner}>
+            <Region id="inner" slots={{ card: "Card" }} />
+          </PliantActivity>
+        </Page>
+      )
+    }
+    const { rerender } = render(<Nested outer="visible" inner="visible" />)
+    await settled()
+    rerender(<Nested outer="visible" inner="hidden" />)
+    await settled()
+    rerender(<Nested outer="hidden" inner="hidden" />)
+    await settled()
+    rerender(<Nested outer="visible" inner="hidden" />)
+    await settled()
+    expect(outputs()).toEqual(["Card", "inner,card"])
+
+    rerender(<Nested outer="visible" inner="visible" />)
     await settled()
     expect(outputs()).toEqual(["Card", "inner,card"])
   })

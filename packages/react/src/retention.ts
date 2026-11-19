@@ -19,11 +19,12 @@ export interface Retention {
    * What it held is released on the next `settle`.
    */
   readonly hold: (scope: RetainScope) => () => void
-  /** Releases, after the current commit, what no scope holds any more. */
+  /** Releases, at the next microtask, what no scope holds any more. */
   readonly settle: () => void
   /**
-   * Runs `release`: at once outside any scope, else after the current
-   * commit, and only once no scope around `scope` holds it.
+   * Runs `release`: at once outside any scope, else at the next microtask,
+   * and only once no scope around `scope` holds it. A scope must take its
+   * hold before then, in the same synchronous pass that released.
    */
   readonly release: (scope: RetainScope | null, release: () => void) => void
 }
@@ -46,8 +47,8 @@ export function createRetention(): Retention {
   const waiting = new Set<Waiting>()
   let scheduled = false
 
-  // A scope's hold is set in an insertion effect, after React cleaned up the
-  // effects it hides, so releases wait for the end of the commit.
+  // React cleans up what Activity hides and runs PliantActivity's insertion
+  // effect in one synchronous pass, so a microtask sees the hold.
   function settle() {
     scheduled = false
     for (const entry of waiting) {

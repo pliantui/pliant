@@ -9,7 +9,8 @@ import { useMountedNodes } from "./use-mounted-nodes"
  * id and slot ids as mounted nodes, and shares each slot's content so a
  * region an op moves the slot into can render it with `useSlotContent`.
  * The base order is the key order of `slots`. Inside a hidden
- * `PliantActivity`, the region stays declared.
+ * `PliantActivity`, the region stays declared, but another region that
+ * declares one of its slot ids meanwhile takes that slot until it shows.
  *
  * In development, warns about slot ids that aren't kebab-case or don't start
  * with a letter, and about region or slot ids another mounted region uses.

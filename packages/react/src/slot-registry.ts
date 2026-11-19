@@ -38,19 +38,30 @@ export interface SlotRegistry {
   readonly subscribe: (id: string, listener: () => void) => () => void
 }
 
-const isDevelopment = process.env.NODE_ENV !== "production"
+// Bundlers replace `process.env.NODE_ENV`; where none did and there is no
+// `process`, this is a browser build that isn't development.
+function readIsDevelopment() {
+  try {
+    return process.env.NODE_ENV !== "production"
+  } catch {
+    return false
+  }
+}
+
+const isDevelopment = readIsDevelopment()
 
 export function createSlotRegistry(): SlotRegistry {
   const declarations = new Map<object, Declaration>()
   const ownersById = new Map<string, Set<object>>()
+  const ownersByRegion = new Map<string, Set<object>>()
   const ranks = new WeakMap<object, number>()
   const listeners = new Map<string, Set<() => void>>()
   const warned = new Set<string>()
   let nextRank = 0
 
-  function warnOnce(message: string) {
-    if (!warned.has(message)) {
-      warned.add(message)
+  function warnOnce(key: string, message: string) {
+    if (!warned.has(key)) {
+      warned.add(key)
       console.warn(message)
     }
   }
@@ -90,32 +101,45 @@ export function createSlotRegistry(): SlotRegistry {
     }
   }
 
-  function index(owner: object, ids: readonly string[], add: boolean) {
-    for (const id of ids) {
-      let owners = ownersById.get(id)
+  function index(
+    owners: Map<string, Set<object>>,
+    owner: object,
+    keys: readonly string[],
+    add: boolean
+  ) {
+    for (const key of keys) {
+      let set = owners.get(key)
       if (add) {
-        if (!owners) {
-          owners = new Set()
-          ownersById.set(id, owners)
+        if (!set) {
+          set = new Set()
+          owners.set(key, set)
         }
-        owners.add(owner)
-      } else if (owners) {
-        owners.delete(owner)
-        if (owners.size === 0) {
-          ownersById.delete(id)
+        set.add(owner)
+      } else if (set) {
+        set.delete(owner)
+        if (set.size === 0) {
+          owners.delete(key)
         }
       }
     }
   }
 
+  function indexDeclaration(
+    owner: object,
+    declaration: Declaration | undefined,
+    add: boolean
+  ) {
+    if (declaration) {
+      index(ownersById, owner, Object.keys(declaration.slots), add)
+      index(ownersByRegion, owner, [declaration.region], add)
+    }
+  }
+
   function check(owner: object, { region, slots }: Declaration) {
-    for (const [other, declaration] of declarations) {
-      if (
-        other !== owner &&
-        !declaration.retiring &&
-        declaration.region === region
-      ) {
+    for (const other of ownersByRegion.get(region) ?? []) {
+      if (other !== owner && declarations.get(other)?.retiring === false) {
         warnOnce(
+          `region:${region}`,
           `Pliant: two mounted regions use the id "${region}". Region ids must be unique within a surface.`
         )
       }
@@ -123,12 +147,14 @@ export function createSlotRegistry(): SlotRegistry {
     for (const id of Object.keys(slots)) {
       if (!slotIdSchema.safeParse(id).success) {
         warnOnce(
+          `key:${region}/${id}`,
           `Pliant: region "${region}" has a slot "${id}". Slot ids must be kebab-case and start with a letter: keys that look like numbers change the base order.`
         )
       }
       const other = ownerOf(id, owner)
       if (other && !other.retiring) {
         warnOnce(
+          `slot:${id}`,
           `Pliant: regions "${other.region}" and "${region}" both declare a slot "${id}". Slot ids must be unique within a surface.`
         )
       }
@@ -149,18 +175,18 @@ export function createSlotRegistry(): SlotRegistry {
     if (isDevelopment) {
       check(owner, declaration)
     }
-    const previous = Object.keys(declarations.get(owner)?.slots ?? {})
+    const previous = declarations.get(owner)
     const ids = Object.keys(slots)
-    update(new Set([...previous, ...ids]), () => {
-      index(owner, previous, false)
+    update(new Set([...Object.keys(previous?.slots ?? {}), ...ids]), () => {
+      indexDeclaration(owner, previous, false)
       declarations.set(owner, declaration)
-      index(owner, ids, true)
+      indexDeclaration(owner, declaration, true)
     })
     return () => {
       if (declarations.get(owner) === declaration) {
         update(ids, () => {
           declarations.delete(owner)
-          index(owner, ids, false)
+          indexDeclaration(owner, declaration, false)
         })
       }
     }

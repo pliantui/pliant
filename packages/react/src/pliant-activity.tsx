@@ -3,6 +3,7 @@ import {
   use,
   useInsertionEffect,
   useLayoutEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
@@ -42,19 +43,38 @@ export function PliantActivity({
   const parent = use(RetainScopeContext)
   const [scope] = useState<RetainScope>(() => ({ parent, held: 0 }))
   const hidden = mode === "hidden"
-  // An insertion effect runs in the same phase as the cleanups of what
-  // Activity hides, before React yields: the layout phase can wait, behind a
-  // view transition, past the end of the task.
-  useInsertionEffect(
-    () => (hidden ? store.retention.hold(scope) : undefined),
-    [store, scope, hidden]
-  )
-  // Settles once the content shown again has registered again, in its own
-  // layout effects, so what this held is never missing in between.
+  const holds = useRef<(() => void)[]>([])
+  // Holds in an insertion effect, in the phase where React cleans up what
+  // Activity hides, and lets go in a layout effect, once content shown again
+  // has registered again in its own layout effects: a view transition can
+  // defer the layout phase past the next microtask, and nothing must be
+  // released in between.
+  useInsertionEffect(() => {
+    if (hidden) {
+      holds.current.push(store.retention.hold(scope))
+    }
+  }, [store, scope, hidden])
+  // Layout effects also run again when an Activity around this one shows,
+  // and the insertion effect doesn't, so a hidden one holds again here.
   useLayoutEffect(() => {
+    if (!hidden) {
+      for (const drop of holds.current.splice(0)) {
+        drop()
+      }
+    } else if (holds.current.length === 0) {
+      holds.current.push(store.retention.hold(scope))
+    }
     store.retention.settle()
-  }, [store, hidden])
-  useLayoutEffect(() => store.retention.settle, [store])
+  }, [store, scope, hidden])
+  useLayoutEffect(
+    () => () => {
+      for (const drop of holds.current.splice(0)) {
+        drop()
+      }
+      store.retention.settle()
+    },
+    [store]
+  )
   return (
     <RetainScopeContext value={scope}>
       <Activity mode={mode}>{children}</Activity>

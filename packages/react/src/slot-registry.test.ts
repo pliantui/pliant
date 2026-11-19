@@ -143,6 +143,17 @@ describe("createSlotRegistry", () => {
     ])
   })
 
+  it("warns once per duplicate slot id", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    const registry = createSlotRegistry()
+
+    registry.declare({}, "dashboard", { revenue: "Revenue" })
+    registry.declare({}, "sidebar", { revenue: "Revenue" })
+    registry.declare({}, "footer", { revenue: "Revenue" })
+
+    expect(warn).toHaveBeenCalledOnce()
+  })
+
   it("doesn't warn when a region declares again after undeclaring", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
     const registry = createSlotRegistry()
