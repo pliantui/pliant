@@ -1,3 +1,13 @@
+export {
+  checkExpression,
+  createExpressionChecker,
+  type CheckExpressionOptions,
+  type ExpressionChecker,
+  type ExpressionCheckerOptions,
+  type ExpressionField,
+  type ExpressionKind,
+  type ExpressionType,
+} from "./check-expression"
 export { type OpCheck } from "./check-op"
 export {
   compileTableState,
