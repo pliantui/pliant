@@ -26,7 +26,7 @@ To validate an overlay:
 
 A `remove` targets a slot address outside a template or the bare id of a node. Whether a bare id names a node the user inserted or wrapped is checked at resolution time, not during validation.
 
-An overlay's optional `lang` is the BCP 47 language tag of its plain label strings. It must match `#/$defs/languageTag`: RFC 5646's `langtag` form, without grandfathered or private-use-only tags, in at most 64 characters. Zod checks the same pattern and nothing more, so the pattern is authoritative: the tag needn't be registered or canonical, and `Intl.getCanonicalLocales`, which is stricter (it rejects a repeated variant, for example), isn't used.
+An overlay's optional `lang` is the BCP 47 language tag of its plain label strings. It must match `#/$defs/languageTag`: RFC 5646's `langtag` form, without grandfathered or private-use-only tags, in at most 64 characters. Zod checks the same pattern and length limit and nothing more, so the pattern is authoritative: the tag needn't be registered or canonical, and `Intl.getCanonicalLocales`, which is stricter (it rejects a repeated variant, for example), isn't used.
 
 When loading a saved overlay, apply only valid ops, flag unknown and newer ones, and keep every op unchanged when saving it again. Reject an AI answer or an import unless every op is valid.
 

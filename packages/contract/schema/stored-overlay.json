@@ -132,7 +132,7 @@
               ]
             },
             "lang": {
-              "description": "The BCP 47 language tag of the overlay's plain label strings, filled from the UI locale when the overlay is created.",
+              "description": "The BCP 47 language tag of the overlay's plain label strings.",
               "$ref": "#/$defs/languageTag"
             },
             "explain": {
@@ -314,7 +314,7 @@
               ]
             },
             "lang": {
-              "description": "The BCP 47 language tag of the overlay's plain label strings, filled from the UI locale when the overlay is created.",
+              "description": "The BCP 47 language tag of the overlay's plain label strings.",
               "$ref": "#/$defs/languageTag"
             },
             "explain": {
@@ -501,7 +501,7 @@
               ]
             },
             "lang": {
-              "description": "The BCP 47 language tag of the overlay's plain label strings, filled from the UI locale when the overlay is created.",
+              "description": "The BCP 47 language tag of the overlay's plain label strings.",
               "$ref": "#/$defs/languageTag"
             },
             "explain": {

@@ -58,7 +58,7 @@ const overlayShape = {
   source: z.enum(["ai", "manual", "chip", "share", "promote"]),
   lang: languageTagSchema.optional().meta({
     description:
-      "The BCP 47 language tag of the overlay's plain label strings, filled from the UI locale when the overlay is created.",
+      "The BCP 47 language tag of the overlay's plain label strings.",
   }),
   explain: z
     .array(textSchema(200, { min: 1 }))

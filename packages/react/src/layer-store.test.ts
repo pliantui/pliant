@@ -169,13 +169,41 @@ describe("createLayerStore", () => {
         expect(result.success && result.overlay.lang).toBe("fr-CA")
       })
 
-      it.each(["", "en_US"])("leaves out a page language of %j", (lang) => {
+      it.each([
+        "",
+        "en_US",
+        "de-DE-u-co-phonebk-ca-gregory-nu-latn-hc-h23-fw-mon-ms-metric-tz-deber",
+      ])("leaves out a page language of %j", (lang) => {
         document.documentElement.lang = lang
         const { store } = setup()
         const result = store.actions.applyOps("personal", [width("total", 200)])
 
         expect(result.success && "lang" in result.overlay).toBe(false)
         expect(result.success).toBe(true)
+      })
+
+      it("prefers the lang option to the page's language", () => {
+        document.documentElement.lang = "en"
+        const { store } = setup(undefined, { lang: "fr-CA" })
+        const first = store.actions.applyOps("personal", [width("total", 200)])
+        store.setLang("de")
+        const second = store.actions.applyOps("session", [width("total", 220)])
+
+        expect(first.success && first.overlay.lang).toBe("fr-CA")
+        expect(second.success && second.overlay.lang).toBe("de")
+      })
+
+      it("ignores a malformed lang option with a warning", () => {
+        const warn = vi
+          .spyOn(console, "warn")
+          .mockImplementation(() => undefined)
+        document.documentElement.lang = "en"
+        const { store } = setup(undefined, { lang: "en_US" })
+        const result = store.actions.applyOps("personal", [width("total", 200)])
+
+        expect(result.success && result.overlay.lang).toBe("en")
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("en_US"))
+        warn.mockRestore()
       })
     })
 
