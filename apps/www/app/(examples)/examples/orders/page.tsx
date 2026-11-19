@@ -1,5 +1,9 @@
 import type { Metadata } from "next"
 
+import { PliantRoot } from "@pliantui/react"
+
+import { PliantRegion } from "@/registry/pliant/pliant-region"
+
 import { KpiCard } from "./components/kpi-card"
 import { OrdersTable } from "./components/orders-table"
 import { orders } from "./data"
@@ -12,32 +16,6 @@ export const metadata: Metadata = {
 
 export default function OrdersPage() {
   const stats = getOrderStats(orders)
-  const kpis = [
-    {
-      id: "revenue",
-      label: "Revenue",
-      value: formatCurrency(stats.revenue),
-      definition: "Total value of paid orders",
-    },
-    {
-      id: "orders",
-      label: "Orders",
-      value: formatNumber(stats.orders),
-      definition: "All orders placed",
-    },
-    {
-      id: "average-order-value",
-      label: "Average order value",
-      value: formatCurrency(stats.averageOrderValue),
-      definition: "Revenue per paid order",
-    },
-    {
-      id: "overdue",
-      label: "Overdue",
-      value: formatNumber(stats.overdue),
-      definition: "Orders marked overdue",
-    },
-  ]
 
   return (
     <main className="flex-1 bg-background text-foreground">
@@ -48,15 +26,45 @@ export default function OrdersPage() {
             Orders placed Jan–Oct 2026
           </p>
         </header>
-        <section
-          aria-label="Key metrics"
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
-        >
-          {kpis.map(({ id, ...kpi }) => (
-            <KpiCard key={id} {...kpi} />
-          ))}
-        </section>
-        <OrdersTable data={orders} />
+        <PliantRoot surface="/examples/orders">
+          <section aria-label="Key metrics">
+            <PliantRegion
+              id="key-metrics"
+              slots={{
+                revenue: (
+                  <KpiCard
+                    label="Revenue"
+                    value={formatCurrency(stats.revenue)}
+                    definition="Total value of paid orders"
+                  />
+                ),
+                orders: (
+                  <KpiCard
+                    label="Orders"
+                    value={formatNumber(stats.orders)}
+                    definition="All orders placed"
+                  />
+                ),
+                "average-order-value": (
+                  <KpiCard
+                    label="Average order value"
+                    value={formatCurrency(stats.averageOrderValue)}
+                    definition="Revenue per paid order"
+                  />
+                ),
+                overdue: (
+                  <KpiCard
+                    label="Overdue"
+                    value={formatNumber(stats.overdue)}
+                    definition="Orders marked overdue"
+                  />
+                ),
+              }}
+              className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            />
+          </section>
+          <OrdersTable data={orders} />
+        </PliantRoot>
       </div>
     </main>
   )
