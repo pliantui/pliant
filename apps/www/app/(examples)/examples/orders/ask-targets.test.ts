@@ -30,10 +30,7 @@ describe("askTargets", () => {
     const demo = demoAsksSchema.parse(
       JSON.parse(
         await readFile(
-          new URL(
-            "../../../../../../packages/server/scripts/demo-asks.json",
-            import.meta.url
-          ),
+          new URL("../../../../scripts/demo-asks.json", import.meta.url),
           "utf8"
         )
       )

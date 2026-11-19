@@ -11,7 +11,7 @@ const model = wrapLanguageModel({
   model: anthropic("claude-haiku-5-5"),
   middleware: recordingMiddleware({
     mode: "replay",
-    directory: join(process.cwd(), "../../packages/server/recordings"),
+    directory: join(process.cwd(), "recordings"),
   }),
 })
 
