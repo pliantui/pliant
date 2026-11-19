@@ -1,5 +1,5 @@
-import type { PliantStore } from "./layer-store"
 import { useLayerStore } from "./pliant-context"
+import type { PliantStore } from "./pliant-store"
 
 /**
  * Applies ops to, previews on, and locks in or discards from the surface of
