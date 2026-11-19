@@ -10,6 +10,7 @@ import { sortSchema } from "../sort"
 import { uniqueArray } from "../unique"
 
 export const dataOpSchemas = {
+  /** Strings sort by locale-aware collation, not by code point as in functions. */
   setSort: z.strictObject({
     op: z.literal("setSort"),
     target: nodeAddressSchema(),
