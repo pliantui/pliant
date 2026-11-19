@@ -2,8 +2,10 @@ import type { Metadata } from "next"
 
 import { PliantRoot } from "@pliantui/react"
 
+import { PliantAskPanel } from "@/registry/pliant/pliant-ask-panel"
 import { PliantRegion } from "@/registry/pliant/pliant-region"
 
+import { askTargets } from "./ask-targets"
 import { KpiCard } from "./components/kpi-card"
 import { OrdersTable } from "./components/orders-table"
 import { orders } from "./data"
@@ -20,13 +22,16 @@ export default function OrdersPage() {
   return (
     <main className="flex-1 bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 lg:px-6">
-        <header className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
-          <p className="text-sm text-muted-foreground">
-            Orders placed Jan–Oct 2026
-          </p>
-        </header>
         <PliantRoot surface="/examples/orders">
+          <header className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
+              <p className="text-sm text-muted-foreground">
+                Orders placed Jan–Oct 2026
+              </p>
+            </div>
+            <PliantAskPanel endpoint="/api/pliant" targets={askTargets} />
+          </header>
           <section aria-label="Key metrics">
             <PliantRegion
               id="key-metrics"
