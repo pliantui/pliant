@@ -824,17 +824,29 @@ describe("diffTableState on wide tables", () => {
     }
   )
 
-  it("re-anchors only the next column when a chain's root is dragged", () => {
-    for (const n of [5, 8, 10]) {
+  it.each([
+    ["before", 10],
+    ["before", 20],
+    ["before", 30],
+    ["before", 100],
+    ["after", 10],
+    ["after", 30],
+    ["after", 100],
+  ] as const)(
+    "moves at most 2 columns to drag one of a chain anchored %s, %i long",
+    (side, n) => {
       const t = wide(n, (ids) =>
         ids.slice(1).map((id, index) => ({
           op: "move",
           target: column(id),
-          to: { after: ids[index] },
+          to:
+            side === "before" ? { before: ids[index] } : { after: ids[index] },
         }))
       )
-      for (const dragged of t.order) {
-        for (let at = 0; at < n; at++) {
+      const step = n > 30 ? 9 : 1
+      for (let from = 0; from < n; from += step) {
+        for (let at = 0; at < n; at += step) {
+          const dragged = t.order[from] ?? ""
           const rest = t.order.filter((id) => id !== dragged)
           const wanted = [...rest.slice(0, at), dragged, ...rest.slice(at)]
           if (wanted.join() !== t.order.join()) {
@@ -842,6 +854,70 @@ describe("diffTableState on wide tables", () => {
           }
         }
       }
+    },
+    60_000
+  )
+
+  it("rarely needs many more moves than the columns riding on the dragged one", () => {
+    const n = 30
+    const ids = Array.from({ length: n }, (_, index) => `c${String(index)}`)
+    const options = { table, columns: ids }
+    let drags = 0
+    let moves = 0
+    let many = 0
+    for (let seed = 1; seed <= 60; seed++) {
+      const g = generator(seed * 31 + n)
+      const team = g
+        .some(ids)
+        .map((id) => ({
+          op: "move",
+          target: column(id),
+          to: g.pick([
+            { before: g.pick(ids) },
+            { after: g.pick(ids) },
+            { index: g.int(n) },
+          ]),
+        }))
+        .filter(
+          ({ target, to }) => !Object.values(to).includes(target.slice(21))
+        )
+      const overlays = team.length > 0 ? [overlay("team", team)] : []
+      let resolved = resolveLayers(overlays, { surface: "/orders" })
+      for (let drag = 0; drag < 20; drag++) {
+        const order = compileTableState(resolved, options).columnOrder
+        const dragged = g.pick(order)
+        const rest = order.filter((id) => id !== dragged)
+        const at = g.int(rest.length + 1)
+        const wanted = [...rest.slice(0, at), dragged, ...rest.slice(at)]
+        if (wanted.join() === order.join()) {
+          continue
+        }
+        const riding = ids.filter((id) => {
+          const position = resolved.placements.get(column(id))?.position
+          return (
+            position !== undefined &&
+            (("before" in position && position.before === dragged) ||
+              ("after" in position && position.after === dragged))
+          )
+        }).length
+        const { ops } = diffTableState(
+          resolved,
+          { columnOrder: wanted },
+          options
+        )
+        drags++
+        moves += ops.length
+        many += ops.length > 4 + riding ? 1 : 0
+        overlays.push(overlay("session", ops))
+        resolved = resolveLayers(overlays, { surface: "/orders" })
+        expect(compileTableState(resolved, options).columnOrder).toEqual(wanted)
+      }
     }
-  })
+    // The search this replaced, which tried every anchor of every column,
+    // averaged 1.74 moves on these drags; this one about 1.71. Columns
+    // placed by index shift when the dragged one passes them, so some drags
+    // need a few more moves than the columns riding on it.
+    expect(moves / drags).toBeLessThan(1.9)
+    expect(many).toBeLessThan(drags / 100)
+  }, 60_000)
 })

@@ -26,6 +26,12 @@ const tryBudget = 3200
 // Up to how many columns every column is tried as the one to move.
 const smallTable = 32
 
+// How many moves the last search may add one at a time, and how many
+// columns it may lay out over all its tries: about 250 orders of a
+// 32-column table.
+const repairSteps = 12
+const repairBudget = 40000
+
 type Reorder =
   | { readonly before: string }
   | { readonly after: string }
@@ -44,6 +50,28 @@ function sideOf(
 
 function sameOrder(a: readonly string[], b: readonly string[]) {
   return a.length === b.length && a.every((item, index) => item === b[index])
+}
+
+// How many pairs of `items` are in the other order than in `wanted`, in
+// O(n log n), counted with a Fenwick tree over their places.
+function inversions(items: readonly string[], wanted: readonly string[]) {
+  const place = new Map(wanted.map((item, index) => [item, index]))
+  const tree: number[] = Array.from({ length: wanted.length + 1 }, () => 0)
+  let count = 0
+  let seen = 0
+  for (const item of items) {
+    const at = (place.get(item) ?? 0) + 1
+    let before = 0
+    for (let index = at; index > 0; index -= index & -index) {
+      before += tree[index] ?? 0
+    }
+    count += seen - before
+    seen++
+    for (let index = at; index < tree.length; index += index & -index) {
+      tree[index] = (tree[index] ?? 0) + 1
+    }
+  }
+  return count
 }
 
 // How many of `items` are in `wanted`'s order, in O(n log n).
@@ -117,10 +145,13 @@ function inOrder(
  * compiled the way `compileTableState` does to check it, adding the columns
  * that end up out of place (such as ones a lower layer anchored on a moved
  * column, which travel with it) until it holds, then dropping the moves it
- * holds without. When that takes more than one move, a capped search tries
- * moving a single column with a farther anchor instead. Chaining the
- * columns out of place is the last resort. Each check costs one layout of
- * the table, and their number stays close to linear in the moves needed.
+ * holds without. When that takes more than one move, capped searches try
+ * moving the dragged column with the columns riding on it anchored where
+ * they were, then a single column with a farther anchor, re-anchoring the
+ * columns placed by index that it shifts, then adding moves one at a time
+ * by how many pairs of columns they put in order. Chaining the columns out
+ * of place is the last resort. Each check costs one layout of the table,
+ * and every search is capped by how many columns it may lay out.
  */
 export function placementOps(
   { placements }: Pick<ResolvedLayers, "placements">,
@@ -402,8 +433,56 @@ export function placementOps(
   }
   let settled = found !== undefined && verified(found)
   const done = () => settled && moves.size === 1
+  const consider = (trial: Map<string, Reorder>) => {
+    if (verified(trial) && (!settled || trial.size < moves.size)) {
+      moves = trial
+      settled = true
+    }
+  }
+  // The best anchor for `column` on top of `trial`.
+  const settle = (trial: Map<string, Reorder>, column: string) =>
+    optionsOf(column)
+      .map((option) => new Map(trial).set(column, option))
+      .reduce((best, next) => {
+        budget--
+        return misplaced(next) < misplaced(best) ? next : best
+      })
+  const indexed = wanted.filter((column) => {
+    const position = positions.get(column)
+    return position !== undefined && "index" in position && !fixed(column)
+  })
+  // A column placed by index shifts when a column before it moves, so it
+  // is anchored after the column it should follow.
+  const nextTo = (column: string): Reorder => {
+    const before = wanted[(place.get(column) ?? 0) - 1]
+    return before === undefined ? { index: 0 } : { after: before }
+  }
+
+  // The dragged column, with the columns riding on it anchored where they
+  // were, whatever the table's width: on a chain of anchors, the search
+  // above would move the whole chain.
+  if (!done() && dragged.size <= 2) {
+    for (const column of dragged) {
+      const riders = (children.get(column) ?? []).filter(
+        (rider) => center.has(rider) && !fixed(rider)
+      )
+      if (riders.length === 0 || riders.length > settleLimit + 1) {
+        continue
+      }
+      for (const to of optionsOf(column)) {
+        consider(
+          riders.reduce(settle, new Map<string, Reorder>().set(column, to))
+        )
+      }
+    }
+  }
+
   if (!done()) {
-    for (const column of wanted) {
+    // The columns out of order first, since the budget may run out.
+    for (const column of [
+      ...dragged,
+      ...wanted.filter((other) => !dragged.has(other)),
+    ]) {
       if (budget <= 0 || done() || fixed(column)) {
         continue
       }
@@ -420,28 +499,126 @@ export function placementOps(
       for (const to of optionsOf(column)) {
         let trial = new Map<string, Reorder>().set(column, to)
         for (let round = 0; alone && round < 6 && !verified(trial); round++) {
+          // Columns placed by index shift with the moved column, and so do
+          // the columns after them; anchoring them stops the shift.
+          const shifted = orderOf(trial)
+          for (const other of indexed) {
+            if (
+              budget > 0 &&
+              !trial.has(other) &&
+              shifted.indexOf(other) !== place.get(other)
+            ) {
+              const anchored = new Map(trial).set(other, nextTo(other))
+              budget--
+              if (misplaced(anchored) < misplaced(trial)) {
+                trial = anchored
+              }
+            }
+          }
           const order = orderOf(trial)
-          const settled = inOrder(order, wanted, extraOf)
+          const inPlace = inOrder(order, wanted, extraOf)
           const misplacedColumns = order.filter(
-            (other) => !settled.has(other) && !trial.has(other) && !fixed(other)
+            (other) => !inPlace.has(other) && !trial.has(other) && !fixed(other)
           )
           // A move that puts many columns out of place isn't a small fix.
           if (misplacedColumns.length > settleLimit) {
             break
           }
           for (const other of budget > 0 ? misplacedColumns : []) {
-            trial = optionsOf(other)
-              .map((option) => new Map(trial).set(other, option))
-              .reduce((best, next) => {
-                budget--
-                return misplaced(next) < misplaced(best) ? next : best
-              })
+            const position = positions.get(other)
+            const indexed = new Map(trial).set(other, nextTo(other))
+            trial =
+              position &&
+              "index" in position &&
+              misplaced(indexed) <= misplaced(trial)
+                ? indexed
+                : settle(trial, other)
           }
         }
-        if (verified(trial) && (!settled || trial.size < moves.size)) {
-          moves = trial
-          settled = true
+        consider(trial)
+      }
+    }
+  }
+
+  // When a drag of a column or two still takes more than two moves (or
+  // none was found), moves are added one at a time instead, for a bounded
+  // number of steps, each the anchor (of a column out of place, or one
+  // already moved) that leaves the fewest pairs of columns in the wrong
+  // order; the result is kept when it is smaller.
+  const holds = sameOrder(orderOf(moves), wanted)
+  if (!holds || (moves.size > 2 && dragged.size <= 2)) {
+    let left = Math.floor(repairBudget / Math.max(wanted.length, 1))
+    const distance = (trial: ReadonlyMap<string, Reorder>) => {
+      left--
+      return left < 0 ? Infinity : inversions(orderOf(trial), wanted)
+    }
+    let trial = new Map<string, Reorder>()
+    let score = distance(trial)
+    for (let step = 0; step < repairSteps && score > 0; step++) {
+      const order = orderOf(trial)
+      const inPlace = inOrder(order, wanted, extraOf)
+      let best: { trial: Map<string, Reorder>; score: number } | undefined
+      // On small tables every column is a candidate, as moving one that is
+      // in order can fix several that aren't.
+      for (const column of order) {
+        if (
+          fixed(column) ||
+          (order.length > smallTable &&
+            inPlace.has(column) &&
+            !trial.has(column))
+        ) {
+          continue
         }
+        // Columns anchored on this one travel with it, so they are tried
+        // anchored where they belong, too.
+        const riders = order.filter(
+          (other) =>
+            !fixed(other) &&
+            anchorOf(trial.get(other) ?? positions.get(other)) === column
+        )
+        for (const to of optionsOf(column)) {
+          const alone = new Map(trial).set(column, to)
+          const candidates =
+            riders.length > 0 &&
+            riders.length <= settleLimit + 1 &&
+            !inPlace.has(column)
+              ? [
+                  alone,
+                  riders.reduce(
+                    (current, rider) =>
+                      optionsOf(rider)
+                        .map((option) => new Map(current).set(rider, option))
+                        .reduce((kept, next) =>
+                          distance(next) < distance(kept) ? next : kept
+                        ),
+                    alone
+                  ),
+                ]
+              : [alone]
+          for (const next of candidates) {
+            const nextScore = distance(next)
+            if (!best || nextScore < best.score) {
+              best = { trial: next, score: nextScore }
+            }
+          }
+        }
+      }
+      if (!best || best.score >= score) {
+        break
+      }
+      trial = best.trial
+      score = best.score
+    }
+    if (score === 0) {
+      for (const column of [...trial.keys()]) {
+        const without = new Map(trial)
+        without.delete(column)
+        if (sameOrder(orderOf(without), wanted)) {
+          trial = without
+        }
+      }
+      if (!holds || trial.size < moves.size) {
+        moves = trial
       }
     }
   }
