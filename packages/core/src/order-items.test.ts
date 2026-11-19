@@ -112,6 +112,39 @@ describe("orderItems", () => {
     ).toEqual(["e", "a", "c", "b", "d"])
   })
 
+  describe("items that don't render", () => {
+    const renders = (item: string) => item !== "a" && item !== "c"
+    const orderRendered = (positions: Record<string, PlacementPosition>) =>
+      orderItems(items, (item) => positions[item], { renders })
+
+    it("leaves them out", () => {
+      expect(orderRendered({})).toEqual(["b", "d", "e"])
+    })
+
+    it("resolves anchors on them", () => {
+      expect(orderRendered({ e: { after: "a" } })).toEqual(["e", "b", "d"])
+      expect(orderRendered({ b: { before: "c" }, a: { index: 2 } })).toEqual([
+        "b",
+        "d",
+        "e",
+      ])
+    })
+
+    it("doesn't count them in an index", () => {
+      expect(orderRendered({ e: { index: 1 } })).toEqual(["b", "e", "d"])
+      expect(orderRendered({ e: { index: 0 }, d: { index: 1 } })).toEqual([
+        "e",
+        "d",
+        "b",
+      ])
+      expect(orderRendered({ c: { pin: "start" }, e: { index: 0 } })).toEqual([
+        "e",
+        "b",
+        "d",
+      ])
+    })
+  })
+
   it("ignores promotion and duplicate items", () => {
     expect(order({ b: { promoted: true } }, ["a", "b", "a"])).toEqual([
       "a",

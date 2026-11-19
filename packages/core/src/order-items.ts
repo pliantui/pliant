@@ -72,6 +72,16 @@ function expand(root: string, anchored: Map<string, Anchored>): string[] {
   return order
 }
 
+export interface OrderItemsOptions {
+  /**
+   * Whether an item is rendered; every item is when omitted. An item that
+   * isn't, such as one placed in another container since, still keeps its
+   * place and resolves anchors, but takes no index and is left out of the
+   * result.
+   */
+  readonly renders?: ((item: string) => boolean) | undefined
+}
+
 /**
  * Orders a container's items from their resolved positions (see
  * `ResolvedPlacement.position`). `items` is the container's own order,
@@ -95,7 +105,8 @@ function expand(root: string, anchored: Map<string, Anchored>): string[] {
  */
 export function orderItems(
   items: readonly string[],
-  positionOf: (item: string) => PlacementPosition | undefined
+  positionOf: (item: string) => PlacementPosition | undefined,
+  { renders }: OrderItemsOptions = {}
 ): string[] {
   const unique = [...new Set(items)]
   const known = new Set(unique)
@@ -137,26 +148,31 @@ export function orderItems(
     }
   }
 
+  const hidden = new Set(renders ? unique.filter((item) => !renders(item)) : [])
   const ordered: string[] = []
+  // Rendered items placed among the unpinned ones, which indexes count.
+  let placed = 0
   const append = (list: readonly string[]) => {
     for (const item of list) {
-      ordered.push(item)
+      if (!hidden.has(item)) {
+        ordered.push(item)
+        placed++
+      }
     }
   }
   for (const item of start) {
     append(expand(item, anchored))
   }
+  placed = 0
   const unpinned = middle.flatMap((item) => expand(item, anchored))
-  const first = ordered.length
   let taken = 0
   for (const { item, index } of indexed.toSorted((a, b) => a.index - b.index)) {
-    const count = Math.min(
-      index - (ordered.length - first),
-      unpinned.length - taken
-    )
-    if (count > 0) {
-      append(unpinned.slice(taken, taken + count))
-      taken += count
+    for (
+      let next = unpinned[taken];
+      next !== undefined && placed < index;
+      next = unpinned[++taken]
+    ) {
+      append([next])
     }
     append(expand(item, anchored))
   }

@@ -46,15 +46,13 @@ function overlaysOf(ops: unknown[], layer: Layer = "personal") {
 }
 
 const dashboard = ["a", "b", "c", "d"]
-const sidebar = ["s"]
+const sidebar = ["s", "t"]
+const mounted = ["page", "dashboard", "sidebar", ...dashboard, ...sidebar]
 
-function layersOf(
-  ops: unknown[],
-  mounted: readonly string[] = ["page", "dashboard", "sidebar"]
-): ResolvedLayers {
+function layersOf(ops: unknown[]): ResolvedLayers {
   const layers = resolveLayers(ops.length ? overlaysOf(ops) : [], {
     surface,
-    baseIds: { ids: [...mounted, ...dashboard, ...sidebar], source: "mounted" },
+    baseIds: { ids: mounted, source: "mounted" },
   })
   expect(layers.skipped).toEqual([])
   expect(layers.unapplied).toEqual([])
@@ -62,7 +60,11 @@ function layersOf(
 }
 
 function region(ops: unknown[], id = "dashboard", slots = dashboard) {
-  return resolveRegion(layersOf(ops), { id, slots })
+  return resolveRegion(layersOf(ops), {
+    id,
+    slots,
+    baseIds: { ids: mounted, source: "mounted" },
+  })
 }
 
 type Shape = string | Readonly<Record<string, readonly Shape[]>>
@@ -197,7 +199,7 @@ describe("resolveRegion", () => {
       ]
 
       expect(order(ops)).toEqual(["a", "c"])
-      expect(order(ops, "sidebar", sidebar)).toEqual(["d", "s", "b"])
+      expect(order(ops, "sidebar", sidebar)).toEqual(["d", "s", "t", "b"])
     })
 
     it("puts an item moved back into its region at its base place", () => {
@@ -249,10 +251,21 @@ describe("resolveRegion", () => {
       ).toEqual(["a", "b", "x", "c", "d"])
     })
 
-    it("counts base items placed elsewhere in an index", () => {
+    it("doesn't count nodes placed elsewhere in an index", () => {
       expect(
         order([move("a", { into: "sidebar" }), move("d", { index: 1 })])
-      ).toEqual(["d", "b", "c"])
+      ).toEqual(["b", "d", "c"])
+    })
+
+    it("resolves anchors on a node created here and moved out", () => {
+      const ops = [
+        insert("x", { after: "a" }),
+        move("d", { after: "x" }),
+        move("x", { into: "sidebar" }),
+      ]
+
+      expect(order(ops)).toEqual(["a", "d", "b", "c"])
+      expect(order(ops, "sidebar", sidebar)).toEqual(["s", "t", "x"])
     })
   })
 
@@ -308,7 +321,7 @@ describe("resolveRegion", () => {
       ]
 
       expect(order(ops)).toEqual(dashboard)
-      expect(order(ops, "sidebar", sidebar)).toEqual(["s", "x"])
+      expect(order(ops, "sidebar", sidebar)).toEqual(["s", "t", "x"])
     })
 
     it("resolves a wrapper in place of its first item", () => {
@@ -361,6 +374,129 @@ describe("resolveRegion", () => {
           resolveRegion(layers, { id: "dashboard", slots: dashboard }).entries
         )
       ).toEqual([{ w: ["a", "b"] }, "c", "d"])
+    })
+
+    it("puts a wrapper where its first item was shown", () => {
+      expect(
+        order([
+          insert("x", { index: 0 }),
+          insert("y", { after: "x" }),
+          wrap("w", ["x", "y"]),
+        ])
+      ).toEqual([{ w: ["x", "y"] }, "a", "b", "c", "d"])
+      expect(order([move("c", { index: 0 }), wrap("w", ["c", "d"])])).toEqual([
+        { w: ["c", "d"] },
+        "a",
+        "b",
+      ])
+      expect(
+        order([
+          move("s", { into: "dashboard" }, "sidebar"),
+          move("s", { index: 1 }),
+          move("t", { into: "dashboard" }, "sidebar"),
+          wrap("w", ["s", "t"]),
+        ])
+      ).toEqual(["a", { w: ["s", "t"] }, "b", "c", "d"])
+    })
+
+    it("puts a wrapper of items never shown here last", () => {
+      expect(order([wrap("w", ["s", "t"])])).toEqual([
+        "a",
+        "b",
+        "c",
+        "d",
+        { w: ["s", "t"] },
+      ])
+    })
+
+    it("returns an item a re-wrap drops to its place", () => {
+      expect(
+        order([wrap("w", ["a", "b", "c"]), wrap("w", ["a", "b"])])
+      ).toEqual([{ w: ["a", "b"] }, "c", "d"])
+    })
+
+    it("places a node inserted in a removed wrapper", () => {
+      const removeW = { op: "remove", target: "w" }
+
+      expect(
+        order([
+          wrap("w", ["b", "c"]),
+          insert("x", { after: "c" }, "w"),
+          removeW,
+        ])
+      ).toEqual(["a", "b", "c", "x", "d"])
+      expect(
+        order([wrap("w", ["b", "c"]), insert("x", { index: 0 }, "w"), removeW])
+      ).toEqual(["a", "x", "b", "c", "d"])
+    })
+
+    it("resolves deeply nested wrappers", () => {
+      const depth = 10_000
+      const slots = Array.from({ length: depth + 1 }, (_, i) => `s${String(i)}`)
+      const ops = [
+        wrap("w1", ["s0", "s1"]),
+        ...Array.from({ length: depth - 1 }, (_, i) =>
+          wrap(`w${String(i + 2)}`, [`w${String(i + 1)}`, `s${String(i + 2)}`])
+        ),
+      ]
+      const layers = resolveLayers(overlaysOf(ops), {
+        surface,
+        baseIds: { ids: ["dashboard", ...slots], source: "mounted" },
+      })
+      let { entries } = resolveRegion(layers, { id: "dashboard", slots })
+      let levels = 0
+      for (
+        let first = entries[0];
+        first?.kind === "wrapper";
+        first = entries[0]
+      ) {
+        levels++
+        entries = first.entries
+      }
+
+      expect(levels).toBe(depth)
+      expect(entries.map(({ id }) => id)).toEqual(["s0", "s1"])
+    })
+  })
+
+  describe("known nodes", () => {
+    const unknown = [
+      { op: "move", target: slot("zz"), to: { index: 0 } },
+      move("d", { after: "zz" }),
+    ]
+
+    it("drops a placed node that isn't known, keeping it as an anchor", () => {
+      expect(order(unknown)).toEqual(["d", "a", "b", "c"])
+      expect(order([...unknown, move("c", { index: 0 })])).toEqual([
+        "c",
+        "d",
+        "a",
+        "b",
+      ])
+    })
+
+    it("renders every placed node without known ids", () => {
+      const layers = layersOf(unknown)
+
+      expect(
+        shapeOf(
+          resolveRegion(layers, { id: "dashboard", slots: dashboard }).entries
+        )
+      ).toEqual(["zz", "d", "a", "b", "c"])
+    })
+
+    it("keeps a slot whose move into an unmounted node is dormant", () => {
+      const layers = resolveLayers(overlaysOf([move("b", { into: "panel" })]), {
+        surface,
+        baseIds: { ids: mounted, source: "mounted" },
+      })
+
+      expect(layers.unapplied.map(({ reason }) => reason)).toEqual(["dormant"])
+      expect(
+        shapeOf(
+          resolveRegion(layers, { id: "dashboard", slots: dashboard }).entries
+        )
+      ).toEqual(dashboard)
     })
   })
 
@@ -464,6 +600,18 @@ describe("resolveRegion", () => {
     })
   })
 
+  it("collapses a wrapper's items in the wrapper", () => {
+    const { entries } = region([
+      wrap("w", ["a", "b"]),
+      { op: "collapse", target: "w", items: ["b"], into: "accordion" },
+    ])
+    const wrapper = entry(entries, "w")
+
+    expect(
+      wrapper?.kind === "wrapper" && entry(wrapper.entries, "b")?.collapsed
+    ).toEqual({ into: "accordion" })
+  })
+
   it("returns the same result for the same layers", () => {
     const layers = layersOf([wrap("w", ["a", "b"]), pin("c", "start")])
     const options = { id: "dashboard", slots: dashboard }
@@ -504,6 +652,29 @@ describe("resolveRegion", () => {
       try {
         const { entries } = resolveRegion(layers, { id: "dashboard", slots })
         expect(entries).toHaveLength(size + size / 5)
+        return spy.mock.calls.length
+      } finally {
+        spy.mockRestore()
+      }
+    }
+
+    expect(reads(4000) / reads(1000)).toBeLessThan(6)
+  })
+
+  it("scales linearly with many wrappers", () => {
+    const reads = (size: number) => {
+      const slots = Array.from({ length: size }, (_, i) => `s${String(i)}`)
+      const ops = Array.from({ length: size / 2 }, (_, i) =>
+        wrap(`w${String(i)}`, [`s${String(2 * i + 1)}`, `s${String(2 * i)}`])
+      )
+      const layers = resolveLayers(overlaysOf(ops), {
+        surface,
+        baseIds: { ids: ["dashboard", ...slots], source: "mounted" },
+      })
+      const spy = vi.spyOn(Map.prototype, "get")
+      try {
+        const { entries } = resolveRegion(layers, { id: "dashboard", slots })
+        expect(entries).toHaveLength(size / 2)
         return spy.mock.calls.length
       } finally {
         spy.mockRestore()

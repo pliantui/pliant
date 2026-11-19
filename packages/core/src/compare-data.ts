@@ -1,3 +1,5 @@
+import { compareOrdered } from "./compare-ordered"
+
 interface Frame {
   readonly a: object
   readonly b: object
@@ -34,13 +36,6 @@ function rankOf(value: unknown): number {
     default:
       return 8
   }
-}
-
-function compareOrdered<T extends string | number | bigint | boolean>(
-  a: T,
-  b: T
-): number {
-  return a < b ? -1 : a > b ? 1 : 0
 }
 
 function compareScalars(a: unknown, b: unknown): number {

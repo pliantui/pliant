@@ -1,6 +1,7 @@
 import type { Layer } from "@pliantui/contract"
 
 import { compareData } from "./compare-data"
+import { compareOrdered } from "./compare-ordered"
 import { compareInstants, parseInstant, type Instant } from "./instant"
 import type { LoadedOverlay } from "./load-overlay"
 import { scopeIdOf } from "./overlay-scope"
@@ -20,17 +21,13 @@ interface Keyed {
   readonly createdAt: Instant | undefined
 }
 
-function compareText(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0
-}
-
 function compareKeys(a: Keyed, b: Keyed): number {
   return (
     a.layer - b.layer ||
     a.team - b.team ||
-    compareText(a.scope, b.scope) ||
+    compareOrdered(a.scope, b.scope) ||
     compareInstants(a.createdAt, b.createdAt) ||
-    compareText(a.overlay.id, b.overlay.id)
+    compareOrdered(a.overlay.id, b.overlay.id)
   )
 }
 
