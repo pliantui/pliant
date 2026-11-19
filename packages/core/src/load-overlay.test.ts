@@ -37,6 +37,30 @@ describe("loadOverlay", () => {
     expect(result.data?.surface).toBe("/orders/[id]")
   })
 
+  it("marks an op with a per-row target invalid with the reserved code", () => {
+    const result = loadOverlay(
+      overlay([
+        { op: "hide", target: "order-card[42]/actions/refund" },
+        { op: "remove", target: "order-card[42]/slots/body" },
+        { op: "hide", target: "order-card[]/actions/refund" },
+      ])
+    )
+    const checks = result.data?.ops ?? []
+    expect(checks.map(({ status }) => status)).toEqual([
+      "invalid",
+      "invalid",
+      "valid",
+    ])
+    for (const check of checks.slice(0, 2)) {
+      expect(check.status === "invalid" && check.error.issues).toEqual([
+        expect.objectContaining({
+          path: ["target"],
+          params: { code: "per-row-address-reserved" },
+        }),
+      ])
+    }
+  })
+
   it("loads an overlay whose ops break per-op rules, marking only those ops", () => {
     const result = loadOverlay(
       overlay([
