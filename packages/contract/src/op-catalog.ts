@@ -54,7 +54,10 @@ export const opCatalog: Readonly<Record<OpName, OpDefinition>> = {
     capability: "slots",
     appliesTo: "target",
     layers: anyLayer,
-    args: [["items", "into", "label"]],
+    args: [
+      ["items", "into", "label"],
+      ["items", "into"],
+    ],
   },
   pin: {
     capability: "slots",
