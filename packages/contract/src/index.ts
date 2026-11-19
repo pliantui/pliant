@@ -11,6 +11,11 @@ export { expressionSchema, type Expression } from "./expression"
 export { filterSchema, type Filter } from "./filter"
 export { flagsSchema, type Flags } from "./flags"
 export { formatSchema, type Format } from "./format"
+export {
+  functionCatalog,
+  type FunctionDefinition,
+  type FunctionName,
+} from "./function-catalog"
 export { itemIdSchema } from "./identifier"
 export { breakpointSchema, type Breakpoint } from "./layout"
 export { layerSchema, type Layer } from "./layer"
