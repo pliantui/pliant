@@ -4,6 +4,7 @@ import { opSchema, type Op } from "@pliantui/contract"
 import * as core from "@pliantui/core"
 
 import { createLayerStore, type LayerStoreOptions } from "./layer-store"
+import { readSession } from "./session-mirror"
 
 // CI runs 500 seeds. Run more locally with, for example:
 // LOCK_IN_SEEDS=20000 LOCK_IN_START=1 pnpm --filter @pliantui/react exec vitest run lock-in-view
@@ -320,6 +321,128 @@ describe("lockIn", () => {
 
     expect(changed).toEqual([])
     expect(lockedIn).toBeGreaterThan(seeds / 2)
+  }, 600_000)
+
+  it("keeps changes made during a preview, rendering as before", async () => {
+    const changed: string[] = []
+    let moved = 0
+    let failed = 0
+    const mounted = [
+      "dashboard",
+      "sidebar",
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "orders-table",
+    ]
+    for (let seed = start; seed < start + seeds; seed++) {
+      const random = createRandom(seed)
+      const ops = createOps(random)
+      const batches = (count: number) =>
+        Array.from({ length: count }, () => ops(1 + random.random(3))).filter(
+          (changes) => changes.length > 0
+        )
+      const personalChanges = batches(random.random(3))
+      const sessionChanges = batches(random.random(4))
+      // One or two previews, each with clicks made while it showed, and a
+      // reload of the tab before it ends, now and then.
+      const previews = Array.from({ length: 1 + random.random(2) }, () => ({
+        ops: ops(1 + random.random(5)),
+        clicks: batches(1 + random.random(3)),
+      }))
+      const reload = random.random(3) === 0
+      const end = random.pick(["lockIn", "discard"] as const)
+      const run = async () => {
+        sessionStorage.clear()
+        const saved: unknown[] = []
+        const storage = {
+          load: () => ({ personal: [...saved] }),
+          save: (_surface: string, overlay: unknown) => {
+            saved.push(overlay)
+          },
+        }
+        let store = await createStore(mounted, { storage })
+        for (const changes of personalChanges) {
+          store.actions.applyOps("personal", changes)
+        }
+        for (const changes of sessionChanges) {
+          store.actions.applyOps("session", changes)
+        }
+        let shown = false
+        for (const [index, { ops: previewed, clicks }] of previews.entries()) {
+          if (previewed.length > 0) {
+            shown =
+              store.actions.preview(answer(seed * 3 + index, previewed))
+                .success || shown
+          }
+          for (const changes of clicks) {
+            store.actions.applyOps("session", changes)
+          }
+        }
+        if (reload) {
+          store.flush()
+          store = await createStore(mounted, { storage })
+        }
+        return { store, shown: shown && store.getPreview() !== null, saved }
+      }
+      const { store, shown, saved } = await run()
+      if (!shown) {
+        continue
+      }
+      store.flush()
+      const before = rendered(store.getResolved())
+      // Discarding shows what showed, less the preview.
+      const expected =
+        end === "lockIn"
+          ? before
+          : rendered(
+              core.resolveLayers(
+                [...saved, ...readSession(surface).overlays].flatMap(
+                  (input) => core.loadOverlay(input).data ?? []
+                ),
+                { surface, baseIds: { ids: mounted, source: "mounted" } }
+              )
+            )
+      const savedBefore = saved.length
+      if (end === "lockIn") {
+        // A preview whose changes can't keep showing once it's locked in
+        // (a removal that applied only in its layer, say) stays.
+        if (!store.actions.lockIn().success) {
+          failed++
+          expect(rendered(store.getResolved())).toEqual(before)
+          continue
+        }
+      } else {
+        store.actions.discard()
+      }
+      store.flush()
+      if (
+        saved
+          .slice(savedBefore)
+          .some(
+            (overlay) =>
+              typeof overlay === "object" &&
+              overlay !== null &&
+              "source" in overlay &&
+              overlay.source === "manual"
+          )
+      ) {
+        moved++
+      }
+      const after = rendered(store.getResolved())
+      for (const key of Object.keys(expected) as (keyof typeof expected)[]) {
+        if (expected[key] !== after[key]) {
+          changed.push(`seed ${String(seed)} (${end}): ${key}`)
+        }
+      }
+    }
+
+    expect(changed).toEqual([])
+    expect(moved).toBeGreaterThan(seeds / 4)
+    expect(failed).toBeLessThan(seeds / 100)
   }, 600_000)
 
   it("coalesces changes without changing what renders", async () => {

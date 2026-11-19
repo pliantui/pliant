@@ -2,9 +2,8 @@ import type { Filter } from "@pliantui/contract"
 
 import { compareData } from "./compare-data"
 import { identityOf } from "./node-identity"
-import { orderItems } from "./order-items"
-import type { PlacementPosition } from "./placement"
 import type { ResolvedLayers } from "./resolve-layers"
+import { columnPositions, layoutColumns } from "./table-columns"
 
 type WithoutField<T> = T extends unknown ? Omit<T, "field"> : never
 
@@ -180,7 +179,6 @@ export function compileTableState(
   const filters = new Map(
     base.columnFilters?.map(({ id, value }) => [id, value])
   )
-  const positions = new Map<string, PlacementPosition | undefined>()
   for (const column of ids) {
     const identity = `${node}/columns/${column}`
     const columnProperties = properties.get(identity)
@@ -200,42 +198,19 @@ export function compileTableState(
     } else if (filterOp?.op === "clearFilter") {
       filters.delete(column)
     }
-    const placement = placements.get(identity)
-    if (placement?.container === node) {
-      positions.set(column, placement.position)
-    }
   }
   const columnFilters = Array.from(filters, ([id, value]) => ({ id, value }))
 
-  const baseOrder = [
-    ...new Set([
-      ...(base.columnOrder ?? []).filter((id) => known.has(id)),
-      ...ids,
-    ]),
-  ]
-  const columnOrder = orderItems(baseOrder, (column) => positions.get(column))
-  const pinnedBy = (column: string) => {
-    const position = positions.get(column)
-    return position && "pin" in position ? position.pin : undefined
-  }
-  const pinned = (where: "start" | "end") => [
-    ...(base.columnPinning?.[where] ?? []).filter(
-      (column) => pinnedBy(column) === undefined
-    ),
-    ...columnOrder.filter((column) => {
-      const pin = pinnedBy(column)
-      return pin === where || (where === "start" && pin === "sticky")
-    }),
-  ]
+  const positions = columnPositions(placements, node, ids)
+  const { columnOrder, columnPinning } = layoutColumns(ids, base, (column) =>
+    positions.get(column)
+  )
 
   const next: CompiledTableState = {
     sorting: reuse(previous?.sorting, sorting),
     columnVisibility: reuse(previous?.columnVisibility, columnVisibility),
     columnOrder: reuse(previous?.columnOrder, columnOrder),
-    columnPinning: reuse(previous?.columnPinning, {
-      start: pinned("start"),
-      end: pinned("end"),
-    }),
+    columnPinning: reuse(previous?.columnPinning, columnPinning),
     columnSizing: reuse(previous?.columnSizing, columnSizing),
     columnFilters: reuse(previous?.columnFilters, columnFilters),
     grouping: reuse(previous?.grouping, grouping),
