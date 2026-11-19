@@ -11,8 +11,9 @@ import {
   type Ref,
 } from "react"
 
+import type { Op } from "@pliantui/contract"
+
 import { composeHandler, composeRef } from "./compose-props"
-import type { LockInResult } from "./layer-store"
 import { revealTarget } from "./reveal-target"
 import { usePliantStatus } from "./use-pliant-status"
 import { usePliantStore } from "./use-pliant-store"
@@ -53,10 +54,7 @@ export type AskPanelState =
   | { status: "unavailable"; reason: string }
   | { status: "cancelled" }
   | { status: "discarded" }
-  | {
-      status: "locked"
-      keptInSession: Extract<LockInResult, { success: true }>["keptInSession"]
-    }
+  | { status: "locked"; keptInSession: readonly Op[] }
 
 /** @experimental */
 export interface UseAskPanelOptions<TTarget extends { readonly id: string }> {
@@ -344,8 +342,7 @@ export function useAskPanel<TTarget extends { readonly id: string }>({
     getPanelProps: (props?: {
       readonly ref?: Ref<HTMLElement> | undefined
       readonly onKeyDown?:
-        | ((event: KeyboardEvent<HTMLElement>) => void)
-        | undefined
+        ((event: KeyboardEvent<HTMLElement>) => void) | undefined
     }) => ({
       ref: composeRef(props?.ref, panelRef),
       id: panelId,
@@ -376,11 +373,9 @@ export function useAskPanel<TTarget extends { readonly id: string }>({
     getPromptProps: (props?: {
       readonly ref?: Ref<HTMLTextAreaElement> | undefined
       readonly onChange?:
-        | ((event: ChangeEvent<HTMLTextAreaElement>) => void)
-        | undefined
+        ((event: ChangeEvent<HTMLTextAreaElement>) => void) | undefined
       readonly onKeyDown?:
-        | ((event: KeyboardEvent<HTMLTextAreaElement>) => void)
-        | undefined
+        ((event: KeyboardEvent<HTMLTextAreaElement>) => void) | undefined
     }) => ({
       ref: composeRef(props?.ref, promptRef),
       value: prompt,
