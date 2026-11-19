@@ -3,6 +3,7 @@ import type { ReactNode } from "react"
 import { slotIdSchema } from "@pliantui/contract"
 
 interface Declaration {
+  readonly rank: number
   readonly region: string
   readonly slots: Readonly<Record<string, ReactNode>>
 }
@@ -13,11 +14,14 @@ interface Declaration {
  */
 export interface SlotRegistry {
   /**
-   * Declares a region's slots until the returned function is called. In
-   * development, warns once about each slot id that isn't kebab-case, and
-   * about region or slot ids that another mounted region declares too.
+   * Declares a region's slots for `owner` until the returned function is
+   * called, replacing what `owner` declared before. When two regions declare
+   * a slot, the one whose owner declared first wins, even after the other
+   * declares again. In development, warns once about each slot id that isn't
+   * kebab-case, and about region or slot ids that another region declares.
    */
   readonly declare: (
+    owner: object,
     region: string,
     slots: Readonly<Record<string, ReactNode>>
   ) => () => void
@@ -30,10 +34,11 @@ export interface SlotRegistry {
 const isDevelopment = process.env.NODE_ENV !== "production"
 
 export function createSlotRegistry(): SlotRegistry {
-  const declarations = new Set<Declaration>()
-  const owners = new Map<string, Declaration[]>()
+  const declarations = new Map<object, Declaration>()
+  const ranks = new WeakMap<object, number>()
   const listeners = new Map<string, Set<() => void>>()
   const warned = new Set<string>()
+  let nextRank = 0
 
   function warnOnce(message: string) {
     if (!warned.has(message)) {
@@ -42,26 +47,39 @@ export function createSlotRegistry(): SlotRegistry {
     }
   }
 
-  function getContent(id: string) {
-    const [owner] = owners.get(id) ?? []
-    return owner?.slots[id]
+  function ownerOf(id: string, except?: object) {
+    let first: Declaration | undefined
+    for (const [owner, declaration] of declarations) {
+      if (
+        owner !== except &&
+        Object.hasOwn(declaration.slots, id) &&
+        (!first || declaration.rank < first.rank)
+      ) {
+        first = declaration
+      }
+    }
+    return first
   }
 
-  function update(ids: readonly string[], change: () => void) {
-    const before = ids.map(getContent)
+  function getContent(id: string) {
+    return ownerOf(id)?.slots[id]
+  }
+
+  function update(ids: Iterable<string>, change: () => void) {
+    const before = new Map([...ids].map((id) => [id, getContent(id)]))
     change()
-    ids.forEach((id, index) => {
-      if (!Object.is(before[index], getContent(id))) {
+    for (const [id, content] of before) {
+      if (!Object.is(content, getContent(id))) {
         for (const listener of listeners.get(id) ?? []) {
           listener()
         }
       }
-    })
+    }
   }
 
-  function check({ region, slots }: Declaration) {
-    for (const other of declarations) {
-      if (other.region === region) {
+  function check(owner: object, { region, slots }: Declaration) {
+    for (const [other, declaration] of declarations) {
+      if (other !== owner && declaration.region === region) {
         warnOnce(
           `Pliant: two mounted regions use the id "${region}". Region ids must be unique within a surface.`
         )
@@ -73,41 +91,42 @@ export function createSlotRegistry(): SlotRegistry {
           `Pliant: region "${region}" has a slot "${id}". Slot ids must be kebab-case and start with a letter: keys that look like numbers change the base order.`
         )
       }
-      const [owner] = owners.get(id) ?? []
-      if (owner) {
+      const other = ownerOf(id, owner)
+      if (other) {
         warnOnce(
-          `Pliant: regions "${owner.region}" and "${region}" both declare a slot "${id}". Slot ids must be unique within a surface.`
+          `Pliant: regions "${other.region}" and "${region}" both declare a slot "${id}". Slot ids must be unique within a surface.`
         )
       }
     }
   }
 
-  function declare(region: string, slots: Readonly<Record<string, ReactNode>>) {
-    const declaration: Declaration = { region, slots }
-    const ids = Object.keys(slots)
-    if (isDevelopment) {
-      check(declaration)
+  function declare(
+    owner: object,
+    region: string,
+    slots: Readonly<Record<string, ReactNode>>
+  ) {
+    let rank = ranks.get(owner)
+    if (rank === undefined) {
+      rank = nextRank++
+      ranks.set(owner, rank)
     }
-    update(ids, () => {
-      declarations.add(declaration)
-      for (const id of ids) {
-        owners.set(id, [...(owners.get(id) ?? []), declaration])
+    const declaration: Declaration = { rank, region, slots }
+    if (isDevelopment) {
+      check(owner, declaration)
+    }
+    const previous = declarations.get(owner)
+    update(
+      new Set([...Object.keys(previous?.slots ?? {}), ...Object.keys(slots)]),
+      () => {
+        declarations.set(owner, declaration)
       }
-    })
+    )
     return () => {
-      update(ids, () => {
-        declarations.delete(declaration)
-        for (const id of ids) {
-          const rest = (owners.get(id) ?? []).filter(
-            (owner) => owner !== declaration
-          )
-          if (rest.length > 0) {
-            owners.set(id, rest)
-          } else {
-            owners.delete(id)
-          }
-        }
-      })
+      if (declarations.get(owner) === declaration) {
+        update(Object.keys(slots), () => {
+          declarations.delete(owner)
+        })
+      }
     }
   }
 
