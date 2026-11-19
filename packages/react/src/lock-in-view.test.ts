@@ -324,7 +324,17 @@ describe("lockIn", () => {
 
   it("coalesces changes without changing what renders", async () => {
     const changed: string[] = []
-    const mounted = ["dashboard", "sidebar", "a", "b", "c", "d", "e", "f"]
+    const mounted = [
+      "dashboard",
+      "sidebar",
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "orders-table",
+    ]
     for (let seed = start; seed < start + seeds; seed++) {
       sessionStorage.clear()
       const random = createRandom(seed)

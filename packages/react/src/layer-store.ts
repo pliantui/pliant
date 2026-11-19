@@ -89,9 +89,12 @@ export interface PliantStore {
    *
    * A personal change that writes exactly the properties of the previous
    * one, within 1s of it, replaces it, so dragging a column width saves one
-   * version. Personal changes are saved after 1s without another one, and
+   * version. Changes that place, insert or remove an item (such as `move`,
+   * `pin` or `remove`) are never replaced, since resolution keeps their
+   * history. Personal changes are saved after 1s without another one, and
    * when the page is hidden or unloads. A session change replaces the
-   * session overlay that wrote exactly the same properties.
+   * session overlay that wrote exactly the same properties, with the same
+   * exception.
    */
   readonly applyOps: (
     layer: "personal" | "session",
@@ -116,6 +119,7 @@ export interface PliantStore {
    *   removal, which are never dropped, since resolution keeps their history
    *   (later anchors on a moved item still use its old place);
    * - ops that don't validate as a personal version;
+   * - every op, when the rest wouldn't validate above the locked version;
    * - ops whose move would change the resolved view (each property's
    *   winning op, each placement, and each op that doesn't apply), such as a
    *   move into a node a session `wrap` creates;
