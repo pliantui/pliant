@@ -79,6 +79,8 @@ export function regionIndexOf(layers: ResolvedLayers): RegionIndex {
   const rank = new Map(
     layers.overlays.map((overlay, index) => [overlay, index])
   )
+  // Every op in `layers` comes from one of `layers.overlays`, so the
+  // fallback rank is never used.
   const applied = (a: ResolvedOp, b: ResolvedOp) =>
     (rank.get(a.overlay) ?? 0) - (rank.get(b.overlay) ?? 0) ||
     a.check.index - b.check.index

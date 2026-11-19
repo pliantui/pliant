@@ -193,6 +193,7 @@ export function resolveRegion(
   const { known, creations, contents, traces } = regionIndexOf(layers)
   const live = (node: string) => creations.get(node)?.live === true
   const seen = new Set([id])
+  const regionSlots = new Set(slots)
 
   // Where a node sits when no op placed it: a created node where it was
   // created, a base node in the container that lists it. A removed node is
@@ -238,7 +239,7 @@ export function resolveRegion(
         (node) =>
           !seen.has(node) &&
           containerOf(node, container) === container &&
-          ((container === id && inBase.has(node)) ||
+          (regionSlots.has(node) ||
             creations.has(node) ||
             known === undefined ||
             known.has(node))

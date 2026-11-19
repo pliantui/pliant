@@ -514,6 +514,19 @@ describe("resolveRegion", () => {
       ).toEqual([{ w: ["a"] }, "b", "c", "d"])
     })
 
+    it("renders the region's own slots in its wrappers, even unlisted", () => {
+      const layers = resolveLayers(overlaysOf([wrap("w", ["a", "b"])]), {
+        surface,
+        baseIds: { ids: ["dashboard", "b", "c", "d"], source: "mounted" },
+      })
+
+      expect(
+        shapeOf(
+          resolveRegion(layers, { id: "dashboard", slots: dashboard }).entries
+        )
+      ).toEqual([{ w: ["a", "b"] }, "c", "d"])
+    })
+
     it("keeps a slot whose move into an unmounted node is dormant", () => {
       const layers = resolveLayers(overlaysOf([move("b", { into: "panel" })]), {
         surface,

@@ -203,7 +203,11 @@ export interface ResolvedLayers {
    * this order, then by their index in the overlay.
    */
   readonly overlays: readonly LoadedOverlay[]
-  /** The `baseIds` resolution used, read as `{ ids, source }`, if given. */
+  /**
+   * The `baseIds` resolution used, read as `{ ids, source }`, if given. The
+   * ids are a set copied when resolving, so changing the caller's ids
+   * afterwards doesn't change them.
+   */
   readonly baseIds: BaseIds | undefined
 }
 
@@ -233,7 +237,11 @@ export function resolveLayers(
   { surface, baseIds, teamOrder = [] }: ResolveLayersOptions
 ): ResolvedLayers {
   const read = readBaseIds(baseIds)
-  const state = createResolution(read)
+  const known: BaseIds | undefined = read && {
+    ids: new Set(read.ids),
+    source: read.source,
+  }
+  const state = createResolution(known)
   const skipped: SkippedOp[] = []
   const unapplied: UnappliedOp[] = []
   const ordered = surfaceOrder(overlays, surface, teamOrder)
@@ -257,6 +265,6 @@ export function resolveLayers(
     skipped,
     unapplied,
     overlays: ordered.map(({ overlay }) => overlay),
-    baseIds: read,
+    baseIds: known,
   }
 }

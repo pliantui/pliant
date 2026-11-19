@@ -195,11 +195,13 @@ describe("resolveLayers", () => {
 
   it("returns the base ids it read", () => {
     expect(resolve([], { baseIds: ["a", "b"] }).baseIds).toEqual({
-      ids: ["a", "b"],
+      ids: new Set(["a", "b"]),
       source: "inventory",
     })
-    const mounted = { ids: new Set(["a"]), source: "mounted" } as const
-    expect(resolve([], { baseIds: mounted }).baseIds).toEqual(mounted)
+    const ids = new Set(["a"])
+    const { baseIds } = resolve([], { baseIds: { ids, source: "mounted" } })
+    ids.add("b")
+    expect(baseIds).toEqual({ ids: new Set(["a"]), source: "mounted" })
   })
 
   it("lets the higher layer win, whatever order overlays are given in", () => {
