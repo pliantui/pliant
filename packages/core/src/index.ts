@@ -8,7 +8,11 @@ export {
 } from "./compile-table-state"
 export { formatError, type FormatErrorOptions } from "./format-error"
 export { loadOverlay, type LoadedOverlay } from "./load-overlay"
-export { type OpPropertyKey } from "./op-property"
+export {
+  opProperties,
+  type OpProperty,
+  type OpPropertyKey,
+} from "./op-property"
 export { type PlacementPosition } from "./placement"
 export {
   resolveLayers,

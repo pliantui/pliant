@@ -50,16 +50,16 @@ jobs:
       - run: pnpm build:packages
       - run: >-
           pnpm --filter @pliantui/contract --filter @pliantui/core
-          add --save-dev zod@4.0.16
+          --filter @pliantui/react add --save-dev zod@4.0.16
       # The published JSON Schemas are generated with the development Zod
       # version, so only the check that regenerates them is skipped.
       - run: >-
           pnpm --filter @pliantui/contract exec vitest run
           --testNamePattern '^(?!.*matches the published file)'
-      - run: pnpm --filter @pliantui/core test
+      - run: pnpm --filter @pliantui/core --filter @pliantui/react test
       - run: >-
           pnpm --recursive --filter @pliantui/contract --filter @pliantui/core
-          exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false
+          --filter @pliantui/react exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false
           --module preserve --moduleResolution bundler dist/index.d.ts
 
   zod-server:

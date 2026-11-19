@@ -5,9 +5,10 @@ This monorepo publishes its packages independently with [Changesets](https://git
 - **`pliantui`** — the CLI.
 - **`@pliantui/contract`** — schemas, types and the op catalog.
 - **`@pliantui/core`** — the headless overlay engine.
+- **`@pliantui/react`** — the React provider, layer store and hooks.
 - **`@pliantui/server`** — the server handler and AI pipeline.
 
-`@pliantui/contract`, `@pliantui/core` and `@pliantui/server` are marked `"private": true` until they have code to ship; removing `private` is part of their first release (see [First release of a package](#first-release-of-a-package)). While a package is private, Changesets neither versions nor publishes it, so:
+`@pliantui/contract`, `@pliantui/core`, `@pliantui/react` and `@pliantui/server` are marked `"private": true` until they have code to ship; removing `private` is part of their first release (see [First release of a package](#first-release-of-a-package)). While a package is private, Changesets neither versions nor publishes it, so:
 
 - don't add changesets that name it: a changeset for only private packages is never consumed and keeps the release workflow stuck creating version pull requests until it is deleted, and one that mixes private and public packages fails `changeset version`. `pnpm changeset` already hides private packages, so this only happens with hand-written changesets;
 - no public package may depend on it, or every Changesets command fails.
