@@ -76,3 +76,7 @@ AI never writes code for your app. It can only produce overlays, made from a clo
 ### Removable
 
 Pliant only adds a layer on top. Remove the overlays and the app renders its base. Remove Pliant and you replace its wrappers with the plain elements underneath; your components and data are untouched.
+
+### No telemetry
+
+Pliant sends no analytics or telemetry. In the browser, it only talks to your storage adapter and, if you add the ask panel, your own ask route. That route only calls the model you configure.
