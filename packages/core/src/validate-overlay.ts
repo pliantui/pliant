@@ -9,6 +9,7 @@ import {
 
 import { checkOp, type OpCheck, type OpContext } from "./check-op"
 import { loadOverlay, type LoadedOverlay } from "./load-overlay"
+import { identityOf } from "./node-identity"
 import { scopeKeyOf } from "./overlay-scope"
 import { ownEntries } from "./own-entries"
 import { applyOp, createResolution } from "./resolution"
@@ -43,10 +44,11 @@ export interface ValidateOverlayOptions {
   /**
    * The layers the overlay will apply on top of. The overlay is validated as
    * if it applied last, after all of them, so pass only the layers below it.
-   * When given, the overlay must be for `layers.surface` or `@app`, and an
-   * `insert` or `wrap` whose id is already used on the surface, or a
-   * `move … into` a node that doesn't exist, is invalid, exactly as
-   * `resolveLayers` would report it (`id-collision`, `missing-container`).
+   * When given, the overlay must be for `layers.surface` or `@app`, and these
+   * are invalid, exactly as `resolveLayers` would report them: an `insert` or
+   * `wrap` whose id is already used on the surface (`id-collision`, at the
+   * id), and a `move … into` a node that doesn't exist or an `insert` or
+   * `wrap` into one (`missing-container`, at `to.into` or `target`).
    * Throws a `TypeError` when `layers.surface` isn't a string or
    * `layers.baseIds` isn't an array, whatever the input.
    */
@@ -154,7 +156,7 @@ function layerIssues(
             into === undefined
               ? ["ops", index, "target"]
               : ["ops", index, "to", "into"],
-          message: `The node ${into ?? op.target} doesn't exist on this surface`,
+          message: `The node ${identityOf(into ?? op.target)} doesn't exist on this surface`,
         },
       ]
     }

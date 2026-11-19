@@ -165,7 +165,8 @@ function baseParentOf(state: Resolution, id: string): string | undefined {
  * The container an item sits in when no placement of its own holds: its
  * base parent, or, when that node was removed, where that node sits, up the
  * chain (pending the owner's ruling). With no node left in the chain, as in a
- * cycle of removed nodes, it is the surface. `memo` maps removed nodes to the
+ * cycle of removed nodes, it is the surface (cycles aren't rejected yet:
+ * https://github.com/pliantui/pliant/issues/26). `memo` maps removed nodes to the
  * container their items go to, so a resolved chain is walked once.
  */
 function baseContainer(
@@ -250,10 +251,17 @@ function place(
 // one is missing.
 function missingContainer(state: Resolution, op: Op): boolean {
   if (op.op === "insert" || op.op === "wrap") {
-    const id = op.op === "insert" ? op.node.id : op.id
-    return (
-      versionOf(state, identityOf(op.target), baseParentOf(state, id)) ===
-      undefined
+    // The created node's own earlier base parent, and a wrap's items' base
+    // parents, count as existing, as for a move.
+    const parents = [
+      baseParentOf(state, op.op === "insert" ? op.node.id : op.id),
+      ...(op.op === "wrap"
+        ? op.items.map((item) => baseParentOf(state, item))
+        : []),
+    ]
+    const target = identityOf(op.target)
+    return parents.every(
+      (parent) => versionOf(state, target, parent) === undefined
     )
   }
   if (op.op !== "move" || !("into" in op.to)) {

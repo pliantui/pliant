@@ -30,7 +30,8 @@ import { surfaceOrder } from "./surface-order"
  * in `sidebar`. A node created again starts over in its new base parent.
  * When the base parent is a node that was removed, the item sits where that
  * node would, up the chain; with no live node left, as in a cycle of removed
- * nodes, it sits on `@surface`.
+ * nodes, it sits on `@surface`. Ops that create a container cycle aren't
+ * rejected yet (https://github.com/pliantui/pliant/issues/26).
  *
  * A `pin`, reorder, `promote` or `demote` applied while the item has no
  * placement that holds and its base parent is a removed node follows the

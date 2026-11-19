@@ -1668,6 +1668,107 @@ describe("resolveLayers", () => {
         })
       })
 
+      describe("under a removed node", () => {
+        const removed = [
+          insertAt("dashboard", "p"),
+          insertAt("p", "y"),
+          removeNode("p"),
+          move("p/slots/y", "sidebar"),
+        ]
+        const baseIds = ["dashboard", "sidebar"]
+
+        it("lets a move into a live node place the item there", () => {
+          const overlay = overlays()
+          const personal = overlay("personal", removed)
+          const { placements } = resolve([personal], { baseIds })
+
+          expect(at(placements, "y")?.winner?.check).toBe(personal.ops[3])
+          expect(at(placements, "y")?.placement).toEqual({
+            container: "sidebar",
+          })
+        })
+
+        it("keeps a later pin in the node the move placed the item in", () => {
+          const overlay = overlays()
+          const personal = overlay("personal", [
+            ...removed,
+            { op: "pin", target: "sidebar/slots/y", where: "start" },
+          ])
+          const { placements } = resolve([personal], { baseIds })
+
+          expect(at(placements, "y")?.placement).toEqual({
+            container: "sidebar",
+            position: { pin: "start" },
+          })
+        })
+      })
+
+      it("reports an id collision before a missing container", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [insertAt("ghost", "orders")])
+        const { unapplied } = resolve([personal], {
+          baseIds: ["dashboard", "orders"],
+        })
+
+        expect(unapplied.map(({ reason }) => reason)).toEqual(["id-collision"])
+      })
+
+      it("leaves an item's placement alone when its insert is rejected", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          { op: "pin", target: "dashboard/slots/y", where: "start" },
+          insertAt("dashboard", "p"),
+          removeNode("p"),
+          insertAt("p", "y"),
+        ])
+        const { placements, unapplied } = resolve([personal], {
+          baseIds: ["dashboard"],
+        })
+
+        expect(unapplied.map(({ check, reason }) => [check, reason])).toEqual([
+          [personal.ops[3], "missing-container"],
+        ])
+        expect(at(placements, "y")?.winner?.check).toBe(personal.ops[0])
+        expect(at(placements, "y")?.placement).toEqual({
+          container: "dashboard",
+          position: { pin: "start" },
+        })
+      })
+
+      it("drops a pin in an unlisted parent once a node takes its id", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          { op: "pin", target: "dashboard/slots/a", where: "start" },
+          insertAt("sidebar", "dashboard"),
+        ])
+        const { placements, unapplied } = resolve([personal], {
+          baseIds: ["sidebar", "a"],
+        })
+
+        expect(unapplied).toEqual([])
+        expect(at(placements, "a")).toEqual({
+          placement: { container: "dashboard" },
+          overridden: [{ check: personal.ops[0], overlay: personal }],
+        })
+      })
+
+      it("lets a wrap target its items' own unlisted base parent", () => {
+        const overlay = overlays()
+        const personal = overlay("personal", [
+          { op: "pin", target: "dashboard/slots/a", where: "start" },
+          wrap("dashboard", "w", ["a", "b"]),
+        ])
+        const { placements, unapplied } = resolve([personal], {
+          baseIds: ["a", "b"],
+        })
+
+        expect(unapplied).toEqual([])
+        expect(at(placements, "a")?.placement).toEqual({
+          container: "w",
+          position: { index: 0 },
+        })
+      })
+
       it("reports an insert or wrap into a node that doesn't exist", () => {
         const overlay = overlays()
         const personal = overlay("personal", [
@@ -2267,8 +2368,10 @@ describe("resolveLayers", () => {
         }
         return item
       }
-      const ids = ["a", "b", "c", "w"]
-      const parents = ["dashboard", "sidebar", "page/slots/dashboard"]
+      const ids = ["a", "b", "c", "w", "x"]
+      // `w` and `x` are also ids, so items end up in inserted and removed
+      // nodes, under parents that are later removed.
+      const parents = ["dashboard", "sidebar", "page/slots/dashboard", "w", "x"]
       const slot = () => `${pick(parents)}/slots/${pick(ids)}`
       const opOf = (): unknown =>
         pick([
@@ -2280,6 +2383,7 @@ describe("resolveLayers", () => {
             at: { index: 0 },
           }),
           () => ({ op: "remove", target: pick([slot(), pick(ids)]) }),
+          () => ({ op: "remove", target: pick(["w", "x"]) }),
           () => {
             const first = pick(ids)
             return {
@@ -2364,7 +2468,9 @@ describe("resolveLayers", () => {
     })
 
     // Every final placement must be in a container that exists, in the very
-    // version it had when the item was placed there.
+    // version it had when the item was placed there, or follow the base: then
+    // it is wherever the item's base parent chain ends.
+    let followed = 0
     const expectPlacementsHold = (
       input: readonly LoadedOverlay[],
       baseIds: readonly string[] | undefined
@@ -2387,16 +2493,46 @@ describe("resolveLayers", () => {
           ? state.versions.get(id)
           : undefined
       }
+      const holdingOf = (item: string) => {
+        const placements = state.placements.get(item)
+        return placements?.candidates.filter(
+          ({ placement, version, followsBase }) =>
+            followsBase === true ||
+            (version !== undefined &&
+              versionOf(placement.container, placements.origin) === version)
+        )
+      }
+      const isRemoved = (id: string) => {
+        const created = state.nodes.get(id)?.get("inserted")?.winner.op.check
+          .op.op
+        return (
+          created !== undefined && created !== "insert" && created !== "wrap"
+        )
+      }
+      const baseParent = (id: string) =>
+        state.createdIn.get(id) ?? state.placements.get(id)?.origin
+      const walk = (item: string) => {
+        let node = baseParent(item)
+        const seen = new Set<string>()
+        while (node !== undefined && isRemoved(node) && !seen.has(node)) {
+          seen.add(node)
+          const held = holdingOf(node)?.at(-1)
+          node =
+            held && held.followsBase !== true
+              ? held.placement.container
+              : baseParent(node)
+        }
+        return node !== undefined && isRemoved(node) ? "@surface" : node
+      }
       const resolved = resolve(input, baseIds ? { baseIds } : {})
       for (const [item, placements] of state.placements) {
-        const holding = placements.candidates.filter(
-          ({ placement, version }) =>
-            version !== undefined &&
-            versionOf(placement.container, placements.origin) === version
-        )
+        const held = holdingOf(item)?.at(-1)
         const settled = placementAt(resolved.placements, item)
-        expect(settled?.winner?.check).toBe(holding.at(-1)?.op.check)
-        if (settled?.winner) {
+        expect(settled?.winner?.check).toBe(held?.op.check)
+        if (held?.followsBase) {
+          followed++
+          expect(settled?.placement.container).toBe(walk(item))
+        } else if (settled?.winner) {
           expect(
             versionOf(settled.placement.container, placements.origin)
           ).toBeDefined()
@@ -2478,6 +2614,8 @@ describe("resolveLayers", () => {
           canonical(resolved)
         )
       }
+      // The overlays must reach placements that follow the base.
+      expect(followed).toBeGreaterThan(0)
     })
   })
 
@@ -2697,6 +2835,8 @@ describe("resolveLayers", () => {
       // Counts map reads, which every step of resolution makes, so the
       // scaling is measured exactly, not by time: 4n of the work reads about
       // 4 times as much when it is linear, 16 times when it is quadratic.
+      // Only the ratio means anything; the counts themselves change with any
+      // refactor.
       const reads = (input: LoadedOverlay[]) => {
         const spy = vi.spyOn(Map.prototype, "get")
         try {

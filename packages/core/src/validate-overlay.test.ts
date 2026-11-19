@@ -684,6 +684,33 @@ describe("validateOverlay", () => {
       ])
     })
 
+    it("reports an id collision before a missing container", () => {
+      expect(
+        validateOverlay(overlay([insert("orders", "ghost")]), {
+          layers: { overlays: [], surface, baseIds: ["dashboard", "orders"] },
+        }).error?.issues.map(({ path }) => path)
+      ).toEqual([["ops", 0, "node", "id"]])
+    })
+
+    it("names the missing node by its identity", () => {
+      expect(
+        validateOverlay(
+          overlay([
+            insert("x", "page/slots/nowhere"),
+            {
+              op: "move",
+              target: "dashboard/slots/c",
+              to: { into: "page/slots/gone" },
+            },
+          ]),
+          { layers: { overlays: [], surface, baseIds: ["dashboard", "c"] } }
+        ).error?.issues.map(({ message }) => message)
+      ).toEqual([
+        "The node nowhere doesn't exist on this surface",
+        "The node gone doesn't exist on this surface",
+      ])
+    })
+
     it("uses baseIds as the exact base nodes", () => {
       const lower = lowerOverlay("team", [
         { op: "hide", target: "dashboard/slots/orders" },
