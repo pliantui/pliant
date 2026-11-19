@@ -31,6 +31,10 @@
     "./table": {
       "types": "./dist/table.d.ts",
       "default": "./dist/table.js"
+    },
+    "./ask": {
+      "types": "./dist/ask.d.ts",
+      "default": "./dist/ask.js"
     }
   },
   "files": [
@@ -52,7 +56,17 @@
   "size-limit": [
     {
       "path": "dist/index.js",
-      "limit": "9.5 kB",
+      "limit": "6 kB",
+      "ignore": [
+        "react",
+        "zod",
+        "@pliantui/contract",
+        "@pliantui/core"
+      ]
+    },
+    {
+      "path": "dist/ask.js",
+      "limit": "4 kB",
       "ignore": [
         "react",
         "zod",

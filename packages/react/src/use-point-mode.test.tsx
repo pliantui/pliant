@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react"
+import { createRef, type ComponentProps } from "react"
 import {
   act,
   cleanup,
@@ -23,49 +23,55 @@ const targets = [
 function PointMode({
   targets,
   onPick,
+  labelWidth,
+  inline = false,
+  layer,
 }: {
   targets: readonly { id: string; label: string }[]
   onPick: (id: string) => void
+  labelWidth?: number
+  inline?: boolean
+  layer?: Parameters<ReturnType<typeof usePointMode>["getLayerProps"]>[0]
 }) {
-  const { mode, boxes, announcement, pick, triggerProps, layerProps } =
-    usePointMode({ targets, onPick })
+  const { mode, boxes, announcement, pick, getTriggerProps, getLayerProps } =
+    usePointMode({ targets, onPick, labelWidth })
+  const content = (
+    <div {...getLayerProps(layer)} aria-label="Point mode">
+      {boxes.map((box) => (
+        <button
+          key={box.id}
+          type="button"
+          style={{
+            top: box.top,
+            left: box.left,
+            width: box.width,
+            height: box.height,
+          }}
+          onClick={() => {
+            pick(box.id)
+          }}
+        >
+          <span
+            style={
+              box.labelAlign === "end"
+                ? { right: box.labelInset }
+                : { left: box.labelInset }
+            }
+          >
+            {box.label}
+          </span>
+        </button>
+      ))}
+    </div>
+  )
   return (
     <>
-      <button type="button" {...triggerProps}>
+      <button type="button" {...getTriggerProps()}>
         Point
       </button>
       <span role="status">{announcement}</span>
       {mode !== null &&
-        createPortal(
-          <div {...layerProps} aria-label="Point mode">
-            {boxes.map((box) => (
-              <button
-                key={box.id}
-                type="button"
-                style={{
-                  top: box.top,
-                  left: box.left,
-                  width: box.width,
-                  height: box.height,
-                }}
-                onClick={() => {
-                  pick(box.id)
-                }}
-              >
-                <span
-                  style={
-                    box.labelAlign === "end"
-                      ? { right: box.labelInset }
-                      : { left: box.labelInset }
-                  }
-                >
-                  {box.label}
-                </span>
-              </button>
-            ))}
-          </div>,
-          document.body
-        )}
+        (inline ? content : createPortal(content, document.body))}
     </>
   )
 }
@@ -78,10 +84,16 @@ function rectOf(element: Element) {
     : new DOMRect(16, Number(top), 320, 40)
 }
 
-function Page({ onPick = () => undefined }: { onPick?: (id: string) => void }) {
+function Page({
+  onPick = () => undefined,
+  layer,
+}: {
+  onPick?: (id: string) => void
+  layer?: ComponentProps<typeof PointMode>["layer"]
+}) {
   return (
     <>
-      <PointMode targets={targets} onPick={onPick} />
+      <PointMode targets={targets} onPick={onPick} layer={layer} />
       <input aria-label="Search" />
       <textarea aria-label="Notes" />
       <input type="checkbox" aria-label="Done" />
@@ -761,5 +773,88 @@ describe("usePointMode", () => {
 
     expect(other.hasAttribute("inert")).toBe(false)
     other.remove()
+  })
+
+  it("places labels for the label width it is given", async () => {
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      configurable: true,
+      value: 400,
+    })
+    render(
+      <>
+        <PointMode
+          targets={[{ id: "side", label: "Side" }]}
+          onPick={() => undefined}
+          labelWidth={80}
+        />
+        <div data-pliant-id="side" data-top="100" />
+      </>
+    )
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: Element) {
+        return this.hasAttribute("data-top")
+          ? new DOMRect(300, 100, 160, 40)
+          : new DOMRect(0, 0, 0, 0)
+      }
+    )
+
+    await enterWithToggle()
+
+    expect(screen.getByText("Side").style.left).toBe("0px")
+    Reflect.deleteProperty(document.documentElement, "clientWidth")
+  })
+
+  it("leaves the ancestors of a layer that isn't portalled usable", async () => {
+    render(
+      <main>
+        <section>
+          <PointMode targets={targets} onPick={() => undefined} inline />
+        </section>
+        <aside aria-label="Beside" />
+      </main>
+    )
+
+    await enterWithToggle()
+
+    expect(layer()?.hasAttribute("inert")).toBe(false)
+    expect(document.querySelector("main")?.hasAttribute("inert")).toBe(false)
+    expect(document.querySelector("section")?.hasAttribute("inert")).toBe(false)
+    expect(document.querySelector("aside")?.hasAttribute("inert")).toBe(true)
+    expect(toggle().hasAttribute("inert")).toBe(true)
+
+    const late = document.createElement("p")
+    document.querySelector("section")?.append(late)
+    await wait()
+    expect(late.hasAttribute("inert")).toBe(true)
+
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    })
+    await wait()
+    expect(document.querySelector("[inert]")).toBeNull()
+  })
+
+  it("runs the app's handlers first and composes its ref", async () => {
+    const ref = createRef<HTMLDivElement>()
+    renderPage({
+      layer: {
+        ref,
+        onKeyDown: (event) => {
+          if (event.key === "ArrowDown") {
+            event.preventDefault()
+          }
+        },
+      },
+    })
+    await enterWithToggle()
+    const [first] = boxes()
+
+    expect(ref.current).toBe(layer())
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "ArrowDown",
+    })
+    expect(document.activeElement).toBe(first)
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Tab" })
+    expect(document.activeElement).not.toBe(first)
   })
 })

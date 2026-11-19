@@ -5,9 +5,13 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type FocusEvent,
   type KeyboardEvent,
+  type MouseEvent,
+  type Ref,
 } from "react"
 
+import { composeHandler, composeRef } from "./compose-props"
 import type { LockInResult } from "./layer-store"
 import { revealTarget } from "./reveal-target"
 import { usePliantStatus } from "./use-pliant-status"
@@ -15,20 +19,33 @@ import { usePliantStore } from "./use-pliant-store"
 import { usePliantSurface } from "./use-pliant-surface"
 import { usePreview } from "./use-preview"
 
+type AskAnswer =
+  | { readonly status: "ok"; readonly overlay: unknown }
+  | { readonly status: "clarify"; readonly question: string }
+  | { readonly status: "unavailable"; readonly reason: string }
+  | { readonly status: "error"; readonly message: string }
+
+// Bundlers replace `process.env.NODE_ENV`; where none did and there is no
+// `process`, this is a browser build that isn't development.
+function logInDevelopment(error: unknown) {
+  try {
+    if (process.env.NODE_ENV === "production") {
+      return
+    }
+  } catch {
+    return
+  }
+  console.error(error)
+}
+
 /**
- * An answer to an ask, as `createPliantHandler` in `@pliantui/server` sends
- * it: an overlay to preview, a clarifying question, a reason it can't be
- * done, or an error.
+ * Where an ask stands: nothing yet, in progress, answered with a question,
+ * a failure or a reason it can't be done, cancelled, or the preview
+ * discarded or locked in, with the ops that stayed in the session layer.
  *
  * @experimental
  */
-export type AskAnswer =
-  | { status: "ok"; overlay: unknown }
-  | { status: "clarify"; question: string }
-  | { status: "unavailable"; reason: string }
-  | { status: "error"; message: string }
-
-type AskState =
+export type AskPanelState =
   | { status: "idle" }
   | { status: "asking" }
   | { status: "clarify"; question: string }
@@ -41,7 +58,8 @@ type AskState =
       keptInSession: Extract<LockInResult, { success: true }>["keptInSession"]
     }
 
-interface UseAskPanelOptions<TTarget extends { id: string }> {
+/** @experimental */
+export interface UseAskPanelOptions<TTarget extends { readonly id: string }> {
   /** The nodes users can ask about. */
   targets: readonly TTarget[]
   /** The id of the picked target, when the parent controls it. */
@@ -58,12 +76,13 @@ interface UseAskPanelOptions<TTarget extends { id: string }> {
   open?: boolean | undefined
   /** Whether the panel starts open. It doesn't take focus then. */
   defaultOpen?: boolean | undefined
-  /** Called when the trigger, Escape or `close` opens or closes the panel. */
+  /** Called when the trigger, Escape or `setOpen` opens or closes it. */
   onOpenChange?: ((open: boolean) => void) | undefined
   /**
-   * Sends an ask to the server and resolves with its answer. It is aborted
-   * through `signal` when the ask is cancelled. Throwing counts as not
-   * reaching the server.
+   * Sends an ask to the server and resolves with its answer, as
+   * `createPliantHandler` in `@pliantui/server` sends it. It is aborted
+   * through `signal` when the ask is cancelled. If it throws, the state says
+   * the server couldn't be reached, and in development the error is logged.
    */
   send: (
     ask: { surface: string; target: TTarget; prompt: string },
@@ -73,30 +92,36 @@ interface UseAskPanelOptions<TTarget extends { id: string }> {
 
 /**
  * The state and behaviour of a panel for asking AI to change a node of the
- * page: which target and prompt are picked, the ask in progress and its
- * answer, and the preview it shows, which is only saved by `lockIn`. Use it
- * inside a `PliantRoot`; `send` gets the root's surface with each ask. How
- * the ask reaches the server is up to `send`.
+ * page: whether it is open, which target and prompt are picked, and where
+ * the ask stands. The answer is previewed on the page, as `usePreview`
+ * shows, and only saved by `lockIn`. Use it inside a `PliantRoot`; `send`
+ * gets the root's surface with each ask, and how the ask reaches the server
+ * is up to it.
  *
- * Spread `triggerProps` on the element that opens the panel, `panelProps` on
- * the panel, `promptProps` on its textarea, and `pickerProps` and
- * `pickerTriggerProps` on a Radix Select of the targets and its trigger.
- * Enter in the prompt sends and Shift+Enter adds a new line; Escape closes
+ * Spread `getTriggerProps()` on the element that opens the panel,
+ * `getPanelProps()` on the panel, `getPromptProps()` on its textarea, and
+ * `getPickerProps()` on the element that has focus while users pick a
+ * target, which then calls `setTarget`. Pass your own handlers and ref to
+ * the getters rather than after the spread: a handler runs first, and the
+ * panel skips its own when it calls `event.preventDefault()`.
+ *
+ * Enter in the prompt sends and Shift+Enter adds a new line. Escape closes
  * the panel while focus is inside it, and focus then goes back to the
  * trigger. Focus moves to the prompt when the panel opens and when the
- * parent changes `target` while it is open. Changing the target, from
- * anywhere, and closing the panel cancel an ask in progress; closing keeps
- * the preview. A target that isn't one of `targets` falls back to the first.
- * The prompt is kept when the target changes, so the same ask can go to
- * another target.
+ * parent changes `target` while it is open, but not when a pick of
+ * `setTarget` comes back as `target`, right away or later. Changing the
+ * target, from anywhere, and closing the panel cancel an ask in progress;
+ * closing keeps the preview. A target that isn't one of `targets` falls
+ * back to the first. The prompt is kept when the target changes, so the
+ * same ask can go to another target.
  *
- * When the panel is docked below the page, a preview scrolls its target,
- * found by its `data-pliant-id`, to the top unless it already shows above
- * the panel.
+ * When a preview shows and the panel covers its target, found by its
+ * `data-pliant-id`, from below, the target is scrolled to the top of the
+ * viewport.
  *
  * @experimental
  */
-export function useAskPanel<TTarget extends { id: string }>({
+export function useAskPanel<TTarget extends { readonly id: string }>({
   targets,
   target: targetProp,
   defaultTarget,
@@ -108,15 +133,15 @@ export function useAskPanel<TTarget extends { id: string }>({
 }: UseAskPanelOptions<TTarget>) {
   const store = usePliantStore()
   const surface = usePliantSurface()
-  const preview = usePreview()
   const ready = usePliantStatus().status === "ready"
+  const preview = usePreview()
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen)
   const [uncontrolledTarget, setUncontrolledTarget] = useState(defaultTarget)
-  const [prompt, setPrompt] = useState("")
-  const [state, setState] = useState<AskState>({ status: "idle" })
+  const [prompt, setPromptText] = useState("")
+  const [state, setState] = useState<AskPanelState>({ status: "idle" })
   const request = useRef<AbortController | null>(null)
   const promptRef = useRef<HTMLTextAreaElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
+  const triggerRef = useRef<HTMLElement>(null)
   const panelRef = useRef<HTMLElement>(null)
   const panelId = useId()
   const open = openProp ?? uncontrolledOpen
@@ -187,21 +212,31 @@ export function useAskPanel<TTarget extends { id: string }>({
   const asking = state.status === "asking"
 
   function setOpen(next: boolean) {
+    const hadFocus = panelRef.current?.contains(document.activeElement)
     if (openProp === undefined) {
       setUncontrolledOpen(next)
     }
     onOpenChange?.(next)
-  }
-
-  function close() {
-    const hadFocus = panelRef.current?.contains(document.activeElement)
-    setOpen(false)
-    if (hadFocus) {
+    if (!next && hadFocus) {
       triggerRef.current?.focus()
     }
   }
 
-  async function ask() {
+  function setTarget(next: string) {
+    setPickerTarget(next)
+    if (targetProp === undefined) {
+      setUncontrolledTarget(next)
+    }
+    onTargetChange?.(next)
+    setState({ status: "idle" })
+  }
+
+  function setPrompt(text: string) {
+    setPromptText(text)
+    promptRef.current?.focus()
+  }
+
+  async function submit() {
     const text = prompt.trim()
     if (request.current || !target || text === "") {
       return
@@ -219,7 +254,10 @@ export function useAskPanel<TTarget extends { id: string }>({
     let answer: AskAnswer
     try {
       answer = await send({ surface, target, prompt: text }, controller.signal)
-    } catch {
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        logInDevelopment(error)
+      }
       answer = {
         status: "error",
         message: "Couldn't reach the server. Check your connection.",
@@ -251,6 +289,10 @@ export function useAskPanel<TTarget extends { id: string }>({
     }
   }
 
+  function ask() {
+    void submit()
+  }
+
   function cancel() {
     request.current?.abort()
     request.current = null
@@ -274,106 +316,98 @@ export function useAskPanel<TTarget extends { id: string }>({
     promptRef.current?.focus()
   }
 
-  function suggest(text: string) {
-    setPrompt(text)
-    promptRef.current?.focus()
-  }
-
-  const triggerProps = {
-    ref: triggerRef,
-    "aria-expanded": open,
-    "aria-controls": open ? panelId : undefined,
-    "data-state": open ? "open" : "closed",
-    "data-preview": preview !== null ? "" : undefined,
-    onClick: () => {
-      if (open) {
-        close()
-      } else {
-        setOpen(true)
-      }
-    },
-  } as const
-
-  const panelProps = {
-    ref: panelRef,
-    id: panelId,
-    "data-slot": "pliant-ask-panel",
-    "data-state": "open",
-    onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
-      if (
-        event.key === "Escape" &&
-        !event.nativeEvent.isComposing &&
-        event.target instanceof Node &&
-        event.currentTarget.contains(event.target)
-      ) {
-        event.preventDefault()
-        close()
-      }
-    },
-  } as const
-
-  const pickerProps = {
-    value: target?.id ?? "",
-    disabled: asking,
-    onValueChange: (next: string) => {
-      setPickerTarget(next)
-      if (targetProp === undefined) {
-        setUncontrolledTarget(next)
-      }
-      onTargetChange?.(next)
-      setState({ status: "idle" })
-    },
-  }
-
-  const pickerTriggerProps = {
-    onBlur: () => {
-      setPickerTarget(undefined)
-    },
-  }
-
-  const promptProps = {
-    ref: promptRef,
-    value: prompt,
-    readOnly: asking,
-    onChange: (event: ChangeEvent<HTMLTextAreaElement>) => {
-      setPrompt(event.target.value)
-    },
-    onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (
-        event.key === "Enter" &&
-        !event.shiftKey &&
-        !event.nativeEvent.isComposing &&
-        // Safari ends a composition with an Enter whose isComposing is
-        // false; only its keyCode tells.
-        // eslint-disable-next-line @typescript-eslint/no-deprecated
-        event.keyCode !== 229
-      ) {
-        event.preventDefault()
-        void ask()
-      }
-    },
-  }
-
   return {
     open,
     target,
     state,
-    asking,
     prompt,
-    explain: asking ? [] : [...new Set(preview?.explain)],
-    previewing: preview !== null,
-    ask: () => {
-      void ask()
-    },
+    setOpen,
+    setTarget,
+    setPrompt,
+    ask,
     cancel,
     lockIn,
     discard,
-    suggest,
-    close,
-    triggerProps,
-    panelProps,
-    pickerProps,
-    pickerTriggerProps,
-    promptProps,
+    getTriggerProps: (props?: {
+      readonly ref?: Ref<HTMLElement> | undefined
+      readonly onClick?: ((event: MouseEvent<HTMLElement>) => void) | undefined
+    }) => ({
+      ref: composeRef(props?.ref, triggerRef),
+      "aria-expanded": open,
+      "aria-controls": open ? panelId : undefined,
+      "data-state": open ? ("open" as const) : ("closed" as const),
+      "data-preview": preview !== null ? "" : undefined,
+      onClick: composeHandler(props?.onClick, () => {
+        setOpen(!open)
+      }),
+    }),
+    getPanelProps: (props?: {
+      readonly ref?: Ref<HTMLElement> | undefined
+      readonly onKeyDown?:
+        | ((event: KeyboardEvent<HTMLElement>) => void)
+        | undefined
+    }) => ({
+      ref: composeRef(props?.ref, panelRef),
+      id: panelId,
+      "data-slot": "pliant-ask-panel",
+      "data-state": "open" as const,
+      onKeyDown: composeHandler(
+        props?.onKeyDown,
+        (event: KeyboardEvent<HTMLElement>) => {
+          if (
+            event.key === "Escape" &&
+            !event.nativeEvent.isComposing &&
+            event.target instanceof Node &&
+            event.currentTarget.contains(event.target)
+          ) {
+            event.preventDefault()
+            setOpen(false)
+          }
+        }
+      ),
+    }),
+    getPickerProps: (props?: {
+      readonly onBlur?: ((event: FocusEvent<HTMLElement>) => void) | undefined
+    }) => ({
+      onBlur: composeHandler(props?.onBlur, () => {
+        setPickerTarget(undefined)
+      }),
+    }),
+    getPromptProps: (props?: {
+      readonly ref?: Ref<HTMLTextAreaElement> | undefined
+      readonly onChange?:
+        | ((event: ChangeEvent<HTMLTextAreaElement>) => void)
+        | undefined
+      readonly onKeyDown?:
+        | ((event: KeyboardEvent<HTMLTextAreaElement>) => void)
+        | undefined
+    }) => ({
+      ref: composeRef(props?.ref, promptRef),
+      value: prompt,
+      readOnly: asking,
+      onChange: composeHandler(
+        props?.onChange,
+        (event: ChangeEvent<HTMLTextAreaElement>) => {
+          setPromptText(event.target.value)
+        }
+      ),
+      onKeyDown: composeHandler(
+        props?.onKeyDown,
+        (event: KeyboardEvent<HTMLTextAreaElement>) => {
+          if (
+            event.key === "Enter" &&
+            !event.shiftKey &&
+            !event.nativeEvent.isComposing &&
+            // Safari ends a composition with an Enter whose isComposing is
+            // false; only its keyCode tells.
+            // eslint-disable-next-line @typescript-eslint/no-deprecated
+            event.keyCode !== 229
+          ) {
+            event.preventDefault()
+            ask()
+          }
+        }
+      ),
+    }),
   }
 }
