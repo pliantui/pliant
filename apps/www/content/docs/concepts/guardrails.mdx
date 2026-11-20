@@ -1,0 +1,51 @@
+---
+title: Guardrails
+description: What users can't change, and what Pliant doesn't protect.
+---
+
+Users reshape the page you built. They can't change what it does. These rules hold for every overlay, whether a user made it by hand or with the ask panel.
+
+## Only the catalog's changes
+
+An overlay is a list of [operations](/docs/concepts/operations) from a closed catalog. It can't contain code, markup, CSS or a query. Labels are plain text and filter values are data, never interpolated into anything.
+
+Ops have fixed limits: at most 500 per overlay, layouts of at most four columns, column widths clamped to the limits you set on the column, and so on. Addresses for a single row, such as `order-card[42]`, are rejected, so an overlay never targets a single row.
+
+## Base items can be hidden, not deleted
+
+`remove` deletes only nodes a user, team or org added with `insert` or `wrap`, and only from the scope that added them. Everything you wrote can be hidden, and shown again, but never removed. Removing every overlay always brings back your page as you wrote it.
+
+## Visual order is DOM order
+
+When an overlay reorders a region, Pliant reorders the rendered elements, not their CSS position. Tab order and screen-reader order follow what the user sees.
+
+For tables, Pliant sets TanStack's column order and pinning, so a table rendered from `getHeaderGroups()` and `getVisibleCells()` keeps DOM order and visual order the same.
+
+## Some state is never saved
+
+`setPage` is allowed only in the `session` layer, so a table's page number is never saved or shared. Table filters stay in the session too, unless you opt in with `persistFilters`.
+
+## The ask panel can only propose
+
+The ask route offers the model only a fixed set of ops that the target's capabilities allow, and only the item and field ids you list in the target's context. It turns away asks that start with a verb that acts on data, such as "delete" or "refund", unless they name a part of the view. It has no way to change your data.
+
+Every answer is validated on the server, then validated again in the browser before it's applied. It applies to the `session` layer as a preview, and nothing is saved until the user saves it.
+
+## Required and critical items
+
+Pliant can't mark an item as required or critical. Any slot or column a user can see, an overlay can hide. Don't rely on a region to keep something on screen, such as a notice users must read: render it outside Pliant's regions.
+
+## Team and org defaults aren't locks
+
+A team or org overlay sets a default. Each user's personal overlay can override any property it sets, and Pliant has no way to stop that.
+
+A lock in any UI is a policy, not a security boundary: the overlays and the code that applies them run in the user's browser, and a user can change what runs there. Anything that must be hidden from a user belongs in your dataset permissions, enforced on your server, so it never reaches the browser.
+
+## Hidden is not secret
+
+Hiding a column or a slot is a display preference. Hidden slots stay mounted, and hidden columns stay in the table's data. Everything you render is still sent to the browser.
+
+<Callout type="warn">
+  Never use `hide` to protect data. If a user mustn't see a field or a row,
+  leave it out of what your server sends them.
+</Callout>
