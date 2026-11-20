@@ -15,15 +15,21 @@ Pliant is pre-1.0. These lists describe intent, not commitments, and carry no da
 - Saved views: named arrangements a user can switch between.
 - Manual editing of regions without AI.
 - Deriving the ask panel's `context` from your regions.
+- Case-insensitive text functions in expressions, such as `containsI` and `eqI`.
+- Custom operations: your own namespaced operations, such as `crm:star`, that users and the AI can apply like built-in ones.
+- Org locks: org and team defaults that users can't hide or move. A lock is a UI policy, not access control.
+- Translated labels in team and org overlays, one per language.
+- A per-user theme choice among your app's own themes.
+- A history panel listing each change, with undo to any point.
+- "View as user" for admins, so support sees exactly what a user sees.
+- A Prisma adapter, and MySQL and SQLite support for server data.
+- Approximate percentiles on server data.
+- Tailwind CSS v3 support for the components, if apps adopting Pliant need it.
 
 ## After 1.0
 
 - Packs of saved views, with signing.
-- Approximate percentiles.
 - Relations between datasets and a query layer.
 - Vue and Svelte.
 - Export to A2UI.
-- A history panel.
 - Several answer variants to choose from in the ask panel.
-- Storage adapters for Prisma, MySQL and SQLite.
-- A per-user theme choice.
