@@ -42,6 +42,14 @@ export {
   type UnappliedReason,
 } from "./resolve-layers"
 export {
+  resolveRegion,
+  type RegionEntry,
+  type RegionLayout,
+  type ByBreakpoint,
+  type ResolvedRegion,
+  type ResolveRegionOptions,
+} from "./resolve-region"
+export {
   createRowEvaluator,
   type RowAccessor,
   type RowExpressionOptions,
@@ -50,14 +58,6 @@ export {
   type RowExpression,
   type RowValue,
 } from "./row-evaluator"
-export {
-  resolveRegion,
-  type RegionEntry,
-  type RegionLayout,
-  type ByBreakpoint,
-  type ResolvedRegion,
-  type ResolveRegionOptions,
-} from "./resolve-region"
 export {
   validateOverlay,
   type ValidateOverlayLayers,

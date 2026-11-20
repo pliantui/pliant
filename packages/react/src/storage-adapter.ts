@@ -30,9 +30,10 @@ export interface StoredLayers {
  * `@pliantui/contract` README describes. `load` never returns a tombstone.
  * A save under a tombstone's id is a conflict whose `current` is the
  * tombstone, whatever `ifMatch` is, so a removed overlay's id is never
- * reused. Keep tombstones as long as the app might retry a save, and at
- * least 30 days; after that they may be purged, and a retry of a save from
- * before the removal can then store the overlay again.
+ * reused while its tombstone is kept. Keep tombstones as long as the app
+ * might retry a save, and at least 30 days; after that they may be purged,
+ * and a retry of a save from before the removal can then store the overlay
+ * again.
  *
  * `PliantRoot` stores each personal version as one record, with
  * `ifMatch: null`, and calls only `load`, `save` and `subscribe`. When a
@@ -49,8 +50,8 @@ export interface StoredLayers {
 export interface StorageAdapter {
   /**
    * Loads the stored overlays of a surface, in every layer the user can
-   * read, with the `@app` overlays, without tombstones. A rejection sets the status to `error`
-   * (see `usePliantStatus`).
+   * read, with the `@app` overlays, without tombstones. A rejection sets the
+   * status to `error` (see `usePliantStatus`).
    *
    * A load must see every save that finished before it started: read from
    * the primary database, not a replica, and fetch with
