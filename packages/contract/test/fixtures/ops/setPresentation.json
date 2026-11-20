@@ -4,7 +4,13 @@
       "op": "setPresentation",
       "target": "edit-order",
       "as": "sheet",
-      "side": "right"
+      "side": "end"
+    },
+    {
+      "op": "setPresentation",
+      "target": "edit-order",
+      "as": "drawer",
+      "side": "start"
     },
     {
       "op": "setPresentation",
@@ -22,7 +28,19 @@
       "op": "setPresentation",
       "target": "edit-order",
       "as": "dialog",
+      "side": "start"
+    },
+    {
+      "op": "setPresentation",
+      "target": "edit-order",
+      "as": "sheet",
       "side": "left"
+    },
+    {
+      "op": "setPresentation",
+      "target": "edit-order",
+      "as": "drawer",
+      "side": "right"
     },
     {
       "op": "setPresentation",

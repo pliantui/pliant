@@ -113,7 +113,7 @@ const cases: [Op, OpProperty[]][] = [
     [{ address: "panels", property: "defaults.defaultSize" }],
   ],
   [
-    { op: "setPresentation", target: "edit-order", as: "sheet", side: "right" },
+    { op: "setPresentation", target: "edit-order", as: "sheet", side: "end" },
     [{ address: "edit-order", property: "presentation" }],
   ],
   [

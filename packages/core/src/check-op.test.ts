@@ -49,7 +49,12 @@ describe("checkOp", () => {
   })
 
   it.each([
-    { op: "setPresentation", target: "edit-order", as: "dialog", side: "left" },
+    {
+      op: "setPresentation",
+      target: "edit-order",
+      as: "dialog",
+      side: "start",
+    },
     { op: "setLayout", target: "dashboard", mode: "row", columns: 2 },
     {
       op: "wrap",
