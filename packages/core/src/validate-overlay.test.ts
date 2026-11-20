@@ -929,4 +929,175 @@ describe("validateOverlay", () => {
       }
     })
   })
+
+  describe("with flags", () => {
+    const surface = "/orders/[id]"
+    const flags = {
+      "page/slots/checkout-actions/slots/pay-now": { critical: true },
+    }
+    const lower = (ops: unknown[]) => ({
+      ...overlay(ops),
+      id: "01JBQ3V8Z7XKQ2M4N5P6R7S8A0",
+      layer: "team",
+      scope: { team: "sales" },
+    })
+    const move = {
+      op: "move",
+      target: "checkout-actions/slots/pay-now",
+      to: { into: "sidebar" },
+    }
+
+    it("rejects an op that would hide a critical node", () => {
+      const result = validateOverlay(
+        overlay([
+          { op: "hide", target: "checkout-actions/slots/back" },
+          { op: "hide", target: "page/slots/checkout-actions" },
+        ]),
+        { layers: { overlays: [], surface, flags } }
+      )
+      expect(result.error?.issues).toEqual([
+        {
+          code: "custom",
+          path: ["ops", 1],
+          message: "The item pay-now is critical, so it must stay visible",
+        },
+      ])
+    })
+
+    it("rejects a hide of the node a lower layer moved it into", () => {
+      const result = validateOverlay(
+        overlay([{ op: "hide", target: "sidebar" }]),
+        { layers: { overlays: [lower([move])], surface, flags } }
+      )
+      expect(result.error?.issues.map(({ path }) => path)).toEqual([["ops", 0]])
+    })
+
+    it("rejects a move into a node a lower layer hid", () => {
+      const result = validateOverlay(overlay([move]), {
+        layers: {
+          overlays: [lower([{ op: "hide", target: "sidebar" }])],
+          surface,
+          flags,
+        },
+      })
+      expect(result.error?.issues.map(({ path }) => path)).toEqual([["ops", 0]])
+    })
+
+    it("accepts an overlay when only a lower layer breaks a guardrail", () => {
+      const result = validateOverlay(
+        overlay([{ op: "hide", target: "sidebar" }]),
+        {
+          layers: {
+            overlays: [
+              lower([{ op: "hide", target: "checkout-actions/slots/pay-now" }]),
+            ],
+            surface,
+            flags,
+          },
+        }
+      )
+      expect(result.success).toBe(true)
+    })
+
+    it("lists each op's issues in op order", () => {
+      const result = validateOverlay(
+        overlay([
+          { ...move, to: { into: "drawer" } },
+          { op: "hide", target: "pay-now" },
+        ]),
+        {
+          layers: {
+            overlays: [],
+            surface,
+            baseIds: ["page", "checkout-actions", "pay-now"],
+            flags,
+          },
+        }
+      )
+      expect(result.error?.issues.map(({ path }) => path)).toEqual([
+        ["ops", 0, "to", "into"],
+        ["ops", 1],
+      ])
+    })
+
+    it("traces nodes through the base tree when given", () => {
+      const result = validateOverlay(
+        overlay([{ ...move, to: { into: "drawer" } }]),
+        {
+          layers: {
+            overlays: [lower([{ op: "hide", target: "aside" }])],
+            surface,
+            flags,
+            baseParents: {
+              page: null,
+              "checkout-actions": "page",
+              "pay-now": "checkout-actions",
+              drawer: "aside",
+              aside: null,
+            },
+          },
+        }
+      )
+      expect(result.error?.issues).toEqual([
+        {
+          code: "custom",
+          path: ["ops", 0],
+          message: "The item pay-now is critical, so it must stay visible",
+        },
+      ])
+    })
+
+    it("rejects an op that closes a cycle around a critical node", () => {
+      const result = validateOverlay(
+        overlay([
+          { ...move, to: { into: "panel" } },
+          {
+            op: "move",
+            target: "page/slots/panel",
+            to: { into: "checkout-actions" },
+          },
+        ]),
+        {
+          layers: {
+            overlays: [
+              lower([
+                {
+                  op: "move",
+                  target: "page/slots/checkout-actions",
+                  to: { into: "panel" },
+                },
+              ]),
+            ],
+            surface,
+            flags,
+          },
+        }
+      )
+      expect(result.error?.issues.map(({ path }) => path)).toEqual([["ops", 1]])
+    })
+
+    it("throws a TypeError for a base tree that isn't node ids, whatever the input", () => {
+      expect(() =>
+        validateOverlay(null, {
+          layers: {
+            overlays: [],
+            surface,
+            baseParents: { drawer: 4 } as never,
+          },
+        })
+      ).toThrow(TypeError)
+    })
+
+    it("throws a TypeError for flags that aren't flags, whatever the input", () => {
+      expect(() =>
+        validateOverlay(null, {
+          layers: {
+            overlays: [],
+            surface,
+            flags: { "pay-now": { hidden: true } } as never,
+          },
+        })
+      ).toThrow(TypeError)
+    })
+  })
 })
