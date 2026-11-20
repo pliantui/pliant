@@ -1,5 +1,3 @@
-import * as z from "zod"
-
 import {
   functionSignatures,
   type Expression,
@@ -12,7 +10,7 @@ import {
   type Report,
 } from "./check-function-call"
 import type { Inferred, ValueType } from "./expression-types"
-import type { Result } from "./result"
+import { failure, type Result } from "./result"
 
 /**
  * A dataset field as the expression checker reads it. A `currency` field's
@@ -118,8 +116,12 @@ interface Item {
   readonly expression: Expression
 }
 
+/** Receives the inferred type of each node the checker reads. */
+type ObserveNode = (node: Expression, type: Inferred) => void
+
 interface Context {
   readonly options: ExpressionCheckerOptions
+  readonly observe: ObserveNode | undefined
   readonly resolved: Record<ItemKind, Map<string, Resolved | "checking">>
   /** The items being checked, each one referenced by the item before it. */
   readonly stack: Item[]
@@ -329,7 +331,7 @@ function inferRef(
     }
     walk.window = true
   }
-  return resolved.type
+  return resolved.window ? { ...resolved.type, window: true } : resolved.type
 }
 
 function argumentScope(
@@ -369,6 +371,19 @@ function argumentScope(
 }
 
 function infer(
+  walk: Walk,
+  node: Expression,
+  path: readonly PropertyKey[],
+  scope: Scope
+): Inferred | undefined {
+  const type = inferNode(walk, node, path, scope)
+  if (type) {
+    walk.context.observe?.(node, type)
+  }
+  return type
+}
+
+function inferNode(
   walk: Walk,
   node: Expression,
   path: readonly PropertyKey[],
@@ -414,8 +429,20 @@ function infer(
 export function createExpressionChecker(
   options: ExpressionCheckerOptions
 ): ExpressionChecker {
+  return createObservedChecker(options, undefined)
+}
+
+/**
+ * Creates a checker as `createExpressionChecker` does that also passes every
+ * node it types to `observe`, so a caller can read the types of subexpressions.
+ */
+export function createObservedChecker(
+  options: ExpressionCheckerOptions,
+  observe: ObserveNode | undefined
+): ExpressionChecker {
   const context: Context = {
     options,
+    observe,
     resolved: { derived: new Map(), aggregate: new Map() },
     stack: [],
   }
@@ -435,16 +462,7 @@ export function createExpressionChecker(
             : { type: type.type, unit: type.unit },
       }
     }
-    return {
-      success: false,
-      error: new z.ZodError(
-        issues.map(({ path, message }) => ({
-          code: "custom",
-          path: [...path],
-          message,
-        }))
-      ),
-    }
+    return failure(issues)
   }
 }
 
