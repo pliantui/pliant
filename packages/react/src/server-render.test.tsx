@@ -2,6 +2,7 @@
 import { renderToString } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
 
+import { memoryStorage } from "../test/storage"
 import { PliantRoot } from "./pliant-root"
 import type { StorageAdapter } from "./storage-adapter"
 import { useMountedNodes } from "./use-mounted-nodes"
@@ -22,7 +23,7 @@ function Probe() {
 describe("PliantRoot on the server", () => {
   it("renders without touching storage", () => {
     const load = vi.fn(() => ({}))
-    const storage: StorageAdapter = { load, save: vi.fn() }
+    const storage: StorageAdapter = { ...memoryStorage().storage, load }
 
     expect(typeof window).toBe("undefined")
     expect(

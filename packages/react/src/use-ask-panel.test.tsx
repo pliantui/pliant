@@ -2,6 +2,7 @@ import { createRef, useLayoutEffect, useState, type KeyboardEvent } from "react"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { memoryStorage } from "../test/storage"
 import { PliantRoot } from "./pliant-root"
 import type { StorageAdapter } from "./storage-adapter"
 import { useAskPanel, type UseAskPanelOptions } from "./use-ask-panel"
@@ -46,10 +47,7 @@ const widenOverlay = overlay([widen], ["Made the Total column wider."])
 
 const okAnswer: AskAnswer = { status: "ok", overlay: widenOverlay }
 
-const storage: StorageAdapter = {
-  load: () => ({ personal: [] }),
-  save: () => undefined,
-}
+const { storage } = memoryStorage()
 
 type AskAnswer = Awaited<ReturnType<UseAskPanelOptions<Target>["send"]>>
 
@@ -349,7 +347,7 @@ describe("useAskPanel", () => {
   it("says so when the page hasn't loaded its layers yet", async () => {
     await renderPanel(
       {},
-      { load: () => new Promise(() => undefined), save: () => undefined }
+      { ...storage, load: () => new Promise(() => undefined) }
     )
 
     await ask()

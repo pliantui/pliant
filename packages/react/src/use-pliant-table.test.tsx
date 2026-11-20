@@ -22,12 +22,12 @@ import { act, cleanup, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import * as z from "zod"
 
-import type { Op, Overlay } from "@pliantui/contract"
+import type { Op } from "@pliantui/contract"
 import type { OpPropertyKey, ResolvedLayers } from "@pliantui/core"
 
+import { memoryStorage } from "../test/storage"
 import { PliantRoot } from "./pliant-root"
 import type { PliantStore } from "./pliant-store"
-import type { StorageAdapter } from "./storage-adapter"
 import { usePliantStore } from "./use-pliant-store"
 import { usePliantTable, type UsePliantTableOptions } from "./use-pliant-table"
 import { useResolved } from "./use-resolved"
@@ -90,23 +90,12 @@ interface Harness {
   table: ReturnType<typeof useTable<Features, Order>>
 }
 
-function memoryAdapter() {
-  const saved: Overlay[] = []
-  const storage: StorageAdapter = {
-    load: () => ({}),
-    save: (_surface, overlay) => {
-      saved.push(overlay)
-    },
-  }
-  return { storage, saved }
-}
-
 function setup(
   options: Partial<TableOptions<Features, Order>> = {},
   config: Partial<UsePliantTableOptions> = {},
   onError?: (error: unknown) => void
 ) {
-  const { storage, saved } = memoryAdapter()
+  const { storage, saved } = memoryStorage()
   const harness: Partial<Harness> = {}
   function Table() {
     const table = useTable(
@@ -465,7 +454,7 @@ describe("usePliantTable", () => {
       return <output>{table.getRowModel().rows.length}</output>
     }
     render(
-      <PliantRoot surface={surface} storage={memoryAdapter().storage}>
+      <PliantRoot surface={surface} storage={memoryStorage().storage}>
         <Table />
       </PliantRoot>
     )
@@ -502,7 +491,7 @@ describe("usePliantTable", () => {
       return null
     }
     render(
-      <PliantRoot surface={surface} storage={memoryAdapter().storage}>
+      <PliantRoot surface={surface} storage={memoryStorage().storage}>
         <Table />
       </PliantRoot>
     )
@@ -739,7 +728,7 @@ describe("usePliantTable with state rebuilt every render", () => {
       return <output>{pageIndex}</output>
     }
     render(
-      <PliantRoot surface={surface} storage={memoryAdapter().storage}>
+      <PliantRoot surface={surface} storage={memoryStorage().storage}>
         <Table />
       </PliantRoot>
     )
@@ -754,7 +743,7 @@ describe("usePliantTable with state rebuilt every render", () => {
 
   it("keeps an AI preview's sort", () => {
     vi.useFakeTimers()
-    const { storage, saved } = memoryAdapter()
+    const { storage, saved } = memoryStorage()
     const harness: { store?: PliantStore; sorting?: SortingState } = {}
     function Table() {
       const [sorting, setSorting] = useState<SortingState>()
@@ -821,7 +810,7 @@ describe("usePliantTable with state rebuilt with dates", () => {
       return <output>{table.getRowModel().rows.length}</output>
     }
     render(
-      <PliantRoot surface={surface} storage={memoryAdapter().storage}>
+      <PliantRoot surface={surface} storage={memoryStorage().storage}>
         <Table />
       </PliantRoot>
     )
@@ -858,7 +847,7 @@ describe("usePliantTable with state rebuilt with dates", () => {
       return null
     }
     render(
-      <PliantRoot surface={surface} storage={memoryAdapter().storage}>
+      <PliantRoot surface={surface} storage={memoryStorage().storage}>
         <Table />
       </PliantRoot>
     )
@@ -905,7 +894,7 @@ describe("usePliantTable with state rebuilt with dates", () => {
       return <output>{table.getRowModel().rows.length}</output>
     }
     render(
-      <PliantRoot surface={surface} storage={memoryAdapter().storage}>
+      <PliantRoot surface={surface} storage={memoryStorage().storage}>
         <Table />
       </PliantRoot>
     )
@@ -953,7 +942,7 @@ describe("usePliantTable with developer-owned state", () => {
       return null
     }
     render(
-      <PliantRoot surface={surface} storage={memoryAdapter().storage}>
+      <PliantRoot surface={surface} storage={memoryStorage().storage}>
         <Table />
       </PliantRoot>
     )

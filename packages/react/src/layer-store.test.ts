@@ -2,28 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { opSchema, type Op, type Overlay } from "@pliantui/contract"
 
+import {
+  memoryStorage,
+  recordOf,
+  stored,
+  type StoredInput,
+} from "../test/storage"
 import { createLayerStore, type LayerStoreOptions } from "./layer-store"
-import type { StorageAdapter, StoredLayers } from "./storage-adapter"
+import { localAdapter } from "./local-adapter"
+import type { StorageAdapter } from "./storage-adapter"
 
 const surface = "/orders"
 
-function memoryAdapter(stored: StoredLayers = {}) {
-  const saved: Overlay[] = []
-  const adapter: StorageAdapter = {
-    load: () => stored,
-    save: (_surface, overlay) => {
-      saved.push(overlay)
-    },
-  }
-  return { adapter, saved }
-}
-
-function setup(
-  stored?: StoredLayers,
-  options: Partial<LayerStoreOptions> = {}
-) {
-  const { adapter, saved } = memoryAdapter(stored)
-  const store = createLayerStore({ surface, storage: adapter, ...options })
+function setup(layers?: StoredInput, options: Partial<LayerStoreOptions> = {}) {
+  const { storage, saved } = memoryStorage(layers)
+  const store = createLayerStore({ surface, storage, ...options })
   const disconnect = store.connect()
   return { store, saved, disconnect }
 }
@@ -63,6 +56,7 @@ function personalOverlay(id: string, ops: unknown[]) {
 beforeEach(() => {
   vi.useFakeTimers({ now: Date.UTC(2026, 10, 19) })
   sessionStorage.clear()
+  localStorage.clear()
 })
 
 afterEach(() => {
@@ -71,12 +65,12 @@ afterEach(() => {
 
 describe("createLayerStore", () => {
   it("resolves the stored layers once connected", () => {
-    const { adapter } = memoryAdapter({
+    const { storage } = memoryStorage({
       personal: [
         personalOverlay("01KAB0000000000000000000P1", [width("total", 240)]),
       ],
     })
-    const store = createLayerStore({ surface, storage: adapter })
+    const store = createLayerStore({ surface, storage })
 
     expect(widthOf(store.getResolved(), "total")).toBeUndefined()
     store.connect()
@@ -87,19 +81,17 @@ describe("createLayerStore", () => {
     const store = createLayerStore({
       surface,
       storage: {
+        ...memoryStorage().storage,
         load: () =>
           Promise.resolve({
-            team: [
-              {
-                ...personalOverlay("01KAB0000000000000000000T1", [
-                  width("total", 300),
-                ]),
-                layer: "team",
-                scope: { team: "ops" },
-              },
-            ],
+            team: stored({
+              ...personalOverlay("01KAB0000000000000000000T1", [
+                width("total", 300),
+              ]),
+              layer: "team",
+              scope: { team: "ops" },
+            }),
           }),
-        save: () => undefined,
       },
     })
     store.connect()
@@ -109,16 +101,27 @@ describe("createLayerStore", () => {
   })
 
   it("ignores overlays that don't load and keeps the others", () => {
-    const { store } = setup({
-      personal: [
-        "corrupt",
-        { v: 99 },
-        personalOverlay("01KAB0000000000000000000P1", [
-          width("total", 240),
-          { op: "fromTheFuture", target: "orders-table" },
-        ]),
-      ],
-    })
+    localStorage.setItem(
+      `pliant:${surface}:01KAB0000000000000000000P8`,
+      "corrupt"
+    )
+    localStorage.setItem(
+      `pliant:${surface}:01KAB0000000000000000000P9`,
+      JSON.stringify({ overlay: { v: 99 }, etag: "1" })
+    )
+    localStorage.setItem(
+      `pliant:${surface}:01KAB0000000000000000000P1`,
+      JSON.stringify(
+        recordOf(
+          personalOverlay("01KAB0000000000000000000P1", [
+            width("total", 240),
+            { op: "fromTheFuture", target: "orders-table" },
+          ])
+        )
+      )
+    )
+    const store = createLayerStore({ surface, storage: localAdapter() })
+    store.connect()
     const resolved = store.getResolved()
 
     expect(widthOf(resolved, "total")).toBe(240)
@@ -391,12 +394,13 @@ describe("createLayerStore", () => {
         surface,
         onError,
         storage: {
-          load: () => ({}),
+          ...memoryStorage().storage,
           save: (_surface, overlay) => {
             if (failing) {
               throw new Error("quota")
             }
             saved.push(overlay)
+            return recordOf(overlay)
           },
         },
       })
@@ -420,7 +424,7 @@ describe("createLayerStore", () => {
       const store = createLayerStore({
         surface,
         onError,
-        storage: { load: () => ({}), save },
+        storage: { ...memoryStorage().storage, save },
       })
       store.connect()
       store.actions.applyOps("personal", [width("total", 200)])
@@ -443,11 +447,13 @@ describe("createLayerStore", () => {
       const save = vi
         .fn<StorageAdapter["save"]>()
         .mockRejectedValueOnce(new Error("offline"))
-        .mockResolvedValue(undefined)
+        .mockImplementation((_surface, overlay) =>
+          Promise.resolve(recordOf(overlay))
+        )
       const store = createLayerStore({
         surface,
         onError,
-        storage: { load: () => ({}), save },
+        storage: { ...memoryStorage().storage, save },
       })
       store.connect()
       store.actions.applyOps("personal", [width("total", 200)])
@@ -461,6 +467,59 @@ describe("createLayerStore", () => {
       expect(save.mock.calls[1]?.[1]).toMatchObject({
         ops: [width("total", 200)],
       })
+    })
+  })
+
+  describe("loads after saves", () => {
+    function countingStorage(notify: boolean) {
+      const { storage } = memoryStorage()
+      const listeners = new Set<() => void>()
+      const load = vi.fn<StorageAdapter["load"]>((surface) =>
+        storage.load(surface)
+      )
+      const adapter: StorageAdapter = {
+        ...storage,
+        load,
+        save: (...args) => {
+          const record = storage.save(...args)
+          if (notify) {
+            listeners.forEach((listener) => {
+              listener()
+            })
+          }
+          return Promise.resolve(record)
+        },
+        subscribe: (_surface, listener) => {
+          listeners.add(listener)
+          return () => listeners.delete(listener)
+        },
+      }
+      const store = createLayerStore({ surface, storage: adapter })
+      store.connect()
+      return { store, load }
+    }
+
+    it("doesn't load again after a plain save", async () => {
+      const { store, load } = countingStorage(false)
+      expect(load).toHaveBeenCalledTimes(1)
+      store.actions.applyOps("personal", [width("total", 200)])
+      store.flush()
+      await vi.advanceTimersByTimeAsync(10)
+
+      expect(load).toHaveBeenCalledTimes(1)
+    })
+
+    it("loads once per save when the adapter notifies on its own saves", async () => {
+      const { store, load } = countingStorage(true)
+      store.actions.applyOps("personal", [width("total", 200)])
+      store.flush()
+      await vi.advanceTimersByTimeAsync(10)
+      expect(load).toHaveBeenCalledTimes(2)
+
+      store.actions.applyOps("personal", [width("status", 120)])
+      store.flush()
+      await vi.advanceTimersByTimeAsync(10)
+      expect(load).toHaveBeenCalledTimes(3)
     })
   })
 
@@ -504,7 +563,7 @@ describe("createLayerStore", () => {
       const load = vi.fn(() => ({}))
       const store = createLayerStore({
         surface,
-        storage: { load, save: vi.fn() },
+        storage: { ...memoryStorage().storage, load },
       })
 
       expect(store.getStatus()).toEqual({ status: "loading" })
@@ -705,7 +764,7 @@ describe("createLayerStore", () => {
       const load = vi.fn<StorageAdapter["load"]>()
       const store = createLayerStore({
         surface,
-        storage: { load, save: vi.fn() },
+        storage: { ...memoryStorage().storage, load },
       })
       return { store, load }
     }
@@ -713,9 +772,9 @@ describe("createLayerStore", () => {
     it("rejects changes until the layers have loaded", async () => {
       const { store, load } = asyncSetup()
       load.mockResolvedValue({
-        personal: [
-          personalOverlay("01KAB0000000000000000000P1", [width("total", 240)]),
-        ],
+        personal: stored(
+          personalOverlay("01KAB0000000000000000000P1", [width("total", 240)])
+        ),
       })
       store.connect()
 
@@ -738,9 +797,9 @@ describe("createLayerStore", () => {
     it("reports a failed load, and loads again on reload", async () => {
       const { store, load } = asyncSetup()
       load.mockRejectedValueOnce(new Error("offline")).mockResolvedValue({
-        personal: [
-          personalOverlay("01KAB0000000000000000000P1", [width("total", 240)]),
-        ],
+        personal: stored(
+          personalOverlay("01KAB0000000000000000000P1", [width("total", 240)])
+        ),
       })
       store.connect()
       await vi.waitFor(() => {
@@ -786,11 +845,11 @@ describe("createLayerStore", () => {
           new Promise((resolve) => {
             settleCurrent = () => {
               resolve({
-                personal: [
+                personal: stored(
                   personalOverlay("01KAB0000000000000000000P1", [
                     width("total", 240),
-                  ]),
-                ],
+                  ])
+                ),
               })
             }
           })
@@ -820,10 +879,10 @@ describe("createLayerStore", () => {
       const store = createLayerStore({
         surface,
         storage: {
+          ...memoryStorage().storage,
           load: () => {
             throw new Error("blocked")
           },
-          save: vi.fn(),
         },
       })
       store.connect()
@@ -901,7 +960,7 @@ describe("createLayerStore", () => {
     it("matches the server snapshot until it connects", () => {
       const store = createLayerStore({
         surface,
-        storage: memoryAdapter().adapter,
+        storage: memoryStorage().storage,
       })
 
       expect(store.getResolved()).toBe(store.getServerResolved())
