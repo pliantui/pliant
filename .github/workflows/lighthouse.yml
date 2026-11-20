@@ -27,7 +27,7 @@ jobs:
       - name: Summarize scores
         if: ${{ !cancelled() }}
         run: |
-          node -e '
+          node <<'EOF'
             const fs = require("node:fs");
             const manifest = JSON.parse(fs.readFileSync(".lighthouseci/reports/manifest.json", "utf8"));
             const rows = manifest.filter((run) => run.isRepresentativeRun).map((run) => {
@@ -37,7 +37,7 @@ jobs:
             });
             const table = ["| URL | Performance | Accessibility | Best practices | SEO |", "| --- | --- | --- | --- | --- |", ...rows].join("\n");
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, table + "\n");
-          '
+          EOF
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
