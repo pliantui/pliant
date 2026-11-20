@@ -111,6 +111,12 @@ describe("per-row addresses", () => {
     ])
   })
 
+  it("reports a non-string target as the wrong type, not as reserved", () => {
+    expect(
+      issuesOf(opSchema, { op: "remove", target: ["order-card[42]"] })
+    ).toEqual([expect.not.objectContaining({ params: reserved })])
+  })
+
   it("still reports other remove targets as malformed", () => {
     expect(
       issuesOf(opSchema, { op: "remove", target: "card[]/slots/body" })
@@ -148,6 +154,11 @@ describe("slotIdSchema", () => {
 
   it("rejects templates", () => {
     expect(slotIdSchema.safeParse("card[]").success).toBe(false)
+  })
+
+  it("accepts up to 64 characters", () => {
+    expect(slotIdSchema.safeParse("a".repeat(64)).success).toBe(true)
+    expect(slotIdSchema.safeParse("a".repeat(65)).success).toBe(false)
   })
 })
 

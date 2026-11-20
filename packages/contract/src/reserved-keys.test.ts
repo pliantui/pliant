@@ -38,6 +38,12 @@ describe("withoutReservedKeys", () => {
     expect(schema.safeParse(value).success).toBe(true)
   })
 
+  it("marks the issue so it can be told apart from a malformed value", () => {
+    expect(
+      schema.safeParse(JSON.parse('{"__proto__":{}}')).error?.issues
+    ).toEqual([expect.objectContaining({ params: { reservedKey: true } })])
+  })
+
   it("stops at objects it has already seen", () => {
     const value: Record<string, unknown> = { a: 1 }
     value["self"] = value
