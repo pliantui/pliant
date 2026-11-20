@@ -16,11 +16,19 @@ import { createRoot, hydrateRoot } from "react-dom/client"
 import { renderToString } from "react-dom/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { opSchema, type Op, type Overlay } from "@pliantui/contract"
+import {
+  opSchema,
+  type Op,
+  type Overlay,
+  type StoredOverlay,
+} from "@pliantui/contract"
 import type { ResolvedLayers } from "@pliantui/core"
 
-import { PliantRoot } from "./pliant-root"
-import type { StorageAdapter } from "./storage-adapter"
+import { memoryStorage, recordOf, stored } from "../test/storage"
+import { localAdapter } from "./local-adapter"
+import { PliantRoot, type PliantRootProps } from "./pliant-root"
+import type { StorageAdapter, StoredLayers } from "./storage-adapter"
+import { StorageConflictError } from "./storage-conflict-error"
 import { useMountedNodes } from "./use-mounted-nodes"
 import { usePliantStatus } from "./use-pliant-status"
 import { usePliantStore } from "./use-pliant-store"
@@ -43,14 +51,7 @@ function widthOf({ properties }: ResolvedLayers) {
 }
 
 function memoryAdapter(personal: unknown[] = []) {
-  const saved: Overlay[] = []
-  const storage: StorageAdapter = {
-    load: () => ({ personal }),
-    save: (_surface, overlay) => {
-      saved.push(overlay)
-    },
-  }
-  return { storage, saved }
+  return memoryStorage({ personal })
 }
 
 function Width() {
@@ -71,23 +72,20 @@ afterEach(() => {
 describe("PliantRoot", () => {
   it("resolves the personal layer saved in localStorage by default", () => {
     localStorage.setItem(
-      `pliant:${surface}`,
-      JSON.stringify({
-        v: 1,
-        personal: [
-          {
-            v: 1,
-            id: "01KAB0000000000000000000P1",
-            surface,
-            layer: "personal",
-            ops: [width(240)],
-            basis: { contract: 1, core: "0.0.0", manifests: {} },
-            source: "manual",
-            createdBy: "local",
-            createdAt: "2026-11-19T00:00:00.000Z",
-          },
-        ],
-      })
+      `pliant:${surface}:01KAB0000000000000000000P1`,
+      JSON.stringify(
+        recordOf({
+          v: 1,
+          id: "01KAB0000000000000000000P1",
+          surface,
+          layer: "personal",
+          ops: [width(240)],
+          basis: { contract: 1, core: "0.0.0", manifests: {} },
+          source: "manual",
+          createdBy: "local",
+          createdAt: "2026-11-19T00:00:00.000Z",
+        })
+      )
     )
     render(
       <PliantRoot surface={surface}>
@@ -478,10 +476,10 @@ describe("PliantRoot", () => {
       "IS_REACT_ACT_ENVIRONMENT"
     )
     Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", false)
-    let stored: unknown[] = []
+    let personal: unknown[] = []
     const storage: StorageAdapter = {
-      load: () => ({ personal: stored }),
-      save: () => undefined,
+      ...memoryStorage().storage,
+      load: () => ({ personal: stored(...personal) }),
     }
     const commits: string[] = []
     function Probe() {
@@ -511,7 +509,7 @@ describe("PliantRoot", () => {
       })
       root.render(app("hidden"))
       await new Promise((resolve) => setTimeout(resolve, 20))
-      stored = [
+      personal = [
         {
           v: 1,
           id: "01KAB0000000000000000000P1",
@@ -599,32 +597,9 @@ describe("PliantRoot", () => {
 
     setItem.mockRestore()
     window.dispatchEvent(new Event("pagehide"))
-    expect(
-      JSON.parse(localStorage.getItem(`pliant:${surface}`) ?? "null")
-    ).toMatchObject({ personal: [{ ops: [width(200)] }] })
-  })
-
-  it("reports saving over newer data to onError", () => {
-    const onError = vi.fn()
-    localStorage.setItem(`pliant:${surface}`, JSON.stringify({ v: 2 }))
-    const { result } = renderHook(() => usePliantStore(), {
-      wrapper: ({ children }: { children: ReactNode }) => (
-        <PliantRoot surface={surface} onError={onError}>
-          {children}
-        </PliantRoot>
-      ),
+    expect(localAdapter().load(surface)).toMatchObject({
+      personal: [{ overlay: { ops: [width(200)] } }],
     })
-
-    act(() => {
-      result.current.applyOps("personal", [width(200)])
-    })
-    window.dispatchEvent(new Event("pagehide"))
-    expect(onError).toHaveBeenCalledWith(
-      new Error(
-        `The overlays saved for ${surface} were written by a newer version of Pliant`
-      )
-    )
-    expect(localStorage.getItem(`pliant:${surface}`)).toBe('{"v":2}')
   })
 
   it("throws when a hook is used outside a PliantRoot", () => {
@@ -633,5 +608,784 @@ describe("PliantRoot", () => {
     expect(() => renderHook(() => useResolved())).toThrow(
       "useResolved must be used within a PliantRoot"
     )
+  })
+
+  describe("changes stored elsewhere", () => {
+    const columnWidth = (column: string, value: number): Op => ({
+      op: "setColumnWidth",
+      target: `orders-table/columns/${column}`,
+      width: value,
+    })
+
+    function personal(id: string, ops: Op[], createdAt: string): Overlay {
+      return {
+        v: 1,
+        id,
+        surface,
+        layer: "personal",
+        ops,
+        basis: { contract: 1, core: "0.0.0", manifests: {} },
+        source: "manual",
+        createdBy: "local",
+        createdAt,
+      }
+    }
+
+    function columnOf({ properties }: ResolvedLayers, column: string) {
+      const op = properties.get(`orders-table/columns/${column}`)?.get("width")
+        ?.winner.check.op
+      return op?.op === "setColumnWidth" ? op.width : "base"
+    }
+
+    function renderRoot(props: Partial<PliantRootProps> = {}) {
+      const statuses: string[] = []
+      const { result } = renderHook(
+        () => {
+          const status = usePliantStatus().status
+          statuses.push(status)
+          return {
+            status,
+            resolved: useResolved(),
+            store: usePliantStore(),
+          }
+        },
+        {
+          wrapper: ({ children }: { children: ReactNode }) => (
+            <PliantRoot surface={surface} {...props}>
+              {children}
+            </PliantRoot>
+          ),
+        }
+      )
+      return {
+        statuses,
+        widths: () => ({
+          total: columnOf(result.current.resolved, "total"),
+          status: columnOf(result.current.resolved, "status"),
+        }),
+        store: () => result.current.store,
+      }
+    }
+
+    // What the browser does in every other tab of the origin.
+    async function storageEventFromAnotherTab() {
+      await changedElsewhere(() => {
+        window.dispatchEvent(
+          new StorageEvent("storage", {
+            key: `pliant:${surface}:01KAB0000000000000000000P1`,
+            storageArea: localStorage,
+          })
+        )
+      })
+    }
+
+    // Runs `report`, then lets the root load what changed.
+    async function changedElsewhere(report: () => void) {
+      await act(async () => {
+        report()
+        await Promise.resolve()
+      })
+    }
+
+    function otherTab() {
+      const adapter = localAdapter()
+      const records = () => {
+        const layers = adapter.load(surface)
+        return layers instanceof Promise ? [] : (layers.personal ?? [])
+      }
+      return { adapter, records }
+    }
+
+    it("shows what another tab saves, without loading again", async () => {
+      const adapter = localAdapter()
+      const root = renderRoot({
+        storage: {
+          ...adapter,
+          load: (name) => Promise.resolve(adapter.load(name)),
+        },
+      })
+      await vi.waitFor(() => {
+        expect(root.statuses.at(-1)).toBe("ready")
+      })
+      expect(root.widths().total).toBe("base")
+
+      void otherTab().adapter.save(
+        surface,
+        personal(
+          "01KAB0000000000000000000P1",
+          [columnWidth("total", 300)],
+          "2026-11-19T00:00:00.000Z"
+        ),
+        { ifMatch: null }
+      )
+      expect(root.widths().total).toBe("base")
+      await storageEventFromAnotherTab()
+      expect(root.statuses.at(-1)).toBe("ready")
+
+      await vi.waitFor(() => {
+        expect(root.widths().total).toBe(300)
+      })
+      const afterReady = root.statuses.slice(root.statuses.indexOf("ready"))
+      expect(afterReady).not.toContain("loading")
+      expect(afterReady).not.toContain("error")
+    })
+
+    it("doesn't load again once unmounted", async () => {
+      const adapter = localAdapter()
+      const load = vi.fn((name: string) => adapter.load(name))
+      const { unmount } = render(
+        <PliantRoot surface={surface} storage={{ ...adapter, load }}>
+          <Width />
+        </PliantRoot>
+      )
+      const loads = load.mock.calls.length
+      unmount()
+      await storageEventFromAnotherTab()
+
+      expect(load).toHaveBeenCalledTimes(loads)
+    })
+
+    it("drops what another tab removed and keeps changes not saved yet", async () => {
+      vi.useFakeTimers()
+      const tab = otherTab()
+      void tab.adapter.save(
+        surface,
+        personal(
+          "01KAB0000000000000000000P1",
+          [columnWidth("total", 300)],
+          "2026-11-19T00:00:00.000Z"
+        ),
+        { ifMatch: null }
+      )
+      void tab.adapter.save(
+        surface,
+        personal(
+          "01KAB0000000000000000000P2",
+          [columnWidth("status", 90)],
+          "2026-11-19T00:00:00.000Z"
+        ),
+        { ifMatch: null }
+      )
+      const root = renderRoot()
+      expect(root.widths()).toEqual({ total: 300, status: 90 })
+
+      act(() => {
+        root.store().applyOps("personal", [columnWidth("total", 260)])
+      })
+      for (const record of tab.records()) {
+        void tab.adapter.remove?.(surface, record.overlay.id, {
+          ifMatch: record.etag,
+        })
+      }
+      await storageEventFromAnotherTab()
+      expect(root.widths()).toEqual({ total: 260, status: "base" })
+
+      act(() => {
+        vi.advanceTimersByTime(1000)
+      })
+      expect(tab.records().map((record) => record.overlay.ops)).toEqual([
+        [columnWidth("total", 260)],
+      ])
+    })
+
+    it("reports a failed load after a change elsewhere and keeps the layers", async () => {
+      const onError = vi.fn()
+      const adapter = localAdapter()
+      let failing = false
+      const storage: StorageAdapter = {
+        ...adapter,
+        load: (name) => {
+          if (failing) {
+            throw new Error("offline")
+          }
+          return adapter.load(name)
+        },
+      }
+      void adapter.save(
+        surface,
+        personal(
+          "01KAB0000000000000000000P1",
+          [columnWidth("total", 300)],
+          "2026-11-19T00:00:00.000Z"
+        ),
+        { ifMatch: null }
+      )
+      const root = renderRoot({ storage, onError })
+      failing = true
+      await storageEventFromAnotherTab()
+
+      expect(onError).toHaveBeenCalledWith(new Error("offline"))
+      expect(root.statuses.at(-1)).toBe("ready")
+      expect(root.widths().total).toBe(300)
+    })
+
+    // A save as a synchronous adapter answers it, or as an async one.
+    type Answer = (
+      save: () => StoredOverlay | Promise<StoredOverlay>
+    ) => StoredOverlay | Promise<StoredOverlay>
+    const answerModes: readonly (readonly [string, Answer])[] = [
+      ["synchronous", (save) => save()],
+      [
+        "asynchronous",
+        (save) =>
+          new Promise((resolve) => {
+            resolve(save())
+          }),
+      ],
+    ]
+
+    async function pageHidden() {
+      window.dispatchEvent(new Event("pagehide"))
+      await act(() => new Promise((resolve) => setTimeout(resolve)))
+    }
+
+    // A server that stores the version but whose answer never arrives, and
+    // that drops the milliseconds of `createdAt` as a database might.
+    function lostAnswerOnce(conflictError?: (current: StoredOverlay) => Error) {
+      const { storage, records } = memoryStorage()
+      let lost = false
+      const save: StorageAdapter["save"] = (name, overlay, options) => {
+        const current = records.get(overlay.id)
+        if (current && conflictError) {
+          throw conflictError(current)
+        }
+        if (lost) {
+          return storage.save(name, overlay, options)
+        }
+        lost = true
+        void storage.save(
+          name,
+          { ...overlay, createdAt: overlay.createdAt.replace(/\.\d+Z$/, "Z") },
+          options
+        )
+        throw new Error("The connection closed")
+      }
+      return { storage: { ...storage, save }, records }
+    }
+
+    it.each(answerModes)(
+      "counts a version as saved when its id is stored already (%s)",
+      async (_mode, answer) => {
+        const onError = vi.fn()
+        const lost = lostAnswerOnce()
+        const save = vi.fn<StorageAdapter["save"]>((...args) =>
+          answer(() => lost.storage.save(...args))
+        )
+        const root = renderRoot({
+          storage: { ...lost.storage, save },
+          onError,
+        })
+
+        act(() => {
+          root.store().applyOps("personal", [columnWidth("total", 260)])
+        })
+        await pageHidden()
+        expect(onError).toHaveBeenCalledWith(new Error("The connection closed"))
+        act(() => {
+          root.store().applyOps("personal", [columnWidth("status", 50)])
+        })
+        await pageHidden()
+        await pageHidden()
+
+        expect(save).toHaveBeenCalledTimes(3)
+        expect(
+          [...lost.records.values()].map(({ overlay }) => overlay.ops)
+        ).toEqual([[columnWidth("total", 260)], [columnWidth("status", 50)]])
+        expect(root.widths()).toEqual({ total: 260, status: 50 })
+        expect(onError).toHaveBeenCalledTimes(1)
+      }
+    )
+
+    it("recognizes a conflict error from another copy of Pliant", async () => {
+      class CopiedConflictError extends Error {
+        override readonly name = "StorageConflictError"
+        readonly current: StoredOverlay
+        constructor(current: StoredOverlay) {
+          super("Conflict")
+          this.current = current
+        }
+      }
+      const onError = vi.fn()
+      const lost = lostAnswerOnce((current) => new CopiedConflictError(current))
+      const save = vi.fn(lost.storage.save)
+      const root = renderRoot({ storage: { ...lost.storage, save }, onError })
+
+      act(() => {
+        root.store().applyOps("personal", [columnWidth("total", 260)])
+      })
+      await pageHidden()
+      await pageHidden()
+      await pageHidden()
+
+      expect(save).toHaveBeenCalledTimes(2)
+      expect(onError).toHaveBeenCalledTimes(1)
+    })
+
+    it("reports a conflict over another id and saves the version again later", async () => {
+      const onError = vi.fn()
+      const { storage, records } = memoryStorage()
+      let conflicts = 2
+      const save = vi.fn<StorageAdapter["save"]>((name, overlay, options) => {
+        if (conflicts-- > 0) {
+          throw new StorageConflictError(undefined)
+        }
+        return storage.save(name, overlay, options)
+      })
+      const root = renderRoot({ storage: { ...storage, save }, onError })
+
+      act(() => {
+        root.store().applyOps("personal", [columnWidth("total", 260)])
+      })
+      await pageHidden()
+      await pageHidden()
+      await pageHidden()
+
+      expect(save).toHaveBeenCalledTimes(3)
+      expect(onError).toHaveBeenCalledTimes(1)
+      expect(onError).toHaveBeenCalledWith(expect.any(StorageConflictError))
+      expect(records.size).toBe(1)
+    })
+
+    it("dates later changes after the stored overlay it kept", async () => {
+      const { storage, records } = memoryStorage()
+      let calls = 0
+      const save: StorageAdapter["save"] = (name, overlay, options) => {
+        calls++
+        if (calls === 1) {
+          // Stored by an earlier attempt, from a clock that runs ahead.
+          const current = recordOf({
+            ...overlay,
+            createdAt: "2030-01-01T00:00:00.000Z",
+          })
+          records.set(overlay.id, current)
+          throw new StorageConflictError(current)
+        }
+        return storage.save(name, overlay, options)
+      }
+      const root = renderRoot({ storage: { ...storage, save } })
+
+      act(() => {
+        root.store().applyOps("personal", [columnWidth("total", 260)])
+      })
+      await pageHidden()
+      act(() => {
+        root.store().applyOps("personal", [columnWidth("total", 280)])
+      })
+
+      expect(root.widths().total).toBe(280)
+    })
+
+    it("stops saving a version once a load shows it stored", async () => {
+      const lost = lostAnswerOnce()
+      let notify = (): void => undefined
+      const save = vi.fn(lost.storage.save)
+      const root = renderRoot({
+        storage: {
+          ...lost.storage,
+          save,
+          subscribe: (_name, onChange) => {
+            notify = onChange
+            return () => undefined
+          },
+        },
+        onError: vi.fn(),
+      })
+
+      act(() => {
+        root.store().applyOps("personal", [columnWidth("total", 260)])
+      })
+      await pageHidden()
+      await changedElsewhere(notify)
+      // Another device removes it.
+      lost.records.clear()
+      await changedElsewhere(notify)
+      await pageHidden()
+
+      expect(save).toHaveBeenCalledTimes(1)
+      expect(lost.records.size).toBe(0)
+      expect(root.widths().total).toBe("base")
+    })
+
+    it("doesn't save a version again when its answer fails after a load showed it stored", async () => {
+      const { storage, records } = memoryStorage()
+      let notify = (): void => undefined
+      let loseAnswer = (): void => undefined
+      let saves = 0
+      const save = vi.fn<StorageAdapter["save"]>((name, overlay, options) => {
+        const record = storage.save(name, overlay, options)
+        saves++
+        return saves === 1
+          ? new Promise((_resolve, reject) => {
+              loseAnswer = () => {
+                reject(new Error("The connection closed"))
+              }
+            })
+          : record
+      })
+      const root = renderRoot({
+        storage: {
+          ...storage,
+          load: (name) => Promise.resolve(storage.load(name)),
+          save,
+          subscribe: (_name, onChange) => {
+            notify = onChange
+            return () => undefined
+          },
+        },
+        onError: vi.fn(),
+      })
+      await vi.waitFor(() => {
+        expect(root.statuses.at(-1)).toBe("ready")
+      })
+
+      act(() => {
+        root.store().applyOps("personal", [columnWidth("total", 260)])
+      })
+      await pageHidden()
+      await changedElsewhere(notify)
+      await pageHidden()
+      await act(async () => {
+        loseAnswer()
+        await new Promise((resolve) => setTimeout(resolve))
+      })
+      // Another device removes it.
+      records.clear()
+      await changedElsewhere(notify)
+      await pageHidden()
+      act(() => {
+        root.store().applyOps("personal", [columnWidth("status", 50)])
+      })
+      await pageHidden()
+
+      expect([...records.values()].map(({ overlay }) => overlay.ops)).toEqual([
+        [columnWidth("status", 50)],
+      ])
+      expect(root.widths()).toEqual({ total: "base", status: 50 })
+    })
+
+    it("drops a version removed after a load that ran while it saved", async () => {
+      const { storage, records } = memoryStorage()
+      let notify = (): void => undefined
+      let gate: Promise<void> | undefined
+      let openGate = (): void => undefined
+      const root = renderRoot({
+        storage: {
+          ...storage,
+          // Each load reads the store when it starts.
+          load: async (name) => {
+            const layers = storage.load(name)
+            await gate
+            return layers
+          },
+          save: (name, overlay, options) =>
+            Promise.resolve(storage.save(name, overlay, options)),
+          subscribe: (_name, onChange) => {
+            notify = onChange
+            return () => undefined
+          },
+        },
+      })
+      await vi.waitFor(() => {
+        expect(root.statuses.at(-1)).toBe("ready")
+      })
+
+      act(() => {
+        root.store().applyOps("personal", [columnWidth("total", 260)])
+      })
+      gate = new Promise((resolve) => {
+        openGate = resolve
+      })
+      await changedElsewhere(notify)
+      await pageHidden()
+      gate = undefined
+      await act(async () => {
+        openGate()
+        await new Promise((resolve) => setTimeout(resolve))
+      })
+      expect(root.widths().total).toBe(260)
+      // Another device removes it, so the next load matches the one before.
+      records.clear()
+      await act(async () => {
+        notify()
+        await new Promise((resolve) => setTimeout(resolve))
+      })
+
+      expect(root.widths().total).toBe("base")
+    })
+
+    it.each([
+      ["succeeds", (record: StoredOverlay) => Promise.resolve(record)],
+      [
+        "is a conflict over its own id",
+        (record: StoredOverlay) =>
+          Promise.reject(new StorageConflictError(record)),
+      ],
+    ])(
+      "drops a version removed elsewhere before its answer, which %s, arrived",
+      async (_answer, answerWith) => {
+        const { storage, records } = memoryStorage()
+        let notify = (): void => undefined
+        let answer = (): void => undefined
+        const root = renderRoot({
+          storage: {
+            ...storage,
+            load: (name) => Promise.resolve(storage.load(name)),
+            save: (name, overlay, options) => {
+              const record = storage.save(name, overlay, options)
+              return new Promise((resolve) => {
+                answer = () => {
+                  resolve(Promise.resolve(record).then(answerWith))
+                }
+              })
+            },
+            subscribe: (_name, onChange) => {
+              notify = onChange
+              return () => undefined
+            },
+          },
+          onError: vi.fn(),
+        })
+        await vi.waitFor(() => {
+          expect(root.statuses.at(-1)).toBe("ready")
+        })
+
+        act(() => {
+          root.store().applyOps("personal", [columnWidth("total", 260)])
+        })
+        await pageHidden()
+        // Another device removes it, and this tab loads before the answer.
+        records.clear()
+        await act(async () => {
+          notify()
+          await new Promise((resolve) => setTimeout(resolve))
+        })
+        expect(root.widths().total).toBe(260)
+        await act(async () => {
+          answer()
+          await new Promise((resolve) => setTimeout(resolve))
+        })
+        await pageHidden()
+
+        expect(root.widths().total).toBe("base")
+        expect(records.size).toBe(0)
+      }
+    )
+
+    it("keeps a version saved while a load that started before it ran", async () => {
+      const { storage } = memoryStorage()
+      let notify = (): void => undefined
+      let gate: Promise<void> | undefined
+      let openGate = (): void => undefined
+      const root = renderRoot({
+        storage: {
+          ...storage,
+          // Each load reads the store when it starts.
+          load: async (name) => {
+            const layers = storage.load(name)
+            await gate
+            return layers
+          },
+          save: (name, overlay, options) =>
+            Promise.resolve(storage.save(name, overlay, options)),
+          subscribe: (_name, onChange) => {
+            notify = onChange
+            return () => undefined
+          },
+        },
+      })
+      await vi.waitFor(() => {
+        expect(root.statuses.at(-1)).toBe("ready")
+      })
+
+      // Another device saves, and this tab starts loading.
+      void storage.save(
+        surface,
+        personal(
+          "01KAB0000000000000000000P1",
+          [columnWidth("status", 90)],
+          "2026-11-19T00:00:00.000Z"
+        ),
+        { ifMatch: null }
+      )
+      gate = new Promise((resolve) => {
+        openGate = resolve
+      })
+      await changedElsewhere(notify)
+      gate = undefined
+      act(() => {
+        root.store().applyOps("personal", [columnWidth("total", 260)])
+      })
+      await pageHidden()
+      await act(async () => {
+        openGate()
+        await new Promise((resolve) => setTimeout(resolve))
+      })
+
+      expect(root.widths()).toEqual({ total: 260, status: 90 })
+    })
+
+    it("loads once for a burst of changes", async () => {
+      const adapter = localAdapter()
+      const load = vi.fn<StorageAdapter["load"]>((name) => adapter.load(name))
+      renderRoot({ storage: { ...adapter, load } })
+      const loads = load.mock.calls.length
+
+      await changedElsewhere(() => {
+        for (let index = 0; index < 50; index++) {
+          window.dispatchEvent(
+            new StorageEvent("storage", {
+              key: `pliant:${surface}:01KAB0000000000000000000P1`,
+              storageArea: localStorage,
+            })
+          )
+        }
+      })
+
+      expect(load).toHaveBeenCalledTimes(loads + 1)
+    })
+
+    it("keeps two roots on one surface in step", async () => {
+      vi.useFakeTimers()
+      const first = renderRoot()
+      const second = renderRoot()
+
+      act(() => {
+        first.store().applyOps("personal", [columnWidth("total", 260)])
+      })
+      await act(async () => {
+        vi.advanceTimersByTime(1000)
+        await Promise.resolve()
+      })
+
+      expect(second.widths().total).toBe(260)
+    })
+
+    it("loads once more for changes reported while it loads", async () => {
+      const adapter = localAdapter()
+      let notify = (): void => undefined
+      const finishes: (() => void)[] = []
+      const load = vi.fn<StorageAdapter["load"]>((name) => {
+        const layers = adapter.load(name)
+        return new Promise<StoredLayers>((resolve) => {
+          finishes.push(() => {
+            resolve(layers)
+          })
+        })
+      })
+      const root = renderRoot({
+        storage: {
+          ...adapter,
+          load,
+          subscribe: (_name, onChange) => {
+            notify = onChange
+            return () => undefined
+          },
+        },
+      })
+      const finishLoad = async () => {
+        await act(async () => {
+          for (const finish of finishes.splice(0)) {
+            finish()
+          }
+          await Promise.resolve()
+        })
+      }
+      await finishLoad()
+      const loads = load.mock.calls.length
+
+      await changedElsewhere(notify)
+      expect(load).toHaveBeenCalledTimes(loads + 1)
+      void adapter.save(
+        surface,
+        personal(
+          "01KAB0000000000000000000P1",
+          [columnWidth("total", 300)],
+          "2026-11-19T00:00:00.000Z"
+        ),
+        { ifMatch: null }
+      )
+      await changedElsewhere(notify)
+      await changedElsewhere(notify)
+      expect(load).toHaveBeenCalledTimes(loads + 1)
+      await finishLoad()
+      expect(load).toHaveBeenCalledTimes(loads + 2)
+      await finishLoad()
+
+      expect(load).toHaveBeenCalledTimes(loads + 2)
+      expect(root.widths().total).toBe(300)
+    })
+
+    it("keeps the resolved layers when nothing stored changed", async () => {
+      const { result } = renderHook(() => useResolved(), {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <PliantRoot surface={surface}>{children}</PliantRoot>
+        ),
+      })
+      void localAdapter().save(
+        surface,
+        personal(
+          "01KAB0000000000000000000P1",
+          [columnWidth("total", 300)],
+          "2026-11-19T00:00:00.000Z"
+        ),
+        { ifMatch: null }
+      )
+      await storageEventFromAnotherTab()
+      const before = result.current
+      await storageEventFromAnotherTab()
+
+      expect(columnOf(before, "total")).toBe(300)
+      expect(result.current).toBe(before)
+    })
+
+    it("keeps a version saved while a load after a change elsewhere ran", async () => {
+      const { storage } = memoryStorage()
+      let loadStarted = (): void => undefined
+      let finishSave = (): void => undefined
+      const root = renderRoot({
+        storage: {
+          ...storage,
+          // The load reads the store before the save below finishes.
+          load: (name) => {
+            const layers = storage.load(name)
+            return new Promise((resolve) => {
+              loadStarted = () => {
+                resolve(layers)
+              }
+            })
+          },
+          save: (name, overlay, options) =>
+            new Promise((resolve) => {
+              finishSave = () => {
+                resolve(storage.save(name, overlay, options))
+              }
+            }),
+          subscribe: (_name, onChange) => {
+            window.addEventListener("storage", onChange)
+            return () => {
+              window.removeEventListener("storage", onChange)
+            }
+          },
+        },
+      })
+      loadStarted()
+      await vi.waitFor(() => {
+        expect(root.statuses.at(-1)).toBe("ready")
+      })
+
+      act(() => {
+        root.store().applyOps("personal", [columnWidth("total", 260)])
+      })
+      window.dispatchEvent(new Event("pagehide"))
+      await storageEventFromAnotherTab()
+      await act(async () => {
+        finishSave()
+        await Promise.resolve()
+        loadStarted()
+        await new Promise((resolve) => setTimeout(resolve))
+      })
+
+      expect(root.widths().total).toBe(260)
+    })
   })
 })
