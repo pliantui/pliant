@@ -65,7 +65,7 @@ A storage adapter stores and returns each overlay as a record that `stored-overl
 - `etag` is an opaque string of 1 to 256 characters. Every successful save gives the overlay an etag it has never had before. Clients only compare etags for equality.
 - `version` is an integer from 1. The adapter increases it on every save. For a team or org overlay it is the version that `basis.layers` records, and clients compare versions to tell that a layer changed.
 - `updatedAt` is an RFC 3339 date-time with an offset, like `createdAt`.
-- `deletedAt` is optional and has the same format. A record that has it is a tombstone. `stored-overlay.json` can't express the rule that `deletedAt` is the same instant as `updatedAt`, so validators that don't use JavaScript must check it themselves, as the "Validating without JavaScript" section does for other rules. `storedOverlaySchema` compares the two to the millisecond.
+- `deletedAt` is optional and has the same format. A record that has it is a tombstone. `stored-overlay.json` can't express the rule that `deletedAt` is the same instant as `updatedAt`, so validators that use `stored-overlay.json` instead of `storedOverlaySchema` must check it themselves, as the "Validating without JavaScript" section does for other rules. `storedOverlaySchema` compares the two to the millisecond.
 
 Records stored without `deletedAt` stay valid and are live.
 
