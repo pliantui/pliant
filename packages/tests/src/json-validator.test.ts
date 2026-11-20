@@ -60,6 +60,14 @@ const inlineOps = [
   { op: `a${"b".repeat(63)}`, target: "orders-table" },
   { op: "setTheme", target: `a${"b".repeat(255)}` },
   { op: 5, target: "orders-table" },
+  { op: "crm:star", target: "orders-table" },
+  { op: "acme-crm:mark-mine", target: "@app", on: true },
+  { op: "pliant:star", target: "orders-table" },
+  { op: "crm:Star", target: "orders-table" },
+  { op: "crm:star:x", target: "orders-table" },
+  { op: ":star", target: "orders-table" },
+  { op: `crm:${"a".repeat(60)}`, target: "orders-table" },
+  { op: `crm:${"a".repeat(61)}`, target: "orders-table" },
   null,
 ]
 

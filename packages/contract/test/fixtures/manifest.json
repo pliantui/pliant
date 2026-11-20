@@ -131,6 +131,20 @@
           }
         }
       }
+    },
+    {
+      "kind": "button",
+      "version": 1,
+      "description": "Clickable action",
+      "capabilities": {
+        "label": true,
+        "crm:starrable": {
+          "icon": "star",
+          "levels": [1, 2, 3]
+        },
+        "crm:pinned": true,
+        "acme-crm:note": null
+      }
     }
   ],
   "invalid": [
@@ -548,6 +562,55 @@
             ]
           }
         }
+      }
+    },
+    {
+      "kind": "button",
+      "version": 1,
+      "description": "Clickable action",
+      "capabilities": {
+        "pliant:starrable": {}
+      }
+    },
+    {
+      "kind": "button",
+      "version": 1,
+      "description": "Clickable action",
+      "capabilities": {
+        "Crm:starrable": true
+      }
+    },
+    {
+      "kind": "button",
+      "version": 1,
+      "description": "Clickable action",
+      "capabilities": {
+        "crm:Starrable": true
+      }
+    },
+    {
+      "kind": "button",
+      "version": 1,
+      "description": "Clickable action",
+      "capabilities": {
+        "crm:starrable": true,
+        "hidable": true
+      }
+    },
+    {
+      "kind": "button",
+      "version": 1,
+      "description": "Clickable action",
+      "capabilities": {
+        "starrable": {}
+      }
+    },
+    {
+      "kind": "button",
+      "version": 1,
+      "description": "Clickable action",
+      "capabilities": {
+        "crm:": true
       }
     }
   ],

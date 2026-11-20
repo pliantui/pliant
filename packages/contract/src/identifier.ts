@@ -2,8 +2,9 @@ import * as z from "zod"
 
 const kebab = "[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
 const item = "[A-Za-z][A-Za-z0-9_-]*"
+const namespaced = `${kebab}:${kebab}`
 
-export const idPatterns = { kebab, item } as const
+export const idPatterns = { kebab, item, namespaced } as const
 
 export const kebabIdSchema = z
   .string()
@@ -36,7 +37,7 @@ export const registeredNameSchema = notReserved(
   z
     .string()
     .max(64)
-    .regex(new RegExp(`^${kebab}:${kebab}$`), {
+    .regex(new RegExp(`^${namespaced}$`), {
       message: "Must be namespace:name, for example acme:rating",
       abort: true,
     })
@@ -59,6 +60,16 @@ export const functionNameSchema = notReserved(
     .max(64)
     .regex(new RegExp(`^(?:${kebab}:)?[a-z][A-Za-z0-9]*$`), {
       message: "Must be a built-in function name or namespace:name",
+      abort: true,
+    })
+)
+
+export const opNameSchema = notReserved(
+  z
+    .string()
+    .max(64)
+    .regex(new RegExp(`^(?:[a-z][A-Za-z0-9]*|${namespaced})$`), {
+      message: "Must be a built-in op name or namespace:name",
       abort: true,
     })
 )

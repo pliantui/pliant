@@ -206,7 +206,15 @@
           }
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$": {}
+      },
+      "propertyNames": {
+        "not": {
+          "pattern": "^pliant:"
+        }
+      }
     }
   },
   "required": [

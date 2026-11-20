@@ -24,6 +24,41 @@ describe("checkOp", () => {
     }
   )
 
+  it("marks an unknown built-in op as not from an extension", () => {
+    expect(check({ op: "setTheme", target: "orders-table" })).toEqual({
+      index: 0,
+      status: "unknown",
+      op: { op: "setTheme", target: "orders-table" },
+      extension: false,
+    })
+  })
+
+  it.each(["crm:star", "acme-crm:mark-mine", "crm:hide"])(
+    "treats the namespaced op %s as unknown, from an extension",
+    (name) => {
+      const op = { op: name, target: "orders-table", value: { on: true } }
+      expect(check(op)).toEqual({
+        index: 0,
+        status: "unknown",
+        op,
+        extension: true,
+      })
+    }
+  )
+
+  it.each([
+    "pliant:star",
+    "crm:Star",
+    "Crm:star",
+    "crm:",
+    ":star",
+    "crm:star:x",
+    "crm_x:star",
+    `crm:${"a".repeat(61)}`,
+  ])("treats %s as invalid", (name) => {
+    expect(check({ op: name, target: "orders-table" }).status).toBe("invalid")
+  })
+
   it.each([
     [{ op: "hide", target: "orders-table/columns/notes", at: "sm" }, ["at"]],
     [

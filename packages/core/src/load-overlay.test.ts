@@ -24,6 +24,8 @@ describe("loadOverlay", () => {
         { op: "setTheme", target: "orders-table", theme: "ocean" },
         { op: "hide", target: "orders-table/columns/notes", at: "sm" },
         { op: "rename", target: "orders-table/columns/notes", label: "" },
+        { op: "crm:star", target: "orders-table" },
+        { op: "pliant:star", target: "orders-table" },
       ])
     )
     expect(
@@ -33,6 +35,8 @@ describe("loadOverlay", () => {
       [1, "unknown"],
       [2, "newer"],
       [3, "invalid"],
+      [4, "unknown"],
+      [5, "invalid"],
     ])
     expect(result.data?.surface).toBe("/orders/[id]")
   })

@@ -281,6 +281,27 @@ describe("opProperties", () => {
     expect(opProperties(op)).toEqual(properties)
   })
 
+  it("never writes an ext. property, even for keys named ext", () => {
+    const named: Op[] = [
+      { op: "setProp", target: "pay-now", prop: "ext", value: "outline" },
+      { op: "collapse", target: "dashboard", items: ["ext"], into: "more" },
+      { op: "clearFilter", target: table, field: "ext" },
+      {
+        op: "formatField",
+        target: table,
+        field: "ext",
+        format: { type: "currency", currency: "USD" },
+      },
+      { op: "removeUserItem", target: table, id: "ext" },
+    ]
+    const properties = [...cases.map(([op]) => op), ...named].flatMap((op) =>
+      opProperties(op).map(({ property }) => property)
+    )
+    expect(
+      properties.filter((property) => property.startsWith("ext."))
+    ).toEqual([])
+  })
+
   it.each([
     [undefined, "md"],
     ["md", "md"],

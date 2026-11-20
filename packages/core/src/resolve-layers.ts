@@ -82,7 +82,8 @@ export interface ResolvedProperty {
 }
 
 /**
- * Why an op was skipped: its check status, `duplicate-id` when its overlay
+ * Why an op was skipped: its check status, `extension-not-installed` for an
+ * unknown op with a namespaced name, `duplicate-id` when its overlay
  * shares its id with an overlay earlier in the resolution order, or with one
  * that ties with it on every sort key but has other contents, or
  * `surface-mismatch` when the overlay is for another surface.
@@ -91,7 +92,8 @@ export type SkippedOp =
   | {
       readonly check: Exclude<OpCheck, { status: "valid" }>
       readonly overlay: LoadedOverlay
-      readonly reason: Exclude<OpCheck["status"], "valid">
+      readonly reason:
+        Exclude<OpCheck["status"], "valid"> | "extension-not-installed"
     }
   | {
       readonly check: OpCheck
@@ -248,6 +250,8 @@ export function resolveLayers(
     for (const check of overlay.ops) {
       if (reason) {
         skipped.push({ check, overlay, reason })
+      } else if (check.status === "unknown" && check.extension) {
+        skipped.push({ check, overlay, reason: "extension-not-installed" })
       } else if (check.status !== "valid") {
         skipped.push({ check, overlay, reason: check.status })
       } else {
