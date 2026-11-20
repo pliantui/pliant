@@ -66,7 +66,7 @@ A storage adapter stores and returns each overlay as a record that `stored-overl
 - `version` is an integer from 1. The adapter increases it on every save. For a team or org overlay it is the version that `basis.layers` records, and clients compare versions to tell that a layer changed.
 - `updatedAt` is an RFC 3339 date-time with an offset, like `createdAt`.
 
-The adapter methods and the `conflict` result of a conditional save belong to `@pliantui/react`, not to the contract.
+The adapter methods and `StorageConflictError`, which a conditional save throws on a conflict, belong to `@pliantui/react`, not to the contract.
 
 ## Function catalog
 

@@ -57,7 +57,7 @@
   "size-limit": [
     {
       "path": "dist/index.js",
-      "limit": "6.85 kB",
+      "limit": "7.6 kB",
       "ignore": [
         "react",
         "zod",

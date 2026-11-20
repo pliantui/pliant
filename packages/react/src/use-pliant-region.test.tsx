@@ -3,6 +3,7 @@ import { act, cleanup, render } from "@testing-library/react"
 import { renderToString } from "react-dom/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { memoryStorage } from "../test/storage"
 import { PliantRoot } from "./pliant-root"
 import type { PliantStore } from "./pliant-store"
 import type { StorageAdapter } from "./storage-adapter"
@@ -12,24 +13,24 @@ import { usePliantStore } from "./use-pliant-store"
 const surface = "/dashboard"
 
 function storageWith(ops: readonly unknown[]): StorageAdapter {
-  return {
-    load: () => ({
-      personal: [
-        {
-          v: 1,
-          id: "01KAB0000000000000000000P1",
-          surface,
-          layer: "personal",
-          ops,
-          basis: { contract: 1, core: "0.0.0", manifests: {} },
-          source: "manual",
-          createdBy: "local",
-          createdAt: "2026-11-19T00:00:00.000Z",
-        },
-      ],
-    }),
-    save: () => undefined,
-  }
+  return memoryStorage({
+    personal:
+      ops.length === 0
+        ? []
+        : [
+            {
+              v: 1,
+              id: "01KAB0000000000000000000P1",
+              surface,
+              layer: "personal",
+              ops,
+              basis: { contract: 1, core: "0.0.0", manifests: {} },
+              source: "manual",
+              createdBy: "local",
+              createdAt: "2026-11-19T00:00:00.000Z",
+            },
+          ],
+  }).storage
 }
 
 const slots = { revenue: "Revenue", orders: "Orders", overdue: "Overdue" }
@@ -130,8 +131,8 @@ describe("usePliantRegion", () => {
       <PliantRoot
         surface={surface}
         storage={{
+          ...storageWith([]),
           load: () => new Promise(() => undefined),
-          save: () => undefined,
         }}
       >
         <Region />
