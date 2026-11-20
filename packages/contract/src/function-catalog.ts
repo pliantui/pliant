@@ -4,25 +4,11 @@ import {
   type FunctionSignature,
 } from "./function-signatures"
 
-type Summary = "count" | "sum" | "mean" | "m2" | "min" | "max"
-
 /**
  * The shape of a built-in function. Functions registered under a namespace
  * (`acme:gpa`) get their own registration API.
  */
 export interface FunctionDefinition extends FunctionSignature {
-  /**
-   * `propagate`: a null argument makes the result null. `skip`: null values
-   * are left out, and a window function gives their rows null. `custom`: as
-   * `describe` says.
-   */
-  readonly nulls: "propagate" | "skip" | "custom"
-  /**
-   * The summary an aggregate is merged from across partitions, or `null` when
-   * it can't be merged. Counts and sums add, minimums and maximums combine,
-   * and `mean` and `m2` merge with `count` by Chan's parallel algorithm.
-   */
-  readonly mergeable: readonly Summary[] | null
   /** The documented semantics, also given to the model. */
   readonly describe: string
 }
@@ -30,280 +16,226 @@ export interface FunctionDefinition extends FunctionSignature {
 // Without this annotation, bundlers keep every call, and with it every
 // description, in apps that import only `functionSignatures`.
 /* #__NO_SIDE_EFFECTS__ */
-function define(
+function describe(
   signature: FunctionSignature,
-  nulls: FunctionDefinition["nulls"],
-  mergeable: FunctionDefinition["mergeable"],
-  describe: string
+  text: string
 ): FunctionDefinition {
-  return { ...signature, nulls, mergeable, describe }
-}
-
-/* #__NO_SIDE_EFFECTS__ */
-function rowFunction(
-  signature: FunctionSignature,
-  describe: string,
-  nulls: "propagate" | "custom" = "propagate"
-): FunctionDefinition {
-  return define(signature, nulls, null, describe)
-}
-
-/* #__NO_SIDE_EFFECTS__ */
-function aggregate(
-  signature: FunctionSignature,
-  mergeable: readonly Summary[] | null,
-  describe: string
-): FunctionDefinition {
-  return define(signature, "skip", mergeable, describe)
-}
-
-/* #__NO_SIDE_EFFECTS__ */
-function windowFunction(
-  signature: FunctionSignature,
-  describe: string
-): FunctionDefinition {
-  return define(signature, "skip", null, describe)
+  return { ...signature, describe: text }
 }
 
 const builtins = {
-  add: rowFunction(functionSignatures.add, "a plus b."),
-  sub: rowFunction(functionSignatures.sub, "a minus b."),
-  mul: rowFunction(functionSignatures.mul, "a times b."),
-  div: rowFunction(
-    functionSignatures.div,
-    "a divided by b, or null when b is 0."
-  ),
-  abs: rowFunction(functionSignatures.abs, "The absolute value of x."),
-  round: rowFunction(
+  add: describe(functionSignatures.add, "a plus b."),
+  sub: describe(functionSignatures.sub, "a minus b."),
+  mul: describe(functionSignatures.mul, "a times b."),
+  div: describe(functionSignatures.div, "a divided by b, or null when b is 0."),
+  abs: describe(functionSignatures.abs, "The absolute value of x."),
+  round: describe(
     functionSignatures.round,
     "x rounded to digits decimal places, halves away from zero, applied to the shortest decimal that represents x, so round(1.005, 2) is 1.01."
   ),
-  floor: rowFunction(
+  floor: describe(
     functionSignatures.floor,
     "The largest integer not greater than x."
   ),
-  ceil: rowFunction(
+  ceil: describe(
     functionSignatures.ceil,
     "The smallest integer not less than x."
   ),
-  min2: rowFunction(
+  min2: describe(
     functionSignatures.min2,
     "The smaller of a and b, or null when either is null."
   ),
-  max2: rowFunction(
+  max2: describe(
     functionSignatures.max2,
     "The larger of a and b, or null when either is null."
   ),
-  clamp: rowFunction(
+  clamp: describe(
     functionSignatures.clamp,
     "x limited to the range from low to high, or null when low is greater than high."
   ),
-  percentChange: rowFunction(
+  percentChange: describe(
     functionSignatures.percentChange,
     "(to - from) divided by the absolute value of from, so a rise is positive even from a negative base. Null when from is 0."
   ),
-  if: rowFunction(
+  if: describe(
     functionSignatures.if,
-    "then when condition is true, otherwise else. A null condition picks else.",
-    "custom"
+    "then when condition is true, otherwise else. A null condition picks else."
   ),
-  and: rowFunction(
+  and: describe(
     functionSignatures.and,
-    "True when every argument is true. False when any is false, even if others are null; otherwise null.",
-    "custom"
+    "True when every argument is true. False when any is false, even if others are null; otherwise null."
   ),
-  or: rowFunction(
+  or: describe(
     functionSignatures.or,
-    "True when any argument is true, even if others are null. False when every one is false; otherwise null.",
-    "custom"
+    "True when any argument is true, even if others are null. False when every one is false; otherwise null."
   ),
-  not: rowFunction(
+  not: describe(
     functionSignatures.not,
     "True when x is false, false when x is true."
   ),
-  eq: rowFunction(functionSignatures.eq, "True when a equals b."),
-  neq: rowFunction(functionSignatures.neq, "True when a doesn't equal b."),
-  gt: rowFunction(functionSignatures.gt, "True when a is greater than b."),
-  gte: rowFunction(
+  eq: describe(functionSignatures.eq, "True when a equals b."),
+  neq: describe(functionSignatures.neq, "True when a doesn't equal b."),
+  gt: describe(functionSignatures.gt, "True when a is greater than b."),
+  gte: describe(
     functionSignatures.gte,
     "True when a is greater than or equal to b."
   ),
-  lt: rowFunction(functionSignatures.lt, "True when a is less than b."),
-  lte: rowFunction(
+  lt: describe(functionSignatures.lt, "True when a is less than b."),
+  lte: describe(
     functionSignatures.lte,
     "True when a is less than or equal to b."
   ),
-  between: rowFunction(
+  between: describe(
     functionSignatures.between,
     "True when x is from low to high, both included. False when low is greater than high."
   ),
-  in: rowFunction(
+  in: describe(
     functionSignatures.in,
-    "True when x equals one of values, otherwise false. Null when x is null; null values never match. Takes at most 15 values, by the 16-argument limit.",
-    "custom"
+    "True when x equals one of values, otherwise false. Null when x is null; null values never match. Takes at most 15 values, by the 16-argument limit."
   ),
-  isNull: rowFunction(
+  isNull: describe(
     functionSignatures.isNull,
-    "True when x is null, otherwise false.",
-    "custom"
+    "True when x is null, otherwise false."
   ),
-  coalesce: rowFunction(
+  coalesce: describe(
     functionSignatures.coalesce,
-    "The first argument that isn't null, or null when all are.",
-    "custom"
+    "The first argument that isn't null, or null when all are."
   ),
-  concat: rowFunction(
+  concat: describe(
     functionSignatures.concat,
-    "The arguments joined into one string, with null arguments as empty strings. Never null.",
-    "custom"
+    "The arguments joined into one string, with null arguments as empty strings. Never null."
   ),
-  lower: rowFunction(
+  lower: describe(
     functionSignatures.lower,
     "text in lowercase, by Unicode's default case mapping."
   ),
-  upper: rowFunction(
+  upper: describe(
     functionSignatures.upper,
     "text in uppercase, by Unicode's default case mapping."
   ),
-  length: rowFunction(
+  length: describe(
     functionSignatures.length,
     "The number of code points in text."
   ),
-  contains: rowFunction(
+  contains: describe(
     functionSignatures.contains,
     "True when search occurs in text."
   ),
-  startsWith: rowFunction(
+  startsWith: describe(
     functionSignatures.startsWith,
     "True when text starts with search."
   ),
-  left: rowFunction(
+  left: describe(
     functionSignatures.left,
     "The first count code points of text: all of it when count is longer, and an empty string when count is 0 or less."
   ),
-  right: rowFunction(
+  right: describe(
     functionSignatures.right,
     "The last count code points of text: all of it when count is longer, and an empty string when count is 0 or less."
   ),
-  dateDiff: rowFunction(
+  dateDiff: describe(
     functionSignatures.dateDiff,
     "The whole units from the date of start to the date of end. Days are calendar days, and weeks are days divided by 7, truncated toward zero. Months are the largest n for which start moved n months, clamped to the month's last day, doesn't pass end (Jan 31 to Feb 28 is 1), and years are months divided by 12, truncated toward zero. When end is before start, the result is minus dateDiff(end, start, unit)."
   ),
-  datePart: rowFunction(
+  datePart: describe(
     functionSignatures.datePart,
     "One part of the date: the calendar year, quarter (1 to 4), month (1 to 12), ISO 8601 week number (1 to 53, so Dec 31, 2024 is in week 1 while its year is 2024), weekday (1 for Monday to 7 for Sunday) or day of the month."
   ),
-  dateTrunc: rowFunction(
+  dateTrunc: describe(
     functionSignatures.dateTrunc,
     "The first day of the unit that contains the date. Weeks start on Monday."
   ),
-  addDays: rowFunction(
+  addDays: describe(
     functionSignatures.addDays,
     "date moved by days calendar days, keeping the wall-clock time of a datetime."
   ),
-  today: rowFunction(
+  today: describe(
     functionSignatures.today,
     "The current date in the time zone of the layer that defines the expression: the dataset's for org and team, the viewer's for personal and session."
   ),
-  age: rowFunction(functionSignatures.age, "dateDiff(date, today(), years)."),
-  count: aggregate(
+  age: describe(functionSignatures.age, "dateDiff(date, today(), years)."),
+  count: describe(
     functionSignatures.count,
-    ["count"],
     "count(x) is the number of rows where x isn't null; count() is the number of rows."
   ),
-  countIf: aggregate(
+  countIf: describe(
     functionSignatures.countIf,
-    ["count"],
     "The number of rows where condition is true."
   ),
-  sum: aggregate(
+  sum: describe(
     functionSignatures.sum,
-    ["sum"],
     "The sum of x, or 0 when there are no values."
   ),
-  sumIf: aggregate(
+  sumIf: describe(
     functionSignatures.sumIf,
-    ["sum"],
     "The sum of x over rows where condition is true, or 0 when there are none."
   ),
-  mean: aggregate(
+  mean: describe(
     functionSignatures.mean,
-    ["count", "mean"],
     "The arithmetic mean of x, or null when there are no values."
   ),
-  min: aggregate(
+  min: describe(
     functionSignatures.min,
-    ["min"],
     "The smallest value of x, or null when there are no values."
   ),
-  max: aggregate(
+  max: describe(
     functionSignatures.max,
-    ["max"],
     "The largest value of x, or null when there are no values."
   ),
-  variance: aggregate(
+  variance: describe(
     functionSignatures.variance,
-    ["count", "mean", "m2"],
     "The sample variance of x (dividing by n - 1), or null with fewer than 2 values."
   ),
-  stddev: aggregate(
+  stddev: describe(
     functionSignatures.stddev,
-    ["count", "mean", "m2"],
     "The sample standard deviation of x (dividing by n - 1), or null with fewer than 2 values."
   ),
-  variancePop: aggregate(
+  variancePop: describe(
     functionSignatures.variancePop,
-    ["count", "mean", "m2"],
     "The population variance of x (dividing by n), or null when there are no values."
   ),
-  stddevPop: aggregate(
+  stddevPop: describe(
     functionSignatures.stddevPop,
-    ["count", "mean", "m2"],
     "The population standard deviation of x (dividing by n), or null when there are no values."
   ),
-  median: aggregate(functionSignatures.median, null, "percentile(x, 0.5)."),
-  percentile: aggregate(
+  median: describe(functionSignatures.median, "percentile(x, 0.5)."),
+  percentile: describe(
     functionSignatures.percentile,
-    null,
     "The p quantile of x: with the n values sorted, the value at position p × (n - 1) counting from 0, interpolated linearly between neighbours. Null when there are no values."
   ),
-  mode: aggregate(
+  mode: describe(
     functionSignatures.mode,
-    null,
     "The most frequent value of x; on a tie, the smallest, with false before true. Null when there are no values."
   ),
-  distinctCount: aggregate(
+  distinctCount: describe(
     functionSignatures.distinctCount,
-    null,
     "The number of distinct values of x."
   ),
-  first: aggregate(
+  first: describe(
     functionSignatures.first,
-    null,
     "The value of x in the group's first row with one, in display order. Null when there are no values."
   ),
-  last: aggregate(
+  last: describe(
     functionSignatures.last,
-    null,
     "The value of x in the group's last row with one, in display order. Null when there are no values."
   ),
-  rank: windowFunction(
+  rank: describe(
     functionSignatures.rank,
     "1 plus the number of rows in the partition whose x comes before this row's, largest first unless order is asc. Ties share a rank and leave gaps (1, 2, 2, 4)."
   ),
-  denseRank: windowFunction(
+  denseRank: describe(
     functionSignatures.denseRank,
     "1 plus the number of distinct values of x in the partition that come before this row's, largest first unless order is asc. Ties share a rank without gaps (1, 2, 2, 3)."
   ),
-  runningSum: windowFunction(
+  runningSum: describe(
     functionSignatures.runningSum,
     "The sum of x over the partition's rows up to and including this one, one row at a time in display order, so tied rows get different sums."
   ),
-  share: windowFunction(
+  share: describe(
     functionSignatures.share,
     "x divided by the sum of x over the partition, or null when that sum is 0."
   ),
-  zScore: windowFunction(
+  zScore: describe(
     functionSignatures.zScore,
     "(x - mean) divided by the sample standard deviation over the partition, or null when the deviation is 0 or there are fewer than 2 values."
   ),

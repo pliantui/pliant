@@ -39,7 +39,9 @@ interface FunctionArg {
   readonly range?: readonly [number, number]
 }
 
-/** What a type checker needs to know about a built-in function. */
+type Summary = "count" | "sum" | "mean" | "m2" | "min" | "max"
+
+/** How a built-in function is typed and evaluated, without its description. */
 export interface FunctionSignature {
   /**
    * `row` reads one row. `aggregate` reads every row of a group. `window`
@@ -54,9 +56,21 @@ export interface FunctionSignature {
    * of multiplication (`product`) and division (`quotient`).
    */
   readonly unit: "none" | "percent" | "product" | "quotient" | SameAs
+  /**
+   * `propagate`: a null argument makes the result null. `skip`: null values
+   * are left out, and a window function gives their rows null. `custom`: as
+   * the function's description says.
+   */
+  readonly nulls: "propagate" | "skip" | "custom"
+  /**
+   * The summary an aggregate is merged from across partitions, or `null` when
+   * it can't be merged. Counts and sums add, minimums and maximums combine,
+   * and `mean` and `m2` merge with `count` by Chan's parallel algorithm.
+   */
+  readonly mergeable: readonly Summary[] | null
 }
 
-type Shape = Omit<FunctionSignature, "kind">
+type Shape = Pick<FunctionSignature, "args" | "returns" | "unit">
 
 const comparable = ["number", "string", "date", "datetime"] as const
 const anyType = ["number", "string", "boolean", "date", "datetime"] as const
@@ -65,18 +79,24 @@ const dates = ["date", "datetime"] as const
 // Without this annotation, bundlers keep every call, and with it the whole
 // table, in apps that never read a signature.
 /* #__NO_SIDE_EFFECTS__ */
-function row(shape: Shape): FunctionSignature {
-  return { kind: "row", ...shape }
+function row(
+  shape: Shape,
+  nulls: "propagate" | "custom" = "propagate"
+): FunctionSignature {
+  return { kind: "row", ...shape, nulls, mergeable: null }
 }
 
 /* #__NO_SIDE_EFFECTS__ */
-function aggregate(shape: Shape): FunctionSignature {
-  return { kind: "aggregate", ...shape }
+function aggregate(
+  shape: Shape,
+  mergeable: readonly Summary[] | null
+): FunctionSignature {
+  return { kind: "aggregate", ...shape, nulls: "skip", mergeable }
 }
 
 /* #__NO_SIDE_EFFECTS__ */
 function windowFunction(shape: Shape): FunctionSignature {
-  return { kind: "window", ...shape }
+  return { kind: "window", ...shape, nulls: "skip", mergeable: null }
 }
 
 const sameAsA = [
@@ -90,6 +110,8 @@ const twoNumbers = [
 ] as const
 
 const oneNumber = [{ name: "x", type: "number" }] as const
+
+const secondMoment = ["count", "mean", "m2"] as const
 
 const comparison = row({
   args: [
@@ -154,44 +176,47 @@ const textEnd = row({
   unit: "none",
 })
 
-const booleans = row({
-  args: [
-    { name: "a", type: "boolean" },
-    { name: "b", type: "boolean", variadic: true },
-  ],
-  returns: "boolean",
-  unit: "none",
-})
+const booleans = row(
+  {
+    args: [
+      { name: "a", type: "boolean" },
+      { name: "b", type: "boolean", variadic: true },
+    ],
+    returns: "boolean",
+    unit: "none",
+  },
+  "custom"
+)
 
-const statisticLikeX = aggregate({
+const statisticLikeX = {
   args: oneNumber,
   returns: "number",
   unit: { like: "x" },
-})
+} satisfies Shape
 
-const statisticWithoutUnit = aggregate({
+const statisticWithoutUnit = {
   args: oneNumber,
   returns: "number",
   unit: "none",
-})
+} satisfies Shape
 
-const sumOfX = aggregate({
+const sumOfX = {
   args: oneNumber,
   returns: { like: "x" },
   unit: { like: "x" },
-})
+} satisfies Shape
 
-const extreme = aggregate({
+const extreme = {
   args: [{ name: "x", type: comparable }],
   returns: { like: "x" },
   unit: { like: "x" },
-})
+} satisfies Shape
 
-const pick = aggregate({
+const pick = {
   args: [{ name: "x", type: anyType }],
   returns: { like: "x" },
   unit: { like: "x" },
-})
+} satisfies Shape
 
 const ranking = windowFunction({
   args: [
@@ -254,15 +279,18 @@ const signatures = {
     returns: "number",
     unit: "percent",
   }),
-  if: row({
-    args: [
-      { name: "condition", type: "boolean" },
-      { name: "then", type: anyType },
-      { name: "else", type: { like: "then" } },
-    ],
-    returns: { like: "then" },
-    unit: { like: "then" },
-  }),
+  if: row(
+    {
+      args: [
+        { name: "condition", type: "boolean" },
+        { name: "then", type: anyType },
+        { name: "else", type: { like: "then" } },
+      ],
+      returns: { like: "then" },
+      unit: { like: "then" },
+    },
+    "custom"
+  ),
   and: booleans,
   or: booleans,
   not: row({
@@ -285,35 +313,47 @@ const signatures = {
     returns: "boolean",
     unit: "none",
   }),
-  in: row({
-    args: [
-      { name: "x", type: anyType },
-      { name: "values", type: { like: "x" }, variadic: true },
-    ],
-    returns: "boolean",
-    unit: "none",
-  }),
-  isNull: row({
-    args: [{ name: "x", type: anyType }],
-    returns: "boolean",
-    unit: "none",
-  }),
-  coalesce: row({
-    args: [
-      { name: "x", type: anyType },
-      { name: "fallbacks", type: { like: "x" }, variadic: true },
-    ],
-    returns: { like: "x" },
-    unit: { like: "x" },
-  }),
-  concat: row({
-    args: [
-      { name: "a", type: "string" },
-      { name: "b", type: "string", variadic: true },
-    ],
-    returns: "string",
-    unit: "none",
-  }),
+  in: row(
+    {
+      args: [
+        { name: "x", type: anyType },
+        { name: "values", type: { like: "x" }, variadic: true },
+      ],
+      returns: "boolean",
+      unit: "none",
+    },
+    "custom"
+  ),
+  isNull: row(
+    {
+      args: [{ name: "x", type: anyType }],
+      returns: "boolean",
+      unit: "none",
+    },
+    "custom"
+  ),
+  coalesce: row(
+    {
+      args: [
+        { name: "x", type: anyType },
+        { name: "fallbacks", type: { like: "x" }, variadic: true },
+      ],
+      returns: { like: "x" },
+      unit: { like: "x" },
+    },
+    "custom"
+  ),
+  concat: row(
+    {
+      args: [
+        { name: "a", type: "string" },
+        { name: "b", type: "string", variadic: true },
+      ],
+      returns: "string",
+      unit: "none",
+    },
+    "custom"
+  ),
   lower: textToText,
   upper: textToText,
   length: row({
@@ -376,49 +416,64 @@ const signatures = {
     returns: "integer",
     unit: "none",
   }),
-  count: aggregate({
-    args: [{ name: "x", type: anyType, optional: true }],
-    returns: "integer",
-    unit: "none",
-  }),
-  countIf: aggregate({
-    args: [{ name: "condition", type: "boolean" }],
-    returns: "integer",
-    unit: "none",
-  }),
-  sum: sumOfX,
-  sumIf: aggregate({
-    args: [
-      { name: "x", type: "number" },
-      { name: "condition", type: "boolean" },
-    ],
-    returns: { like: "x" },
-    unit: { like: "x" },
-  }),
-  mean: statisticLikeX,
-  min: extreme,
-  max: extreme,
-  variance: statisticWithoutUnit,
-  stddev: statisticLikeX,
-  variancePop: statisticWithoutUnit,
-  stddevPop: statisticLikeX,
-  median: statisticLikeX,
-  percentile: aggregate({
-    args: [
-      { name: "x", type: "number" },
-      { name: "p", type: "number", constant: true, range: [0, 1] },
-    ],
-    returns: "number",
-    unit: { like: "x" },
-  }),
-  mode: pick,
-  distinctCount: aggregate({
-    args: [{ name: "x", type: anyType }],
-    returns: "integer",
-    unit: "none",
-  }),
-  first: pick,
-  last: pick,
+  count: aggregate(
+    {
+      args: [{ name: "x", type: anyType, optional: true }],
+      returns: "integer",
+      unit: "none",
+    },
+    ["count"]
+  ),
+  countIf: aggregate(
+    {
+      args: [{ name: "condition", type: "boolean" }],
+      returns: "integer",
+      unit: "none",
+    },
+    ["count"]
+  ),
+  sum: aggregate(sumOfX, ["sum"]),
+  sumIf: aggregate(
+    {
+      args: [
+        { name: "x", type: "number" },
+        { name: "condition", type: "boolean" },
+      ],
+      returns: { like: "x" },
+      unit: { like: "x" },
+    },
+    ["sum"]
+  ),
+  mean: aggregate(statisticLikeX, ["count", "mean"]),
+  min: aggregate(extreme, ["min"]),
+  max: aggregate(extreme, ["max"]),
+  variance: aggregate(statisticWithoutUnit, secondMoment),
+  stddev: aggregate(statisticLikeX, secondMoment),
+  variancePop: aggregate(statisticWithoutUnit, secondMoment),
+  stddevPop: aggregate(statisticLikeX, secondMoment),
+  median: aggregate(statisticLikeX, null),
+  percentile: aggregate(
+    {
+      args: [
+        { name: "x", type: "number" },
+        { name: "p", type: "number", constant: true, range: [0, 1] },
+      ],
+      returns: "number",
+      unit: { like: "x" },
+    },
+    null
+  ),
+  mode: aggregate(pick, null),
+  distinctCount: aggregate(
+    {
+      args: [{ name: "x", type: anyType }],
+      returns: "integer",
+      unit: "none",
+    },
+    null
+  ),
+  first: aggregate(pick, null),
+  last: aggregate(pick, null),
   rank: ranking,
   denseRank: ranking,
   runningSum: windowFunction({

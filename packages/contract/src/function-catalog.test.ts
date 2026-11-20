@@ -217,16 +217,20 @@ describe("functionCatalog", () => {
   })
 
   it("agrees with functionSignatures", () => {
-    const signatures = Object.entries(functionCatalog.functions).map(
-      ([name, { kind, args, returns, unit }]) => [
-        name,
-        { kind, args, returns, unit },
-      ]
+    expect(Object.keys(functionCatalog.functions)).toEqual(
+      Object.keys(functionSignatures)
     )
-    expect(Object.fromEntries(signatures)).toEqual(functionSignatures)
-    expect(Object.keys(functionSignatures)).toEqual(
-      Object.keys(functionCatalog.functions)
-    )
+    const signatures = new Map(Object.entries(functionSignatures))
+    for (const [name, definition] of Object.entries(
+      functionCatalog.functions
+    )) {
+      const signature = signatures.get(name)
+      expect(signature).not.toHaveProperty("describe")
+      expect(definition).toEqual({
+        ...signature,
+        describe: definition.describe,
+      })
+    }
   })
 
   it("states every rule as sentences", () => {
