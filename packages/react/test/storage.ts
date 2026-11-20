@@ -31,8 +31,9 @@ export interface StoredInput {
 }
 
 /**
- * An adapter that keeps records in memory and checks `ifMatch` as a real
- * one does. `saved` lists every overlay it saved, in order.
+ * An adapter that keeps records in memory, with tombstones, and checks
+ * `ifMatch` as a real one does. `saved` lists every overlay it saved, in
+ * order.
  */
 export function memoryStorage({
   org = [],
@@ -49,11 +50,11 @@ export function memoryStorage({
     load: () => ({
       org: orgRecords,
       team: teamRecords,
-      personal: [...records.values()],
+      personal: [...records.values()].filter((record) => !record.deletedAt),
     }),
     save(_surface, overlay, { ifMatch }) {
       const current = records.get(overlay.id)
-      if ((current?.etag ?? null) !== ifMatch) {
+      if (current?.deletedAt || (current?.etag ?? null) !== ifMatch) {
         throw new StorageConflictError(current)
       }
       const record = recordOf(overlay, (current?.version ?? 0) + 1)
@@ -63,10 +64,14 @@ export function memoryStorage({
     },
     remove(_surface, id, { ifMatch }) {
       const current = records.get(id)
-      if (current && current.etag !== ifMatch) {
+      if (!current || current.deletedAt) {
+        return
+      }
+      if (current.etag !== ifMatch) {
         throw new StorageConflictError(current)
       }
-      records.delete(id)
+      const tombstone = recordOf(current.overlay, current.version + 1)
+      records.set(id, { ...tombstone, deletedAt: tombstone.updatedAt })
     },
   }
   return { storage, saved, records }

@@ -1113,6 +1113,88 @@ describe("PliantRoot", () => {
       expect(root.widths().total).toBe("base")
     })
 
+    it("drops a version removed elsewhere before a failed save is retried", async () => {
+      const { storage, records } = memoryStorage()
+      const onError = vi.fn()
+      let notify = (): void => undefined
+      let loseAnswer = (): void => undefined
+      let saves = 0
+      const save = vi.fn<StorageAdapter["save"]>((name, overlay, options) => {
+        const record = storage.save(name, overlay, options)
+        saves++
+        return saves === 1
+          ? new Promise((_resolve, reject) => {
+              loseAnswer = () => {
+                reject(new Error("The connection closed"))
+              }
+            })
+          : record
+      })
+      const root = renderRoot({
+        storage: {
+          ...storage,
+          load: (name) => Promise.resolve(storage.load(name)),
+          save,
+          subscribe: (_name, onChange) => {
+            notify = onChange
+            return () => undefined
+          },
+        },
+        onError,
+      })
+      await vi.waitFor(() => {
+        expect(root.statuses.at(-1)).toBe("ready")
+      })
+
+      act(() => {
+        root.store().applyOps("personal", [columnWidth("total", 260)])
+      })
+      await pageHidden()
+      // Another device removes it before this tab hears the save's answer.
+      const [record] = records.values()
+      await storage.remove?.(surface, record?.overlay.id ?? "", {
+        ifMatch: record?.etag ?? "",
+      })
+      await changedElsewhere(notify)
+      await act(async () => {
+        loseAnswer()
+        await new Promise((resolve) => setTimeout(resolve))
+      })
+      await pageHidden()
+      await pageHidden()
+
+      expect(save).toHaveBeenCalledTimes(2)
+      expect(
+        [...records.values()].map(({ version, deletedAt }) => ({
+          version,
+          removed: deletedAt !== undefined,
+        }))
+      ).toEqual([{ version: 2, removed: true }])
+      expect(root.widths().total).toBe("base")
+      expect(onError).toHaveBeenCalledTimes(1)
+    })
+
+    it("never applies a tombstone the adapter loads", () => {
+      const record = recordOf(
+        personal(
+          "01KAB0000000000000000000P1",
+          [columnWidth("total", 260)],
+          "2026-11-19T00:00:00.000Z"
+        )
+      )
+      const root = renderRoot({
+        storage: {
+          load: () => ({
+            personal: [{ ...record, deletedAt: record.updatedAt }],
+          }),
+          save: (_name, overlay) => recordOf(overlay),
+        },
+      })
+
+      expect(root.statuses.at(-1)).toBe("ready")
+      expect(root.widths().total).toBe("base")
+    })
+
     it.each([
       ["succeeds", (record: StoredOverlay) => Promise.resolve(record)],
       [
