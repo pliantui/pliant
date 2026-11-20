@@ -1,6 +1,6 @@
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph"
 
-export interface StaticObject {
+interface StaticObject {
   entries: Map<string, Node>
   problems: { node: Node; reason: string }[]
 }

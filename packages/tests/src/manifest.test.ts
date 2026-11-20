@@ -117,7 +117,7 @@ describe("pliantui manifest", () => {
         "SheetContent  components/ui/sheet.tsx",
         '  side  from union, default "right"',
         "    needs confirmation   top, right, bottom, left",
-        "    right and left are physical sides, kept as written.",
+        "    right and left are kept as written, so they don't flip in right-to-left layouts.",
       ].join("\n")
     )
     expect(stdout).toContain(
@@ -264,6 +264,15 @@ describe("pliantui manifest", () => {
           },
         },
       }),
+      Banner: manifest("banner", "Banner", {
+        props: { tone: { values: ["neutral", "brand"], default: "brand" } },
+      }),
+      Heading: manifest("heading", "Heading", {
+        props: { align: { values: ["start", "center"] } },
+      }),
+      Segment: manifest("segment", "Segment", {
+        props: { fill: { values: ["solid", "soft"], default: "soft" } },
+      }),
       Chip: manifest("chip", "Chip", {
         props: {
           tone: { values: ["neutral", "brand"], default: "neutral" },
@@ -294,7 +303,12 @@ describe("pliantui manifest", () => {
       "components/ui/dynamic.tsx:10 The intent variant of panelVariants can't be read statically:",
       "components/ui/dynamic.tsx:24 The variants of stackVariants can't be read statically: makeConfig() isn't an object literal.",
       "components/ui/tag.tsx:12 The look variant of tagVariants can't be read statically: the computed key [accent].",
-      "components/ui/tag.tsx:18 defaultVariants is nested inside the variants of tagVariants, so it's read as a variant. Move it next to variants.",
+      "components/ui/tag.tsx:18 defaultVariants is nested inside the variants of tagVariants, where cva and tv treat it as a variant, so it has no effect. Move it next to variants.",
+      "components/ui/eyebrow.tsx:5 cva() here can't be traced to class-variance-authority or tailwind-variants, so its variants aren't read.",
+      ["Tag  components/ui/tag.tsx", "  shape  from cva"].join("\n"),
+      "  look  values not readable",
+      "  intent  values not readable",
+      ["  level  from cva", "    needs confirmation   1, 2"].join("\n"),
       ["Stack  components/ui/dynamic.tsx", "  variants not readable"].join(
         "\n"
       ),
@@ -305,6 +319,7 @@ describe("pliantui manifest", () => {
       expect(stdout).toContain(line)
     }
     expect(stdout).not.toContain("emphasis  from")
+    expect(stdout).not.toContain("from union")
   })
 
   it("explains when there is no components.json", async () => {

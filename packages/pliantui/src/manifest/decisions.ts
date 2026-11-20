@@ -24,11 +24,11 @@ const componentDecisionsSchema = z.strictObject({
   defaults: z.record(z.string(), defaultDecisionSchema).optional(),
 })
 
-export const decisionsSchema = z.strictObject({
+const decisionsSchema = z.strictObject({
   components: z.record(z.string(), componentDecisionsSchema),
 })
 
-export type Decisions = z.infer<typeof decisionsSchema>
+type Decisions = z.infer<typeof decisionsSchema>
 
 export async function readDecisions(file: string): Promise<Decisions> {
   if (!existsSync(file)) {
@@ -92,10 +92,12 @@ export function recordDecisions(
     components: { ...previous.components },
   }
   for (const component of components) {
+    const saved = previous.components[component.name]
+    // Props and defaults not found this run keep their saved decisions.
     const props: Record<
       string,
       Record<string, "user" | "semantic" | "state" | "hidden">
-    > = {}
+    > = { ...saved?.props }
     for (const prop of component.props) {
       props[prop.name] = Object.fromEntries(
         prop.values.map((value) => [
@@ -104,8 +106,9 @@ export function recordDecisions(
         ])
       )
     }
-    const defaults: NonNullable<Decisions["components"][string]["defaults"]> =
-      {}
+    const defaults: NonNullable<Decisions["components"][string]["defaults"]> = {
+      ...saved?.defaults,
+    }
     for (const item of component.defaults) {
       defaults[item.name] = {
         class: item.class === "user" ? "user" : "hidden",
@@ -116,9 +119,9 @@ export function recordDecisions(
       }
     }
     result.components[component.name] = {
-      ...(component.props.length > 0 ? { props } : {}),
-      ...(component.defaults.length > 0 ? { defaults } : {}),
+      ...(Object.keys(props).length > 0 ? { props } : {}),
+      ...(Object.keys(defaults).length > 0 ? { defaults } : {}),
     }
   }
-  return result
+  return decisionsSchema.parse(result)
 }

@@ -10,9 +10,9 @@ import {
   unwrapExpression,
 } from "./read-static"
 
-export type VariantLibrary = "cva" | "tv"
+type VariantLibrary = "cva" | "tv"
 
-export interface Variant {
+interface Variant {
   values: string[]
   boolean: boolean
 }
@@ -26,12 +26,15 @@ export interface VariantDefinition {
   defaults: Map<string, string>
 }
 
+interface Factory {
+  name: string
+  library: VariantLibrary
+  config: number
+}
+
 // Where each library takes its config: cva(base, config), cva({ base, ... })
 // in the `cva` package, and tv(config).
-const factories: Record<
-  string,
-  { name: string; library: VariantLibrary; config: number }
-> = {
+const factories: Record<string, Factory> = {
   "class-variance-authority": { name: "cva", library: "cva", config: 1 },
   cva: { name: "cva", library: "cva", config: 0 },
   "tailwind-variants": { name: "tv", library: "tv", config: 0 },
@@ -48,20 +51,62 @@ const reservedVariantNames = new Set([
 
 const classKeys = new Set(["class", "className"])
 
-function getFactory(call: CallExpression) {
+// tailwind-variants' createTV() returns a tv with a custom config.
+const factoryMakers: Record<string, { name: string; factory: Factory }> = {
+  "tailwind-variants": {
+    name: "createTV",
+    factory: { name: "tv", library: "tv", config: 0 },
+  },
+}
+
+function getImportedName(declaration: Node) {
+  if (!Node.isImportSpecifier(declaration)) {
+    return undefined
+  }
+  return {
+    module: declaration.getImportDeclaration().getModuleSpecifierValue(),
+    name: declaration.getName(),
+  }
+}
+
+/**
+ * Finds which library a called function comes from, following re-exports
+ * and aliases through the app's own modules, such as a `tv` made with
+ * `createTV` in `lib/utils`.
+ */
+function getFactory(call: CallExpression): Factory | undefined {
   const callee = call.getExpression()
   if (!Node.isIdentifier(callee)) {
     return undefined
   }
-  for (const declaration of getDeclarations(callee, { followAliases: false })) {
-    if (!Node.isImportSpecifier(declaration)) {
-      continue
+  let symbol = callee.getSymbol()
+  for (let depth = 0; symbol && depth < 10; depth++) {
+    for (const declaration of symbol.getDeclarations()) {
+      const imported = getImportedName(declaration)
+      const factory = imported && factories[imported.module]
+      if (imported && factory?.name === imported.name) {
+        return factory
+      }
+      if (Node.isVariableDeclaration(declaration)) {
+        const initializer = declaration.getInitializer()
+        const made = initializer && unwrapExpression(initializer)
+        const maker = Node.isCallExpression(made)
+          ? made.getExpression()
+          : undefined
+        if (Node.isIdentifier(maker)) {
+          for (const makerDeclaration of getDeclarations(maker, {
+            followAliases: false,
+          })) {
+            const source = getImportedName(makerDeclaration)
+            const entry = source && factoryMakers[source.module]
+            if (source && entry?.name === source.name) {
+              return entry.factory
+            }
+          }
+        }
+      }
     }
-    const module = declaration.getImportDeclaration().getModuleSpecifierValue()
-    const factory = factories[module]
-    if (factory?.name === declaration.getName()) {
-      return factory
-    }
+    symbol = symbol.isAlias() ? symbol.getImmediatelyAliasedSymbol() : undefined
   }
   return undefined
 }
@@ -73,6 +118,21 @@ export function getVariantCall(callee: Node): CallExpression | undefined {
     return value
   }
   return undefined
+}
+
+/**
+ * Returns a call to a function named cva or tv that can't be traced back to
+ * class-variance-authority or tailwind-variants, so it can be reported.
+ */
+export function getUntracedVariantCall(
+  callee: Node
+): CallExpression | undefined {
+  const value = resolveExpression(callee)
+  if (!Node.isCallExpression(value) || getFactory(value)) {
+    return undefined
+  }
+  const name = value.getExpression().getText()
+  return name === "cva" || name === "tv" ? value : undefined
 }
 
 export function readVariantDefinition(
@@ -206,7 +266,7 @@ function readVariants(
     if (reservedVariantNames.has(name)) {
       report(
         valueNode.getParentOrThrow(),
-        `${name} is nested inside the variants of ${definition.name}, so it's read as a variant. Move it next to variants.`
+        `${name} is nested inside the variants of ${definition.name}, where cva and tv treat it as a variant, so it has no effect. Move it next to variants.`
       )
       continue
     }

@@ -21,12 +21,12 @@ import {
 type ComponentFunction =
   FunctionDeclaration | ArrowFunction | FunctionExpression
 
-export interface Binding {
+interface Binding {
   prop: string
   initializer?: Node | undefined
 }
 
-export interface FoundProp {
+interface FoundProp {
   source: PropSource
   values: string[]
   boolean: boolean
@@ -69,11 +69,20 @@ export function findComponents(
     ] of sourceFile.getExportedDeclarations()) {
       for (const declaration of declarations) {
         const fn = getComponentFunction(declaration)
+        // A default export is named after its function, if it has a name.
         const name =
-          exportName === "default" && Node.isFunctionDeclaration(declaration)
-            ? (declaration.getName() ?? exportName)
+          exportName === "default"
+            ? (fn?.getSymbol()?.getName() ?? exportName)
             : exportName
         if (!fn || !/^[A-Z]/.test(name)) {
+          if (fn && exportName === "default") {
+            diagnostics.push(
+              createDiagnostic(
+                declaration,
+                "This default export has no component name, so it gets no manifest. Give its function a name or export it by name."
+              )
+            )
+          }
           continue
         }
         const existing = components.get(name)
@@ -142,8 +151,15 @@ function getComponentFunction(node: Node): ComponentFunction | undefined {
   return undefined
 }
 
+/** The props parameter, skipping a TypeScript `this` parameter. */
+export function getPropsParameter(component: Component) {
+  return component.fn
+    .getParameters()
+    .find((parameter) => parameter.getName() !== "this")
+}
+
 function readBindings(component: Component) {
-  const parameter = component.fn.getParameters()[0]
+  const parameter = getPropsParameter(component)
   if (!parameter) {
     return
   }
@@ -196,7 +212,6 @@ export function isPropsObject(component: Component, node: Node) {
 }
 
 /** The component prop an expression passes on unchanged, if any. */
-
 export function getBinding(
   component: Component,
   node: Node

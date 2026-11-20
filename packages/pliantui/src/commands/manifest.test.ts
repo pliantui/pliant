@@ -23,6 +23,8 @@ const files: Record<string, string> = {
       paths: { "@/*": ["./*"] },
     },
   }),
+  "lib/utils.ts":
+    "export const cn = (...classes: string[]) => classes.join(' ')\n",
   "components/ui/button.tsx": `
 import { cva } from "class-variance-authority"
 
@@ -77,10 +79,19 @@ beforeEach(async () => {
   vi.spyOn(process, "exit").mockImplementation((code) => {
     throw new ExitError(code)
   })
+  setTerminal(true)
 })
+
+function setTerminal(isTTY: boolean) {
+  Object.defineProperty(process.stdin, "isTTY", {
+    value: isTTY,
+    configurable: true,
+  })
+}
 
 afterEach(async () => {
   vi.restoreAllMocks()
+  setTerminal(false)
   await rm(cwd, { recursive: true, force: true })
 })
 
@@ -88,9 +99,16 @@ async function run(...args: string[]) {
   await manifest.parseAsync(["--cwd", cwd, ...args], { from: "user" })
 }
 
-async function readManifests() {
+async function writeTsConfig(paths: Record<string, string[]>) {
+  await writeFile(
+    path.join(cwd, "tsconfig.json"),
+    JSON.stringify({ compilerOptions: { jsx: "react-jsx", paths } })
+  )
+}
+
+async function readManifests(lib = "lib") {
   const source = await readFile(
-    path.join(cwd, "lib/pliant/manifests.generated.ts"),
+    path.join(cwd, lib, "pliant/manifests.generated.ts"),
     "utf8"
   )
   const module = (await import(
@@ -183,6 +201,7 @@ describe("pliantui manifest review", () => {
 
     await expect(run()).rejects.toEqual(new ExitError(1))
     expect(output).toContain("Review cancelled. Nothing was written.")
+    expect(output.join("\n")).not.toContain("Something went wrong")
     await expect(
       readFile(path.join(cwd, "lib/pliant/manifests.generated.ts"))
     ).rejects.toThrow()
@@ -206,5 +225,36 @@ describe("pliantui manifest review", () => {
     await expect(
       readFile(path.join(cwd, "lib/pliant/manifest-decisions.json"))
     ).rejects.toThrow()
+  })
+
+  it("asks for --yes when there is no terminal to review in", async () => {
+    setTerminal(false)
+
+    await expect(run()).rejects.toEqual(new ExitError(1))
+    expect(output).toContain(
+      "The review needs an interactive terminal. Run pliantui manifest in one, or pass --yes to use the inferred classes."
+    )
+    await expect(
+      readFile(path.join(cwd, "lib/pliant/manifests.generated.ts"))
+    ).rejects.toThrow()
+  })
+
+  it("resolves aliases with the longest matching tsconfig path", async () => {
+    await writeTsConfig({
+      "@/*": ["./src/*"],
+      "@/components/*": ["./components/*"],
+    })
+
+    await run("--yes")
+
+    expect(Object.keys(await readManifests("src/lib"))).toEqual(["Button"])
+  })
+
+  it("tries each tsconfig path target in turn", async () => {
+    await writeTsConfig({ "@/*": ["./src/*", "./*"] })
+
+    await run("--yes")
+
+    expect(Object.keys(await readManifests())).toEqual(["Button"])
   })
 })

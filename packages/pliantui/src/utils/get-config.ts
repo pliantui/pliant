@@ -7,6 +7,7 @@ import * as z from "zod"
 import { highlighter } from "./highlighter"
 
 const componentsJsonSchema = z.object({
+  tsx: z.boolean().default(true),
   aliases: z.object({
     components: z.string(),
     utils: z.string(),
@@ -15,7 +16,8 @@ const componentsJsonSchema = z.object({
   }),
 })
 
-export interface Config {
+interface Config {
+  tsx: boolean
   tsConfigFilePath: string
   resolvedPaths: {
     cwd: string
@@ -38,7 +40,18 @@ export async function getConfig(cwd: string): Promise<Config | null> {
       `Could not read ${highlighter.info(componentsJsonPath)}. Check that it is valid JSON.`
     )
   }
-  const { aliases } = componentsJsonSchema.parse(raw)
+  const parsed = componentsJsonSchema.safeParse(raw)
+  if (!parsed.success) {
+    throw new Error(
+      [
+        `Invalid configuration found in ${highlighter.info(componentsJsonPath)}:`,
+        ...parsed.error.issues.map(
+          (issue) => `- ${issue.path.join(".")}: ${issue.message}`
+        ),
+      ].join("\n")
+    )
+  }
+  const { tsx, aliases } = parsed.data
 
   const tsConfigFilePath = ["tsconfig.json", "jsconfig.json"]
     .map((file) => path.join(cwd, file))
@@ -50,17 +63,24 @@ export async function getConfig(cwd: string): Promise<Config | null> {
   }
 
   const resolve = createAliasResolver(tsConfigFilePath)
-  const components = resolve(aliases.components)
-  const utils = resolve(aliases.utils)
-  const ui = aliases.ui
-    ? resolve(aliases.ui)
-    : components && path.join(components, "ui")
-  const lib = aliases.lib ? resolve(aliases.lib) : utils && path.dirname(utils)
+  const resolveUi = () =>
+    aliases.ui
+      ? resolve(aliases.ui)
+      : mapResolved(resolve(aliases.components), (components) =>
+          path.join(components, "ui")
+        )
+  const resolveLib = () =>
+    aliases.lib
+      ? resolve(aliases.lib)
+      : mapResolved(resolve(aliases.utils), (utils) => path.dirname(utils))
+  const ui = resolveUi()
+  const lib = resolveLib()
 
-  const missing = Object.entries({ components, utils, ui, lib })
-    .filter(([, resolved]) => !resolved)
-    .map(([key]) => key)
-  if (!ui || !lib || missing.length > 0) {
+  if (!ui || !lib) {
+    const missing = [
+      ...(ui ? [] : [aliases.ui ? "ui" : "components"]),
+      ...(lib ? [] : [aliases.lib ? "lib" : "utils"]),
+    ]
     throw new Error(
       [
         `Could not resolve the following aliases in ${highlighter.info(cwd)}: ${highlighter.info(missing.join(", "))}.`,
@@ -69,7 +89,11 @@ export async function getConfig(cwd: string): Promise<Config | null> {
     )
   }
 
-  return { tsConfigFilePath, resolvedPaths: { cwd, ui, lib } }
+  return { tsx, tsConfigFilePath, resolvedPaths: { cwd, ui, lib } }
+}
+
+function mapResolved(value: string | null, map: (value: string) => string) {
+  return value === null ? null : map(value)
 }
 
 function createAliasResolver(tsConfigFilePath: string) {
@@ -95,28 +119,46 @@ function createAliasResolver(tsConfigFilePath: string) {
     options.baseUrl ??
     (typeof pathsBase === "string" ? pathsBase : path.dirname(tsConfigFilePath))
 
-  return (alias: string) => {
-    for (const [pattern, targets] of Object.entries(paths)) {
-      const target = targets[0]
-      if (target === undefined) {
-        continue
-      }
+  // Like TypeScript, an exact pattern wins, then the longest prefix.
+  const patterns = Object.entries(paths)
+    .map(([pattern, targets]) => {
       const star = pattern.indexOf("*")
-      if (star === -1) {
-        if (pattern === alias) {
-          return path.resolve(base, target)
+      return {
+        prefix: star === -1 ? pattern : pattern.slice(0, star),
+        suffix: star === -1 ? "" : pattern.slice(star + 1),
+        exact: star === -1,
+        targets,
+      }
+    })
+    .sort(
+      (a, b) =>
+        Number(b.exact) - Number(a.exact) || b.prefix.length - a.prefix.length
+    )
+
+  return (alias: string) => {
+    // Each target is tried in turn, as TypeScript does.
+    const pick = (candidates: string[]) =>
+      candidates.find((candidate) => existsSync(candidate)) ??
+      candidates[0] ??
+      null
+    for (const { prefix, suffix, exact, targets } of patterns) {
+      if (exact) {
+        if (prefix === alias) {
+          return pick(targets.map((target) => path.resolve(base, target)))
         }
         continue
       }
-      const prefix = pattern.slice(0, star)
-      const suffix = pattern.slice(star + 1)
       if (
         alias.length >= prefix.length + suffix.length &&
         alias.startsWith(prefix) &&
         alias.endsWith(suffix)
       ) {
         const matched = alias.slice(prefix.length, alias.length - suffix.length)
-        return path.resolve(base, target.replace("*", matched))
+        return pick(
+          targets.map((target) =>
+            path.resolve(base, target.replace("*", matched))
+          )
+        )
       }
     }
     return null

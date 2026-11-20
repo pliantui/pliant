@@ -7,19 +7,22 @@ import {
 
 import type { InferredComponent, InferredDefault } from "./inferred-component"
 
-export interface BuiltManifest {
-  manifest: Manifest
+interface BuiltManifest {
+  /** Undefined when the component itself can't be described, see `error`. */
+  manifest: Manifest | undefined
+  error?: string
   /** Props and defaults left out because the contract doesn't accept them. */
   rejected: { name: string; reason: string }[]
   /** Defaults the developer kept that still need values or a range. */
   incomplete: { name: string; needs: "values" | "min and max" }[]
 }
 
-export function toKind(name: string) {
+function toKind(name: string) {
   return name
-    .replace(/[^A-Za-z0-9]+/g, "-")
     .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
     .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
+    .replace(/[^A-Za-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
     .toLowerCase()
 }
 
@@ -106,11 +109,14 @@ export function buildManifest(component: InferredComponent): BuiltManifest {
       return [{ name, reason: issue.message }]
     })
     if (removed.length === 0) {
-      throw new Error(
-        `Could not build a valid manifest for ${component.name}: ${result.error.issues
+      return {
+        manifest: undefined,
+        error: result.error.issues
           .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-          .join("; ")}`
-      )
+          .join("; "),
+        rejected,
+        incomplete,
+      }
     }
     rejected.push(...removed)
   }

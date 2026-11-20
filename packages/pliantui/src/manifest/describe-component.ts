@@ -19,8 +19,9 @@ function getJsDocDescription(node: Node): string | undefined {
 export function describeComponent(component: Component) {
   const description = getJsDocDescription(component.declaration)
   if (description) {
-    return description.length > 200
-      ? `${description.slice(0, 197)}...`
+    const characters = Array.from(description)
+    return characters.length > 200
+      ? `${characters.slice(0, 197).join("")}...`
       : description
   }
   const words = component.name

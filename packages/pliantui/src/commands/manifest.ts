@@ -40,20 +40,25 @@ export const manifest = new Command()
     process.cwd()
   )
   .action(async (opts: Record<string, unknown>) => {
+    let result: "written" | "cancelled"
     try {
       const options = manifestOptionsSchema.parse({
         ...opts,
         cwd: path.resolve(String(opts["cwd"])),
       })
-      await generateManifests(options)
+      result = await generateManifests(options)
     } catch (error) {
       handleError(error)
+    }
+    if (result === "cancelled") {
+      logger.warn("Review cancelled. Nothing was written.")
+      process.exit(1)
     }
   })
 
 async function generateManifests(
   options: z.infer<typeof manifestOptionsSchema>
-) {
+): Promise<"written" | "cancelled"> {
   const { cwd } = options
   const relative = (file: string) => path.relative(cwd, file) || "."
 
@@ -84,7 +89,10 @@ async function generateManifests(
 
   const outputDirectory = path.join(lib, "pliant")
   const decisionsFile = path.join(outputDirectory, "manifest-decisions.json")
-  const manifestsFile = path.join(outputDirectory, "manifests.generated.ts")
+  const manifestsFile = path.join(
+    outputDirectory,
+    `manifests.generated.${config.tsx ? "ts" : "js"}`
+  )
   const decisions = await readDecisions(decisionsFile)
   let components = applyDecisions(inferred, decisions)
 
@@ -92,7 +100,14 @@ async function generateManifests(
     logger.warn(
       `No components with variants or default-state props found in ${highlighter.info(relative(ui))}.`
     )
-    return
+    if (existsSync(manifestsFile)) {
+      await writeFile(
+        manifestsFile,
+        renderManifests({}, path.basename(decisionsFile))
+      )
+      logger.success(`✔ Cleared ${relative(manifestsFile)}.`)
+    }
+    return "written"
   }
 
   logger.log(
@@ -104,10 +119,14 @@ async function generateManifests(
 
   let savedDecisions = false
   if (!options.yes && hasUndecided(components)) {
+    if (!process.stdin.isTTY) {
+      throw new Error(
+        `The review needs an interactive terminal. Run ${highlighter.info("pliantui manifest")} in one, or pass ${highlighter.info("--yes")} to use the inferred classes.`
+      )
+    }
     const reviewed = await reviewComponents(components)
     if (!reviewed) {
-      logger.warn("Review cancelled. Nothing was written.")
-      process.exit(1)
+      return "cancelled"
     }
     components = reviewed
     await mkdir(outputDirectory, { recursive: true })
@@ -120,8 +139,21 @@ async function generateManifests(
 
   const manifests: Record<string, Manifest> = {}
   for (const component of components) {
-    const { manifest, rejected, incomplete } = buildManifest(component)
+    const { manifest, error, rejected, incomplete } = buildManifest(component)
+    if (!manifest) {
+      logger.warn(`${component.name} was left out: ${error ?? ""}.`)
+      continue
+    }
     const { props, defaults } = manifest.capabilities
+    const sameKind = Object.entries(manifests).find(
+      ([, other]) => other.kind === manifest.kind
+    )
+    if (sameKind) {
+      logger.warn(
+        `${component.name} was left out: ${sameKind[0]} already has the kind ${manifest.kind}.`
+      )
+      continue
+    }
     if (props || defaults || !component.variantsReadable) {
       manifests[component.name] = manifest
     }
@@ -168,4 +200,6 @@ async function generateManifests(
       `${parts.join(" and ")} ${pendingValues + pendingDefaults === 1 ? "needs" : "need"} confirmation and ${pendingValues + pendingDefaults === 1 ? "was" : "were"} left out. Run ${highlighter.info("pliantui manifest")} without --yes to review them.`
     )
   }
+
+  return "written"
 }

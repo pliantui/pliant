@@ -9,13 +9,15 @@ import {
   isPropsObject,
   type Component,
 } from "./component"
-import type { Diagnostic } from "./diagnostic"
+import { createDiagnostic, type Diagnostic } from "./diagnostic"
 import {
   getDeclarations,
+  readLiteral,
   readPropertyKey,
   unwrapExpression,
 } from "./read-static"
 import {
+  getUntracedVariantCall,
   getVariantCall,
   readVariantDefinition,
   type VariantDefinition,
@@ -70,6 +72,21 @@ export function readVariantCalls(
   )) {
     const variantCall = getVariantCall(call.getExpression())
     if (!variantCall) {
+      const untraced = getUntracedVariantCall(call.getExpression())
+      if (untraced) {
+        const diagnostic = createDiagnostic(
+          untraced,
+          `${untraced.getExpression().getText()}() here can't be traced to class-variance-authority or tailwind-variants, so its variants aren't read.`
+        )
+        if (
+          !diagnostics.some(
+            (found) =>
+              found.file === diagnostic.file && found.line === diagnostic.line
+          )
+        ) {
+          diagnostics.push(diagnostic)
+        }
+      }
       continue
     }
     const definition = readVariantDefinition(
@@ -86,13 +103,31 @@ export function readVariantCalls(
       continue
     }
 
-    const addAll = () => {
+    // Spreading the props passes every variant through, except keys written
+    // after the spread. Literal keys written before it are the defaults.
+    const addAll = (
+      overridden = new Set<string>(),
+      presets = new Map<string, string>()
+    ) => {
+      for (const name of definition.unreadable) {
+        if (!overridden.has(name)) {
+          component.unreadable.add(name)
+        }
+      }
       for (const [name, variant] of definition.variants) {
+        if (overridden.has(name)) {
+          continue
+        }
+        const preset = presets.get(name)
+        const fallback = preset ?? definition.defaults.get(name)
         addProp(component, name, {
           source: definition.library,
           values: [...variant.values],
           boolean: variant.boolean,
-          default: definition.defaults.get(name),
+          default:
+            fallback !== undefined && variant.values.includes(fallback)
+              ? fallback
+              : undefined,
         })
       }
     }
@@ -104,10 +139,32 @@ export function readVariantCalls(
     if (!Node.isObjectLiteralExpression(object)) {
       continue
     }
-    for (const property of object.getProperties()) {
+    const properties = object.getProperties()
+    const keyOf = (property: Node) =>
+      Node.isPropertyAssignment(property) ||
+      Node.isShorthandPropertyAssignment(property)
+        ? readPropertyKey(property.getNameNode())
+        : undefined
+    for (const [index, property] of properties.entries()) {
       if (Node.isSpreadAssignment(property)) {
         if (isPropsObject(component, property.getExpression())) {
-          addAll()
+          const overridden = new Set(
+            properties
+              .slice(index + 1)
+              .map(keyOf)
+              .filter((key) => key !== undefined)
+          )
+          const presets = new Map<string, string>()
+          for (const earlier of properties.slice(0, index)) {
+            const key = keyOf(earlier)
+            const literal = Node.isPropertyAssignment(earlier)
+              ? readLiteral(earlier.getInitializerOrThrow())
+              : undefined
+            if (key !== undefined && literal !== undefined) {
+              presets.set(key, String(literal))
+            }
+          }
+          addAll(overridden, presets)
         }
         continue
       }

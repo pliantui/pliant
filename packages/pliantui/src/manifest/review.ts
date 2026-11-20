@@ -9,13 +9,51 @@ import type {
 
 class ReviewCancelledError extends Error {}
 
-async function ask<T>(question: PromptObject): Promise<T> {
-  const answers = await prompts(question, {
-    onCancel: () => {
-      throw new ReviewCancelledError()
-    },
-  })
-  return answers[question.name as string] as T
+async function ask(question: Omit<PromptObject<"answer">, "name">) {
+  const answers = await prompts(
+    { ...question, name: "answer" },
+    {
+      onCancel: () => {
+        throw new ReviewCancelledError()
+      },
+    }
+  )
+  const answer: unknown = answers.answer
+  return answer
+}
+
+async function askBoolean(question: Omit<PromptObject<"answer">, "name">) {
+  return (await ask(question)) === true
+}
+
+async function askNumber(question: Omit<PromptObject<"answer">, "name">) {
+  const answer = await ask(question)
+  if (typeof answer !== "number") {
+    throw new ReviewCancelledError()
+  }
+  return answer
+}
+
+async function askList(question: Omit<PromptObject<"answer">, "name">) {
+  const answer = await ask(question)
+  const list: unknown[] = Array.isArray(answer) ? answer : []
+  return list
+}
+
+async function askIndexes(question: Omit<PromptObject<"answer">, "name">) {
+  return (await askList(question)).filter(
+    (item): item is number => typeof item === "number"
+  )
+}
+
+async function askStrings(question: Omit<PromptObject<"answer">, "name">) {
+  return (await askList(question)).filter(
+    (item): item is string => typeof item === "string"
+  )
+}
+
+function isNumber(value: unknown) {
+  return typeof value === "number" || "Enter a number"
 }
 
 function isUndecided(component: InferredComponent) {
@@ -40,9 +78,8 @@ export async function reviewComponents(
 ): Promise<InferredComponent[] | undefined> {
   const reviewed = structuredClone(components)
   try {
-    const accept = await ask<boolean>({
+    const accept = await askBoolean({
       type: "confirm",
-      name: "accept",
       message: "Accept these classes?",
       initial: true,
     })
@@ -71,9 +108,8 @@ async function adjustComponent(component: InferredComponent) {
   if (entries.length === 0) {
     return
   }
-  const user = await ask<number[]>({
+  const user = await askIndexes({
     type: "multiselect",
-    name: "user",
     message: `${component.name}: which values can users set?`,
     instructions: false,
     choices: entries.map((entry, index) => ({
@@ -88,9 +124,8 @@ async function adjustComponent(component: InferredComponent) {
   const semantic =
     rest.length === 0
       ? []
-      : await ask<number[]>({
+      : await askIndexes({
           type: "multiselect",
-          name: "semantic",
           message: `${component.name}: which of the others should users see but not set?`,
           instructions: false,
           choices: rest.map((entry) => ({
@@ -135,9 +170,8 @@ async function confirmPending(components: InferredComponent[]) {
     return
   }
 
-  const selected = await ask<number[]>({
+  const selected = await askIndexes({
     type: "multiselect",
-    name: "selected",
     message: "These need your confirmation. Which can users set?",
     instructions: false,
     choices: pending.map((entry, index) => ({
@@ -146,7 +180,7 @@ async function confirmPending(components: InferredComponent[]) {
     })),
   })
 
-  const kept: Pending[] = []
+  const kept: { label: string; item: InferredDefault }[] = []
   for (const [index, entry] of pending.entries()) {
     const isSelected = selected.includes(index)
     if ("value" in entry) {
@@ -158,9 +192,8 @@ async function confirmPending(components: InferredComponent[]) {
       continue
     }
     if (entry.item.declaration.type === "string") {
-      const values = await ask<string[]>({
+      const values = await askStrings({
         type: "list",
-        name: "values",
         message: `${entry.label}: which values can users choose? (comma-separated)`,
         separator: ",",
       })
@@ -173,35 +206,34 @@ async function confirmPending(components: InferredComponent[]) {
       }
       entry.item.values = cleaned
     } else if (entry.item.declaration.type === "number") {
-      entry.item.min = await ask<number>({
+      entry.item.min = await askNumber({
         type: "number",
-        name: "min",
         message: `${entry.label}: smallest value users can choose?`,
         float: true,
+        validate: isNumber,
       })
-      entry.item.max = await ask<number>({
+      entry.item.max = await askNumber({
         type: "number",
-        name: "max",
         message: `${entry.label}: largest value users can choose?`,
         float: true,
+        validate: isNumber,
         min: entry.item.min,
       })
     }
-    kept.push(entry)
+    kept.push({ label: entry.label, item: entry.item })
   }
 
   if (kept.length === 0) {
     return
   }
-  const persist = await ask<number[]>({
+  const persist = await askIndexes({
     type: "multiselect",
-    name: "persist",
     message: "Which of these should save users' own changes automatically?",
     instructions: false,
     choices: kept.map((entry, index) => ({ title: entry.label, value: index })),
   })
   for (const [index, entry] of kept.entries()) {
-    if ("item" in entry && persist.includes(index)) {
+    if (persist.includes(index)) {
       entry.item.persist = true
     }
   }

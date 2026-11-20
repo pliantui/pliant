@@ -86,6 +86,11 @@ export function classifyValues(
     return values.map(() => (isData ? "state" : "semantic"))
   }
   return values.map((value) => {
+    // Manifest values are strings, so a number key like `1` only matches a
+    // string prop if the developer says so.
+    if (/^-?\d+(\.\d+)?$/.test(value)) {
+      return "confirm"
+    }
     const words = splitWords(value)
     if (words.some((word) => semanticWords.has(word))) {
       return "semantic"

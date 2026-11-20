@@ -1,16 +1,15 @@
-import {
-  Node,
-  SyntaxKind,
-  type ParameterDeclaration,
-  type PropertySignature,
-} from "ts-morph"
+import { Node, SyntaxKind, type PropertySignature } from "ts-morph"
 
-import { getDefault, isCallTo, type Component } from "./component"
+import {
+  getDefault,
+  getPropsParameter,
+  isCallTo,
+  type Component,
+} from "./component"
 import { getDeclarations } from "./read-static"
 
 function getPropsTypeNode(component: Component) {
-  const parameter: ParameterDeclaration | undefined =
-    component.fn.getParameters()[0]
+  const parameter = getPropsParameter(component)
   const annotated = parameter?.getTypeNode()
   if (annotated) {
     return annotated
@@ -83,10 +82,17 @@ function readStringUnion(node: Node | undefined) {
 }
 
 export function readUnionProps(component: Component) {
+  if (!component.variantsReadable) {
+    return
+  }
   for (const signature of getPropertySignatures(getPropsTypeNode(component))) {
     const name = signature.getName()
     const values = readStringUnion(signature.getTypeNode())
-    if (!values || component.props.has(name)) {
+    if (
+      !values ||
+      component.props.has(name) ||
+      component.unreadable.has(name)
+    ) {
       continue
     }
     const binding = [...component.bindings.values()].find(

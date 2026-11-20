@@ -74,7 +74,7 @@ export function formatSummary(
       if (physical.length > 0) {
         lines.push(
           highlighter.muted(
-            `    ${physical.join(" and ")} ${physical.length > 1 ? "are physical sides" : "is a physical side"}, kept as written.`
+            `    ${physical.join(" and ")} ${physical.length > 1 ? "are kept as written, so they don't" : "is kept as written, so it doesn't"} flip in right-to-left layouts.`
           )
         )
       }

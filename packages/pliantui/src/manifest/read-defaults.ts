@@ -1,6 +1,6 @@
 import type { Type } from "ts-morph"
 
-import type { Component } from "./component"
+import { getPropsParameter, type Component } from "./component"
 import { createDiagnostic, type Diagnostic } from "./diagnostic"
 import type { DefaultType, InferredDefault } from "./inferred-component"
 
@@ -34,7 +34,7 @@ export function readDefaults(
   component: Component,
   diagnostics: Diagnostic[]
 ): InferredDefault[] {
-  const parameter = component.fn.getParameters()[0]
+  const parameter = getPropsParameter(component)
   if (!parameter) {
     return []
   }

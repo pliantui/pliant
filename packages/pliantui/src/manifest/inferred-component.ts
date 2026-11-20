@@ -8,7 +8,7 @@ export interface InferredValue {
   decided: boolean
 }
 
-export interface InferredProp {
+interface InferredProp {
   name: string
   source: PropSource
   boolean: boolean
