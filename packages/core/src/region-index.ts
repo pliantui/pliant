@@ -8,7 +8,7 @@ import type { ResolvedLayers, ResolvedOp } from "./resolve-layers"
 export type CreatingOp = Extract<Op, { op: "insert" | "wrap" }>
 
 /** A node an `insert` or `wrap` created, and whether it is still there. */
-export interface Creation {
+interface Creation {
   readonly op: CreatingOp
   readonly live: boolean
 }
