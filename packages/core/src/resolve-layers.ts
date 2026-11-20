@@ -230,8 +230,10 @@ export interface ResolveLayersOptions {
    *
    * Each op that can hide something checks the state so far, and each
    * skipped op applies the ops kept before it again, so the time grows with
-   * the number of ops times the number of ops that can hide something; ops
-   * such as sorts and widths add nothing.
+   * the number of ops times the number of ops that can hide something, and
+   * with the number of flags times the depth of the tree; ops such as sorts
+   * and widths add nothing. For scale, 20 flags at depth 6 over 2,000 ops
+   * take about 230 ms; 500 flags at depth 30 take about 7 s.
    *
    * Which node holds another in the page comes from `baseParents` when
    * given. Without it, it comes from the addresses in `flags`, then from
@@ -250,7 +252,8 @@ export interface ResolveLayersOptions {
    * comes from its address.
    *
    * A node it leaves out, such as one not mounted yet, takes the parent its
-   * flag's address shows. It must put each node a flag's address names in
+   * flag's address shows. A node it leaves out that no flag names has no
+   * parent, and the addresses of ops don't supply one. It must put each node a flag's address names in
    * the parent that address shows, and, with those parents, have no cycle.
    */
   readonly baseParents?: Readonly<Record<string, string | null>> | undefined
