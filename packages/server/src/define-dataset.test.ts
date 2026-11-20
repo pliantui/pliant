@@ -2,15 +2,17 @@ import { describe, expect, expectTypeOf, it } from "vitest"
 
 import { createExpressionChecker, createRowEvaluator } from "@pliantui/core"
 
+import type { DatasetFieldType } from "./dataset-field"
 import { defineDataset, type InferRow } from "./define-dataset"
+import { describeDataset } from "./describe-dataset"
 
 const orders = defineDataset({
   id: "orders",
   describe: "Customer orders placed through the portal",
-  timeZone: "Asia/Kolkata",
+  timeZone: "Asia/Tokyo",
   fields: {
     id: { type: "id" },
-    value: { type: "currency", currency: "INR", label: "Value" },
+    value: { type: "currency", currency: "JPY", label: "Value" },
     weight: { type: "number", unit: "kilogram" },
     discount: { type: "percent" },
     region: { type: "enum", values: ["north", "south"] },
@@ -40,28 +42,72 @@ function withField(field: unknown) {
   return { ...valid, fields: { ...valid.fields, total: field } }
 }
 
+function fieldOf(field: unknown) {
+  const dataset = defineDataset({
+    id: "orders",
+    timeZone: "UTC",
+    // @ts-expect-error a field built at runtime
+    fields: { id: { type: "id" }, total: field },
+  })
+  return Object.entries(dataset.fields).find(([id]) => id === "total")?.[1]
+}
+
+const textValued = ["string", "text", "enum", "id", "url", "email"]
+
+const capabilities: Record<
+  DatasetFieldType,
+  readonly [boolean, boolean | "search", boolean, boolean]
+> = {
+  string: [true, true, true, true],
+  text: [false, "search", false, false],
+  number: [true, true, false, true],
+  integer: [true, true, false, true],
+  currency: [true, true, false, true],
+  percent: [true, true, false, true],
+  boolean: [true, true, true, true],
+  date: [true, true, true, true],
+  datetime: [true, true, false, true],
+  enum: [true, true, true, true],
+  id: [true, true, false, true],
+  url: [true, true, false, true],
+  email: [true, true, false, true],
+}
+
+const fieldsOfType: Record<DatasetFieldType, object> = {
+  string: {},
+  text: {},
+  number: {},
+  integer: {},
+  currency: { currency: "USD" },
+  percent: {},
+  boolean: {},
+  date: {},
+  datetime: {},
+  enum: { values: ["a"] },
+  id: {},
+  url: {},
+  email: {},
+}
+
 describe("defineDataset", () => {
-  it("resolves each field's capabilities from its type", () => {
+  it.each(Object.entries(capabilities))(
+    "gives a %s field its type's capabilities",
+    (type, [sortable, filterable, groupable, aggregatable]) => {
+      expect(
+        fieldOf({ type, ...fieldsOfType[type as DatasetFieldType] })
+      ).toMatchObject({ sortable, filterable, groupable, aggregatable })
+    }
+  )
+
+  it("keeps a field's own options next to its capabilities", () => {
     expect(orders.fields.value).toEqual({
       type: "currency",
-      currency: "INR",
+      currency: "JPY",
       label: "Value",
       sortable: true,
       filterable: true,
       groupable: false,
       aggregatable: true,
-    })
-    expect(orders.fields.region).toMatchObject({
-      groupable: true,
-      aggregatable: true,
-    })
-    expect(orders.fields.placedOn.groupable).toBe(true)
-    expect(orders.fields.weight.groupable).toBe(false)
-    expect(orders.fields.notes).toMatchObject({
-      sortable: false,
-      filterable: "search",
-      groupable: false,
-      aggregatable: false,
     })
   })
 
@@ -81,6 +127,24 @@ describe("defineDataset", () => {
     })
   })
 
+  it.each(Object.keys(capabilities))(
+    'allows filterable: "search" only on text-valued fields (%s)',
+    (type) => {
+      const field = {
+        type,
+        filterable: "search",
+        ...fieldsOfType[type as DatasetFieldType],
+      }
+      if (textValued.includes(type)) {
+        expect(fieldOf(field)?.filterable).toBe("search")
+      } else {
+        expect(problemsOf(withField(field))).toContain(
+          `filterable: "search" needs a text-valued field, not a ${type} field`
+        )
+      }
+    }
+  )
+
   it("uses the id field as the row key unless rowKey names others", () => {
     expect(orders.rowKey).toEqual(["id"])
     const lines = defineDataset({
@@ -91,27 +155,113 @@ describe("defineDataset", () => {
     expect(lines.rowKey).toEqual(["orderId", "line"])
   })
 
-  it("defaults the time zone to UTC when no field is a date", () => {
-    const undated = defineDataset({
+  it("accepts a row key that isn't sortable", () => {
+    const dataset = defineDataset({
       id: "orders",
-      fields: { id: { type: "id" }, total: { type: "number" } },
+      fields: { id: { type: "id", sortable: false } },
     })
-    expect(undated.timeZone).toBe("UTC")
-    expect(orders.timeZone).toBe("Asia/Kolkata")
+    expect(dataset.rowKey).toEqual(["id"])
   })
 
-  it("can't be changed after it is checked", () => {
-    const values: ["north", "south"] = ["north", "south"]
-    const dataset = defineDataset({
-      id: "regions",
-      fields: { id: { type: "id" }, region: { type: "enum", values } },
+  describe("time zone", () => {
+    function zoneOf(timeZone: string) {
+      return defineDataset({
+        id: "orders",
+        timeZone,
+        fields: { id: { type: "id" }, placedOn: { type: "date" } },
+      }).timeZone
+    }
+
+    it("defaults to UTC when no field is a date", () => {
+      const undated = defineDataset({
+        id: "orders",
+        fields: { id: { type: "id" }, total: { type: "number" } },
+      })
+      expect(undated.timeZone).toBe("UTC")
     })
-    expect(Object.isFrozen(dataset.fields.region)).toBe(true)
-    expect(Reflect.set(dataset.fields.region, "sortable", false)).toBe(false)
-    expect(Reflect.set(dataset.fields.region.values, 0, "west")).toBe(false)
-    expect(dataset.fields.region.values).toEqual(["north", "south"])
-    values[0] = "north"
-    expect(Object.isFrozen(values)).toBe(false)
+
+    it("is stored by its canonical name", () => {
+      expect(zoneOf("europe/paris")).toBe("Europe/Paris")
+      expect(zoneOf("Etc/UTC")).toBe("UTC")
+      expect(zoneOf("asia/kolkata")).toBe(
+        new Intl.DateTimeFormat("en", {
+          timeZone: "Asia/Kolkata",
+        }).resolvedOptions().timeZone
+      )
+    })
+
+    it("rejects fixed offsets and unknown zones", () => {
+      for (const timeZone of ["+05:30", "-08:00", "UTC+1", "Mars/Olympus"]) {
+        expect(
+          problemsOf({ ...withField({ type: "date" }), timeZone })
+        ).toContain(`unknown time zone ${JSON.stringify(timeZone)}`)
+      }
+    })
+  })
+
+  describe("reads the definition once, as plain data", () => {
+    it("calls each getter once and keeps what it returned", () => {
+      let reads = 0
+      const field = {
+        type: "string",
+        get label() {
+          reads++
+          return reads === 1 ? "Name" : { column: "users.password" }
+        },
+      }
+      const dataset = defineDataset({
+        id: "users",
+        // @ts-expect-error a field with a getter
+        fields: { id: { type: "id" }, name: field },
+      })
+      const described = describeDataset(dataset, { audience: "ai" })
+      expect(reads).toBe(1)
+      expect(described.fields["name"]).toMatchObject({ label: "Name" })
+      expect(JSON.stringify(described)).not.toContain("password")
+    })
+
+    it("checks the same fields it keeps", () => {
+      let reads = 0
+      const definition = {
+        id: "orders",
+        get fields() {
+          reads++
+          return reads === 1
+            ? { id: { type: "id" } }
+            : { id: { type: "id" }, secret: { type: "string", column: "x" } }
+        },
+      }
+      // @ts-expect-error fields from a getter
+      const dataset = defineDataset(definition)
+      expect(Object.keys(dataset.fields)).toEqual(["id"])
+      expect(Object.keys(definition.fields)).toContain("secret")
+    })
+
+    it("ignores inherited properties", () => {
+      const inherited: unknown = Object.create({ type: "string" })
+      expect(problemsOf(withField(inherited))).toContain(
+        'field "total": unknown type undefined'
+      )
+    })
+
+    it("keeps its own frozen copy and leaves the caller's objects alone", () => {
+      const values: ["north", "south"] = ["north", "south"]
+      const format = { type: "number", decimals: 1 } as const
+      const fields = {
+        id: { type: "id" },
+        region: { type: "enum", values },
+        weight: { type: "number", format },
+      } as const
+      const dataset = defineDataset({ id: "regions", fields })
+      expect(Object.isFrozen(dataset.fields.region.values)).toBe(true)
+      expect(Reflect.set(dataset.fields.region, "sortable", false)).toBe(false)
+
+      Reflect.set(values, 0, "west")
+      expect(dataset.fields.region.values).toEqual(["north", "south"])
+      expect(Object.isFrozen(values)).toBe(false)
+      expect(Object.isFrozen(format)).toBe(false)
+      expect(Object.isFrozen(fields)).toBe(false)
+    })
   })
 
   it("feeds core's expression checker and row evaluator", () => {
@@ -121,7 +271,7 @@ describe("defineDataset", () => {
         { fn: "mul", args: [{ field: "value" }, { field: "discount" }] },
         "row"
       )
-    ).toEqual({ success: true, data: { type: "number", unit: "INR" } })
+    ).toEqual({ success: true, data: { type: "number", unit: "JPY" } })
     expect(
       check(
         { fn: "add", args: [{ field: "value" }, { field: "weight" }] },
@@ -154,128 +304,311 @@ describe("defineDataset", () => {
     ).toBe(50)
   })
 
-  it("types rows from the fields", () => {
-    type Row = InferRow<typeof orders>
-    expectTypeOf<Row["id"]>().toEqualTypeOf<string>()
-    expectTypeOf<Row["value"]>().toEqualTypeOf<number | null>()
-    expectTypeOf<Row["region"]>().toEqualTypeOf<"north" | "south" | null>()
-    expectTypeOf<Row["placedOn"]>().toEqualTypeOf<string | Date | null>()
-    expectTypeOf<Row["paid"]>().toEqualTypeOf<boolean | null>()
-    expectTypeOf(orders.fields.region.values).toEqualTypeOf<
-      readonly ["north", "south"]
-    >()
-  })
+  describe("types", () => {
+    it("types rows from the fields", () => {
+      type Row = InferRow<typeof orders>
+      expectTypeOf<Row["id"]>().toEqualTypeOf<string>()
+      expectTypeOf<Row["value"]>().toEqualTypeOf<number | null>()
+      expectTypeOf<Row["region"]>().toEqualTypeOf<"north" | "south" | null>()
+      expectTypeOf<Row["placedOn"]>().toEqualTypeOf<string | Date | null>()
+      expectTypeOf<Row["paid"]>().toEqualTypeOf<boolean | null>()
+      expectTypeOf(orders.fields.region.values).toEqualTypeOf<
+        readonly ["north", "south"]
+      >()
+    })
 
-  it("needs a row key in its types", () => {
-    expect(() =>
-      // @ts-expect-error without an id field, rowKey is required
-      defineDataset({ id: "orders", fields: { number: { type: "string" } } })
-    ).toThrow(TypeError)
-    expect(() =>
-      defineDataset({
-        id: "orders",
-        fields: { number: { type: "string" } },
-        // @ts-expect-error rowKey must name a field
-        rowKey: "code",
-      })
-    ).toThrow(TypeError)
+    it("rejects options a field's type doesn't take", () => {
+      expect(() =>
+        defineDataset({
+          id: "orders",
+          // @ts-expect-error a misspelled option
+          fields: { id: { type: "id", sortible: true } },
+        })
+      ).toThrow(TypeError)
+      expect(() =>
+        defineDataset({
+          id: "orders",
+          fields: {
+            id: { type: "id" },
+            // @ts-expect-error text fields have no unit
+            notes: { type: "text", unit: "meter" },
+          },
+        })
+      ).toThrow(TypeError)
+      expect(() =>
+        defineDataset({
+          id: "orders",
+          timeZone: "UTC",
+          fields: {
+            id: { type: "id" },
+            day: {
+              type: "date",
+              // @ts-expect-error a date has no time to show
+              format: { type: "date", style: "short", time: true },
+            },
+          },
+        })
+      ).toThrow(TypeError)
+    })
+
+    it("needs a row key that can identify rows", () => {
+      expect(() =>
+        // @ts-expect-error without an id field, rowKey is required
+        defineDataset({ id: "orders", fields: { number: { type: "string" } } })
+      ).toThrow(TypeError)
+      expect(() =>
+        defineDataset({
+          id: "orders",
+          fields: { number: { type: "string" } },
+          // @ts-expect-error rowKey must name a field
+          rowKey: "code",
+        })
+      ).toThrow(TypeError)
+      expect(() =>
+        defineDataset({
+          id: "orders",
+          fields: { total: { type: "number" } },
+          // @ts-expect-error a number can't be a row key
+          rowKey: "total",
+        })
+      ).toThrow(TypeError)
+    })
+
+    it("needs a time zone with a date field", () => {
+      expect(() =>
+        // @ts-expect-error timeZone is required with a date field
+        defineDataset({
+          id: "orders",
+          fields: { id: { type: "id" }, day: { type: "date" } },
+        })
+      ).toThrow(TypeError)
+    })
   })
 
   describe("throws a TypeError", () => {
-    it("for a bad dataset or field id", () => {
-      expect(problemsOf({ ...valid, id: "1orders" })).toContain(
-        'id "1orders" must start with a letter'
-      )
-      expect(
-        problemsOf({ ...valid, fields: { ...valid.fields, "total value": {} } })
-      ).toContain('field id "total value" must start with a letter')
-    })
-
-    it("for an unknown type, unit or currency", () => {
-      expect(problemsOf(withField({ type: "money" }))).toContain(
-        'field "total": unknown type "money"'
-      )
-      expect(
-        problemsOf(withField({ type: "number", unit: "parsec" }))
-      ).toContain('field "total": unknown unit "parsec"')
-      expect(
-        problemsOf(withField({ type: "number", unit: "percent" }))
-      ).toContain("use the percent type")
-      expect(
-        problemsOf(withField({ type: "currency", currency: "usd" }))
-      ).toContain('field "total": unknown currency "usd"')
-    })
-
-    it("for an unknown option, which is usually a typo", () => {
-      expect(
-        problemsOf(withField({ type: "number", sortible: true }))
-      ).toContain('field "total": unknown option "sortible"')
-      expect(problemsOf({ ...valid, scope: "public" })).toContain(
-        'unknown option "scope"'
-      )
-    })
-
-    it("for a format that doesn't fit its field", () => {
-      expect(
-        problemsOf(
-          withField({
-            type: "number",
-            format: { type: "date", style: "short" },
-          })
-        )
-      ).toContain("format must be a number format")
-      expect(
-        problemsOf(
-          withField({
-            type: "currency",
-            currency: "INR",
-            format: { type: "currency", currency: "USD" },
-          })
-        )
-      ).toContain('format can\'t change the currency from "INR"')
-      expect(
-        problemsOf(
-          withField({
-            type: "number",
-            format: { type: "number", unit: "meter" },
-          })
-        )
-      ).toContain("format can't add a unit")
-    })
-
-    it("for bad enum values and capabilities", () => {
-      expect(problemsOf(withField({ type: "enum", values: [] }))).toContain(
-        "values must list at least one non-empty string"
-      )
-      expect(
-        problemsOf(withField({ type: "enum", values: ["a", "a"] }))
-      ).toContain("values must not repeat")
-      expect(
-        problemsOf(withField({ type: "number", filterable: "search" }))
-      ).toContain('filterable: "search" needs a text field')
-    })
-
-    it("for a missing or invalid row key", () => {
-      expect(
-        problemsOf({ id: "orders", fields: { code: { type: "string" } } })
-      ).toContain('has no row key: add a field named "id"')
-      expect(problemsOf({ ...valid, rowKey: "code" })).toContain(
-        'rowKey names "code", which isn\'t a field'
-      )
-      expect(problemsOf({ ...valid, rowKey: "total" })).toContain(
-        'rowKey field "total" must be an id, string, integer, email or url field'
-      )
-      expect(problemsOf({ ...valid, rowKey: ["id", "id"] })).toContain(
-        "rowKey must not name a field twice"
-      )
-    })
-
-    it("for a date without a known time zone", () => {
-      const dated = withField({ type: "date" })
-      expect(problemsOf(dated)).toContain("timeZone is required")
-      expect(problemsOf({ ...dated, timeZone: "Mars/Olympus" })).toContain(
-        'unknown time zone "Mars/Olympus"'
-      )
+    it.each([
+      ["null", null, "the definition must be an object"],
+      ["a string", "orders", "the definition must be an object"],
+      [
+        "a bad dataset id",
+        { ...valid, id: "1orders" },
+        'id "1orders" must start with a letter',
+      ],
+      [
+        "an unknown option",
+        { ...valid, scope: "public" },
+        'unknown option "scope"',
+      ],
+      [
+        "an empty describe",
+        { ...valid, describe: "  " },
+        "describe must be non-empty text of up to 500 characters",
+      ],
+      [
+        "a long describe",
+        { ...valid, describe: "x".repeat(501) },
+        "describe must be non-empty text of up to 500 characters",
+      ],
+      [
+        "fields that aren't an object",
+        { id: "orders", fields: [] },
+        "fields must be an object of fields by id",
+      ],
+      [
+        "no fields",
+        { id: "orders", fields: {}, rowKey: "id" },
+        "fields must declare at least one field",
+      ],
+      [
+        "a bad field id",
+        { ...valid, fields: { ...valid.fields, "total value": {} } },
+        'field id "total value" must start with a letter',
+      ],
+      [
+        "a field that isn't an object",
+        withField("number"),
+        'field "total": must be an object',
+      ],
+      [
+        "an unknown type",
+        withField({ type: "money" }),
+        'field "total": unknown type "money"',
+      ],
+      [
+        "an unknown field option",
+        withField({ type: "number", sortible: true }),
+        'field "total": unknown option "sortible" for a number field',
+      ],
+      [
+        "an option of another type",
+        withField({ type: "text", unit: "meter" }),
+        'field "total": unknown option "unit" for a text field',
+      ],
+      [
+        "an empty label",
+        withField({ type: "number", label: " " }),
+        "label must be non-empty text of up to 80 characters",
+      ],
+      [
+        "a long label",
+        withField({ type: "number", label: "x".repeat(81) }),
+        "label must be non-empty text of up to 80 characters",
+      ],
+      [
+        "a long field describe",
+        withField({ type: "number", describe: "x".repeat(201) }),
+        "describe must be non-empty text of up to 200 characters",
+      ],
+      [
+        "a capability that isn't a boolean",
+        withField({ type: "number", sortable: "yes" }),
+        'field "total": sortable must be a boolean',
+      ],
+      [
+        "a bad filterable",
+        withField({ type: "number", filterable: "yes" }),
+        'field "total": filterable must be a boolean or "search"',
+      ],
+      [
+        "an unknown currency",
+        withField({ type: "currency", currency: "usd" }),
+        'field "total": unknown currency "usd"',
+      ],
+      [
+        "a missing currency",
+        withField({ type: "currency" }),
+        'field "total": unknown currency undefined',
+      ],
+      [
+        "an unknown unit",
+        withField({ type: "number", unit: "parsec" }),
+        'field "total": unknown unit "parsec"',
+      ],
+      [
+        "the percent unit",
+        withField({ type: "integer", unit: "percent" }),
+        'use the percent type instead of the unit "percent"',
+      ],
+      [
+        "no enum values",
+        withField({ type: "enum", values: [] }),
+        "values must list 1 to 100 values, each non-empty text of up to 80 characters",
+      ],
+      [
+        "too many enum values",
+        withField({
+          type: "enum",
+          values: Array.from(
+            { length: 101 },
+            (_, index) => `v${String(index)}`
+          ),
+        }),
+        "values must list 1 to 100 values",
+      ],
+      [
+        "a blank enum value",
+        withField({ type: "enum", values: ["a", " "] }),
+        "values must list 1 to 100 values",
+      ],
+      [
+        "a long enum value",
+        withField({ type: "enum", values: ["x".repeat(81)] }),
+        "values must list 1 to 100 values",
+      ],
+      [
+        "repeated enum values",
+        withField({ type: "enum", values: ["a", "a"] }),
+        "values must not repeat",
+      ],
+      [
+        "a format of another type",
+        withField({ type: "number", format: { type: "date", style: "short" } }),
+        'format must be a "number" format',
+      ],
+      [
+        "a format with an unknown option",
+        withField({ type: "number", format: { type: "number", secret: 1 } }),
+        'format must be a "number" format',
+      ],
+      [
+        "a format that changes the currency",
+        withField({
+          type: "currency",
+          currency: "INR",
+          format: { type: "currency", currency: "USD" },
+        }),
+        'format can\'t change the currency from "INR"',
+      ],
+      [
+        "a format that adds a unit",
+        withField({
+          type: "number",
+          format: { type: "number", unit: "meter" },
+        }),
+        "format can't add a unit; declare it as the field's unit",
+      ],
+      [
+        "a format that changes the unit",
+        withField({
+          type: "number",
+          unit: "kilogram",
+          format: { type: "number", unit: "gram" },
+        }),
+        'format can\'t change the unit from "kilogram"',
+      ],
+      [
+        "a date format with a time on a date field",
+        {
+          ...withField({
+            type: "date",
+            format: { type: "date", style: "short", time: true },
+          }),
+          timeZone: "UTC",
+        },
+        "format can't show a time for a date field, which has none",
+      ],
+      [
+        "no row key",
+        { id: "orders", fields: { code: { type: "string" } } },
+        'has no row key: add a field named "id"',
+      ],
+      [
+        "an empty row key",
+        { ...valid, rowKey: [] },
+        "rowKey must name at least one field",
+      ],
+      [
+        "a row key naming a field twice",
+        { ...valid, rowKey: ["id", "id"] },
+        "rowKey must not name a field twice",
+      ],
+      [
+        "a row key naming no field",
+        { ...valid, rowKey: "code" },
+        'rowKey names "code", which isn\'t a field',
+      ],
+      [
+        "a row key that isn't text",
+        { ...valid, rowKey: 5 },
+        "rowKey names 5, which isn't a field",
+      ],
+      [
+        "a row key of the wrong type",
+        { ...valid, rowKey: "total" },
+        'rowKey field "total" must be an id, string, integer, email or url field',
+      ],
+      [
+        "a date without a time zone",
+        withField({ type: "datetime" }),
+        "timeZone is required because a field is a date or datetime",
+      ],
+      [
+        "a time zone that isn't text",
+        { ...valid, timeZone: 5 },
+        "unknown time zone 5",
+      ],
+    ])("for %s", (_, definition, message) => {
+      expect(problemsOf(definition)).toContain(message)
     })
 
     it("listing every problem at once", () => {
@@ -283,10 +616,16 @@ describe("defineDataset", () => {
         id: "orders",
         fields: { a: { type: "money" }, b: { type: "number", unit: "parsec" } },
       })
-      expect(message).toMatch(/^Invalid dataset "orders":/)
+      expect(message).toMatch(/^Invalid dataset "orders":\n- /)
       expect(message).toContain('field "a": unknown type')
       expect(message).toContain('field "b": unknown unit')
       expect(message).toContain("has no row key")
+    })
+
+    it("without a name when the definition has no id", () => {
+      expect(problemsOf(null)).toBe(
+        "Invalid dataset:\n- the definition must be an object"
+      )
     })
   })
 })

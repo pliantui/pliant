@@ -55,13 +55,38 @@ export interface DatasetDescriptor {
   fields: Record<string, DatasetFieldDescriptor>
 }
 
+const audiences: readonly unknown[] = ["client", "ai"]
+
 /**
- * Returns the public descriptor of a dataset: fresh JSON-safe objects that
- * name only what clients and the model may know about each field.
+ * Options for `describeDataset`.
  *
  * @experimental
  */
-export function describeDataset(dataset: Dataset): DatasetDescriptor {
+export interface DescribeDatasetOptions {
+  /**
+   * Who reads the descriptor: `client`, the browser, or `ai`, the model.
+   * Both currently get the same descriptor.
+   */
+  readonly audience: "client" | "ai"
+}
+
+/**
+ * Returns the public descriptor of a dataset for one audience: fresh
+ * JSON-safe objects that name only what that audience may know about each
+ * field.
+ *
+ * @experimental
+ */
+export function describeDataset(
+  dataset: Dataset,
+  options: DescribeDatasetOptions
+): DatasetDescriptor {
+  const audience: unknown = Reflect.get(Object(options), "audience")
+  if (!audiences.includes(audience)) {
+    throw new TypeError(
+      `audience must be "client" or "ai", not ${JSON.stringify(audience)}`
+    )
+  }
   const fields = Object.entries(dataset.fields).map(([id, field]) => [
     id,
     Object.fromEntries(

@@ -8,7 +8,7 @@ import { describeDataset } from "./describe-dataset"
 const orders = defineDataset({
   id: "orders",
   describe: "Customer orders",
-  timeZone: "Asia/Kolkata",
+  timeZone: "Asia/Tokyo",
   fields: {
     number: { type: "string", label: "Order" },
     value: {
@@ -23,12 +23,31 @@ const orders = defineDataset({
   rowKey: "number",
 })
 
+const client = { audience: "client" } as const
+
 describe("describeDataset", () => {
+  it("gives the client and the model the same descriptor", () => {
+    expect(describeDataset(orders, { audience: "ai" })).toStrictEqual(
+      describeDataset(orders, client)
+    )
+  })
+
+  it("needs a known audience", () => {
+    expect(() =>
+      // @ts-expect-error the audience is required
+      describeDataset(orders)
+    ).toThrow('audience must be "client" or "ai", not undefined')
+    expect(() =>
+      // @ts-expect-error an unknown audience
+      describeDataset(orders, { audience: "server" })
+    ).toThrow('audience must be "client" or "ai", not "server"')
+  })
+
   it("describes the fields' types, units, formats and capabilities", () => {
-    expect(describeDataset(orders)).toStrictEqual({
+    expect(describeDataset(orders, client)).toStrictEqual({
       id: "orders",
       describe: "Customer orders",
-      timeZone: "Asia/Kolkata",
+      timeZone: "Asia/Tokyo",
       rowKey: ["number"],
       fields: {
         number: {
@@ -69,7 +88,7 @@ describe("describeDataset", () => {
   })
 
   it("keeps the dataset's field order", () => {
-    expect(Object.keys(describeDataset(orders).fields)).toEqual([
+    expect(Object.keys(describeDataset(orders, client).fields)).toEqual([
       "number",
       "value",
       "region",
@@ -78,7 +97,7 @@ describe("describeDataset", () => {
   })
 
   it("is plain JSON", () => {
-    const descriptor = describeDataset(orders)
+    const descriptor = describeDataset(orders, client)
     expect(JSON.parse(JSON.stringify(descriptor))).toEqual(descriptor)
   })
 
@@ -90,28 +109,28 @@ describe("describeDataset", () => {
         value: { ...orders.fields.value, column: "orders.value_paise" },
       },
     }
-    expect(describeDataset(withSecret).fields["value"]).not.toHaveProperty(
-      "column"
-    )
+    expect(
+      describeDataset(withSecret, client).fields["value"]
+    ).not.toHaveProperty("column")
   })
 
   it("returns copies the caller can change without changing the dataset", () => {
-    const descriptor = describeDataset(orders)
+    const descriptor = describeDataset(orders, client)
     descriptor.rowKey.push("value")
     const values: unknown = Reflect.get(
       descriptor.fields["region"] ?? {},
       "values"
     )
     expect(Reflect.set(Object(values), 0, "west")).toBe(true)
-    expect(describeDataset(orders).rowKey).toEqual(["number"])
-    expect(describeDataset(orders).fields["region"]).toMatchObject({
+    expect(describeDataset(orders, client).rowKey).toEqual(["number"])
+    expect(describeDataset(orders, client).fields["region"]).toMatchObject({
       values: ["north", "south"],
     })
   })
 
   it("feeds core's expression checker", () => {
     const check = createExpressionChecker({
-      fields: describeDataset(orders).fields,
+      fields: describeDataset(orders, client).fields,
     })
     expect(check({ field: "value" }, "row")).toEqual({
       success: true,

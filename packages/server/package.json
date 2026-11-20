@@ -69,7 +69,7 @@
     },
     {
       "path": "dist/data.js",
-      "limit": "2.2 kB",
+      "limit": "2.5 kB",
       "ignore": [
         "zod",
         "@pliantui/contract",

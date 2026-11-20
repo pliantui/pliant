@@ -13,4 +13,5 @@ export {
   describeDataset,
   type DatasetDescriptor,
   type DatasetFieldDescriptor,
+  type DescribeDatasetOptions,
 } from "./describe-dataset"

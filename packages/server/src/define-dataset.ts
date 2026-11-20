@@ -3,25 +3,69 @@ import { itemIdSchema } from "@pliantui/contract"
 import {
   checkField,
   defaultCapabilities,
+  isText,
   type DatasetField,
   type DatasetFieldCapabilities,
+  type DatasetFieldType,
+  type FieldKey,
 } from "./dataset-field"
+import { isRecord, snapshot } from "./snapshot"
 
 type Fields = Readonly<Record<string, DatasetField>>
 
-type KeyOf<TFields extends Fields> = keyof TFields & string
+type KeyType = "id" | "string" | "integer" | "email" | "url"
 
-type RowKeyOption<
-  TFields extends Fields,
-  TKey extends KeyOf<TFields>,
-> = "id" extends keyof TFields
+/**
+ * The ids of the fields that can be a row key, or any id when the fields
+ * are only known as a record.
+ */
+type KeyField<TFields extends Fields> = string extends keyof TFields
+  ? string
+  : {
+      [K in keyof TFields]: TFields[K]["type"] extends KeyType ? K : never
+    }[keyof TFields] &
+      string
+
+/** Each field, with the options its type doesn't take typed as `never`. */
+type ExactFields<TFields extends Fields> = {
+  readonly [K in keyof TFields]: TFields[K] &
+    Readonly<
+      Record<Exclude<keyof TFields[K], FieldKey<TFields[K]["type"]>>, never>
+    >
+}
+
+type RowKeyOption<TFields extends Fields, TKey extends string> =
+  "id" extends KeyField<TFields>
+    ? {
+        /**
+         * The field, or fields in order, that identify each row: `id`,
+         * `string`, `integer`, `email` or `url` fields. Defaults to the
+         * field named `id`. A row key field doesn't have to be sortable.
+         */
+        readonly rowKey?: TKey | readonly [TKey, ...TKey[]] | undefined
+      }
+    : {
+        /**
+         * The field, or fields in order, that identify each row: `id`,
+         * `string`, `integer`, `email` or `url` fields. A row key field
+         * doesn't have to be sortable.
+         */
+        readonly rowKey: TKey | readonly [TKey, ...TKey[]]
+      }
+
+type TimeZoneOption<TFields extends Fields> = [
+  Extract<TFields[keyof TFields]["type"], "date" | "datetime">,
+] extends [never]
   ? {
-      /** The field, or fields in order, that identify a row. Defaults to `id`. */
-      readonly rowKey?: TKey | readonly [TKey, ...TKey[]] | undefined
+      /** The IANA time zone dates and datetimes are read in. Defaults to `UTC`. */
+      readonly timeZone?: string | undefined
     }
   : {
-      /** The field, or fields in order, that identify a row. */
-      readonly rowKey: TKey | readonly [TKey, ...TKey[]]
+      /**
+       * The IANA time zone dates and datetimes are read in, such as
+       * `Asia/Tokyo`. Required with a date or datetime field.
+       */
+      readonly timeZone: string
     }
 
 /**
@@ -31,32 +75,31 @@ type RowKeyOption<
  */
 export type DatasetDefinition<
   TFields extends Fields = Fields,
-  TKey extends KeyOf<TFields> = KeyOf<TFields>,
+  TKey extends KeyField<TFields> = KeyField<TFields>,
 > = {
   /** The dataset's id, such as `orders`. */
   readonly id: string
-  /** What the dataset holds, for people and the model. */
+  /** What the dataset holds, for people and the model: up to 500 characters. */
   readonly describe?: string | undefined
-  /**
-   * The IANA time zone dates and datetimes are read in, such as
-   * `Asia/Kolkata`. Required when a field is a date or datetime; otherwise
-   * it defaults to `UTC`.
-   */
-  readonly timeZone?: string | undefined
   /** The fields, by id, in the order they are listed. */
-  readonly fields: TFields
-} & RowKeyOption<TFields, TKey>
+  readonly fields: TFields & ExactFields<TFields>
+} & RowKeyOption<TFields, TKey> &
+  TimeZoneOption<TFields>
 
-type ResolvedField<TField extends DatasetField> = Omit<
-  TField,
-  keyof DatasetFieldCapabilities
-> &
-  Required<{
-    [K in keyof DatasetFieldCapabilities]-?: Exclude<
-      DatasetFieldCapabilities[K],
-      undefined
-    >
-  }>
+type ResolvedField<TField extends DatasetField> = TField extends unknown
+  ? {
+      readonly [
+        K in keyof TField as K extends keyof DatasetFieldCapabilities
+          ? never
+          : K
+      ]: Readonly<TField[K]>
+    } & Required<{
+      readonly [K in keyof DatasetFieldCapabilities]-?: Exclude<
+        DatasetFieldCapabilities[K],
+        undefined
+      >
+    }>
+  : never
 
 /**
  * A checked dataset. Its fields carry every capability, resolved from their
@@ -67,10 +110,11 @@ type ResolvedField<TField extends DatasetField> = Omit<
  */
 export interface Dataset<
   TFields extends Fields = Fields,
-  TKey extends KeyOf<TFields> = KeyOf<TFields>,
+  TKey extends string = string,
 > {
   readonly id: string
   readonly describe?: string
+  /** The canonical IANA name of the dataset's time zone. */
   readonly timeZone: string
   readonly rowKey: readonly [TKey, ...TKey[]]
   readonly fields: { readonly [K in keyof TFields]: ResolvedField<TFields[K]> }
@@ -104,170 +148,188 @@ export type InferRow<TDataset extends Dataset> =
       }
     : never
 
-const keyTypes = new Set(["id", "string", "integer", "email", "url"])
+const keyTypes = new Set<unknown>(["id", "string", "integer", "email", "url"])
 
 const datasetKeys = new Set(["id", "describe", "timeZone", "fields", "rowKey"])
 
-function isTimeZone(timeZone: string) {
+const quote = (value: unknown) =>
+  value === undefined ? "undefined" : JSON.stringify(value)
+
+// Objects, then fields, then each field, then its format and values.
+const depth = 4
+
+/**
+ * The canonical name of an IANA time zone, as `Intl` resolves it, or
+ * `undefined` for a zone it doesn't know or a fixed offset such as
+ * `+05:30`, which has no daylight saving rules to follow.
+ */
+function canonicalTimeZone(timeZone: unknown) {
+  if (typeof timeZone !== "string") {
+    return undefined
+  }
   try {
-    new Intl.DateTimeFormat("en", { timeZone })
-    return true
+    const resolved = new Intl.DateTimeFormat("en", {
+      timeZone,
+    }).resolvedOptions().timeZone
+    return /^[+-]/.test(resolved) ? undefined : resolved
   } catch {
-    return false
+    return undefined
   }
 }
 
+function typeOf(field: unknown) {
+  return isRecord(field) ? field["type"] : undefined
+}
+
 function checkRowKey(
-  rowKey: readonly unknown[],
-  fields: object,
+  rowKey: unknown,
+  fields: Readonly<Record<string, unknown>>,
   report: (message: string) => void
 ) {
-  if (rowKey.length === 0) {
+  const keys = Array.isArray(rowKey) ? rowKey : [rowKey]
+  if (keys.length === 0) {
     report("rowKey must name at least one field")
   }
-  if (new Set(rowKey).size !== rowKey.length) {
+  if (new Set(keys).size !== keys.length) {
     report("rowKey must not name a field twice")
   }
-  for (const key of rowKey) {
-    const field: unknown =
-      typeof key === "string" && Object.hasOwn(fields, key)
-        ? Reflect.get(fields, key)
-        : undefined
-    if (field === undefined) {
-      report(`rowKey names ${JSON.stringify(key)}, which isn't a field`)
-    } else if (!keyTypes.has(typeOf(field))) {
+  for (const key of keys) {
+    if (typeof key !== "string" || !Object.hasOwn(fields, key)) {
+      report(`rowKey names ${quote(key)}, which isn't a field`)
+    } else if (!keyTypes.has(typeOf(fields[key]))) {
       report(
-        `rowKey field ${JSON.stringify(key)} must be an id, string, integer, email or url field`
+        `rowKey field ${quote(key)} must be an id, string, integer, email or url field`
       )
     }
   }
 }
 
-function typeOf(field: unknown) {
-  return typeof field === "object" && field !== null
-    ? String(Reflect.get(field, "type"))
-    : ""
+function checkFields(
+  definition: Readonly<Record<string, unknown>>,
+  report: (message: string) => void
+) {
+  const { fields, rowKey, timeZone } = definition
+  if (!isRecord(fields)) {
+    report("fields must be an object of fields by id")
+    return
+  }
+  const ids = Object.keys(fields)
+  if (ids.length === 0) {
+    report("fields must declare at least one field")
+  }
+  for (const id of ids) {
+    checkField(id, fields[id], report)
+  }
+  const timed = ids.some((id) =>
+    ["date", "datetime"].includes(String(typeOf(fields[id])))
+  )
+  if (timeZone === undefined && timed) {
+    report("timeZone is required because a field is a date or datetime")
+  }
+  if (rowKey === undefined && !Object.hasOwn(fields, "id")) {
+    report(
+      'has no row key: add a field named "id" or name the identifying fields in rowKey'
+    )
+  } else {
+    checkRowKey(rowKey ?? "id", fields, report)
+  }
 }
 
-function deepFreeze<T>(value: T): T {
+function check(definition: unknown) {
+  const problems: string[] = []
+  const report = (message: string) => problems.push(message)
+  if (!isRecord(definition)) {
+    report("the definition must be an object")
+    return problems
+  }
+  if (!itemIdSchema.safeParse(definition["id"]).success) {
+    report(
+      `id ${quote(definition["id"])} must start with a letter and contain only letters, digits, - and _, up to 64 characters`
+    )
+  }
+  for (const key of Object.keys(definition)) {
+    if (!datasetKeys.has(key)) {
+      report(`unknown option ${quote(key)}`)
+    }
+  }
+  const { describe, timeZone } = definition
+  if (describe !== undefined && !isText(describe, 500)) {
+    report("describe must be non-empty text of up to 500 characters")
+  }
+  if (timeZone !== undefined && canonicalTimeZone(timeZone) === undefined) {
+    report(
+      `unknown time zone ${quote(timeZone)}; use an IANA name such as "Asia/Tokyo"`
+    )
+  }
+  checkFields(definition, report)
+  return problems
+}
+
+function freeze<T>(value: T): T {
   if (typeof value === "object" && value !== null) {
-    Object.values(value).forEach(deepFreeze)
+    Object.values(value).forEach(freeze)
     Object.freeze(value)
   }
   return value
 }
 
+function withoutUndefined(field: Readonly<Record<string, unknown>>) {
+  return Object.fromEntries(
+    Object.entries(field).filter(([, value]) => value !== undefined)
+  )
+}
+
 /**
  * Declares a dataset on the server: its fields, their types, units, formats
- * and capabilities, and the row key that identifies each row and breaks
- * ties when rows are sorted.
+ * and capabilities, and the row key that identifies each row.
+ *
+ * The definition is read once, as plain data: its own enumerable
+ * properties, with getters called once. The dataset keeps its own frozen
+ * copy, so later changes to the definition don't reach it.
  *
  * The row key is `rowKey`, or else the field named `id`. Capabilities
- * default by type and can be overridden per field: every field is sortable
- * and filterable except `text` fields, which are filterable by search only;
- * `string`, `boolean`, `date` and `enum` fields are groupable; and aggregate
- * functions can read every field except `text` fields.
+ * default by type and can be overridden per field: every field is sortable,
+ * filterable and readable by aggregate functions except `text` fields,
+ * which are filterable by search only; `string`, `boolean`, `date` and
+ * `enum` fields are groupable. The time zone is stored by its canonical
+ * name, as `Intl` resolves it.
  *
  * Throws a `TypeError` listing every problem: a bad dataset or field id, an
- * unknown type, unit, currency, time zone or option, a format that doesn't
- * fit its field, or a missing or invalid row key.
+ * unknown type, unit, currency, time zone or option, text that is empty or
+ * too long, a format that doesn't fit its field, bad enum values, or a
+ * missing or invalid row key.
  *
  * @experimental
  */
 export function defineDataset<
   const TFields extends Fields,
-  const TKey extends KeyOf<TFields> = "id" & KeyOf<TFields>,
+  const TKey extends KeyField<TFields> = "id" & KeyField<TFields>,
 >(definition: DatasetDefinition<TFields, TKey>): Dataset<TFields, TKey> {
-  const problems: string[] = []
-  const report = (message: string) => problems.push(message)
-  // Read as unknown: JavaScript callers can pass anything.
-  const {
-    id,
-    describe,
-    timeZone,
-    fields,
-    rowKey,
-  }: Partial<Record<keyof DatasetDefinition | "rowKey", unknown>> = definition
-  const name = typeof id === "string" ? id : "(no id)"
-  if (!itemIdSchema.safeParse(id).success) {
-    report(
-      `id ${JSON.stringify(id)} must start with a letter and contain only letters, digits, - and _, up to 64 characters`
-    )
-  }
-  for (const key of Object.keys(definition)) {
-    if (!datasetKeys.has(key)) {
-      report(`unknown option "${key}"`)
-    }
-  }
-  if (
-    describe !== undefined &&
-    (typeof describe !== "string" || describe.trim() === "")
-  ) {
-    report("describe must be non-empty text")
-  }
-  if (typeof fields !== "object" || fields === null || Array.isArray(fields)) {
-    report("fields must be an object of fields by id")
-  } else {
-    const ids = Object.keys(fields)
-    if (ids.length === 0) {
-      report("fields must declare at least one field")
-    }
-    for (const fieldId of ids) {
-      checkField(fieldId, Reflect.get(fields, fieldId), report)
-    }
-    const timed = Object.values(fields).some((field: unknown) =>
-      ["date", "datetime"].includes(typeOf(field))
-    )
-    if (timeZone === undefined && timed) {
-      report("timeZone is required because a field is a date or datetime")
-    }
-    if (rowKey === undefined && !Object.hasOwn(fields, "id")) {
-      report(
-        'has no row key: add a field named "id" or name the identifying fields in rowKey'
-      )
-    } else {
-      checkRowKey(
-        Array.isArray(rowKey) ? rowKey : [rowKey ?? "id"],
-        fields,
-        report
-      )
-    }
-  }
-  if (
-    timeZone !== undefined &&
-    (typeof timeZone !== "string" || !isTimeZone(timeZone))
-  ) {
-    report(`unknown time zone ${JSON.stringify(timeZone)}`)
-  }
-  if (problems.length > 0) {
+  const copy = snapshot(definition, depth)
+  const problems = check(copy)
+  if (problems.length > 0 || !isRecord(copy) || !isRecord(copy["fields"])) {
+    const id = isRecord(copy) ? copy["id"] : undefined
+    const name = typeof id === "string" ? ` ${quote(id)}` : ""
     throw new TypeError(
-      `Invalid dataset "${name}":\n${problems.map((problem) => `- ${problem}`).join("\n")}`
+      `Invalid dataset${name}:\n${problems.map((problem) => `- ${problem}`).join("\n")}`
     )
   }
-
-  // Checked above: every field is valid and the row key names real fields.
+  const { id, describe, timeZone, fields, rowKey } = copy
   const resolved = Object.fromEntries(
-    Object.entries(definition.fields).map(([fieldId, field]) => [
+    Object.entries(fields).map(([fieldId, field]) => [
       fieldId,
       {
-        ...defaultCapabilities(field.type),
-        ...structuredClone(defined(field)),
+        ...defaultCapabilities(typeOf(field) as DatasetFieldType),
+        ...withoutUndefined(isRecord(field) ? field : {}),
       },
     ])
   )
-  return deepFreeze({
-    id: name,
-    ...(definition.describe === undefined
-      ? {}
-      : { describe: definition.describe }),
-    timeZone: definition.timeZone ?? "UTC",
-    rowKey: Array.isArray(rowKey) ? rowKey.slice() : [rowKey ?? "id"],
+  // Checked above: the copy is a valid definition.
+  return freeze({
+    id,
+    ...(describe === undefined ? {} : { describe }),
+    timeZone: canonicalTimeZone(timeZone ?? "UTC"),
+    rowKey: Array.isArray(rowKey) ? rowKey : [rowKey ?? "id"],
     fields: resolved,
   }) as unknown as Dataset<TFields, TKey>
-}
-
-function defined<T extends object>(value: T): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(value).filter(([, entry]) => entry !== undefined)
-  ) as Partial<T>
 }

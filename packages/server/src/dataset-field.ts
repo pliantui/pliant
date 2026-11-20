@@ -1,6 +1,8 @@
 import { formatSchema, itemIdSchema, type Format } from "@pliantui/contract"
 import type { ExpressionField } from "@pliantui/core"
 
+import { isRecord } from "./snapshot"
+
 /**
  * A field's type. Values of `text` fields are long-form text, such as notes;
  * `percent` values are fractions (0.25 is 25%).
@@ -16,57 +18,85 @@ export type DatasetFieldType = ExpressionField["type"]
  * @experimental
  */
 export interface DatasetFieldCapabilities {
+  /**
+   * Whether people and the model can sort by the field. An `enum` field
+   * sorts by its text, like a `string` field, not by the order of its
+   * `values`.
+   */
   readonly sortable?: boolean | undefined
-  /** `"search"` allows text search only, not comparisons with a value. */
+  /**
+   * Whether people and the model can filter by the field. `true` allows
+   * every filter its type supports, text search included; `"search"`, on a
+   * text-valued field (`string`, `text`, `enum`, `id`, `url` or `email`),
+   * allows text search only.
+   */
   readonly filterable?: boolean | "search" | undefined
+  /** Whether rows can be grouped by the field. */
   readonly groupable?: boolean | undefined
   /** Whether aggregate functions, such as `sum` or `countDistinct`, may read it. */
   readonly aggregatable?: boolean | undefined
 }
 
 interface FieldText extends DatasetFieldCapabilities {
-  /** The field's name as people read it. */
+  /** The field's name as people read it: up to 80 characters. */
   readonly label?: string | undefined
-  /** What the field holds, for people and the model. */
+  /** What the field holds, for people and the model: up to 200 characters. */
   readonly describe?: string | undefined
 }
 
 type FormatOf<T extends Format["type"]> = Extract<Format, { type: T }>
 
+interface NumberOptions {
+  /**
+   * A unit `Intl.NumberFormat` knows, such as `kilogram` or
+   * `kilometer-per-hour`. Use the `percent` type for percentages.
+   */
+  readonly unit?: string | undefined
+  /** Its `unit`, if set, must be the field's. */
+  readonly format?: FormatOf<"number"> | undefined
+}
+
+interface FieldOptions {
+  readonly currency: {
+    /** An ISO 4217 code, such as `USD`. */
+    readonly currency: string
+    /** Its `currency`, if set, must be the field's. */
+    readonly format?: FormatOf<"currency"> | undefined
+  }
+  readonly number: NumberOptions
+  readonly integer: NumberOptions
+  readonly percent: { readonly format?: FormatOf<"percent"> | undefined }
+  readonly date: {
+    /** A calendar date has no time of day to show, so `time` can't be set. */
+    readonly format?:
+      (FormatOf<"date"> & { readonly time?: false | undefined }) | undefined
+  }
+  readonly datetime: { readonly format?: FormatOf<"date"> | undefined }
+  readonly enum: {
+    /** Up to 100 distinct values of up to 80 characters each. */
+    readonly values: readonly [string, ...string[]]
+  }
+}
+
+type OptionsOf<T extends DatasetFieldType> = T extends keyof FieldOptions
+  ? FieldOptions[T]
+  : unknown
+
 /**
- * A dataset field. `currency` fields name their ISO 4217 currency, `number`
- * and `integer` fields can declare a unit, and `enum` fields list their
- * values.
+ * A dataset field: its type, and the options that type takes. `currency`
+ * fields name their currency, `number` and `integer` fields can declare a
+ * unit, and `enum` fields list their values.
  *
  * @experimental
  */
-export type DatasetField =
-  | (FieldText & {
-      readonly type: "currency"
-      readonly currency: string
-      readonly format?: FormatOf<"currency"> | undefined
-    })
-  | (FieldText & {
-      readonly type: "number" | "integer"
-      /** A unit `Intl.NumberFormat` knows, such as `kilogram` or `kilometer-per-hour`. */
-      readonly unit?: string | undefined
-      readonly format?: FormatOf<"number"> | undefined
-    })
-  | (FieldText & {
-      readonly type: "percent"
-      readonly format?: FormatOf<"percent"> | undefined
-    })
-  | (FieldText & {
-      readonly type: "date" | "datetime"
-      readonly format?: FormatOf<"date"> | undefined
-    })
-  | (FieldText & {
-      readonly type: "enum"
-      readonly values: readonly [string, ...string[]]
-    })
-  | (FieldText & {
-      readonly type: "string" | "text" | "boolean" | "id" | "url" | "email"
-    })
+export type DatasetField<T extends DatasetFieldType = DatasetFieldType> =
+  T extends DatasetFieldType
+    ? FieldText & { readonly type: T } & OptionsOf<T>
+    : never
+
+/** The options a field of type `T` takes. */
+export type FieldKey<T extends DatasetFieldType> =
+  "type" | keyof FieldText | keyof OptionsOf<T>
 
 type Capabilities = Required<{
   [K in keyof DatasetFieldCapabilities]-?: Exclude<
@@ -84,7 +114,7 @@ const formatTypes: Partial<Record<DatasetFieldType, Format["type"]>> = {
   datetime: "date",
 }
 
-const textTypes = new Set<DatasetFieldType>([
+const searchableTypes = new Set<DatasetFieldType>([
   "string",
   "text",
   "enum",
@@ -100,7 +130,7 @@ const groupableTypes = new Set<DatasetFieldType>([
   "enum",
 ])
 
-const fieldTypes = new Set<DatasetFieldType>([
+const fieldTypes: readonly DatasetFieldType[] = [
   "string",
   "text",
   "number",
@@ -114,7 +144,7 @@ const fieldTypes = new Set<DatasetFieldType>([
   "id",
   "url",
   "email",
-])
+]
 
 const capabilityKeys = [
   "sortable",
@@ -135,6 +165,9 @@ const extraKeys: Partial<Record<DatasetFieldType, readonly string[]>> = {
   enum: ["values"],
 }
 
+const quote = (value: unknown) =>
+  value === undefined ? "undefined" : JSON.stringify(value)
+
 /** The capabilities a field of this type has unless it overrides them. */
 export function defaultCapabilities(type: DatasetFieldType): Capabilities {
   const text = type === "text"
@@ -144,6 +177,11 @@ export function defaultCapabilities(type: DatasetFieldType): Capabilities {
     groupable: groupableTypes.has(type),
     aggregatable: !text,
   }
+}
+
+/** Whether `value` is text with something besides spaces, up to `max` characters. */
+export function isText(value: unknown, max: number): value is string {
+  return typeof value === "string" && value.trim() !== "" && value.length <= max
 }
 
 function isKnown(kind: "currency" | "unit", value: string) {
@@ -159,59 +197,58 @@ function isKnown(kind: "currency" | "unit", value: string) {
   }
 }
 
-function isText(value: unknown, max: number): value is string {
-  return (
-    typeof value === "string" && value.trim().length > 0 && value.length <= max
-  )
-}
-
-interface RawField {
-  readonly [key: string]: unknown
-  readonly type?: unknown
-  readonly label?: unknown
-  readonly describe?: unknown
-  readonly currency?: unknown
-  readonly unit?: unknown
-  readonly values?: unknown
-  readonly format?: unknown
-}
-
 function checkFormat(
-  field: RawField,
+  field: Readonly<Record<string, unknown>>,
   type: DatasetFieldType,
   report: (message: string) => void
 ) {
-  const parsed = formatSchema.safeParse(field.format)
+  const parsed = formatSchema.safeParse(field["format"])
   if (!parsed.success || parsed.data.type !== formatTypes[type]) {
-    report(`format must be a ${String(formatTypes[type])} format`)
+    report(`format must be a ${quote(formatTypes[type])} format`)
     return
   }
   const format = parsed.data
+  if (format.type === "date" && format.time === true && type === "date") {
+    report("format can't show a time for a date field, which has none")
+  }
   if (
     format.type === "currency" &&
     format.currency !== undefined &&
-    format.currency !== field.currency
+    format.currency !== field["currency"]
   ) {
-    report(
-      `format can't change the currency from ${JSON.stringify(field.currency)}`
-    )
+    report(`format can't change the currency from ${quote(field["currency"])}`)
   }
   if (
     format.type === "number" &&
     format.unit !== undefined &&
-    format.unit !== field.unit
+    format.unit !== field["unit"]
   ) {
     report(
-      field.unit === undefined
+      field["unit"] === undefined
         ? "format can't add a unit; declare it as the field's unit"
-        : `format can't change the unit from ${JSON.stringify(field.unit)}`
+        : `format can't change the unit from ${quote(field["unit"])}`
     )
   }
 }
 
+function checkValues(values: unknown, report: (message: string) => void) {
+  if (
+    !Array.isArray(values) ||
+    values.length === 0 ||
+    values.length > 100 ||
+    !values.every((value) => isText(value, 80))
+  ) {
+    report(
+      "values must list 1 to 100 values, each non-empty text of up to 80 characters"
+    )
+  } else if (new Set(values).size !== values.length) {
+    report("values must not repeat")
+  }
+}
+
 /**
- * Checks one field's definition and reports each problem, so a JavaScript
- * caller gets what TypeScript would have caught.
+ * Checks one field's definition, a snapshot of plain data, and reports each
+ * problem, so a JavaScript caller gets what TypeScript would have caught.
  */
 export function checkField(
   id: string,
@@ -219,80 +256,70 @@ export function checkField(
   report: (message: string) => void
 ) {
   const at = (message: string) => {
-    report(`field "${id}": ${message}`)
+    report(`field ${quote(id)}: ${message}`)
   }
   if (!itemIdSchema.safeParse(id).success) {
     report(
-      `field id "${id}" must start with a letter and contain only letters, digits, - and _, up to 64 characters`
+      `field id ${quote(id)} must start with a letter and contain only letters, digits, - and _, up to 64 characters`
     )
   }
-  if (typeof field !== "object" || field === null || Array.isArray(field)) {
+  if (!isRecord(field)) {
     at("must be an object")
     return
   }
-  const record = field as RawField
-  const type = [...fieldTypes].find((known) => known === record.type)
+  const type = fieldTypes.find((known) => known === field["type"])
   if (type === undefined) {
     at(
-      `unknown type ${JSON.stringify(record.type)}; use one of ${[...fieldTypes].join(", ")}`
+      `unknown type ${quote(field["type"])}; use one of ${fieldTypes.join(", ")}`
     )
     return
   }
   const allowed = new Set([...commonKeys, ...(extraKeys[type] ?? [])])
-  for (const key of Object.keys(record)) {
+  for (const key of Object.keys(field)) {
     if (!allowed.has(key)) {
-      at(`unknown option "${key}" for a ${type} field`)
+      at(`unknown option ${quote(key)} for a ${type} field`)
     }
   }
-  if (record.label !== undefined && !isText(record.label, 80)) {
+  if (field["label"] !== undefined && !isText(field["label"], 80)) {
     at("label must be non-empty text of up to 80 characters")
   }
-  if (record.describe !== undefined && !isText(record.describe, 200)) {
+  if (field["describe"] !== undefined && !isText(field["describe"], 200)) {
     at("describe must be non-empty text of up to 200 characters")
   }
   for (const key of capabilityKeys) {
-    const value = record[key]
+    const value = field[key]
     const search = key === "filterable" && value === "search"
     if (value !== undefined && typeof value !== "boolean" && !search) {
       at(
         `${key} must be a boolean${key === "filterable" ? ' or "search"' : ""}`
       )
     }
-    if (search && !textTypes.has(type)) {
-      at(`filterable: "search" needs a text field, not a ${type} field`)
+    if (search && !searchableTypes.has(type)) {
+      at(`filterable: "search" needs a text-valued field, not a ${type} field`)
     }
   }
   if (type === "currency") {
-    const { currency } = record
+    const currency = field["currency"]
     if (typeof currency !== "string" || !isKnown("currency", currency)) {
       at(
-        `unknown currency ${JSON.stringify(currency)}; use an ISO 4217 code such as USD`
+        `unknown currency ${quote(currency)}; use an ISO 4217 code such as "USD"`
       )
     }
   }
-  if (record.unit !== undefined) {
-    const { unit } = record
+  const unit = field["unit"]
+  if (unit !== undefined && allowed.has("unit")) {
     if (unit === "percent") {
       at('use the percent type instead of the unit "percent"')
     } else if (typeof unit !== "string" || !isKnown("unit", unit)) {
       at(
-        `unknown unit ${JSON.stringify(unit)}; use a unit Intl.NumberFormat knows, such as kilogram or kilometer-per-hour`
+        `unknown unit ${quote(unit)}; use a unit Intl.NumberFormat knows, such as "kilogram" or "kilometer-per-hour"`
       )
     }
   }
   if (type === "enum") {
-    const { values } = record
-    if (
-      !Array.isArray(values) ||
-      values.length === 0 ||
-      !values.every((value) => typeof value === "string" && value.length > 0)
-    ) {
-      at("values must list at least one non-empty string")
-    } else if (new Set(values).size !== values.length) {
-      at("values must not repeat")
-    }
+    checkValues(field["values"], at)
   }
-  if (record.format !== undefined && formatTypes[type] !== undefined) {
-    checkFormat(record, type, at)
+  if (field["format"] !== undefined && allowed.has("format")) {
+    checkFormat(field, type, at)
   }
 }
