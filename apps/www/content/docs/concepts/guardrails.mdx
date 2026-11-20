@@ -31,23 +31,47 @@ The ask route offers the model only a fixed set of ops that the target's capabil
 
 Every answer is validated on the server, then validated again in the browser before it's applied. It applies to the `session` layer as a preview, and nothing is saved until the user saves it.
 
-## Required and critical items
+## Required, critical and destructive items
 
-`PliantRoot` doesn't take flags, so in your app any slot or column a user can see, an overlay can hide. Don't rely on a region to keep something on screen, such as a notice users must read: render it outside Pliant's regions.
+`PliantRoot` doesn't take flags, so in your app any slot or column a user can see, an overlay can hide or move. Don't rely on a region to keep something on screen, such as a notice users must read: render it outside Pliant's regions.
 
-If you resolve overlays with `@pliantui/core` directly, pass the page's flags by address to `resolveLayers` and `validateOverlay`. A node or form field flagged `critical` or `required` can't be hidden, collapsed, demoted or removed, directly or through a node that holds it, and can't be moved into a hidden node or a cycle of nodes. Operations apply one at a time, from the lowest layer up. Each one that would hide a flagged node, given the operations before it, is skipped and reported, so when layers combine to hide one, the operation from the highest layer involved is the one skipped. A lower layer's operation is judged only by the operations before it, so it's skipped even if a higher layer would undo it. `validateOverlay` rejects an overlay that has such an operation.
+If you resolve overlays with `@pliantui/core` directly, pass the page's flags by address to `resolveLayers` and `validateOverlay`. Two rules apply to them.
 
-To know which nodes hold a flagged one, pass the page's node tree as `baseParents`: each node id mapped to the id of the node that holds it, or `null` at the top of the page.
+**Critical and required items stay visible.** A node or form field flagged `critical` or `required` can't be hidden, collapsed, demoted or removed, directly or through a node that holds it, and can't be moved into a hidden node or a cycle of nodes.
+
+**Destructive actions stay clear of the primary action.** An action flagged `destructive` never ends up closer to the action flagged `primary` in its group than your page puts it. A group is either a node's slots or one of a node's item collections, such as the `actions` of `orders-toolbar`. For slots, the group is the node that holds the primary action, and actions in wrappers inside it count as part of it. A destructive action in another group isn't judged against this primary action, so moving it out to another node is allowed. From far to close, a destructive action is apart from the primary action, right after it, or above it:
+
+- In the order the group renders, a destructive action is above the primary action when it comes first, and right after it when no shown action sits between them. Moves, `pin start`, `pin end` and wraps all count, and a wrapper's actions count in its place. Hidden actions keep their place, but don't keep the two apart, and neither does a wrapper on its own.
+- A demoted or collapsed action, or one in a collapsed wrapper, has left the group's bar for its overflow menu. An action in the bar is above every action in the overflow, and the overflow is ordered the same way. Core counts every action as in the bar until an operation demotes or collapses it.
+
+So with Save, Cancel, Archive and Delete in that order, a user can move Delete before Archive, pin it to the end or collapse it into the overflow menu, but can't move it right after Save, pin it to the start, or collapse Save into the overflow menu. When a user hides Cancel and then Archive, the second hide is skipped. If your page already puts Delete right after Save, operations can keep it there, but never move it above Save.
+
+A group has at most one `primary` action: `resolveLayers` and `validateOverlay` throw a `TypeError` when two primary actions share a group. A node's slots and each of its item collections are separate groups.
+
+Operations apply one at a time, from the lowest layer up. Each one that would break a rule, given the operations before it, is skipped and reported with the rule's name, `stays-visible` or `stays-clear`, so when layers combine to break one, the operation from the highest layer involved is the one skipped. A lower layer's operation is judged only by the operations before it, so it's skipped even if a higher layer would undo it. `validateOverlay` rejects an overlay that has such an operation.
+
+To know which nodes hold a flagged one, pass the page's node tree as `baseParents`: each node id mapped to the id of the node that holds it, or `null` at the top of the page. Its key order is ignored. To give the order each group renders in, pass `baseOrder`: each node id mapped to its children's ids, and each `<node>/<collection>` mapped to its item ids, in order.
 
 ```ts
 const baseParents = {
   page: null,
   "checkout-actions": "page",
-  "pay-now": "checkout-actions",
+  save: "checkout-actions",
+  cancel: "checkout-actions",
+  delete: "checkout-actions",
+}
+
+const baseOrder = {
+  "checkout-actions": ["save", "cancel", "delete"],
+  "orders-toolbar/actions": ["export", "print", "delete"],
 }
 ```
 
 A node the tree leaves out, such as one that isn't mounted yet, takes the parent its flag's address shows. A node that the tree leaves out and no flag names has no parent, and the addresses of operations don't supply one. The tree must agree with those addresses and have no cycle. When you pass it, addresses in overlays don't change it. Without it, parents come from the addresses in your flags and in the overlays, so give each flag by its full address, such as `page/slots/checkout-actions/slots/pay-now`. A node that an overlay names only by its id is then not traced to the nodes that hold it: for example, the destination of a `move … into`, or an item in a `collapse`.
+
+`baseOrder` lists each child once, in the parent that `baseParents` gives it, or, without `baseParents`, the parent its flag's address shows. With `baseParents`, every node it names must be in the tree. Without it, a node `baseOrder` lists takes that parent where nothing else gives one, and those parents must have no cycle. `resolveLayers` and `validateOverlay` throw a `TypeError` otherwise.
+
+`baseOrder` may leave out a group, or some of a group's members. Core then builds the group's starting order only from what you passed (`baseParents`, `baseOrder` and your flags' addresses), never from the overlays. An unlisted primary action goes first, an unlisted destructive one last, and the other known members go between them by id, after the listed ones. When the only members Core knows are the two flagged actions, they start out adjacent. That's the least strict case: users can't move the destructive action above the primary one, but can move it right after it. To get the full rule, list the group's order in `baseOrder`.
 
 ## Team and org defaults aren't locks
 

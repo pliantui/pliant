@@ -4,6 +4,7 @@ import type { OpCheck } from "./check-op"
 import type { LoadedOverlay } from "./load-overlay"
 import type { OpPropertyKey } from "./op-property"
 import type { ResolvedPlacement } from "./placement"
+import { readBaseOrder } from "./read-base-order"
 import { readBaseParents } from "./read-base-parents"
 import { readFlags } from "./read-flags"
 import { readBaseIds } from "./resolution"
@@ -110,8 +111,7 @@ export type SkippedOp =
     }
   /**
    * A valid op skipped because it would break a guardrail. Every guardrail
-   * skip names the flagged node the rule protects and the flag that makes
-   * it protected.
+   * skip names a flagged node and the flag that makes the rule apply to it.
    */
   | {
       readonly check: Extract<OpCheck, { status: "valid" }>
@@ -120,17 +120,31 @@ export type SkippedOp =
       /**
        * The rule the op would break, named after what it enforces:
        * `stays-visible` keeps nodes flagged `critical` or `required` visible
-       * and reachable.
+       * and reachable; `stays-clear` keeps actions flagged `destructive`
+       * from moving closer to the primary action of their group.
        */
-      readonly guardrail: "stays-visible"
-      /** The flag of `node` that the rule protects. */
-      readonly flag: "critical" | "required"
-      /** The identity of the flagged node or item the rule protects. */
+      readonly guardrail: "stays-visible" | "stays-clear"
+      /**
+       * The flag of `node` the rule applies to: `critical` or `required`
+       * for `stays-visible`, `destructive` for `stays-clear`.
+       */
+      readonly flag: "critical" | "required" | "destructive"
+      /**
+       * The identity of the flagged node or item: the node `stays-visible`
+       * protects, or the destructive action `stays-clear` keeps away from
+       * the primary one.
+       */
       readonly node: string
       /**
-       * The ops applied before this one that make it break the rule, such
-       * as the `move … into` the node this op hides. Empty when the op
-       * breaks it alone.
+       * Ops applied before this one that bear on the break. For
+       * `stays-visible`, the ops that make this op break the rule, such as
+       * the `move … into` the node this op hides; empty when the op breaks
+       * it alone. For `stays-clear`, the earlier ops that place either
+       * action (a placement, a `move … into`, a `wrap` or a `collapse`, of
+       * it or of a wrapper that holds it), and, when the op leaves the
+       * destructive action right after the primary one, those that cleared
+       * the space between them (a `hide`, `collapse`, `remove`, move out or
+       * reorder), even when this op alone completes the violation.
        */
       readonly conflictsWith: readonly ResolvedOp[]
     }
@@ -221,19 +235,54 @@ export interface ResolveLayersOptions {
    * node that holds it, and no `move … into`, `wrap` or other op that puts
    * it in a hidden node or a cycle of containers.
    *
-   * Ops apply one at a time in resolution order. Each op that leaves a
-   * flagged node out of sight, given the ops kept before it, is skipped
-   * with reason `guardrail` and guardrail `stays-visible`; every op before
-   * it was kept, so it is the op from the highest layer involved. An op is
-   * judged by the ops before it only: a lower layer's `hide` is skipped even
-   * when a higher layer's `show` would undo it.
+   * An action flagged `destructive` never ends up closer to the action
+   * flagged `primary` in its group than your page puts it. A group is a
+   * node's slots, the node that holds the primary action past any
+   * wrappers, or one of a node's item collections, such as
+   * `orders-toolbar/actions`. A destructive action in another group isn't
+   * judged against it. From far to close, a destructive action is apart,
+   * right after the primary action, or above it. In the order the group
+   * renders, as `resolveRegion` gives it with wrappers flattened, the
+   * destructive action is above the primary one when it comes first, and
+   * right after it when no shown action sits between them: hidden actions
+   * keep their place but don't keep them apart. A demoted or collapsed
+   * action, or one in a collapsed wrapper, has left the group's bar for
+   * its overflow: an action in the bar is above every action in the
+   * overflow, and the overflow is ordered the same way. Every action starts
+   * in the bar.
    *
-   * Each op that can hide something checks the state so far, and each
-   * skipped op applies the ops kept before it again, so the time grows with
-   * the number of ops times the number of ops that can hide something, and
-   * with the number of flags times the depth of the tree; ops such as sorts
-   * and widths add nothing. For scale, 20 flags at depth 6 over 2,000 ops
-   * take about 230 ms; 500 flags at depth 30 take about 7 s.
+   * The group's order before any op comes from `baseOrder`, and only from
+   * what you pass, never from the ops. Members it doesn't list, but that
+   * `baseParents`, `baseOrder` or a flag's address put in the group, go
+   * between an unlisted primary action, first, and an unlisted destructive
+   * one, last, by id. So when only the two flagged actions are known, they
+   * start out adjacent, the least strict case: ops can't move the
+   * destructive action above the primary one, but can leave it right after
+   * it. List the group's order in `baseOrder` for the full rule. A group
+   * has at most one `primary` action.
+   *
+   * Ops apply one at a time in resolution order. Each op that breaks a
+   * rule, given the ops kept before it, is skipped with reason `guardrail`:
+   * guardrail `stays-visible` when it leaves a flagged node out of sight,
+   * `stays-clear` when it leaves a destructive action closer to the primary
+   * one. Every op before it was kept, so it is the op from the highest
+   * layer involved. An op is judged by the ops before it only: a lower
+   * layer's `hide` is skipped even when a higher layer's `show` would undo
+   * it.
+   *
+   * Each op that can hide or move something checks the state so far, and
+   * each skipped op applies the ops kept before it again, so the time grows
+   * with the number of ops times the number of ops that can hide or move
+   * something, and with the number of flags times the depth of the tree;
+   * ops such as sorts and widths add nothing. With a `primary` action,
+   * each op that touches its group also orders the group, which grows with
+   * the placement ops applied so far. For scale, 20 flags at depth 6 over
+   * 2,000 ops take about 120 to 230 ms. When one of them is a primary
+   * action whose group every op reorders, 1,000 ops take about 150 to
+   * 200 ms and 2,000 about 0.6 s; ops in other nodes add much less. Skips
+   * cost more, since each one applies the kept ops again: in that group,
+   * 1,000 kept ops and 1,000 skipped ones take about 1 to 2 s. 500 flags at
+   * depth 30 take about 7 s.
    *
    * Which node holds another in the page comes from `baseParents` when
    * given. Without it, it comes from the addresses in `flags`, then from
@@ -251,12 +300,33 @@ export interface ResolveLayersOptions {
    * page; addresses in overlays don't change it. An item's node always
    * comes from its address.
    *
+   * Its key order is ignored; give the order children render in as
+   * `baseOrder`.
+   *
    * A node it leaves out, such as one not mounted yet, takes the parent its
    * flag's address shows. A node it leaves out that no flag names has no
-   * parent, and the addresses of ops don't supply one. It must put each node a flag's address names in
-   * the parent that address shows, and, with those parents, have no cycle.
+   * parent, and the addresses of ops don't supply one. It must put each node a flag's address names in the parent
+   * that address shows, and, with those parents, have no cycle and no two
+   * `primary` nodes in one parent.
    */
   readonly baseParents?: Readonly<Record<string, string | null>> | undefined
+  /**
+   * Each action group's members in the order they render: a node id mapped
+   * to its children's node ids, such as
+   * `{ "checkout-actions": ["save", "cancel", "delete"] }`, or
+   * `<node>/<collection>` mapped to item ids, such as
+   * `{ "orders-toolbar/actions": ["export", "print", "delete"] }`. The
+   * `stays-clear` guardrail (see `flags`) reads a group's order from it
+   * before any op applies. It may leave out groups and members.
+   *
+   * It must list each child once and only in its parent: the one
+   * `baseParents` gives when given, else the one the child's flag address
+   * shows, if any. With `baseParents`, every node it names must be in it;
+   * without, a node it lists takes that parent where nothing else gives
+   * one, and those parents can't form a cycle. Two `primary` actions can't
+   * share a group.
+   */
+  readonly baseOrder?: Readonly<Record<string, readonly string[]>> | undefined
 }
 
 /** The result of `resolveLayers`. */
@@ -316,13 +386,24 @@ export interface ResolvedLayers {
  * Throws a `TypeError` when `surface` isn't a string, `baseIds` isn't node
  * ids or `{ ids, source }`, `flags` isn't a plain object that maps
  * addresses to valid flags, two of its addresses put one node in different
- * parents, or `baseParents` isn't a plain object that maps node ids to
- * node ids or `null`, puts a node in another parent than a flag's address
- * shows, or has a cycle.
+ * parents, two `primary` nodes or items share a group, or `baseParents`
+ * isn't a plain object that maps node ids to node ids or `null`, puts a
+ * node in another parent than a flag's address shows, or has a cycle, or
+ * `baseOrder` isn't a plain object that maps node ids to arrays of node
+ * ids and `<node>/<collection>` keys to arrays of item ids, lists a child
+ * twice or in another parent, names a node `baseParents` doesn't, or makes
+ * a cycle of parents.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],
-  { surface, baseIds, teamOrder = [], flags, baseParents }: ResolveLayersOptions
+  {
+    surface,
+    baseIds,
+    teamOrder = [],
+    flags,
+    baseParents,
+    baseOrder,
+  }: ResolveLayersOptions
 ): ResolvedLayers {
   const read = readBaseIds(baseIds)
   const known: BaseIds | undefined = read && {
@@ -331,12 +412,14 @@ export function resolveLayers(
   }
   const ordered = surfaceOrder(overlays, surface, teamOrder)
   const flagged = readFlags(flags)
+  const tree = readBaseParents(baseParents, flagged)
   return {
     ...resolveOrdered(
       ordered,
       known,
       flagged,
-      readBaseParents(baseParents, flagged)
+      tree,
+      readBaseOrder(baseOrder, tree, flagged)
     ),
     overlays: ordered.map(({ overlay }) => overlay),
     baseIds: known,
