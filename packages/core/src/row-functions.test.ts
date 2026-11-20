@@ -176,13 +176,33 @@ describe("row functions", () => {
       }
     })
 
-    it("adds and subtracts as inverses on integers (property)", () => {
+    it("computes arithmetic as IEEE 754 doubles do (property)", () => {
       const next = random(2)
+      const number = () => (next() - 0.5) * 10 ** Math.floor(next() * 20 - 6)
       for (let run = 0; run < 500; run++) {
-        const a = Math.floor((next() - 0.5) * 1e9)
-        const b = Math.floor((next() - 0.5) * 1e9)
-        expect(call("sub", [fn("add", value(a), value(b)), b])).toBe(a)
-        expect(call("percentChange", [a || 1, a || 1])).toBe(0)
+        const row = { a: number(), b: number() }
+        const { a, b } = row
+        const read = (name: string) => call(name, [field("a"), field("b")], row)
+        expect(read("add")).toBe(a + b)
+        expect(read("sub")).toBe(a - b)
+        expect(read("mul")).toBe(a * b)
+        expect(read("div")).toBe(a / b)
+        expect(read("min2")).toBe(Math.min(a, b))
+        expect(read("max2")).toBe(Math.max(a, b))
+        expect(read("gt")).toBe(a > b)
+        expect(read("eq")).toBe(a === b)
+      }
+    })
+
+    it("measures percentChange from the absolute base, so a rise is positive (property)", () => {
+      const next = random(5)
+      for (let run = 0; run < 500; run++) {
+        const row = { a: (next() - 0.5) * 1000, b: (next() - 0.5) * 1000 }
+        const change = Number(
+          call("percentChange", [field("a"), field("b")], row)
+        )
+        expect(change).toBe((row.b - row.a) / Math.abs(row.a))
+        expect(Math.sign(change)).toBe(Math.sign(row.b - row.a))
       }
     })
   })
@@ -376,6 +396,21 @@ describe("row functions", () => {
       expect(call(name, args)).toBe(expected)
     })
 
+    it("doesn't match half of a surrogate pair", () => {
+      const smile = "\u{1F600}"
+      const high = smile.charAt(0)
+      const low = smile.charAt(1)
+      expect(call("contains", [`a${smile}b`, high])).toBe(false)
+      expect(call("contains", [`a${smile}b`, low])).toBe(false)
+      expect(call("contains", [`a${smile}b`, `${low}b`])).toBe(false)
+      expect(call("contains", [`a${smile}b`, `a${high}`])).toBe(false)
+      expect(call("contains", [`a${smile}b`, smile])).toBe(true)
+      expect(call("contains", [`${smile}${high}`, high])).toBe(true)
+      expect(call("startsWith", [smile, high])).toBe(false)
+      expect(call("startsWith", [`${smile}b`, smile])).toBe(true)
+      expect(call("startsWith", [`${high}b`, high])).toBe(true)
+    })
+
     it("joins null arguments as empty strings and is never null", () => {
       expect(call("concat", [field("s"), "-", field("t")], { t: "x" })).toBe(
         "-x"
@@ -495,6 +530,40 @@ describe("row functions", () => {
       )
     })
 
+    describe("with a date and a datetime", () => {
+      // In Kolkata, 2024-03-01 starts at 2024-02-29T18:30:00Z.
+      const zone = "Asia/Kolkata"
+      const at = (dt: string) => ({ d: "2024-03-01", dt })
+
+      it("reads the date as the start of its day where they meet", () => {
+        const midnight = at("2024-02-29T18:30:00Z")
+        const later = at("2024-02-29T18:30:00.001Z")
+        expect(call("in", [field("dt"), field("d")], midnight, zone)).toBe(true)
+        expect(call("in", [field("dt"), field("d")], later, zone)).toBe(false)
+        expect(
+          call("in", [field("d"), field("dt"), "2024-01-01"], midnight, zone)
+        ).toBe(true)
+        expect(
+          call("between", [field("dt"), field("d"), "2024-03-02"], later, zone)
+        ).toBe(true)
+        expect(
+          call("between", [field("dt"), "2024-02-01", field("d")], later, zone)
+        ).toBe(false)
+        expect(call("min2", [field("d"), field("dt")], later, zone)).toBe(
+          "2024-02-29T18:30:00.000Z"
+        )
+        expect(call("max2", [field("d"), field("dt")], later, zone)).toBe(
+          "2024-02-29T18:30:00.001Z"
+        )
+        expect(call("if", [true, field("d"), field("dt")], later, zone)).toBe(
+          "2024-02-29T18:30:00.000Z"
+        )
+        expect(call("if", [false, field("d"), field("dt")], later, zone)).toBe(
+          "2024-02-29T18:30:00.001Z"
+        )
+      })
+    })
+
     it("adds days to a date", () => {
       expect(call("addDays", ["2024-02-28", 1])).toBe("2024-02-29")
       expect(call("addDays", ["2024-03-01", -1])).toBe("2024-02-29")
@@ -536,10 +605,53 @@ describe("row functions", () => {
       ).toBe(true)
     })
 
-    it("gives null for a date beyond the range of JavaScript dates", () => {
-      expect(call("addDays", ["2024-01-01", 100_000_000])).toBeNull()
-      expect(call("addDays", ["2024-01-01T00:00:00Z", -100_100_000])).toBeNull()
-      expect(call("addDays", ["2024-01-01", 99_900_000])).toBe("+275540-11-29")
+    it("keeps dates to the years 0000 to 9999", () => {
+      expect(call("addDays", ["9999-12-30", 1])).toBe("9999-12-31")
+      expect(call("addDays", ["9999-12-31", 1])).toBeNull()
+      expect(call("addDays", ["0000-01-02", -1])).toBe("0000-01-01")
+      expect(call("addDays", ["0000-01-01", -1])).toBeNull()
+      expect(call("addDays", ["2024-01-01", 1e15])).toBeNull()
+      expect(call("addDays", ["2024-01-01", -1e300])).toBeNull()
+      expect(call("addDays", ["9999-12-31T23:59:59.999Z", 0])).toBe(
+        "9999-12-31T23:59:59.999Z"
+      )
+      expect(call("addDays", ["9999-12-31T00:00:00Z", 1])).toBeNull()
+      expect(call("addDays", ["0000-01-01T00:00:00Z", -1])).toBeNull()
+      expect(call("addDays", ["2024-01-01T00:00:00Z", 1e15])).toBeNull()
+    })
+
+    it("gives null for a truncated date before the year 0000", () => {
+      // 0000-01-01 is a Saturday, so its week starts in the year before.
+      expect(call("dateTrunc", ["0000-01-01", "week"])).toBeNull()
+      expect(call("dateTrunc", ["0000-01-02", "week"])).toBeNull()
+      expect(call("dateTrunc", ["0000-01-03", "week"])).toBe("0000-01-03")
+      expect(call("dateTrunc", ["0000-01-04", "week"])).toBe("0000-01-03")
+      expect(call("dateTrunc", ["9999-12-31", "week"])).toBe("9999-12-27")
+      expect(call("dateTrunc", ["0000-01-01", "year"])).toBe("0000-01-01")
+      expect(
+        call("dateTrunc", [
+          fn("addDays", value("1970-01-01"), value(-99_999_998)),
+          "week",
+        ])
+      ).toBeNull()
+    })
+
+    it("gives null for a datetime with an offset that falls outside the years 0000 to 9999", () => {
+      expect(
+        call("eq", [field("dt"), field("dt")], {
+          dt: "0000-01-01T00:00:00+01:00",
+        })
+      ).toBeNull()
+      expect(
+        call("eq", [field("dt"), field("dt")], {
+          dt: "9999-12-31T23:00:00-01:00",
+        })
+      ).toBeNull()
+      expect(
+        call("eq", [field("dt"), "0000-01-01T00:00:00+01:00"], {
+          dt: "2024-01-01T00:00:00Z",
+        })
+      ).toBeNull()
     })
 
     it("gives the current date and ages", () => {

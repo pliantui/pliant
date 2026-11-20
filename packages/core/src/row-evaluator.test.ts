@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import type { Expression } from "@pliantui/contract"
 
@@ -85,7 +85,9 @@ describe("createRowEvaluator", () => {
       ["shipped", "2024-02-29T10:60:00Z"],
       ["shipped", "2024-02-29T10:00:00+24:00"],
       ["shipped", "2024-02-29T10:00Z"],
-      ["shipped", new Date(0)],
+      ["shipped", 1_709_164_800_000],
+      ["shipped", new Date(Number.NaN)],
+      ["placed", new Date(Number.NaN)],
     ])("reads %s = %j, which doesn't fit its type, as null", (id, input) => {
       expect(evaluate(field(id), { [id]: input })).toBeNull()
     })
@@ -95,9 +97,98 @@ describe("createRowEvaluator", () => {
       expect(evaluate(field("score"), { score: null })).toBeNull()
     })
 
-    it("reads only the row's own properties", () => {
-      const row = Object.create({ score: 4 }) as object
-      expect(evaluate(field("score"), row)).toBeNull()
+    it("reads a Date in a datetime field as its instant", () => {
+      expect(
+        evaluate(field("shipped"), {
+          shipped: new Date("2024-01-01T23:30:00.250Z"),
+        })
+      ).toBe("2024-01-01T23:30:00.250Z")
+    })
+
+    it("reads a Date in a date field as its UTC calendar date", () => {
+      // Database drivers return a date column as midnight UTC of that date.
+      expect(
+        evaluate(field("placed"), { placed: new Date("2024-01-01T00:00:00Z") })
+      ).toBe("2024-01-01")
+      expect(
+        evaluate(field("placed"), { placed: new Date("2024-01-01T23:30:00Z") })
+      ).toBe("2024-01-01")
+    })
+
+    it("reads a Date from another realm, but not an object posing as one", () => {
+      // A Date made with another prototype, as one from an iframe has.
+      const foreign: unknown = Reflect.construct(
+        Date,
+        ["2024-01-01T10:00:00Z"],
+        Object
+      )
+      expect(foreign instanceof Date).toBe(false)
+      expect(evaluate(field("shipped"), { shipped: foreign })).toBe(
+        "2024-01-01T10:00:00.000Z"
+      )
+      const posing = { [Symbol.toStringTag]: "Date" }
+      expect(evaluate(field("shipped"), { shipped: posing })).toBeNull()
+      const proxy = new Proxy(new Date(), {})
+      expect(evaluate(field("shipped"), { shipped: proxy })).toBeNull()
+    })
+
+    it.each([
+      ["2024-01-01T10:00:00z", "2024-01-01T10:00:00.000Z"],
+      ["2024-01-01T10:00:00+0530", "2024-01-01T04:30:00.000Z"],
+      ["2024-01-01T10:00:00-05", "2024-01-01T15:00:00.000Z"],
+      ["2024-01-01T10:00:00+00", "2024-01-01T10:00:00.000Z"],
+    ])("reads the offset of %s", (shipped, expected) => {
+      expect(evaluate(field("shipped"), { shipped })).toBe(expected)
+    })
+
+    it.each([
+      "2024-01-01T10:00:00+05:",
+      "2024-01-01T10:00:00+5",
+      "2024-01-01T10:00:00+05300",
+    ])("reads %s, whose offset is malformed, as null", (shipped) => {
+      expect(evaluate(field("shipped"), { shipped })).toBeNull()
+    })
+
+    it("reads inherited properties and getters, as TanStack's accessorKey does", () => {
+      class Order {
+        readonly qty = 2
+        get score() {
+          return this.qty * 1.5
+        }
+      }
+      expect(evaluate(field("score"), new Order())).toBe(3)
+      expect(
+        evaluate(field("score"), Object.create({ score: 4 }) as object)
+      ).toBe(4)
+    })
+
+    it("reads what every object inherits as null", () => {
+      const options = {
+        fields: { ...fields, constructor: { type: "string" as const } },
+      }
+      expect(evaluate(field("constructor"), {}, options)).toBeNull()
+      expect(
+        evaluate(field("constructor"), { constructor: "own" }, options)
+      ).toBe("own")
+    })
+
+    it("reads values through getValue", () => {
+      const getValue = (row: { data: Record<string, unknown> }, id: string) =>
+        row.data[id]
+      const result = createRowEvaluator({
+        fields,
+        timeZone: "UTC",
+        getValue,
+      })(fn("mul", field("price"), field("qty")))
+      expect(result.data?.({ data: { price: 2.5, qty: 4 } })).toBe(10)
+    })
+
+    it("reads a bigint, a decimal object or a numeric string as null", () => {
+      expect(evaluate(field("qty"), { qty: 3n })).toBeNull()
+      expect(
+        evaluate(field("price"), { price: { toString: () => "1.5" } })
+      ).toBeNull()
+      expect(evaluate(field("price"), { price: "1.5" })).toBeNull()
     })
 
     it("reads -0 as 0", () => {
@@ -264,7 +355,15 @@ describe("createRowEvaluator", () => {
         const previous = ref(`d${String(index - 1)}`)
         diamond[`d${String(index)}`] = fn("max2", previous, previous)
       }
-      expect(evaluate(ref("d60"), { qty: 7 }, { derived: diamond })).toBe(7)
+      let reads = 0
+      const row = {
+        get qty() {
+          reads++
+          return 7
+        },
+      }
+      expect(evaluate(ref("d60"), row, { derived: diamond })).toBe(7)
+      expect(reads).toBe(1)
     })
   })
 
@@ -347,6 +446,31 @@ describe("createRowEvaluator", () => {
       expect(result.data?.({})).toBe("2024-03-10")
       time += 12 * 3_600_000
       expect(result.data?.({})).toBe("2024-03-11")
+      time -= 12 * 3_600_000
+      expect(result.data?.({})).toBe("2024-03-10")
+    })
+
+    it("converts the clock to a date once for rows read at the same time", () => {
+      const result = evaluatorFor({ now })(fn("age", value("2000-01-01")))
+      const formatToParts = vi.spyOn(
+        Intl.DateTimeFormat.prototype,
+        "formatToParts"
+      )
+      try {
+        for (let index = 0; index < 1000; index++) {
+          expect(result.data?.({})).toBe(24)
+        }
+        expect(formatToParts.mock.calls.length).toBeLessThanOrEqual(1)
+      } finally {
+        formatToParts.mockRestore()
+      }
+    })
+
+    it("gives null for today when the clock reads outside the years 0000 to 9999", () => {
+      expect(evaluate(fn("today"), {}, { now: () => 1e16 })).toBeNull()
+      expect(
+        evaluate(fn("age", value("2000-01-01")), {}, { now: () => Number.NaN })
+      ).toBeNull()
     })
 
     it("reads the current date in the zone given for the expression", () => {
@@ -376,6 +500,18 @@ describe("createRowEvaluator", () => {
       expect(() => evaluatorFor({ timeZone: "Mars/Olympus" })).toThrow(
         RangeError
       )
+      expect(() =>
+        evaluatorFor({ todayTimeZones: { unused: "Mars/Olympus" } })
+      ).toThrow(RangeError)
+    })
+
+    it("fails an expression given an unknown time zone", () => {
+      const result = evaluatorFor()(fn("today"), {
+        todayTimeZone: "Mars/Olympus",
+      })
+      expect(result.error?.issues).toEqual([
+        { code: "custom", path: [], message: "Unknown time zone Mars/Olympus" },
+      ])
     })
   })
 })

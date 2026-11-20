@@ -8,13 +8,16 @@ export interface Call {
   readonly types: readonly (ValueType | undefined)[]
   /** The dataset's time zone, which dates and datetimes are read in. */
   readonly zone: TimeZone
-  /** The current date, as a day counted from 1970-01-01. */
-  readonly today: () => number
+  /**
+   * The current date, as a day counted from 1970-01-01, or null when the
+   * clock reads outside the years 0000 to 9999.
+   */
+  readonly today: () => number | null
 }
 
 /**
  * Computes a row function from its arguments. A function whose catalog entry
  * propagates nulls is called only when no argument is null. A NaN or
- * infinite result is null.
+ * infinite result is null, as is a date outside the years 0000 to 9999.
  */
 export type RowFunction = (args: readonly Value[], call: Call) => Value

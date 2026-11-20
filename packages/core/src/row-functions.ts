@@ -1,5 +1,6 @@
-import type { FunctionName } from "@pliantui/contract"
+import { functionCatalog, type FunctionName } from "@pliantui/contract"
 
+import { isFunctionName } from "./check-function-call"
 import { compareCodePoints } from "./compare-code-points"
 import { dateFunctions } from "./date-functions"
 import type { Value } from "./read-value"
@@ -23,7 +24,7 @@ const textual =
     compute(stringAt(args, 0), stringAt(args, 1))
 
 /** Orders two values of one comparable type: by code point for strings. */
-export function compareValues(a: Value, b: Value): number {
+function compareValues(a: Value, b: Value): number {
   return typeof a === "string" && typeof b === "string"
     ? compareCodePoints(a, b)
     : Number(a) - Number(b)
@@ -62,8 +63,36 @@ function codePoints(text: string) {
   return Array.from(text)
 }
 
-/** The built-in row functions, by name. */
-export const rowFunctions: Partial<Record<FunctionName, RowFunction>> = {
+const isSurrogate = (unit: number, low: number) =>
+  unit >= low && unit < low + 0x400
+
+/** Whether the index falls between the two halves of a surrogate pair. */
+function splitsPair(text: string, index: number) {
+  return (
+    isSurrogate(text.charCodeAt(index - 1), 0xd800) &&
+    isSurrogate(text.charCodeAt(index), 0xdc00)
+  )
+}
+
+// Matches by code point: a match can't start or end inside a surrogate pair.
+function matchesAt(text: string, search: string, index: number) {
+  return !splitsPair(text, index) && !splitsPair(text, index + search.length)
+}
+
+function contains(text: string, search: string) {
+  for (
+    let index = text.indexOf(search);
+    index >= 0;
+    index = text.indexOf(search, index + 1)
+  ) {
+    if (matchesAt(text, search, index)) {
+      return true
+    }
+  }
+  return false
+}
+
+const rowFunctions: Partial<Record<FunctionName, RowFunction>> = {
   add: numeric((a, b) => a + b),
   sub: numeric((a, b) => a - b),
   mul: numeric((a, b) => a * b),
@@ -107,8 +136,10 @@ export const rowFunctions: Partial<Record<FunctionName, RowFunction>> = {
   lower: textual((text) => text.toLowerCase()),
   upper: textual((text) => text.toUpperCase()),
   length: textual((text) => codePoints(text).length),
-  contains: textual((text, search) => text.includes(search)),
-  startsWith: textual((text, search) => text.startsWith(search)),
+  contains: textual(contains),
+  startsWith: textual(
+    (text, search) => text.startsWith(search) && matchesAt(text, search, 0)
+  ),
   left: (args) =>
     codePoints(stringAt(args, 0))
       .slice(0, Math.max(numberAt(args, 1), 0))
@@ -120,4 +151,21 @@ export const rowFunctions: Partial<Record<FunctionName, RowFunction>> = {
       .join("")
   },
   ...dateFunctions,
+}
+
+/**
+ * The built-in row function of this name, and whether its catalog entry
+ * propagates nulls. Aggregate and window functions have none.
+ */
+export function rowFunctionOf(name: string) {
+  if (!isFunctionName(name)) {
+    return undefined
+  }
+  const run = rowFunctions[name]
+  return (
+    run && {
+      run,
+      propagates: functionCatalog.functions[name].nulls === "propagate",
+    }
+  )
 }

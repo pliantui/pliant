@@ -331,7 +331,7 @@ function inferRef(
     }
     walk.window = true
   }
-  return resolved.type
+  return resolved.window ? { ...resolved.type, window: true } : resolved.type
 }
 
 function argumentScope(

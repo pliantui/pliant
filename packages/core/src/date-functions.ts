@@ -1,6 +1,6 @@
 import type { FunctionName } from "@pliantui/contract"
 
-import { inDayRange, inInstantRange, type Value } from "./read-value"
+import { inRange, type Value } from "./read-value"
 import type { Call, RowFunction } from "./row-function"
 import { civil, dayMs, dayOf } from "./time-zone"
 
@@ -85,12 +85,10 @@ function addDays(args: readonly Value[], { types, zone }: Call) {
     return null
   }
   if (types[0] !== "datetime") {
-    return inDayRange(date + days)
+    return date + days
   }
   const moved = zone.wallClock(date) + days * dayMs
-  return inInstantRange(moved) === null
-    ? null
-    : inInstantRange(zone.instant(moved))
+  return inRange(moved, "datetime") === null ? null : zone.instant(moved)
 }
 
 /** The built-in date functions, by name. */
@@ -101,5 +99,10 @@ export const dateFunctions: Partial<Record<FunctionName, RowFunction>> = {
   dateTrunc: (args, call) => dateTrunc(dayAt(args, 0, call), args[1] ?? null),
   addDays,
   today: (_, { today }) => today(),
-  age: (args, call) => dateDiff(dayAt(args, 0, call), call.today(), "years"),
+  age: (args, call) => {
+    const today = call.today()
+    return today === null
+      ? null
+      : dateDiff(dayAt(args, 0, call), today, "years")
+  },
 }

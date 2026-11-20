@@ -13,6 +13,8 @@ export interface Inferred {
    * unified: a string literal as a date, or a date as a datetime.
    */
   readonly reads?: readonly (ValueType | undefined)[] | undefined
+  /** For a `ref`, whether the item uses a window function. */
+  readonly window?: boolean | undefined
 }
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/
