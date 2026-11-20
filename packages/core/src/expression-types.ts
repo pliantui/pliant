@@ -8,6 +8,11 @@ export interface Inferred {
   readonly unit?: string | undefined
   /** The text of a string literal, which can also be read as a date. */
   readonly literal?: string | undefined
+  /**
+   * For a function call, the type each argument is read as once its group is
+   * unified: a string literal as a date, or a date as a datetime.
+   */
+  readonly reads?: readonly (ValueType | undefined)[] | undefined
 }
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/

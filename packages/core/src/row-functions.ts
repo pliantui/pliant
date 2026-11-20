@@ -1,0 +1,123 @@
+import type { FunctionName } from "@pliantui/contract"
+
+import { compareCodePoints } from "./compare-code-points"
+import { dateFunctions } from "./date-functions"
+import type { Value } from "./read-value"
+import type { RowFunction } from "./row-function"
+
+type Args = readonly Value[]
+
+// Arguments are type-checked against the function catalog before a call, so
+// the catalog's argument types hold here. Dates and datetimes are numbers.
+const numberAt = (args: Args, index: number) => args[index] as number
+const stringAt = (args: Args, index: number) => args[index] as string
+
+const numeric =
+  (compute: (...values: number[]) => number | null): RowFunction =>
+  (args) =>
+    compute(...args.map((_, index) => numberAt(args, index)))
+
+const textual =
+  (compute: (text: string, other: string) => Value): RowFunction =>
+  (args) =>
+    compute(stringAt(args, 0), stringAt(args, 1))
+
+/** Orders two values of one comparable type: by code point for strings. */
+export function compareValues(a: Value, b: Value): number {
+  return typeof a === "string" && typeof b === "string"
+    ? compareCodePoints(a, b)
+    : Number(a) - Number(b)
+}
+
+const comparison =
+  (test: (order: number) => boolean): RowFunction =>
+  ([a = null, b = null]) =>
+    test(compareValues(a, b))
+
+const pickBy =
+  (test: (order: number) => boolean): RowFunction =>
+  ([a = null, b = null]) =>
+    test(compareValues(a, b)) ? a : b
+
+/**
+ * Rounds half away from zero on the shortest decimal that represents x, so
+ * round(1.005, 2) is 1.01 although the double nearest 1.005 is below it.
+ */
+function round(x: number, digits: number) {
+  const [mantissa = "", exponent = "0"] = String(Math.abs(x)).split("e")
+  const [whole = "", fraction = ""] = mantissa.split(".")
+  const all = whole + fraction
+  const shift = Number(exponent) - fraction.length + digits
+  if (shift >= 0) {
+    return x
+  }
+  const keep = all.length + shift
+  const kept =
+    BigInt(all.slice(0, Math.max(keep, 0)) || "0") +
+    ((all[keep] ?? "0") >= "5" ? 1n : 0n)
+  return Math.sign(x) * Number(`${String(kept)}e${String(-digits)}`)
+}
+
+function codePoints(text: string) {
+  return Array.from(text)
+}
+
+/** The built-in row functions, by name. */
+export const rowFunctions: Partial<Record<FunctionName, RowFunction>> = {
+  add: numeric((a, b) => a + b),
+  sub: numeric((a, b) => a - b),
+  mul: numeric((a, b) => a * b),
+  // Dividing by 0 gives an infinite or NaN result, which is null.
+  div: numeric((a, b) => a / b),
+  abs: numeric(Math.abs),
+  round: (args) =>
+    round(numberAt(args, 0), args.length > 1 ? numberAt(args, 1) : 0),
+  floor: numeric(Math.floor),
+  ceil: numeric(Math.ceil),
+  min2: pickBy((order) => order <= 0),
+  max2: pickBy((order) => order >= 0),
+  clamp: ([x = null, low = null, high = null]) =>
+    compareValues(low, high) > 0
+      ? null
+      : compareValues(x, low) < 0
+        ? low
+        : compareValues(x, high) > 0
+          ? high
+          : x,
+  percentChange: numeric((from, to) => (to - from) / Math.abs(from)),
+  if: ([condition, then = null, otherwise = null]) =>
+    condition === true ? then : otherwise,
+  and: (args) =>
+    args.includes(false) ? false : args.includes(null) ? null : true,
+  or: (args) =>
+    args.includes(true) ? true : args.includes(null) ? null : false,
+  not: ([x]) => !x,
+  eq: ([a, b]) => a === b,
+  neq: ([a, b]) => a !== b,
+  gt: comparison((order) => order > 0),
+  gte: comparison((order) => order >= 0),
+  lt: comparison((order) => order < 0),
+  lte: comparison((order) => order <= 0),
+  between: ([x = null, low = null, high = null]) =>
+    compareValues(x, low) >= 0 && compareValues(x, high) <= 0,
+  in: ([x = null, ...values]) => (x === null ? null : values.includes(x)),
+  isNull: ([x]) => x === null,
+  coalesce: (args) => args.find((arg) => arg !== null) ?? null,
+  concat: (args) => args.map((arg) => arg ?? "").join(""),
+  lower: textual((text) => text.toLowerCase()),
+  upper: textual((text) => text.toUpperCase()),
+  length: textual((text) => codePoints(text).length),
+  contains: textual((text, search) => text.includes(search)),
+  startsWith: textual((text, search) => text.startsWith(search)),
+  left: (args) =>
+    codePoints(stringAt(args, 0))
+      .slice(0, Math.max(numberAt(args, 1), 0))
+      .join(""),
+  right: (args) => {
+    const points = codePoints(stringAt(args, 0))
+    return points
+      .slice(Math.max(points.length - Math.max(numberAt(args, 1), 0), 0))
+      .join("")
+  },
+  ...dateFunctions,
+}

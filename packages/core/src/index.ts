@@ -42,6 +42,14 @@ export {
   type UnappliedReason,
 } from "./resolve-layers"
 export {
+  createRowEvaluator,
+  type RowAccessor,
+  type RowAccessorOptions,
+  type RowEvaluator,
+  type RowEvaluatorOptions,
+  type RowValue,
+} from "./row-evaluator"
+export {
   resolveRegion,
   type RegionEntry,
   type RegionLayout,
