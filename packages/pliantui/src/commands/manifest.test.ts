@@ -329,6 +329,17 @@ const buttonVariants = cva("inline-flex", {
 export function Button({ size }) {
   return <button className={buttonVariants({ size })} />
 }
+
+const boxVariants = cva("rounded", {
+  variants: {
+    tone: { plain: "bg-background", muted: "bg-muted" },
+    pad: { sm: "p-2", lg: "p-6" },
+  },
+})
+
+export function Box({ tone, ...props }) {
+  return <div data-tone={tone} className={boxVariants(props)} />
+}
 `
     )
 
@@ -340,8 +351,16 @@ export function Button({ size }) {
     )
     const module = (await import(
       `data:text/javascript,${encodeURIComponent(source)}`
-    )) as { manifests: Record<string, { kind: string }> }
+    )) as {
+      manifests: Record<
+        string,
+        { kind: string; capabilities: Record<string, unknown> }
+      >
+    }
     expect(module.manifests["Button"]?.kind).toBe("app:button")
+    expect(module.manifests["Box"]?.capabilities["props"]).toEqual({
+      pad: { values: ["sm", "lg"] },
+    })
     await expect(
       readFile(path.join(cwd, "lib/pliant/manifests.generated.ts"))
     ).rejects.toThrow()

@@ -22,7 +22,7 @@ Options:
   -y, --yes                    skip the review and use the inferred classes.
                                (default: false)
   -c, --cwd <cwd>              the working directory. defaults to the current
-                               directory.
+                               directory. (default: current directory)
   -n, --namespace <namespace>  the namespace for component kinds. defaults to
                                the saved one, or app.
   -h, --help                   display help for command
@@ -34,7 +34,7 @@ The ui folder comes from the `ui` alias in `components.json`, resolved through t
 
 ### What it reads
 
-The command finds calls to `cva` from `class-variance-authority` or `cva`, and to `tv` from `tailwind-variants`. That includes namespace imports like `CVA.cva(...)`, re-exports from your own modules like `export { cva } from "class-variance-authority"`, and a `tv` you made with `createTV()`.
+The command finds calls to `cva` from `class-variance-authority` or `cva`, and to `tv` from `tailwind-variants`. That includes renamed imports like `import { cva as variants }`, namespace imports like `CVA.cva(...)`, re-exports from your own modules like `export { cva } from "class-variance-authority"` or `export * from "class-variance-authority"`, and a `tv` you made with `createTV()`. `export *` re-exports are followed through the installed package, so the library must be installed for those.
 
 The config can be written inline or kept in a `const`. It can also be imported from another file, spread from other objects, or wrapped in `as const` or `satisfies`. A call declared inside a component works too. `defaultVariants` and `compoundVariants` are read as well, and definitions that use `slots` and `extend` work too. A `null` default in `defaultVariants` means the variant has no default.
 
@@ -46,7 +46,7 @@ A prop goes into a component's manifest only when the value the user passes reac
 - through another component that has a manifest: `<Button size={size} />` or `<PaginationLink {...props} />`
 - through a context provider, like a toggle group passing `variant` to its items. The summary notes that a value set on the group wins over the item's own.
 
-Values the component works out itself, like `variant: isActive ? "outline" : "ghost"`, are not exposed, not even when the prop is typed as a string union. Neither is a prop the component assigns to, like `size = "sm"` inside the function.
+Values the component works out itself, like `variant: isActive ? "outline" : "ghost"`, are not exposed, not even when the prop is typed as a string union. Neither is a prop the component assigns to, like `size = "sm"` or `({ size } = other)` inside the function, nor an options object it changes after creating it.
 
 A literal default on a destructured prop, like `size = "icon"`, wins over `defaultVariants`.
 
@@ -91,7 +91,7 @@ The command writes two files to the `pliant` folder inside your `lib` alias:
 
 Every component that calls a `cva` or `tv` definition gets a manifest. By default users can rename and hide it, even when none of its values were confirmed. A component with no definition, like a sheet whose `side` is a typed union, gets a manifest once you confirm one of its props or default states.
 
-Each manifest's `kind` is `namespace:component-name`, like `app:button`. Bare kinds are reserved for Pliant's built-in components. The namespace defaults to `app`. Pass `--namespace acme` to use your own. It must be kebab-case and can't be `pliant`. The namespace is saved, so later runs keep the same kinds.
+Each manifest's `kind` is `namespace:component-name`, like `app:button`. Bare kinds are reserved for Pliant's built-in components. The namespace defaults to `app`. Pass `--namespace acme` to use your own. It must be kebab-case, at most 32 characters, and can't be `pliant`. The namespace is saved, so later runs keep the same kinds.
 
 The decisions file looks like this:
 

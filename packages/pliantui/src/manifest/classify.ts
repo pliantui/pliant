@@ -55,7 +55,7 @@ const stateProps = new Set([
   "selected",
 ])
 
-function splitWords(name: string) {
+function valueWords(name: string) {
   return name
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .split(/[\s_\-/.]+/)
@@ -91,7 +91,7 @@ export function classifyValues(
     if (/^-?\d+(\.\d+)?$/.test(value)) {
       return "confirm"
     }
-    const words = splitWords(value)
+    const words = valueWords(value)
     if (words.some((word) => semanticWords.has(word))) {
       return "semantic"
     }

@@ -14,9 +14,10 @@ import type { VariantDefinition } from "./variant-definition"
 
 export function inferComponents(
   sourceFiles: SourceFile[],
-  diagnostics: Diagnostic[]
+  diagnostics: Diagnostic[],
+  cwd: string
 ): InferredComponent[] {
-  const components = findComponents(sourceFiles, diagnostics)
+  const components = findComponents(sourceFiles, diagnostics, cwd)
   const byDeclaration = new Map<Node, Component>()
   for (const component of components) {
     if (!byDeclaration.has(component.declaration)) {

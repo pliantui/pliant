@@ -52,7 +52,11 @@ export function resolveExpression(node: Node, seen = new Set<Node>()): Node {
         VariableDeclarationKind.Const
     ) {
       const initializer = declaration.getInitializer()
-      if (initializer && Node.isIdentifier(declaration.getNameNode())) {
+      if (
+        initializer &&
+        Node.isIdentifier(declaration.getNameNode()) &&
+        !isMutated(declaration)
+      ) {
         return resolveExpression(initializer, seen)
       }
     }
@@ -66,6 +70,65 @@ export function resolveExpression(node: Node, seen = new Set<Node>()): Node {
   }
 
   return current
+}
+
+const mutated = new WeakMap<Node, boolean>()
+
+// A const object whose properties are assigned, deleted or merged into later
+// no longer holds what its literal says.
+function isMutated(declaration: Node) {
+  const cached = mutated.get(declaration)
+  if (cached !== undefined) {
+    return cached
+  }
+  const isDeclaration = (node: Node) => {
+    let base = unwrapExpression(node)
+    while (
+      Node.isPropertyAccessExpression(base) ||
+      Node.isElementAccessExpression(base)
+    ) {
+      base = unwrapExpression(base.getExpression())
+    }
+    return (
+      Node.isIdentifier(base) &&
+      getDeclarations(base, { followAliases: false })[0] === declaration
+    )
+  }
+  const isMember = (node: Node) => {
+    const target = unwrapExpression(node)
+    return (
+      (Node.isPropertyAccessExpression(target) ||
+        Node.isElementAccessExpression(target)) &&
+      isDeclaration(target)
+    )
+  }
+  const result = declaration
+    .getSourceFile()
+    .getDescendants()
+    .some((node) => {
+      if (Node.isBinaryExpression(node)) {
+        const kind = node.getOperatorToken().getKind()
+        return (
+          kind >= SyntaxKind.FirstAssignment &&
+          kind <= SyntaxKind.LastAssignment &&
+          isMember(node.getLeft())
+        )
+      }
+      if (Node.isDeleteExpression(node)) {
+        return isMember(node.getExpression())
+      }
+      if (Node.isCallExpression(node)) {
+        const first = node.getArguments()[0]
+        return (
+          node.getExpression().getText() === "Object.assign" &&
+          first !== undefined &&
+          isDeclaration(first)
+        )
+      }
+      return false
+    })
+  mutated.set(declaration, result)
+  return result
 }
 
 export function readPropertyKey(name: Node): string | undefined {

@@ -18,4 +18,20 @@ function RestBox({ tone, ...props }: BoxProps) {
   return <div data-tone={tone} className={boxVariants(props)} />
 }
 
-export { RestBox, SpreadBox }
+// No declared props type: the rest holds whatever wasn't destructured.
+function LooseBox({ tone, ...props }: any) {
+  return <div data-tone={tone} className={boxVariants(props)} />
+}
+
+function NestedBox({ padding, ...outer }: any) {
+  const { tone, ...inner } = outer
+  return (
+    <div
+      data-padding={padding}
+      data-tone={tone}
+      className={boxVariants(inner)}
+    />
+  )
+}
+
+export { LooseBox, NestedBox, RestBox, SpreadBox }

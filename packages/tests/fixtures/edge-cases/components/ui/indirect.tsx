@@ -8,6 +8,13 @@ const indVariants = cva("inline-flex", {
   defaultVariants: { size: null },
 })
 
+const toneVariants = cva("rounded", {
+  variants: {
+    tone: { plain: "bg-background", muted: "bg-muted" },
+  },
+  defaultVariants: { tone: void 0 },
+})
+
 function makeOptions(size?: "sm" | "lg") {
   return { size }
 }
@@ -47,4 +54,21 @@ function Toggle3D({
   )
 }
 
-export { Fallback, Indirect, Opaque, Resized, Toggle3D }
+function Swapped({
+  tone,
+  other,
+}: {
+  tone?: "plain" | "muted"
+  other: { tone?: "plain" | "muted" }
+}) {
+  ;({ tone } = other)
+  return <span className={toneVariants({ tone })} />
+}
+
+function Mutated({ tone }: { tone?: "plain" | "muted" }) {
+  const options = { tone }
+  options.tone = "muted"
+  return <span className={toneVariants(options)} />
+}
+
+export { Fallback, Indirect, Mutated, Opaque, Resized, Swapped, Toggle3D }

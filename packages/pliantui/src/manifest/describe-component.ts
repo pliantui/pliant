@@ -1,6 +1,7 @@
 import { Node } from "ts-morph"
 
 import type { Component } from "./component"
+import { splitWords } from "./split-words"
 
 function getJsDocDescription(node: Node): string | undefined {
   const holder = Node.isVariableDeclaration(node)
@@ -24,15 +25,8 @@ export function describeComponent(component: Component) {
       ? `${characters.slice(0, 197).join("")}...`
       : description
   }
-  // Acronyms and numbered names keep their case: InputOTP is "Input OTP",
-  // Toggle3D is "Toggle 3D".
-  const words = component.name
-    .replace(/([a-z])([A-Z0-9])/g, "$1 $2")
-    .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2")
-    .split(/[^A-Za-z0-9]+|\s+/)
-    .filter(Boolean)
-    .map((word, index) =>
-      index > 0 && /^[A-Z][a-z]/.test(word) ? word.toLowerCase() : word
-    )
+  const words = splitWords(component.name).map((word, index) =>
+    index > 0 && /^[A-Z][a-z]/.test(word) ? word.toLowerCase() : word
+  )
   return words.join(" ")
 }

@@ -1,4 +1,9 @@
-import { Node, SyntaxKind, type CallExpression } from "ts-morph"
+import {
+  Node,
+  SyntaxKind,
+  type CallExpression,
+  type Symbol as TsMorphSymbol,
+} from "ts-morph"
 
 import { createDiagnostic, type Diagnostic } from "./diagnostic"
 import {
@@ -100,23 +105,59 @@ function getCalleeName(callee: Node) {
  * and aliases through the app's own modules, such as a `tv` made with
  * `createTV` in `lib/utils`.
  */
+function getCalleeSymbols(callee: Node): TsMorphSymbol[] {
+  const nameNode = Node.isPropertyAccessExpression(callee)
+    ? callee.getNameNode()
+    : callee
+  const symbols: TsMorphSymbol[] = []
+  let symbol = nameNode.getSymbol()
+  for (let depth = 0; symbol && depth < 10; depth++) {
+    symbols.push(symbol)
+    symbol = symbol.isAlias() ? symbol.getImmediatelyAliasedSymbol() : undefined
+  }
+  const last = symbols.at(-1)
+  const target = last?.isAlias() ? last.getAliasedSymbol() : undefined
+  return target ? [...symbols, target] : symbols
+}
+
+// The package a declaration file belongs to, when it's installed.
+function getPackageName(declaration: Node) {
+  const matches = [
+    ...declaration
+      .getSourceFile()
+      .getFilePath()
+      .matchAll(/\/node_modules\/((?:@[^/]+\/)?[^/]+)\//g),
+  ]
+  return matches.at(-1)?.[1]
+}
+
+/**
+ * Finds which library a called function comes from. It follows aliases,
+ * re-exports (including `export *`) and namespace imports through the app's
+ * own modules, and recognises a `tv` made with `createTV`.
+ */
 function getFactory(call: CallExpression): Factory | undefined {
   const callee = call.getExpression()
   if (Node.isPropertyAccessExpression(callee)) {
     const module = getNamespaceModule(callee.getExpression())
     const factory = module === undefined ? undefined : factories[module]
-    return factory?.name === callee.getName() ? factory : undefined
-  }
-  if (!Node.isIdentifier(callee)) {
+    if (factory?.name === callee.getName()) {
+      return factory
+    }
+  } else if (!Node.isIdentifier(callee)) {
     return undefined
   }
-  let symbol = callee.getSymbol()
-  for (let depth = 0; symbol && depth < 10; depth++) {
+  for (const symbol of getCalleeSymbols(callee)) {
     for (const declaration of symbol.getDeclarations()) {
       const imported = getImportedName(declaration)
       const factory = imported && factories[imported.module]
       if (imported && factory?.name === imported.name) {
         return factory
+      }
+      const packageName = getPackageName(declaration)
+      const installed = packageName && factories[packageName]
+      if (installed && installed.name === symbol.getName()) {
+        return installed
       }
       if (Node.isVariableDeclaration(declaration)) {
         const initializer = declaration.getInitializer()
@@ -137,7 +178,6 @@ function getFactory(call: CallExpression): Factory | undefined {
         }
       }
     }
-    symbol = symbol.isAlias() ? symbol.getImmediatelyAliasedSymbol() : undefined
   }
   return undefined
 }
@@ -162,8 +202,20 @@ export function getUntracedVariantCall(
   if (!Node.isCallExpression(value) || getFactory(value)) {
     return undefined
   }
-  const name = getCalleeName(value.getExpression())
-  return name === "cva" || name === "tv" ? value : undefined
+  // Aliases count too, like `import { cva as variants }`.
+  const calledName = value.getExpression()
+  const names = [
+    getCalleeName(calledName),
+    ...getCalleeSymbols(calledName).flatMap((symbol) => [
+      symbol.getName(),
+      ...symbol
+        .getDeclarations()
+        .map((declaration) => getImportedName(declaration)?.name),
+    ]),
+  ]
+  return names.some((name) => name === "cva" || name === "tv")
+    ? value
+    : undefined
 }
 
 export function readVariantDefinition(
@@ -249,10 +301,11 @@ export function readVariantDefinition(
     } else {
       for (const [name, valueNode] of defaults.entries) {
         const resolved = unwrapExpression(resolveExpression(valueNode))
-        // null or undefined means the variant has no default.
+        // null, undefined or void 0 means the variant has no default.
         if (
           resolved.getKind() === SyntaxKind.NullKeyword ||
-          resolved.getText() === "undefined"
+          resolved.getText() === "undefined" ||
+          Node.isVoidExpression(resolved)
         ) {
           continue
         }

@@ -1,3 +1,4 @@
+import path from "node:path"
 import {
   Node,
   SyntaxKind,
@@ -6,6 +7,7 @@ import {
   type FunctionDeclaration,
   type FunctionExpression,
   type ObjectBindingPattern,
+  type ParameterDeclaration,
   type SourceFile,
 } from "ts-morph"
 
@@ -66,7 +68,8 @@ export const fallbackOperators = new Set([
 
 export function findComponents(
   sourceFiles: SourceFile[],
-  diagnostics: Diagnostic[]
+  diagnostics: Diagnostic[],
+  cwd: string
 ) {
   const components = new Map<string, Component>()
   for (const sourceFile of sourceFiles) {
@@ -98,7 +101,7 @@ export function findComponents(
             diagnostics.push(
               createDiagnostic(
                 declaration,
-                `Another component is also exported as ${name}, from ${existing.declaration.getSourceFile().getFilePath()}. Only that one gets a manifest.`
+                `Another component is also exported as ${name}, from ${path.relative(cwd, existing.declaration.getSourceFile().getFilePath())}. Only that one gets a manifest.`
               )
             )
           }
@@ -218,12 +221,14 @@ function readBindings(component: Component) {
 
 // A binding the component assigns to no longer holds what the user passed.
 function isReassigned(component: Component, element: Node) {
+  const isElement = (node: Node) =>
+    (Node.isIdentifier(node) || Node.isShorthandPropertyAssignment(node)) &&
+    getDeclarations(node, { followAliases: false })[0] === element
+  // Destructuring assignments, like ({ tone } = other), assign to every
+  // name inside the pattern.
   const refersToElement = (node: Node) => {
     const target = unwrapExpression(node)
-    return (
-      Node.isIdentifier(target) &&
-      getDeclarations(target, { followAliases: false })[0] === element
-    )
+    return isElement(target) || target.getDescendants().some(isElement)
   }
   return component.fn.getDescendants().some((node) => {
     if (Node.isBinaryExpression(node)) {
@@ -250,29 +255,57 @@ function isReassigned(component: Component, element: Node) {
 }
 
 /**
- * Whether a prop is still in a props object: not destructured out of it
- * before a rest spread, and in its type when the type is known.
+ * Whether a prop is still in a props object: not destructured out of it, or
+ * out of any object it was spread from, and in its type when the props have
+ * a declared type.
  */
-export function isInPropsObject(node: Node, name: string) {
+export function isInPropsObject(node: Node, name: string): boolean {
   const expression = unwrapExpression(node)
   const declaration = Node.isIdentifier(expression)
     ? getDeclarations(expression, { followAliases: false })[0]
     : undefined
-  if (Node.isBindingElement(declaration)) {
-    const pattern = declaration.getParent()
-    const siblings = Node.isObjectBindingPattern(pattern)
-      ? pattern.getElements()
-      : []
-    const destructured = siblings.some(
+  if (Node.isParameterDeclaration(declaration)) {
+    return isInDeclaredType(declaration, expression, name)
+  }
+  if (!Node.isBindingElement(declaration)) {
+    return true
+  }
+  const pattern = declaration.getParent()
+  if (!Node.isObjectBindingPattern(pattern)) {
+    return true
+  }
+  const destructured = pattern
+    .getElements()
+    .some(
       (sibling) =>
         sibling !== declaration &&
         readPropertyKey(
           sibling.getPropertyNameNode() ?? sibling.getNameNode()
         ) === name
     )
-    if (destructured) {
-      return false
-    }
+  if (destructured) {
+    return false
+  }
+  const holder = pattern.getParent()
+  if (Node.isParameterDeclaration(holder)) {
+    return isInDeclaredType(holder, expression, name)
+  }
+  const initializer = Node.isVariableDeclaration(holder)
+    ? holder.getInitializer()
+    : undefined
+  return initializer ? isInPropsObject(initializer, name) : true
+}
+
+// Without a declared type, TypeScript infers a rest's type from the pattern
+// alone, which holds none of the other props.
+function isInDeclaredType(
+  parameter: ParameterDeclaration,
+  expression: Node,
+  name: string
+) {
+  const typeNode = parameter.getTypeNode()
+  if (!typeNode || typeNode.getKind() === SyntaxKind.AnyKeyword) {
+    return true
   }
   const type = expression.getType()
   return (

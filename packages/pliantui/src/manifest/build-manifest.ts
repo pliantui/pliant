@@ -6,6 +6,7 @@ import {
 } from "@pliantui/contract"
 
 import type { InferredComponent, InferredDefault } from "./inferred-component"
+import { splitWords } from "./split-words"
 
 interface BuiltManifest {
   /** Undefined when the component itself can't be described, see `error`. */
@@ -18,12 +19,7 @@ interface BuiltManifest {
 }
 
 function toKebabCase(name: string) {
-  return name
-    .replace(/([a-z])([A-Z])/g, "$1-$2")
-    .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
-    .replace(/[^A-Za-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase()
+  return splitWords(name).join("-").toLowerCase()
 }
 
 function toManifestDefault(item: InferredDefault): ManifestDefault | undefined {

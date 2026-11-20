@@ -98,7 +98,7 @@ async function generateManifests(
       skipAddingFilesFromTsConfig: true,
     })
     const sourceFiles = files.map((file) => project.addSourceFileAtPath(file))
-    inferred = inferComponents(sourceFiles, diagnostics)
+    inferred = inferComponents(sourceFiles, diagnostics, cwd)
   } catch (error) {
     reading.fail()
     throw error

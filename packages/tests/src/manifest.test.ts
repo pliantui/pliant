@@ -320,7 +320,29 @@ describe("pliantui manifest", () => {
       }),
       Opaque: manifest("opaque", "Opaque", {}),
       Resized: manifest("resized", "Resized", {}),
-      Toggle3D: manifest("toggle3d", "Toggle 3D", {}),
+      Toggle3D: manifest("toggle-3d", "Toggle 3D", {}),
+      Grid2x2: manifest("grid-2x2", "Grid 2x2", {
+        props: { gap: { values: ["sm", "lg"] } },
+      }),
+      HTML5Video: manifest("html5-video", "HTML5 video", {
+        props: { gap: { values: ["sm", "lg"] } },
+      }),
+      LooseBox: manifest("loose-box", "Loose box", {
+        props: { padding: { values: ["sm", "lg"] } },
+      }),
+      NestedBox: manifest("nested-box", "Nested box", {}),
+      Swapped: manifest("swapped", "Swapped", {}),
+      Mutated: manifest("mutated", "Mutated", {}),
+      Dot: manifest("dot", "Dot", {
+        props: { size: { values: ["sm", "lg"] } },
+      }),
+      Line: manifest("line", "Line", {
+        props: { weight: { values: ["thin", "thick"] } },
+      }),
+      Ring: manifest("ring", "Ring", {
+        props: { width: { values: ["thin", "thick"] } },
+      }),
+      Label: manifest("label", "Label", {}),
       StatusPill: manifest("status-pill", "Status pill", {
         props: {
           severity: { values: ["low", "high"], semantic: ["low", "high"] },
@@ -344,7 +366,7 @@ describe("pliantui manifest", () => {
       "components/ui/tag.tsx:18 defaultVariants is nested inside the variants of tagVariants, where cva and tv treat it as a variant, so it has no effect. Move it next to variants.",
       "components/ui/eyebrow.tsx:5 cva() here can't be traced to class-variance-authority or tailwind-variants, so its variants aren't read.",
       "components/ui/namespaced.tsx:19 Legacy.cva() here can't be traced to class-variance-authority or tailwind-variants, so its variants aren't read.",
-      "components/ui/indirect.tsx:21 The argument to indVariants can't be read statically, so Opaque's props that reach it are left out.",
+      "components/ui/indirect.tsx:28 The argument to indVariants can't be read statically, so Opaque's props that reach it are left out.",
       [
         "Opaque  components/ui/indirect.tsx",
         "  size  values not readable",
@@ -354,8 +376,7 @@ describe("pliantui manifest", () => {
       ),
       [
         "Resized  components/ui/indirect.tsx",
-        "Toggle3D  components/ui/indirect.tsx",
-        "Note  components/ui/inline.tsx",
+        "Swapped  components/ui/indirect.tsx",
       ].join("\n"),
       ["Tag  components/ui/tag.tsx", "  shape  from cva"].join("\n"),
       "  look  values not readable",
@@ -374,6 +395,18 @@ describe("pliantui manifest", () => {
     expect(stdout).not.toContain("emphasis  from")
     expect(stdout).not.toContain("defaultVariants of indVariants")
     expect(stdout).not.toContain("default size of indVariants")
+    expect(stdout).not.toContain("default tone of toneVariants")
+    for (const line of [
+      "components/ui/star.tsx:20 legacyStyles() here can't be traced to class-variance-authority or tailwind-variants, so its variants aren't read.",
+      "components/ui/indirect.tsx:71 The argument to toneVariants can't be read statically, so Mutated's props that reach it are left out.",
+      [
+        "Swapped  components/ui/indirect.tsx",
+        "Toggle3D  components/ui/indirect.tsx",
+      ].join("\n"),
+      ["Label  components/ui/star.tsx", "  variants not readable"].join("\n"),
+    ]) {
+      expect(stdout).toContain(line)
+    }
     expect(
       existsSync(path.join(cwd, "components/ui/side-effect-ran.txt"))
     ).toBe(false)
