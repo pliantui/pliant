@@ -38,11 +38,13 @@ The route turns an ask into a validated overlay and sends it back. It never chan
 
 Other options:
 
-| Option         | Default | What it does                                                |
-| -------------- | ------- | ----------------------------------------------------------- |
-| `maxToolCalls` | 8       | Most tool calls the model may make in one answer.           |
-| `timeout`      | 15000   | Milliseconds allowed for each model call.                   |
-| `onError`      | none    | Called with errors the response hides, so you can log them. |
+| Option         | Default      | What it does                                                |
+| -------------- | ------------ | ----------------------------------------------------------- |
+| `maxToolCalls` | 8            | Most tool calls the model may make in one answer.           |
+| `timeout`      | 15000        | Milliseconds allowed for each model call.                   |
+| `onError`      | none         | Called with errors the response hides, so you can log them. |
+| `now`          | system clock | The clock used for each overlay's `createdAt`.              |
+| `generateId`   | ULIDs        | Generates overlay ids, which must be ULIDs.                 |
 
 <Callout type="warn">
   The route doesn't rate-limit asks. Keep it behind your sign-in, and add rate

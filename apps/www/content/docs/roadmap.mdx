@@ -21,9 +21,12 @@ Pliant is pre-1.0. These lists describe intent, not commitments, and carry no da
 - A per-user theme choice among your app's own themes.
 - A history panel listing each change, with undo to any point.
 - "View as user" for admins, so support sees exactly what a user sees.
-- A Prisma adapter for storage, and support for querying your data on the server with MySQL and SQLite.
-- Approximate percentiles in server queries.
+- Server data: describe your data on the server, with each user's rows and fields scoped by your own rules, including which fields the AI may see.
+- Sorting, filtering, paging and expressions on your data, compiled to parameterized SQL on the server. Postgres first, then MySQL and SQLite, with approximate percentiles where the database supports them.
+- Data adapters for Drizzle, Prisma, and plain Postgres through `node-postgres` or `postgres.js`, each applying the user's scope to every query.
+- A documented way to read rows from REST, GraphQL or any other source yourself.
 - Tailwind CSS v3 support for the components, if apps adopting Pliant need it.
+- Built-in rate limiting for the ask route.
 
 ## After 1.0
 

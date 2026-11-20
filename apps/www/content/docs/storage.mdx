@@ -42,7 +42,7 @@ type StoredOverlay = {
 
 ### Load
 
-`load` returns the live stored records of the surface in every layer the user can read, without tombstones. It also returns the overlays of the `@app` surface, which apply to every surface:
+`load` returns the live stored records of the surface in every layer the user can read, without tombstones. Your adapter also returns the overlays of the `@app` surface with them, because those apply to every surface. Pliant resolves them together with the surface's own overlays:
 
 ```ts
 { org?: StoredOverlay[], team?: StoredOverlay[], personal?: StoredOverlay[] }
@@ -62,7 +62,7 @@ Pliant recognizes a conflict by its shape: any `Error` named `"StorageConflictEr
 
 Pliant also saves while the page unloads, so an adapter that sends saves over the network must use `fetch` with `keepalive: true` or `navigator.sendBeacon`.
 
-A save under a tombstone's id is a conflict whose `current` is the tombstone, whatever `ifMatch` is, so a removed overlay's id is never reused. When a save's answer is lost and the version is removed elsewhere before the retry, the retry's conflict carries the tombstone, and Pliant drops the version instead of storing it again.
+A save under a tombstone's id is a conflict whose `current` is the tombstone, whatever `ifMatch` is, so a removed overlay's id is never reused while its tombstone is kept. When a save's answer is lost and the version is removed elsewhere before the retry, the retry's conflict carries the tombstone, and Pliant drops the version instead of storing it again.
 
 ### Remove, tombstones and erasure
 
@@ -158,7 +158,7 @@ Then use `OrdersRoot` in place of `PliantRoot` in your page.
 
 ## localAdapter
 
-`localAdapter()` stores personal overlays only, and throws for any other layer. It keeps one `localStorage` key per overlay, `pliant:<surface>:<id>`, holding its stored record as JSON. An entry that isn't a valid record doesn't load and is never overwritten.
+`localAdapter()` stores personal overlays only, and throws for any other layer. Its `load` returns the surface's own personal overlays only, not `@app` overlays. It keeps one `localStorage` key per overlay, `pliant:<surface>:<id>`, holding its stored record as JSON. An entry that isn't a valid record doesn't load and is never overwritten.
 
 `remove` leaves a tombstone under the overlay's key and keeps it, so a removed overlay is never stored again under its id. The tombstone holds the removed overlay: to erase it at once, remove the key from `localStorage`, and a late retry of a save from before the removal can then store the overlay again. `history` returns the record under each key, tombstones included: the latest record of every overlay, not earlier versions.
 
