@@ -149,3 +149,18 @@ pnpm test
 ```
 
 Please make sure the tests pass before submitting a pull request, and include tests for new features.
+
+### Mutation testing
+
+[Stryker](https://stryker-mutator.io) checks how well the tests catch bugs in `@pliantui/contract`, `@pliantui/core` and the store logic in `@pliantui/react`. It makes small changes to the source, called mutants, such as flipping a `<` to `<=` or dropping a condition, and runs the tests against each one. A mutant that no test fails on has survived, which usually points at a missing test. It runs weekly in CI, not on pull requests, because a full run takes a while.
+
+Build the packages first, then run one package at a time:
+
+```bash
+pnpm build:packages
+pnpm --filter=@pliantui/core test:mutation
+```
+
+`pnpm test:mutation` runs all three, one after another. The HTML report is written to `reports/mutation/index.html` in the package. Runs are incremental: Stryker saves its results in `reports/stryker-incremental.json` and on the next run only re-tests mutants in changed code or covered by changed tests. Delete the `reports` folder, or pass `--force`, for a full run.
+
+Each package's `stryker.config.mjs` sets a `break` threshold just below its current score, so the weekly run fails if the score drops. If a mutant can't be caught because the change has no observable effect, disable it with a [comment](https://stryker-mutator.io/docs/stryker-js/disable-mutants/) that says why, for example `// Stryker disable next-line StringLiteral: error message only`.

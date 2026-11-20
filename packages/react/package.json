@@ -50,6 +50,7 @@
     "lint": "eslint --max-warnings 0 .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
+    "test:mutation": "stryker run",
     "check:package": "publint --strict && attw --pack . --profile esm-only",
     "size": "size-limit"
   },

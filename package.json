@@ -20,6 +20,7 @@
     "check": "turbo run lint typecheck && pnpm lint:root && pnpm format:check && manypkg check",
     "check:packages": "turbo run check:package size --filter=./packages/*",
     "test": "turbo run test",
+    "test:mutation": "turbo run test:mutation --concurrency=1",
     "changeset": "changeset"
   },
   "packageManager": "pnpm@10.33.4",
@@ -33,6 +34,9 @@
     "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
     "@manypkg/cli": "^0.25.1",
     "@size-limit/preset-small-lib": "^14.3.0",
+    "@stryker-mutator/core": "^10.1.1",
+    "@stryker-mutator/typescript-checker": "^10.1.1",
+    "@stryker-mutator/vitest-runner": "^10.1.1",
     "@types/node": "~22.12.0",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",

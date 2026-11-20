@@ -1,0 +1,46 @@
+name: Mutation
+
+# A full run takes too long for every pull request, so it runs weekly and on
+# demand. Each run starts without a saved incremental file, so every mutant is
+# tested against the current dependencies.
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    name: stryker (${{ matrix.package }})
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [contract, core, react]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm build:packages
+      - run: pnpm --filter "@pliantui/${MATRIX_PACKAGE}" test:mutation --concurrency 4
+        env:
+          MATRIX_PACKAGE: ${{ matrix.package }}
+      - if: ${{ !cancelled() }}
+        run: node .github/mutation-summary.js "packages/${MATRIX_PACKAGE}" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          MATRIX_PACKAGE: ${{ matrix.package }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: mutation-report-${{ matrix.package }}
+          path: packages/${{ matrix.package }}/reports/mutation
+          retention-days: 30
+          if-no-files-found: ignore
