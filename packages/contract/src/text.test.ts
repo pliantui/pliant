@@ -14,6 +14,7 @@ describe("textSchema", () => {
     "\uD800\uD800",
     "a\uD83D",
     "\uDC00\uDC00",
+    "\u{10000}\u{10FFFF}",
   ])("accepts %j, at most 2 code points", (value) => {
     expect(schema.safeParse(value).success).toBe(true)
   })
@@ -24,6 +25,9 @@ describe("textSchema", () => {
     "a\u{1F600}b",
     "\uD800\uD800\uD800",
     "\uDC00\uDC00\uDC00",
+    "a\uDC00b",
+    "\uD83Dab",
+    "\uD800\uE000b",
   ])("rejects %j with the same issue as Zod's own max", (value) => {
     expect(schema.safeParse(value).error?.issues).toEqual(
       z.string().max(2).safeParse(value).error?.issues

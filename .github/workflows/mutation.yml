@@ -1,0 +1,85 @@
+name: Mutation
+
+# A full run takes too long for every pull request, so it runs weekly and on
+# demand. Each run starts without a saved incremental file, so every mutant is
+# tested against the current dependencies.
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    name: stryker (${{ matrix.package }}${{ matrix.shard && format(' {0}', matrix.shard) || '' }})
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # Core and react are split into the shards their stryker.config.mjs
+        # exports, to keep each job short. The summary job fails if one has
+        # no report.
+        include:
+          - package: contract
+          - package: core
+            shard: search
+          - package: core
+            shard: repair
+          - package: core
+            shard: layers
+          - package: core
+            shard: rest
+          - package: react
+            shard: store
+          - package: react
+            shard: lock-in
+          - package: react
+            shard: table
+          - package: react
+            shard: rest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm build:packages
+      - run: pnpm --filter "@pliantui/${MATRIX_PACKAGE}" test:mutation --concurrency 4
+        env:
+          MATRIX_PACKAGE: ${{ matrix.package }}
+          MUTATION_SHARD: ${{ matrix.shard }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: mutation-report-${{ matrix.package }}${{ matrix.shard && format('-{0}', matrix.shard) || '' }}
+          path: packages/${{ matrix.package }}/reports/mutation
+          retention-days: 30
+          if-no-files-found: ignore
+
+  summary:
+    runs-on: ubuntu-latest
+    name: mutation score
+    needs: mutation
+    if: ${{ !cancelled() }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: mutation-report-*
+          path: ${{ runner.temp }}/reports
+      - run: node .github/mutation-summary.js "$RUNNER_TEMP/reports" "$MUTATION_RESULT" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          MUTATION_RESULT: ${{ needs.mutation.result }}

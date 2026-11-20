@@ -43,6 +43,12 @@
       "passThroughEnv": ["LOCK_IN_SEEDS", "LOCK_IN_START"],
       "cache": false,
       "outputs": []
+    },
+    "test:mutation": {
+      "dependsOn": ["^build"],
+      "passThroughEnv": ["MUTATION_SHARD", "PLIANT_MUTATION"],
+      "cache": false,
+      "outputs": []
     }
   }
 }
