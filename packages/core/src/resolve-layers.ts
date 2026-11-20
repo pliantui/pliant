@@ -121,7 +121,7 @@ export type SkippedOp =
        * The rule the op would break, named after what it enforces:
        * `stays-visible` keeps nodes flagged `critical` or `required` visible
        * and reachable; `stays-clear` keeps actions flagged `destructive`
-       * from moving next to or above the primary action of their group.
+       * from moving closer to the primary action of their group.
        */
       readonly guardrail: "stays-visible" | "stays-clear"
       /**
@@ -138,9 +138,12 @@ export type SkippedOp =
       /**
        * The ops applied before this one that make it break the rule: for
        * `stays-visible`, such as the `move … into` the node this op hides;
-       * for `stays-clear`, the ops that place the destructive or primary
-       * action, put it in its group or collapse it. Empty when the op
-       * breaks it alone.
+       * for `stays-clear`, the ops that put the destructive or primary
+       * action where it is (a placement, a `move … into`, a `wrap` or a
+       * `collapse`, of it or of a wrapper that holds it), and, when the op
+       * leaves the destructive action right after the primary one, those
+       * that took away an action between them (a `hide`, `collapse`,
+       * `remove`, move out or reorder). Empty when the op breaks it alone.
        */
       readonly conflictsWith: readonly ResolvedOp[]
     }
@@ -232,20 +235,30 @@ export interface ResolveLayersOptions {
    * it in a hidden node or a cycle of containers.
    *
    * An action flagged `destructive` never ends up closer to the action
-   * flagged `primary` in its group, the node that holds the primary action,
-   * than your page puts it. From far to close, it is apart, right after the
-   * primary action, or above it. In the order the group renders, as
-   * `resolveRegion` gives it, the destructive action is above the primary
-   * one when it comes first, and right after it when no shown action sits
-   * between them: hidden actions keep their place but don't keep them
-   * apart. A demoted or collapsed action has left the group's bar for its
-   * overflow: an action in the bar is above every action in the overflow,
-   * and the overflow is ordered the same way. Every action starts in the
-   * bar. The group's order before any op comes from `baseOrder`. Where it
-   * doesn't list a group, or an action in it, such as an item, the action
-   * is taken to start where it is safest: a primary action first, a
-   * destructive one last, other actions between them by id. A node or item
-   * can't share its parent with another `primary` one.
+   * flagged `primary` in its group than your page puts it. A group is a
+   * node's slots, the node that holds the primary action past any
+   * wrappers, or one of a node's item collections, such as
+   * `orders-toolbar/actions`. A destructive action in another group isn't
+   * judged against it. From far to close, a destructive action is apart,
+   * right after the primary action, or above it. In the order the group
+   * renders, as `resolveRegion` gives it with wrappers flattened, the
+   * destructive action is above the primary one when it comes first, and
+   * right after it when no shown action sits between them: hidden actions
+   * keep their place but don't keep them apart. A demoted or collapsed
+   * action, or one in a collapsed wrapper, has left the group's bar for
+   * its overflow: an action in the bar is above every action in the
+   * overflow, and the overflow is ordered the same way. Every action starts
+   * in the bar.
+   *
+   * The group's order before any op comes from `baseOrder`, and only from
+   * what you pass, never from the ops. Members it doesn't list, but that
+   * `baseParents`, `baseOrder` or a flag's address put in the group, go
+   * between an unlisted primary action, first, and an unlisted destructive
+   * one, last, by id. So when only the two flagged actions are known, they
+   * start out adjacent, the least strict case: ops can't move the
+   * destructive action above the primary one, but can leave it right after
+   * it. List the group's order in `baseOrder` for the full rule. A group
+   * has at most one `primary` action.
    *
    * Ops apply one at a time in resolution order. Each op that breaks a
    * rule, given the ops kept before it, is skipped with reason `guardrail`:
@@ -260,11 +273,13 @@ export interface ResolveLayersOptions {
    * each skipped op applies the ops kept before it again, so the time grows
    * with the number of ops times the number of ops that can hide or move
    * something, and with the number of flags times the depth of the tree;
-   * ops such as sorts and widths add nothing. With a `primary` action, each
-   * check also orders its group, which grows with the placement ops applied
-   * so far. For scale, 20 flags at depth 6 over 2,000 ops take about
-   * 230 ms, or about 1 s when one of them is a primary action in the group
-   * the ops reorder; 500 flags at depth 30 take about 7 s.
+   * ops such as sorts and widths add nothing. With a `primary` action,
+   * each op that touches its group also orders the group, which grows with
+   * the placement ops applied so far. For scale, 20 flags at depth 6 over
+   * 2,000 ops take about 150 to 230 ms; when one of them is a primary
+   * action whose group every op reorders, 1,000 ops take about 140 ms and
+   * 2,000 about 0.5 s, while ops in other nodes add little. 500 flags at
+   * depth 30 take about 7 s.
    *
    * Which node holds another in the page comes from `baseParents` when
    * given. Without it, it comes from the addresses in `flags`, then from
@@ -287,20 +302,26 @@ export interface ResolveLayersOptions {
    *
    * A node it leaves out, such as one not mounted yet, takes the parent its
    * flag's address shows. A node it leaves out that no flag names has no
-   * parent, and the addresses of ops don't supply one. It must put each node a flag's address names in
-   * the parent that address shows, and, with those parents, have no cycle
-   * and no two `primary` nodes in one parent.
+   * parent, unless `baseOrder` lists it, and the addresses of ops don't
+   * supply one. It must put each node a flag's address names in the parent
+   * that address shows, and, with those parents, have no cycle and no two
+   * `primary` nodes in one parent.
    */
   readonly baseParents?: Readonly<Record<string, string | null>> | undefined
   /**
-   * Each node's children in the order they render, by node id, such as
-   * `{ "checkout-actions": ["save", "cancel", "delete"] }`. The
+   * Each action group's members in the order they render: a node id mapped
+   * to its children's node ids, such as
+   * `{ "checkout-actions": ["save", "cancel", "delete"] }`, or
+   * `<node>/<collection>` mapped to item ids, such as
+   * `{ "orders-toolbar/actions": ["export", "print", "delete"] }`. The
    * `stays-clear` guardrail (see `flags`) reads a group's order from it
-   * before any op applies. It may leave out nodes and children.
+   * before any op applies. It may leave out groups and members.
    *
    * It must list each child once and only in its parent: the one
    * `baseParents` gives when given, else the one the child's flag address
-   * shows, if any. With `baseParents`, every node it names must be in it.
+   * shows, if any. With `baseParents`, every node it names must be in it;
+   * without, a node it lists takes that parent where nothing else gives
+   * one. Two `primary` actions can't share a group.
    */
   readonly baseOrder?: Readonly<Record<string, readonly string[]>> | undefined
 }
@@ -362,12 +383,12 @@ export interface ResolvedLayers {
  * Throws a `TypeError` when `surface` isn't a string, `baseIds` isn't node
  * ids or `{ ids, source }`, `flags` isn't a plain object that maps
  * addresses to valid flags, two of its addresses put one node in different
- * parents, two `primary` nodes or items have one parent, or `baseParents`
+ * parents, two `primary` nodes or items share a group, or `baseParents`
  * isn't a plain object that maps node ids to node ids or `null`, puts a
  * node in another parent than a flag's address shows, or has a cycle, or
  * `baseOrder` isn't a plain object that maps node ids to arrays of node
- * ids, lists a child twice or in another parent, or names a node
- * `baseParents` doesn't.
+ * ids and `<node>/<collection>` keys to arrays of item ids, lists a child
+ * twice or in another parent, or names a node `baseParents` doesn't.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],

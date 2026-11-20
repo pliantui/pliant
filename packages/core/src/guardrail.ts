@@ -23,8 +23,15 @@ export interface GuardrailInput {
   readonly flags: ReadonlyMap<string, Flags>
   /** Each known node's or item's parent in the base, by identity. */
   readonly parents: ReadonlyMap<string, string>
-  /** Each node's children in render order, where the caller gives them. */
+  /** The parents in `parents` the caller gave, not the ops' addresses. */
+  readonly known: ReadonlyMap<string, string>
+  /**
+   * Each action group's members in render order, where the caller gives
+   * them: node ids by node, item ids by `<node>/<collection>`.
+   */
   readonly order: ReadonlyMap<string, readonly string[]>
+  /** The op just applied. */
+  readonly op: ResolvedOp
 }
 
 /**

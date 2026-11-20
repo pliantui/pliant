@@ -8,7 +8,7 @@ import {
   type ResolvedLayers,
   type ResolveLayersOptions,
 } from "./resolve-layers"
-import { resolveRegion } from "./resolve-region"
+import { resolveRegion, type RegionEntry } from "./resolve-region"
 import { validateOverlay } from "./validate-overlay"
 
 const surface = "/checkout"
@@ -322,6 +322,172 @@ describe("destructive actions", () => {
     })
   })
 
+  describe("in wrappers", () => {
+    const wrap = (items: string[], id = "w") => ({
+      op: "wrap",
+      target: "actions",
+      id,
+      items,
+      mode: "row",
+    })
+    const wrapper = (id = "w") => `actions/slots/${id}`
+
+    it.each([
+      ["pinned to the start", { op: "pin", target: wrapper(), where: "start" }],
+      [
+        "moved before the primary action",
+        { op: "move", target: wrapper(), to: { before: "save" } },
+      ],
+      [
+        "moved right after the primary action",
+        { op: "move", target: wrapper(), to: { after: "save" } },
+      ],
+    ])("skips a wrapper of the destructive action %s", (_, op) => {
+      const result = resolve([
+        overlay("team", [wrap(["delete", "archive"])]),
+        overlay("personal", [op]),
+      ])
+      expect(guarded(result)).toMatchObject([
+        {
+          layer: "personal",
+          op,
+          node: "delete",
+          conflictsWith: [wrap(["delete", "archive"])],
+        },
+      ])
+    })
+
+    it("skips a move before a wrapper of the primary action", () => {
+      const op = move("delete", { before: "w" })
+      const result = resolve([
+        overlay("personal", [wrap(["save", "cancel"]), op]),
+      ])
+      expect(guarded(result)).toMatchObject([{ op, node: "delete" }])
+    })
+
+    it("doesn't count an empty or hidden wrapper as between them", () => {
+      const hideCancel = { op: "hide", target: slot("cancel") }
+      const hideArchive = { op: "hide", target: slot("archive") }
+      const hideWrapper = { op: "hide", target: wrapper() }
+      const result = resolve([
+        overlay("personal", [
+          wrap(["cancel", "archive"]),
+          hideCancel,
+          hideArchive,
+          hideWrapper,
+        ]),
+      ])
+      expect(guarded(result).map(({ op }) => op)).toEqual([
+        hideArchive,
+        hideWrapper,
+      ])
+    })
+
+    it("applies a wrap that keeps them apart", () => {
+      const result = resolve([
+        overlay("personal", [wrap(["cancel", "archive"]), wrap(["save"], "v")]),
+      ])
+      expect(guarded(result)).toEqual([])
+    })
+  })
+
+  describe("conflictsWith", () => {
+    it.each([
+      [
+        "hid",
+        { op: "hide", target: slot("archive") },
+        { op: "hide", target: slot("cancel") },
+      ],
+      [
+        "hid",
+        { op: "hide", target: slot("archive") },
+        move("cancel", { into: "side" }),
+      ],
+      [
+        "collapsed",
+        collapse(["archive"]),
+        { op: "hide", target: slot("cancel") },
+      ],
+      [
+        "moved away",
+        move("cancel", { after: "delete" }),
+        { op: "hide", target: slot("archive") },
+      ],
+    ])(
+      "lists the lower op that %s an action between them",
+      (_, team, personal) => {
+        const result = resolve([
+          overlay("team", [team]),
+          overlay("personal", [personal]),
+        ])
+        expect(guarded(result)).toMatchObject([
+          { layer: "personal", op: personal, conflictsWith: [team] },
+        ])
+      }
+    )
+
+    it("stays empty when the op breaks the rule alone", () => {
+      const team = { op: "hide", target: slot("archive") }
+      const personal = move("delete", { after: "save" })
+      const result = resolve([
+        overlay("team", [team]),
+        overlay("personal", [personal]),
+      ])
+      expect(guarded(result)).toMatchObject([
+        { op: personal, conflictsWith: [] },
+      ])
+    })
+  })
+
+  describe("without baseOrder", () => {
+    const unordered = { baseParents: undefined, baseOrder: undefined }
+
+    it.each([
+      ["a hide", { op: "hide", target: "actions/slots/other" }],
+      ["a show", { op: "show", target: "actions/slots/other" }],
+    ])(
+      "doesn't let %s of a node it doesn't know change what is judged",
+      (_, unrelated) => {
+        const op = move("delete", { after: "save" })
+        const alone = resolve([overlay("team", [op])], unordered)
+        const both = resolve(
+          [overlay("team", [op]), overlay("personal", [unrelated])],
+          unordered
+        )
+        expect(guarded(both)).toEqual(guarded(alone))
+      }
+    )
+  })
+
+  describe("groups", () => {
+    it("keeps a node's slots and its item collections apart", () => {
+      const mixed = {
+        "page/slots/actions/slots/save": { primary: true },
+        "actions/actions/remove": { destructive: true },
+        "actions/items/open": { primary: true },
+      }
+      const op = {
+        op: "move",
+        target: "actions/actions/remove",
+        to: { before: "save" },
+      }
+      const result = resolve([overlay("personal", [op])], {
+        flags: mixed,
+        baseOrder: undefined,
+      })
+      expect(guarded(result)).toEqual([])
+    })
+
+    it("lets a destructive action leave for another node", () => {
+      const op = move("delete", { into: "page" })
+      const result = resolve(
+        [overlay("personal", [op, move("delete", { before: "actions" })])],
+        { baseParents: { ...baseParents, actions: "page" } }
+      )
+      expect(guarded(result)).toEqual([])
+    })
+  })
+
   it("rejects an overlay with such an op in validateOverlay", () => {
     const result = validateOverlay(
       stored(
@@ -376,13 +542,15 @@ describe("primary actions", () => {
     )
   })
 
-  it("accepts one primary action per node", () => {
+  it("accepts one primary action per group", () => {
     expect(() =>
       resolveLayers([], {
         surface,
         flags: {
           "page/slots/actions/slots/save": { primary: true },
           "page/slots/dialog/slots/confirm": { primary: true },
+          "actions/actions/new": { primary: true },
+          "actions/items/open": { primary: true },
         },
       })
     ).not.toThrow()
@@ -401,7 +569,8 @@ describe("on random op stacks", () => {
     }
   }
 
-  const ids = ["save", "cancel", "archive", "delete", "export"]
+  const ids = ["save", "cancel", "export", "archive", "delete"]
+  const items = ["save", "copy", "print", "delete"]
   const tree = {
     page: null,
     actions: "page",
@@ -411,50 +580,162 @@ describe("on random op stacks", () => {
     archive: "actions",
     delete: "actions",
     side: "page",
+    toolbar: "page",
   }
-  const order = { actions: ["save", "cancel", "export", "archive", "delete"] }
+  const order = {
+    actions: ids,
+    "toolbar/actions": items,
+    page: ["actions", "side", "toolbar"],
+  }
+  const fuzzFlags = {
+    ...flags,
+    "page/slots/actions/slots/archive": { critical: true },
+    "toolbar/actions/save": { primary: true },
+    "toolbar/actions/delete": { destructive: true },
+  }
   const layers: Layer[] = ["org", "team", "personal", "session"]
+  const item = (id: string) => `toolbar/actions/${id}`
 
   function randomOp(next: () => number) {
     const pick = <T>(list: readonly T[]) =>
       list[Math.floor(next() * list.length)] as T
     const id = pick(ids)
-    const other = pick(ids.filter((candidate) => candidate !== id))
+    const other = pick([...ids, "w", "v", "x"].filter((each) => each !== id))
+    const subset = ids.filter(() => next() < 0.4)
+    const one = pick(items)
+    const another = pick(items.filter((each) => each !== one))
     return pick([
       () => move(id, { before: other }),
       () => move(id, { after: other }),
       () => move(id, { index: Math.floor(next() * 5) }),
-      () => move(id, { into: pick(["side", "actions"]) }),
-      () => pin(id, pick(["start", "end", "sticky", "none"])),
-      () => collapse([id], pick(["more", "none"])),
-      () => ({ op: pick(["hide", "show"]), target: slot(id) }),
+      () => move(id, { into: pick(["side", "actions", "w"]) }),
+      () => pin(pick([id, "w"]), pick(["start", "end", "sticky", "none"])),
+      () => collapse([pick([id, "w"])], pick(["more", "none"])),
+      () => ({ op: pick(["hide", "show"]), target: slot(pick([id, "w"])) }),
+      () => ({
+        op: "wrap",
+        target: "actions",
+        id: pick(["w", "v"]),
+        items: subset.length > 0 ? subset : [id],
+        mode: "row",
+      }),
+      () => ({
+        op: "insert",
+        target: pick(["actions", "w"]),
+        node: { id: "x", kind: "stat", dataset: "orders" },
+        at: pick([{ before: id }, { after: id }, { index: 1 }]),
+      }),
+      () => ({ op: "remove", target: pick(["w", "v", "x"]) }),
+      () => ({
+        op: "move",
+        target: item(one),
+        to: pick([
+          { before: another },
+          { after: another },
+          { index: Math.floor(next() * 4) },
+        ]),
+      }),
+      () => ({
+        op: "pin",
+        target: item(one),
+        where: pick(["start", "end", "none"]),
+      }),
+      () => ({ op: pick(["promote", "demote"]), target: item(one) }),
+      () => ({
+        op: "collapse",
+        target: "toolbar",
+        items: [one],
+        into: pick(["more", "none"]),
+      }),
+      () => ({ op: pick(["hide", "show"]), target: item(one) }),
     ])()
+  }
+
+  interface Shown {
+    readonly id: string
+    readonly shown: boolean
+    readonly overflow: boolean
   }
 
   // Breaks the rule when the destructive action renders above the primary
   // one, or right after it with no shown action between them.
-  function breaksRule(result: ResolvedLayers) {
-    const entries = resolveRegion(result, {
-      id: "actions",
-      slots: order.actions,
-    }).entries
-    const save = entries.find(({ id }) => id === "save")
-    const action = entries.find(({ id }) => id === "delete")
+  function breaks(
+    order: readonly Shown[],
+    destructive: string,
+    primary: string
+  ) {
+    const action = order.find(({ id }) => id === destructive)
+    const save = order.find(({ id }) => id === primary)
     if (!save || !action) {
       return false
     }
-    if (!save.collapsed !== !action.collapsed) {
-      return !action.collapsed
+    if (save.overflow !== action.overflow) {
+      return save.overflow
     }
-    const shown = entries
+    const shown = order
       .filter(
         (entry) =>
-          !entry.collapsed === !action.collapsed &&
-          (entry.visible || entry === save || entry === action)
+          entry.overflow === action.overflow &&
+          (entry.shown || entry === save || entry === action)
       )
       .map(({ id }) => id)
-    const gap = shown.indexOf("delete") - shown.indexOf("save")
+    const gap = shown.indexOf(destructive) - shown.indexOf(primary)
     return gap < 0 || gap === 1
+  }
+
+  // What a region renders, with each wrapper's nodes in its place.
+  function flattened(
+    entries: readonly RegionEntry[],
+    hidden = false,
+    collapsed = false
+  ): Shown[] {
+    return entries.flatMap((entry) => {
+      const shown = !hidden && entry.visible
+      const overflow = collapsed || entry.collapsed !== undefined
+      return entry.kind === "wrapper"
+        ? flattened(entry.entries, !shown, overflow)
+        : [{ id: entry.id, shown, overflow }]
+    })
+  }
+
+  // The toolbar's items in order: the kept item ops replayed on a region of
+  // slots, where a promote or demote keeps the item in place like `pin none`.
+  function toolbarOrder(result: ResolvedLayers): Shown[] {
+    const skipped = new Set(result.skipped.map(({ check }) => check))
+    const mirrored = result.overlays.flatMap((loaded) => {
+      const ops = loaded.ops.flatMap((check) => {
+        if (skipped.has(check) || check.status !== "valid") {
+          return []
+        }
+        const op: Record<string, unknown> = { ...check.op }
+        if (op["target"] === "toolbar") {
+          return [{ ...op, target: "mirror" }]
+        }
+        const target = String(op["target"])
+        if (!target.startsWith("toolbar/actions/")) {
+          return []
+        }
+        const id = `mirror/slots/${target.slice("toolbar/actions/".length)}`
+        return op["op"] === "promote" || op["op"] === "demote"
+          ? [{ op: "pin", target: id, where: "none" }]
+          : [{ ...op, target: id }]
+      })
+      return ops.length > 0 ? [overlay(loaded.layer, ops)] : []
+    })
+    const mirror = resolveLayers(mirrored, { surface })
+    return flattened(
+      resolveRegion(mirror, { id: "mirror", slots: items }).entries
+    ).map((entry) => {
+      const position = result.placements.get(item(entry.id))?.position
+      return {
+        ...entry,
+        overflow:
+          entry.overflow ||
+          (position !== undefined &&
+            "promoted" in position &&
+            !position.promoted),
+      }
+    })
   }
 
   function shuffled<T>(list: readonly T[], next: () => number) {
@@ -466,61 +747,104 @@ describe("on random op stacks", () => {
     return copy
   }
 
-  it("never leaves the destructive action next to or above the primary one, in any input order", () => {
+  const reshuffle = <T>(record: Record<string, T>, next: () => number) =>
+    Object.fromEntries(shuffled(Object.entries(record), next))
+
+  function stack(next: () => number) {
+    return layers.flatMap((layer) =>
+      next() < 0.6
+        ? [
+            overlay(
+              layer,
+              Array.from({ length: 1 + Math.floor(next() * 5) }, () =>
+                randomOp(next)
+              )
+            ),
+          ]
+        : []
+    )
+  }
+
+  it("never leaves a destructive action next to or above the primary one, in any input order", () => {
     const next = random(20261120)
     let skips = 0
-    for (let run = 0; run < 200; run++) {
-      const overlays = layers.flatMap((layer) =>
-        next() < 0.6
-          ? [
-              overlay(
-                layer,
-                Array.from({ length: 1 + Math.floor(next() * 4) }, () =>
-                  randomOp(next)
-                )
-              ),
-            ]
-          : []
-      )
-      const options = {
-        flags: { ...flags, "actions/slots/archive": { critical: true } },
-        baseParents: tree,
-        baseOrder: order,
-      }
+    for (let run = 0; run < 150; run++) {
+      const overlays = stack(next)
+      const options = { flags: fuzzFlags, baseParents: tree, baseOrder: order }
       const result = resolve(overlays, options)
-      expect(breaksRule(result)).toBe(false)
+      const region = flattened(
+        resolveRegion(result, { id: "actions", slots: ids }).entries
+      )
+      expect(breaks(region, "delete", "save")).toBe(false)
+      expect(breaks(toolbarOrder(result), "delete", "save")).toBe(false)
       skips += guarded(result).filter(
         ({ guardrail }) => guardrail === "stays-clear"
       ).length
 
       const reordered = resolve(shuffled(overlays, next), {
-        ...options,
-        flags: Object.fromEntries(
-          shuffled(Object.entries(options.flags), next)
-        ),
-        baseParents: Object.fromEntries(shuffled(Object.entries(tree), next)),
+        flags: reshuffle(fuzzFlags, next),
+        baseParents: reshuffle(tree, next),
+        baseOrder: reshuffle(order, next),
       })
       expect(guarded(reordered)).toEqual(guarded(result))
       expect(reordered.placements).toEqual(result.placements)
       expect(reordered.properties).toEqual(result.properties)
     }
     // The rule must have had something to stop.
-    expect(skips).toBeGreaterThan(100)
+    expect(skips).toBeGreaterThan(60)
+  })
+
+  it("judges each op apart from ops on nodes it doesn't know, without baseOrder", () => {
+    const next = random(1120)
+    const options = {
+      flags: fuzzFlags,
+      baseParents: undefined,
+      baseOrder: undefined,
+    }
+    for (let run = 0; run < 150; run++) {
+      const overlays = stack(next)
+      const unrelated = {
+        op: next() < 0.5 ? "hide" : "show",
+        target: next() < 0.5 ? "actions/slots/other" : "toolbar/actions/other",
+      }
+      const layer = layers[Math.floor(next() * layers.length)] ?? "session"
+      const before = guarded(resolve(overlays, options))
+      const after = guarded(
+        resolve([...overlays, overlay(layer, [unrelated])], options)
+      )
+      expect(after).toEqual(before)
+    }
   })
 })
 
 describe("baseOrder", () => {
   it.each([
     [["save"], "baseOrder must be a plain object of children by node id"],
-    [{ actions: "save" }, 'baseOrder["actions"] must be an array of node ids'],
+    [{ actions: "save" }, 'baseOrder["actions"] must be an array of ids'],
+    [{ actions: ["Save"] }, 'baseOrder["actions"] must be an array of ids'],
     [
-      { actions: ["Save"] },
-      'baseOrder["actions"] must be an array of node ids',
+      { "actions/slots": ["save"] },
+      'baseOrder["actions/slots"] must be an array of ids',
     ],
-    [{ actions: ["save", "save"] }, "baseOrder lists save more than once"],
+    [
+      { "actions/actions/x": ["a"] },
+      'baseOrder["actions/actions/x"] must be an array of ids',
+    ],
+    [
+      { actions: ["save", "save"] },
+      'baseOrder["actions"] lists a child more than once',
+    ],
     [
       { actions: ["save"], side: ["save"] },
-      "baseOrder lists save more than once",
+      "baseOrder lists save in side, but its parent is actions",
+    ],
+    [
+      { "ghost/actions": ["save"] },
+      "baseOrder names ghost, which isn't in the node tree",
+    ],
+    [
+      { actions: ["save", "send"] },
+      "baseOrder names send, which isn't in the node tree",
     ],
     [
       { actions: ["ghost"] },
@@ -563,6 +887,56 @@ describe("baseOrder", () => {
           baseOrder: { actions: ["save", "save"] },
         },
       })
-    ).toThrow(new TypeError("layers.baseOrder lists save more than once"))
+    ).toThrow(
+      new TypeError('layers.baseOrder["actions"] lists a child more than once')
+    )
+  })
+
+  it("supplies the parents baseParents leaves out", () => {
+    const op = pin("delete", "start")
+    const result = resolve([overlay("personal", [op])], {
+      flags: { save: { primary: true }, delete: { destructive: true } },
+      baseParents: undefined,
+    })
+    expect(guarded(result)).toMatchObject([{ op, node: "delete" }])
+  })
+
+  it("throws for two primary actions it puts in one node", () => {
+    expect(() =>
+      resolveLayers([], {
+        surface,
+        flags: { save: { primary: true }, send: { primary: true } },
+        baseOrder: { actions: ["save", "send"] },
+      })
+    ).toThrow(
+      new TypeError(
+        "baseOrder put two primary actions, save and send, in actions"
+      )
+    )
+  })
+
+  it("orders a node's items", () => {
+    const toolbar = {
+      "toolbar/actions/save": { primary: true },
+      "toolbar/actions/delete": { destructive: true },
+    }
+    const op = {
+      op: "move",
+      target: "toolbar/actions/delete",
+      to: { before: "export" },
+    }
+    const run = (order?: Record<string, string[]>) =>
+      guarded(
+        resolve([overlay("personal", [op])], {
+          flags: toolbar,
+          baseParents: undefined,
+          baseOrder: order,
+        })
+      ).map(({ node }) => node)
+    // Unlisted, export isn't known, so the move keeps delete in place.
+    expect(run()).toEqual([])
+    expect(
+      run({ "toolbar/actions": ["save", "export", "print", "delete"] })
+    ).toEqual(["toolbar/actions/delete"])
   })
 })
