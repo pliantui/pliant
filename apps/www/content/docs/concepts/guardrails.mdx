@@ -33,7 +33,9 @@ Every answer is validated on the server, then validated again in the browser bef
 
 ## Required and critical items
 
-Pliant can't mark an item as required or critical. Any slot or column a user can see, an overlay can hide. Don't rely on a region to keep something on screen, such as a notice users must read: render it outside Pliant's regions.
+`PliantRoot` doesn't take flags, so in your app any slot or column a user can see, an overlay can hide. Don't rely on a region to keep something on screen, such as a notice users must read: render it outside Pliant's regions.
+
+If you resolve overlays with `@pliantui/core` directly, pass the page's flags by address to `resolveLayers` and `validateOverlay`. A node or form field flagged `critical` or `required` can't be hidden, collapsed, demoted or removed, directly or through a node that holds it. When the layers together would hide one, the operation from the highest layer involved is skipped and reported, and `validateOverlay` rejects it.
 
 ## Team and org defaults aren't locks
 

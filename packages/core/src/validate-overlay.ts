@@ -4,15 +4,16 @@ import {
   layerSchema,
   overlaySchema,
   surfaceSchema,
+  type Flags,
   type Op,
 } from "@pliantui/contract"
 
 import { checkOp, type OpCheck, type OpContext } from "./check-op"
 import { loadOverlay, type LoadedOverlay } from "./load-overlay"
 import { identityOf } from "./node-identity"
-import { scopeKeyOf } from "./overlay-scope"
 import { ownEntries } from "./own-entries"
-import { applyOp, createResolution, readBaseIds } from "./resolution"
+import { readBaseIds } from "./resolution"
+import { readFlags, resolveOrdered, type ReadFlags } from "./resolve-ordered"
 import type { Result } from "./result"
 import { checkSurface, surfaceOrder } from "./surface-order"
 import type { WithOps } from "./with-ops"
@@ -44,6 +45,8 @@ export interface ValidateOverlayLayers {
     | undefined
   /** Team ids, highest precedence first, as in `resolveLayers`. */
   readonly teamOrder?: readonly string[] | undefined
+  /** The surface's instance flags by address, as in `resolveLayers`. */
+  readonly flags?: Readonly<Record<string, Flags>> | undefined
 }
 
 /** How `validateOverlay` checks an overlay beyond its own shape. */
@@ -57,9 +60,12 @@ export interface ValidateOverlayOptions {
    * id), and a `move … into` a node that doesn't exist or an `insert` or
    * `wrap` into one (`missing-container`, at `to.into` or `target`). A
    * `dormant` op, into a node that mounted `baseIds` don't list yet, isn't
-   * an issue: it applies once the node mounts. Throws a `TypeError` when
-   * `layers.surface` isn't a string or `layers.baseIds` isn't an array of ids
-   * or `{ ids, source }` with an array, whatever the input.
+   * an issue: it applies once the node mounts. An op that `resolveLayers`
+   * would skip for breaking a guardrail is invalid too, at the op: with the
+   * overlay applied last, it is the highest op involved. Throws a
+   * `TypeError` when `layers.surface` isn't a string, `layers.baseIds` isn't
+   * an array of ids or `{ ids, source }` with an array, or `layers.flags`
+   * isn't an object of valid flags, whatever the input.
    */
   readonly layers?: ValidateOverlayLayers | undefined
 }
@@ -124,7 +130,8 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
 
 function layerIssues(
   overlay: LoadedOverlay,
-  { overlays, surface, baseIds, teamOrder = [] }: ValidateOverlayLayers
+  { overlays, surface, baseIds, teamOrder = [] }: ValidateOverlayLayers,
+  flags: ReadFlags | undefined
 ): z.core.$ZodIssue[] {
   if (overlay.surface !== surface && overlay.surface !== "@app") {
     return [
@@ -139,61 +146,68 @@ function layerIssues(
     const loaded = loadOverlay(input)
     return loaded.success && loaded.data.id !== overlay.id ? [loaded.data] : []
   })
-  const ordered = surfaceOrder(below, surface, teamOrder)
-  const state = createResolution(baseIds)
-  for (const { overlay: lower, reason } of ordered) {
-    const scope = scopeKeyOf(lower)
-    for (const check of lower.ops) {
-      if (!reason && check.status === "valid") {
-        applyOp(state, { check, overlay: lower }, scope)
-      }
+  const { skipped, unapplied } = resolveOrdered(
+    [
+      ...surfaceOrder(below, surface, teamOrder),
+      { overlay, reason: undefined },
+    ],
+    baseIds,
+    flags
+  )
+  const issues = new Map<number, z.core.$ZodIssue>()
+  for (const entry of skipped) {
+    if (entry.overlay === overlay && entry.reason === "guardrail") {
+      issues.set(entry.check.index, {
+        code: "custom",
+        path: ["ops", entry.check.index],
+        message: `The node ${entry.node} is ${entry.guardrail}, so it must stay visible`,
+      })
     }
   }
-  const scope = scopeKeyOf(overlay)
-  return overlay.ops.flatMap((check): z.core.$ZodIssue[] => {
-    if (check.status !== "valid") {
-      return []
-    }
-    const reason = applyOp(state, { check, overlay }, scope)
+  for (const { overlay: owner, check, reason } of unapplied) {
     const { op, index } = check
+    if (owner !== overlay) {
+      continue
+    }
     if (reason === "missing-container") {
       const into = op.op === "move" && "into" in op.to ? op.to.into : undefined
-      return [
-        {
-          code: "custom",
-          path:
-            into === undefined
-              ? ["ops", index, "target"]
-              : ["ops", index, "to", "into"],
-          message: `The node ${identityOf(into ?? op.target)} doesn't exist on this surface`,
-        },
-      ]
+      issues.set(index, {
+        code: "custom",
+        path:
+          into === undefined
+            ? ["ops", index, "target"]
+            : ["ops", index, "to", "into"],
+        message: `The node ${identityOf(into ?? op.target)} doesn't exist on this surface`,
+      })
+    } else if (
+      reason === "id-collision" &&
+      (op.op === "insert" || op.op === "wrap")
+    ) {
+      issues.set(index, {
+        code: "custom",
+        path:
+          op.op === "insert"
+            ? ["ops", index, "node", "id"]
+            : ["ops", index, "id"],
+        message: `The id ${op.op === "insert" ? op.node.id : op.id} is already used on this surface`,
+      })
     }
-    return reason === "id-collision" && (op.op === "insert" || op.op === "wrap")
-      ? [
-          {
-            code: "custom",
-            path:
-              op.op === "insert"
-                ? ["ops", index, "node", "id"]
-                : ["ops", index, "id"],
-            message: `The id ${op.op === "insert" ? op.node.id : op.id} is already used on this surface`,
-          },
-        ]
-      : []
-  })
+  }
+  return [...issues].sort(([a], [b]) => a - b).map(([, issue]) => issue)
 }
 
 export function validateOverlay(
   input: unknown,
   { layers }: ValidateOverlayOptions = {}
 ): Result<ValidatedOverlay> {
+  let flags: ReadFlags | undefined
   if (layers) {
     checkSurface(layers.surface)
     const baseIds = readBaseIds(layers.baseIds)
     if (baseIds && !Array.isArray(baseIds.ids)) {
       throw new TypeError("layers.baseIds must list node ids in an array")
     }
+    flags = readFlags(layers.flags, "layers.flags")
   }
   const entries = ownEntries(input)
   const result = overlaySchema.safeParse(entries ?? input)
@@ -222,7 +236,7 @@ export function validateOverlay(
     ...listIssues,
     ...checks.flatMap(issuesOf),
     ...(result.success && layers
-      ? layerIssues({ ...result.data, ops: checks }, layers)
+      ? layerIssues({ ...result.data, ops: checks }, layers, flags)
       : []),
   ]
   if (!result.success || issues.length > 0) {
