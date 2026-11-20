@@ -12,6 +12,7 @@ import { StorageConflictError } from "./storage-conflict-error"
 
 const p1 = "01KAB0000000000000000000P1"
 const p2 = "01KAB0000000000000000000P2"
+const p3 = "01KAB0000000000000000000P3"
 const keyOf = (id: string, surface = "/orders") => `pliant:${surface}:${id}`
 
 function overlay(id: string, width: number, surface = "/orders"): Overlay {
@@ -221,6 +222,19 @@ describe("localAdapter", () => {
     expect(tombstone?.deletedAt).toBe("2026-11-22T00:00:00.000Z")
     expect(adapter.history("/orders", p2)).toEqual([second])
     expect(adapter.history("/orders/[id]")).toEqual([])
+  })
+
+  it("orders records saved in the same millisecond by version, then id", () => {
+    vi.useFakeTimers({ now: Date.UTC(2026, 10, 20) })
+    const adapter = local()
+    const second = adapter.save("/orders", overlay(p2, 200), { ifMatch: null })
+    const edited = adapter.save("/orders", overlay(p2, 210), {
+      ifMatch: second.etag,
+    })
+    const third = adapter.save("/orders", overlay(p3, 230), { ifMatch: null })
+    const first = adapter.save("/orders", overlay(p1, 220), { ifMatch: null })
+
+    expect(adapter.history("/orders")).toEqual([first, third, edited])
   })
 
   it("stores a new overlay only when none has its id", () => {

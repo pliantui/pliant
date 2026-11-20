@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { functionCatalog, type Expression } from "@pliantui/contract"
+import { functionSignatures, type Expression } from "@pliantui/contract"
 
 import type { ExpressionField } from "./check-expression"
 import { createRowEvaluator, type RowValue } from "./row-evaluator"
@@ -62,7 +62,7 @@ function random(seed: number) {
 
 describe("row functions", () => {
   it("implements every row function in the catalog", () => {
-    const rowNames = Object.entries(functionCatalog.functions)
+    const rowNames = Object.entries(functionSignatures)
       .filter(([, { kind }]) => kind === "row")
       .map(([name]) => name)
     const evaluator = createRowEvaluator({ fields, timeZone: "UTC" })
@@ -79,9 +79,7 @@ describe("row functions", () => {
     }
     for (const name of rowNames) {
       const { args } =
-        functionCatalog.functions[
-          name as keyof typeof functionCatalog.functions
-        ]
+        functionSignatures[name as keyof typeof functionSignatures]
       const ids: Record<string, string> = {}
       const sample =
         samples[name] ??
