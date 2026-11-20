@@ -333,7 +333,10 @@ describe("PliantRoot", () => {
         </PliantRoot>
       )
     }
-    const { rerender } = render(<App sidebar={false} />)
+    // StrictMode renders every component twice, which would double the count.
+    const { rerender } = render(<App sidebar={false} />, {
+      reactStrictMode: false,
+    })
     await act(async () => {
       await Promise.resolve()
     })
@@ -566,6 +569,8 @@ describe("PliantRoot", () => {
         }
       },
       {
+        // StrictMode renders every component twice, which would double the count.
+        reactStrictMode: false,
         wrapper: ({ children }: { children: ReactNode }) => (
           <PliantRoot surface={surface} storage={memoryAdapter().storage}>
             {children}

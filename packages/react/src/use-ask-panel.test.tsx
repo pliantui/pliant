@@ -484,11 +484,13 @@ describe("useAskPanel", () => {
   it("keeps the app's callback ref attached across renders", async () => {
     const ref = vi.fn<(element: HTMLTextAreaElement | null) => void>()
     await renderPanel({ promptProps: { ref } })
+    const attached = ref.mock.calls.length
 
     fireEvent.change(prompt(), { target: { value: "make it" } })
     fireEvent.change(prompt(), { target: { value: "make it wider" } })
 
-    expect(ref.mock.calls).toEqual([[prompt()]])
+    expect(ref).toHaveBeenCalledTimes(attached)
+    expect(ref).toHaveBeenLastCalledWith(prompt())
   })
 
   it("keeps forgetting a rejected pick when the app handles the picker's blur", async () => {
