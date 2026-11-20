@@ -1,149 +1,111 @@
-import type { StoredOverlay } from "@pliantui/contract"
+import { storedOverlaySchema, type StoredOverlay } from "@pliantui/contract"
 
 import type { StorageAdapter } from "./storage-adapter"
 import { StorageConflictError } from "./storage-conflict-error"
 import { ulid } from "./ulid"
 
-const version = 1
-const prefix = "pliant:"
+// The `storage` event reaches only other documents, so roots in this one
+// are told directly.
+const listeners = new Set<(key: string) => void>()
 
-interface LocalDocument {
-  /** Every saved entry, including those this version doesn't understand. */
-  readonly entries: readonly unknown[]
-  readonly newer: boolean
+function prefixOf(surface: string) {
+  return `pliant:${surface}:`
 }
 
-function readDocument(key: string): LocalDocument {
-  let value: unknown
+function readRecord(key: string): StoredOverlay | undefined {
   try {
-    value = JSON.parse(localStorage.getItem(key) ?? "null")
-  } catch {
-    return { entries: [], newer: false }
-  }
-  if (typeof value !== "object" || value === null || !("v" in value)) {
-    return { entries: [], newer: false }
-  }
-  if (typeof value.v === "number" && value.v > version) {
-    return { entries: [], newer: true }
-  }
-  const personal = "personal" in value ? value.personal : undefined
-  return {
-    entries: value.v === version && Array.isArray(personal) ? personal : [],
-    newer: false,
-  }
-}
-
-// Only the overlay is checked here: core's `loadOverlay` checks the rest
-// when the store applies it.
-function isRecord(entry: unknown): entry is StoredOverlay {
-  return (
-    typeof entry === "object" &&
-    entry !== null &&
-    "etag" in entry &&
-    typeof entry.etag === "string" &&
-    "version" in entry &&
-    Number.isInteger(entry.version) &&
-    "updatedAt" in entry &&
-    typeof entry.updatedAt === "string" &&
-    "overlay" in entry &&
-    typeof entry.overlay === "object" &&
-    entry.overlay !== null
-  )
-}
-
-function recordsOf(key: string) {
-  return readDocument(key).entries.filter(isRecord)
-}
-
-// Reads the document again right before each write, so a write doesn't
-// drop what another tab stored since this one loaded.
-function openRecord(surface: string, id: string) {
-  const key = prefix + surface
-  const { entries, newer } = readDocument(key)
-  if (newer) {
-    throw new Error(
-      `The overlays saved for ${surface} were written by a newer version of Pliant`
+    const result = storedOverlaySchema.safeParse(
+      JSON.parse(localStorage.getItem(key) ?? "null")
     )
+    return result.success ? result.data : undefined
+  } catch {
+    return undefined
   }
-  const current = entries
-    .filter(isRecord)
-    .find((record) => record.overlay.id === id)
-  const others = entries.filter((entry) => entry !== current)
-  return {
-    current,
-    check(ifMatch: string | null) {
-      if ((current?.etag ?? null) !== ifMatch) {
-        throw new StorageConflictError(current)
-      }
-    },
-    write(...records: StoredOverlay[]) {
-      localStorage.setItem(
-        key,
-        JSON.stringify({ v: version, personal: [...others, ...records] })
-      )
-    },
+}
+
+function claim(key: string, ifMatch: string | null) {
+  const current = readRecord(key)
+  // An entry that isn't a readable record, such as one written by a newer
+  // version, is never overwritten.
+  if (
+    (current?.etag ?? null) !== ifMatch ||
+    (!current && localStorage.getItem(key) !== null)
+  ) {
+    throw new StorageConflictError(current)
   }
+  queueMicrotask(() => {
+    for (const listener of listeners) {
+      listener(key)
+    }
+  })
+  return current
 }
 
 /**
- * Stores personal overlays in `localStorage`, one key per surface, as
- * versioned JSON. Data that doesn't parse loads as no overlays. Data written
- * by a newer version loads as no overlays and is never overwritten: saving
- * over it throws.
+ * Stores personal overlays in `localStorage`, one key per overlay:
+ * `pliant:<surface>:<id>`, holding its stored record as JSON. An entry that
+ * isn't a valid record doesn't load and is never overwritten.
  *
- * Other tabs of the same origin share the stored overlays, and `subscribe`
- * tells each tab when another one changes them, through the `storage`
- * event.
+ * `subscribe` tells each `PliantRoot` when another one, in this tab or
+ * another tab of the same origin, changes a surface's overlays.
  *
  * @experimental
  */
 export function localAdapter(): StorageAdapter {
   return {
     load(surface) {
-      return { personal: recordsOf(prefix + surface) }
+      const prefix = prefixOf(surface)
+      const personal: StoredOverlay[] = []
+      for (let index = 0; index < localStorage.length; index++) {
+        const key = localStorage.key(index)
+        const record =
+          key?.startsWith(prefix) && !key.includes(":", prefix.length)
+            ? readRecord(key)
+            : undefined
+        if (record) {
+          personal.push(record)
+        }
+      }
+      return { personal }
     },
     save(surface, overlay, { ifMatch }) {
       if (overlay.layer !== "personal") {
         throw new TypeError("localAdapter stores personal overlays only")
       }
-      const stored = openRecord(surface, overlay.id)
-      stored.check(ifMatch)
+      const key = prefixOf(surface) + overlay.id
       const now = Date.now()
       const record = {
         overlay,
         etag: ulid(now),
-        version: (stored.current?.version ?? 0) + 1,
+        version: (claim(key, ifMatch)?.version ?? 0) + 1,
         updatedAt: new Date(now).toISOString(),
       }
-      stored.write(record)
+      localStorage.setItem(key, JSON.stringify(record))
       return record
     },
     remove(surface, id, { ifMatch }) {
-      const stored = openRecord(surface, id)
-      if (stored.current) {
-        stored.check(ifMatch)
-        stored.write()
+      const key = prefixOf(surface) + id
+      if (localStorage.getItem(key) !== null) {
+        claim(key, ifMatch)
+        localStorage.removeItem(key)
       }
-    },
-    list(layer) {
-      if (layer !== "personal") {
-        return []
-      }
-      return Array.from({ length: localStorage.length }, (_, index) =>
-        localStorage.key(index)
-      ).flatMap((key) => (key?.startsWith(prefix) ? recordsOf(key) : []))
     },
     subscribe(surface, onChange) {
-      function onStorage(event: StorageEvent) {
-        if (
-          event.storageArea === localStorage &&
-          (event.key === null || event.key === prefix + surface)
-        ) {
+      const prefix = prefixOf(surface)
+      const listener = (key: string | null) => {
+        if (key === null || key.startsWith(prefix)) {
           onChange()
         }
       }
+      function onStorage(event: StorageEvent) {
+        if (event.storageArea === localStorage) {
+          listener(event.key)
+        }
+      }
+      listeners.add(listener)
       window.addEventListener("storage", onStorage)
       return () => {
+        listeners.delete(listener)
         window.removeEventListener("storage", onStorage)
       }
     },

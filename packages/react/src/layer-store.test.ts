@@ -102,20 +102,23 @@ describe("createLayerStore", () => {
 
   it("ignores overlays that don't load and keeps the others", () => {
     localStorage.setItem(
-      `pliant:${surface}`,
-      JSON.stringify({
-        v: 1,
-        personal: [
-          "corrupt",
-          { overlay: { v: 99 }, etag: "1" },
-          ...stored(
-            personalOverlay("01KAB0000000000000000000P1", [
-              width("total", 240),
-              { op: "fromTheFuture", target: "orders-table" },
-            ])
-          ),
-        ],
-      })
+      `pliant:${surface}:01KAB0000000000000000000P8`,
+      "corrupt"
+    )
+    localStorage.setItem(
+      `pliant:${surface}:01KAB0000000000000000000P9`,
+      JSON.stringify({ overlay: { v: 99 }, etag: "1" })
+    )
+    localStorage.setItem(
+      `pliant:${surface}:01KAB0000000000000000000P1`,
+      JSON.stringify(
+        recordOf(
+          personalOverlay("01KAB0000000000000000000P1", [
+            width("total", 240),
+            { op: "fromTheFuture", target: "orders-table" },
+          ])
+        )
+      )
     )
     const store = createLayerStore({ surface, storage: localAdapter() })
     store.connect()

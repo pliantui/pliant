@@ -56,7 +56,6 @@ function storageWith(ops: readonly unknown[]): StorageAdapter {
       version: 1,
       updatedAt: new Date().toISOString(),
     }),
-    remove: () => undefined,
   }
 }
 

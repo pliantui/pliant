@@ -28,9 +28,8 @@ import { createRetention, type Retention } from "./retention"
 import { createSaveQueue } from "./save-queue"
 import { readSession, writeSession } from "./session-mirror"
 import { createSlotRegistry, type SlotRegistry } from "./slot-registry"
-import { stableJson } from "./stable-json"
 import type { StorageAdapter, StoredLayers } from "./storage-adapter"
-import { StorageConflictError } from "./storage-conflict-error"
+import { isStorageConflictError } from "./storage-conflict-error"
 import { checkLanguage, uiLanguage } from "./ui-language"
 import { ulid } from "./ulid"
 
@@ -83,34 +82,24 @@ export function createLayerStore({
   const { ids, sync, register } = createNodeRegistry(changeLayers)
   // The ids of the personal overlays known to be stored.
   const stored = new Set<unknown>()
-  // The ids of versions saved again after a conflict.
-  const renamed = new Set<string>()
-  const { flush, save, defer, pendingId } = createSaveQueue({
+  const { flush, save, defer, pendingId, settle } = createSaveQueue({
     write(overlay) {
-      let saved: unknown
       try {
-        saved = storage.save(surface, overlay, { ifMatch: null })
-      } catch (error) {
-        if (!(error instanceof StorageConflictError)) {
-          throw error
+        const saved = storage.save(surface, overlay, { ifMatch: null })
+        if (saved instanceof Promise) {
+          return saved.then(
+            () => {
+              stored.add(overlay.id)
+            },
+            (error: unknown) => {
+              resolveConflict(overlay, error)
+            }
+          )
         }
-        // Handled once the queue is done with this save.
-        queueMicrotask(() => {
-          resolveConflict(overlay, error)
-        })
-        return undefined
+        stored.add(overlay.id)
+      } catch (error) {
+        resolveConflict(overlay, error)
       }
-      if (saved instanceof Promise) {
-        return saved.then(
-          () => {
-            stored.add(overlay.id)
-          },
-          (error: unknown) => {
-            resolveConflict(overlay, error)
-          }
-        )
-      }
-      stored.add(overlay.id)
       return undefined
     },
     report,
@@ -137,6 +126,8 @@ export function createLayerStore({
   let previewed: object | null = null
   let connection: object | undefined
   let currentLoad: object | undefined
+  let changedWhileLoading = false
+  let loadedEtags: string | undefined
   let version = 0
   let lastTime = 0
   let snapshot: { version: number; resolved: ResolvedLayers } | undefined
@@ -230,36 +221,22 @@ export function createLayerStore({
     save(overlay)
   }
 
-  // Each personal version is saved once, as a new record, so a conflict
-  // means its id is stored already: by an earlier attempt whose answer was
-  // lost, or by another tab. The stored overlay stays, and this version,
-  // when it differs, is saved again under a new id. It keeps its
-  // `createdAt`, so the later change still wins on a property both write,
-  // and changes to different properties both apply. A conflict that says
-  // anything else, or a second one for the same version, is reported
-  // rather than retried, so an adapter that always conflicts can't loop.
+  // Each personal version gets a new id in this tab and is saved once, as
+  // a new record, so a conflict over that id means an earlier attempt was
+  // stored though its answer was lost. The stored overlay replaces this
+  // tab's copy, since the adapter may have normalized it.
   function resolveConflict(overlay: ValidatedOverlay, error: unknown) {
-    if (!(error instanceof StorageConflictError)) {
+    const current = isStorageConflictError(error)
+      ? error.current?.overlay
+      : undefined
+    if (current?.id !== overlay.id) {
       throw error
-    }
-    const current = error.current?.overlay
-    if (stableJson(current) === stableJson(overlay)) {
-      stored.add(overlay.id)
-      return
-    }
-    if (current?.id !== overlay.id || renamed.has(overlay.id)) {
-      report(error)
-      return
     }
     stored.add(overlay.id)
     seed([current])
-    const copy = { ...overlay, id: generateId(tick()) }
-    renamed.add(copy.id)
-    personal = [
-      ...personal.filter((saved) => idOf(saved) !== overlay.id),
-      current,
-    ]
-    savePersonal(copy)
+    personal = personal.map((saved) =>
+      idOf(saved) === overlay.id ? current : saved
+    )
     changeLayers()
   }
 
@@ -444,10 +421,10 @@ export function createLayerStore({
     }
   }
 
-  function overlaysOf(records: readonly unknown[] = []) {
-    return records.flatMap((record) =>
+  function recordsOf(records: readonly unknown[] = []) {
+    return records.flatMap((record: unknown) =>
       typeof record === "object" && record !== null && "overlay" in record
-        ? [record.overlay]
+        ? [{ overlay: record.overlay, etag: "etag" in record && record.etag }]
         : []
     )
   }
@@ -462,27 +439,58 @@ export function createLayerStore({
     if (currentLoad !== token) {
       return
     }
-    const saved = overlaysOf(layers.personal)
-    org = overlaysOf(layers.org)
-    team = overlaysOf(layers.team)
-    personal = mergeById(
-      saved,
-      personal.filter((overlay) => !storedBefore.has(idOf(overlay)))
+    const records = [layers.org, layers.team, layers.personal].map(recordsOf)
+    const etags = JSON.stringify(
+      records.map((layer) => layer.map(({ etag }) => etag))
     )
-    for (const overlay of saved) {
-      stored.add(idOf(overlay))
+    if (status !== readyStatus || etags !== loadedEtags) {
+      loadedEtags = etags
+      const [orgRecords = [], teamRecords = [], personalRecords = []] = records
+      const saved = personalRecords.map(({ overlay }) => overlay)
+      org = orgRecords.map(({ overlay }) => overlay)
+      team = teamRecords.map(({ overlay }) => overlay)
+      personal = mergeById(
+        saved,
+        personal.filter((overlay) => !storedBefore.has(idOf(overlay)))
+      )
+      for (const overlay of saved) {
+        const id = idOf(overlay)
+        stored.add(id)
+        if (typeof id === "string") {
+          settle(id)
+        }
+      }
+      seed(saved)
+      if (
+        version > 0 ||
+        org.length > 0 ||
+        team.length > 0 ||
+        saved.length > 0
+      ) {
+        version++
+      }
+      setStatus(readyStatus)
     }
-    seed(saved)
-    if (version > 0 || org.length > 0 || team.length > 0 || saved.length > 0) {
-      version++
+    settled()
+  }
+
+  // Changes reported while a load runs are read by one more load after it.
+  function settled() {
+    currentLoad = undefined
+    if (changedWhileLoading) {
+      changedWhileLoading = false
+      fetchLayers(true)
     }
-    setStatus(readyStatus)
   }
 
   // A quiet load, after a change elsewhere, keeps what shows until it
   // succeeds, and reports a failure to `onError` once the layers are ready.
   function fetchLayers(quiet: boolean) {
     if (!connection) {
+      return
+    }
+    if (quiet && currentLoad) {
+      changedWhileLoading = true
       return
     }
     const token = {}
@@ -500,6 +508,7 @@ export function createLayerStore({
       } else {
         setStatus({ status: "error", error })
       }
+      settled()
     }
     let layers: StoredLayers | Promise<StoredLayers>
     try {

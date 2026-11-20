@@ -107,7 +107,6 @@ const storage: StorageAdapter = {
     version: 1,
     updatedAt: new Date().toISOString(),
   }),
-  remove: () => undefined,
 }
 
 const tableIds = ["orders-table"]

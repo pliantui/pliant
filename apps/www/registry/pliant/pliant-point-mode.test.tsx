@@ -47,7 +47,6 @@ const storage: StorageAdapter = {
     version: 1,
     updatedAt: new Date().toISOString(),
   }),
-  remove: () => undefined,
 }
 
 // happy-dom has no layout, so each element's box comes from `data-top`.

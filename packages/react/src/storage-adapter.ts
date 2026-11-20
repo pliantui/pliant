@@ -22,7 +22,12 @@ export interface StoredLayers {
  * when the stored record has another one, so that two tabs or devices
  * don't overwrite each other's changes unseen. Every successful save must
  * give the record an etag it has never had before, even when it stores the
- * same overlay again, and increase its `version`.
+ * same overlay again. `version` starts at 1 when a record is created, and
+ * each save of that record increases it; an overlay removed and stored
+ * again starts at 1.
+ *
+ * `PliantRoot` saves each personal version once, with `ifMatch: null`, and
+ * calls only `load`, `save` and `subscribe`.
  *
  * Saves also run on `pagehide`, while the page unloads, so an adapter that
  * sends them over the network must use `fetch` with `keepalive: true` or
@@ -33,17 +38,21 @@ export interface StoredLayers {
 export interface StorageAdapter {
   /**
    * Loads the stored overlays of a surface, in every layer the user can
-   * read, with the `@app` overlays. A load must include every save that
-   * finished before it started. A rejection sets the status to `error`
+   * read, with the `@app` overlays. A rejection sets the status to `error`
    * (see `usePliantStatus`).
+   *
+   * A load must see every save that finished before it started: read from
+   * the primary database, not a replica, and fetch with
+   * `cache: "no-store"`. A load that misses a finished save hides that
+   * version until the next load that includes it.
    */
   load(surface: string): StoredLayers | Promise<StoredLayers>
   /**
    * Stores an overlay in the layer and scope it names, replacing the record
    * with the same id, and returns the new record. `ifMatch` is the etag of
-   * the record it replaces, or `null` to store a new overlay. Throws a
-   * `StorageConflictError` when that doesn't hold, and throws or rejects
-   * when it can't save.
+   * the record it replaces, or `null` to store a new overlay. Throws or
+   * rejects with a `StorageConflictError` when that doesn't hold, and with
+   * any other error when it can't save.
    */
   save(
     surface: string,
@@ -53,14 +62,20 @@ export interface StorageAdapter {
   /**
    * Removes the overlay with this id when its record's etag is `ifMatch`,
    * and throws a `StorageConflictError` when it isn't. Removing an overlay
-   * that isn't stored does nothing.
+   * that isn't stored does nothing. It lets an app delete stored overlays,
+   * such as when a user resets their changes or asks for their data to be
+   * erased.
    */
-  remove(
+  remove?(
     surface: string,
     id: string,
     options: { readonly ifMatch: string }
   ): void | Promise<void>
-  /** Lists the stored records of a layer the user can read, on every surface. */
+  /**
+   * Lists the stored records of a layer the user can read, on every
+   * surface. It lets an app find all of a user's stored overlays, such as
+   * to export them.
+   */
   list?(
     layer: "org" | "team" | "personal"
   ): readonly StoredOverlay[] | Promise<readonly StoredOverlay[]>
