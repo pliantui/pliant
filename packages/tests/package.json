@@ -14,23 +14,23 @@
   "dependencies": {
     "@pliantui/react": "workspace:*",
     "@pliantui/server": "workspace:*",
-    "ai": "^7.0.173",
-    "next": "^16.4.6",
-    "pliantui": "workspace:*",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "pliantui": "workspace:*"
   },
   "devDependencies": {
     "@pliantui/contract": "workspace:*",
     "@pliantui/core": "workspace:*",
     "@types/node": "~22.12.0",
     "@types/react": "^19.3.0",
+    "ai": "^7.0.173",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "class-variance-authority": "^0.7.1",
     "eslint": "^9.39.5",
     "execa": "^10.2.1",
+    "next": "^16.4.6",
     "radix-ui": "^1.8.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "typescript": "~6.0.3",
     "vitest": "^5.1.0",
     "zod": "^4.6.7"

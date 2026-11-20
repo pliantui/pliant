@@ -107,18 +107,7 @@ jobs:
       - run: >-
           pnpm --filter @pliantui/react --filter www add
           react@19.2.0 react-dom@19.2.0 @types/react@19.2.0 @types/react-dom@19.2.0
-      - run: |
-          for pkg in @pliantui/react www; do
-            for dep in react react-dom @types/react @types/react-dom; do
-              pnpm --filter "$pkg" exec node -e '
-                const [dep, want] = process.argv.slice(1)
-                const { version } = JSON.parse(
-                  require("node:fs").readFileSync("node_modules/" + dep + "/package.json", "utf8")
-                )
-                if (version !== want) throw new Error(dep + " is " + version + ", not " + want)
-              ' "$dep" 19.2.0
-            done
-          done
+      - run: .github/assert-versions.sh 19.2.0 "react react-dom @types/react @types/react-dom" @pliantui/react www
       # The package's own sources aren't type-checked here: one test uses
       # ViewTransition, which React 19.2's types don't declare.
       - run: >-
@@ -132,6 +121,8 @@ jobs:
     runs-on: ubuntu-latest
     name: pnpm build (next 16.0.0)
     timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -140,19 +131,8 @@ jobs:
       - run: pnpm build:packages
       # 16.0.0 is the first Next.js 16 release.
       - run: pnpm --filter tests add next@16.0.0
-      - run: |
-          for pkg in tests; do
-            for dep in next; do
-              pnpm --filter "$pkg" exec node -e '
-                const [dep, want] = process.argv.slice(1)
-                const { version } = JSON.parse(
-                  require("node:fs").readFileSync("node_modules/" + dep + "/package.json", "utf8")
-                )
-                if (version !== want) throw new Error(dep + " is " + version + ", not " + want)
-              ' "$dep" 16.0.0
-            done
-          done
-      # Builds a minimal app that uses the packages, as an app of ours would.
+      - run: .github/assert-versions.sh 16.0.0 "next" tests
+      # Builds a minimal app that uses the packages, as a user's app would.
       - run: pnpm --filter tests build:fixture
 
   table:
@@ -169,18 +149,7 @@ jobs:
       - run: >-
           pnpm --filter @pliantui/react --filter www add
           @tanstack/react-table@9.3.1
-      - run: |
-          for pkg in @pliantui/react www; do
-            for dep in @tanstack/react-table; do
-              pnpm --filter "$pkg" exec node -e '
-                const [dep, want] = process.argv.slice(1)
-                const { version } = JSON.parse(
-                  require("node:fs").readFileSync("node_modules/" + dep + "/package.json", "utf8")
-                )
-                if (version !== want) throw new Error(dep + " is " + version + ", not " + want)
-              ' "$dep" 9.3.1
-            done
-          done
+      - run: .github/assert-versions.sh 9.3.1 "@tanstack/react-table" @pliantui/react www
       - run: pnpm --filter @pliantui/react typecheck
       - run: >-
           pnpm --filter @pliantui/react
@@ -201,18 +170,7 @@ jobs:
       - run: pnpm build:packages
       # 7.0.0 is the lowest version @pliantui/server supports.
       - run: pnpm --filter @pliantui/server add ai@7.0.0
-      - run: |
-          for pkg in @pliantui/server; do
-            for dep in ai; do
-              pnpm --filter "$pkg" exec node -e '
-                const [dep, want] = process.argv.slice(1)
-                const { version } = JSON.parse(
-                  require("node:fs").readFileSync("node_modules/" + dep + "/package.json", "utf8")
-                )
-                if (version !== want) throw new Error(dep + " is " + version + ", not " + want)
-              ' "$dep" 7.0.0
-            done
-          done
+      - run: .github/assert-versions.sh 7.0.0 "ai" @pliantui/server
       - run: pnpm --filter @pliantui/server typecheck
       - run: pnpm --filter @pliantui/server test
       # `ai`'s own declarations reference Node.js types, hence --types node.
