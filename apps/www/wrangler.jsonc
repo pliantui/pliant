@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pliantui-www",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-17",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  // The ask endpoint has no rate limits, so it stays off. Previews don't
+  // inherit `vars`, so they turn it off again.
+  "vars": {
+    "PLIANT_ASK_ENABLED": "0",
+  },
+  "previews": {
+    "vars": {
+      "PLIANT_ASK_ENABLED": "0",
+    },
+  },
+}

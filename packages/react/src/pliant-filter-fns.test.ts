@@ -1,5 +1,5 @@
 import { filterFn_inNumberRange } from "@tanstack/react-table"
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 
 import type { FilterValue } from "@pliantui/core"
 
@@ -40,6 +40,11 @@ describe("matchesFilter", () => {
     expect(matchesFilter("b", { operator: "lt", value: 3 })).toBe(false)
     expect(matchesFilter(true, { operator: "eq", value: true })).toBe(true)
     expect(matchesFilter(true, { operator: "gt", value: false })).toBe(false)
+  })
+
+  it("excludes the value itself from lt and matches any value of in", () => {
+    expect(matchesFilter(5, { operator: "lt", value: 5 })).toBe(false)
+    expect(matchesFilter("b", { operator: "in", value: ["a", "b"] })).toBe(true)
   })
 
   it("includes both ends of a range", () => {
@@ -157,16 +162,21 @@ describe("range inputs", () => {
 })
 
 describe("dates", () => {
-  beforeAll(() => {
-    vi.stubEnv("TZ", "America/New_York")
-  })
-
-  afterAll(() => {
-    vi.unstubAllEnvs()
-  })
-
   it("runs in a zone behind UTC", () => {
     expect(new Date(2026, 2, 1).getTimezoneOffset()).toBe(300)
+  })
+
+  it("leaves out the instant before midnight and dates with trailing text", () => {
+    const beforeMidnight = new Date(new Date(2026, 2, 1).getTime() - 1)
+    expect(
+      matchesFilter(beforeMidnight, { operator: "eq", value: "2026-03-01" })
+    ).toBe(false)
+    expect(
+      matchesFilter(new Date(2026, 2, 1, 12), {
+        operator: "eq",
+        value: "2026-03-01 or so",
+      })
+    ).toBe(false)
   })
 
   it("reads a date without a time as a day in the viewer's zone", () => {

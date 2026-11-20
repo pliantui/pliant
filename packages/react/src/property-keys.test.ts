@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { loadOverlay } from "@pliantui/core"
 
-import { changeKeyOf, propertiesOf } from "./property-keys"
+import { changeKeyOf, dependsOnHistory, propertiesOf } from "./property-keys"
 
 function keyOf(ops: unknown[]) {
   const result = loadOverlay({
@@ -53,6 +53,12 @@ describe("changeKeyOf", () => {
     expect(keyOf([{ op: "remove", target: "x" }])).toBeUndefined()
   })
 
+  it("doesn't depend on the order of the ops", () => {
+    expect(keyOf([width(200), { op: "hide", target: "a" }])).toBe(
+      keyOf([{ op: "hide", target: "a" }, width(300)])
+    )
+  })
+
   it("differs for other properties", () => {
     expect(keyOf([width(200)])).not.toBe(
       keyOf([width(200), { op: "hide", target: "a" }])
@@ -74,5 +80,31 @@ describe("propertiesOf", () => {
     expect(
       propertiesOf({ op: "setLayout", target: "page", mode: "row", at: "sm" })
     ).toEqual(propertiesOf({ op: "setLayout", target: "page", mode: "stack" }))
+  })
+})
+
+describe("dependsOnHistory", () => {
+  it.each([
+    { op: "move", target: "dashboard/slots/c", to: { into: "x" } },
+    {
+      op: "move",
+      target: "orders-table/columns/a",
+      to: { before: "orders-table/columns/b" },
+    },
+    { op: "pin", target: "page/slots/a", where: "start" },
+    { op: "remove", target: "x" },
+    { op: "removeUserItem", target: "orders-table", id: "margin" },
+  ] as const)("is true for $op", (op) => {
+    expect(dependsOnHistory(op)).toBe(true)
+  })
+
+  it("is false for an op that only sets a value", () => {
+    expect(
+      dependsOnHistory({
+        op: "setColumnWidth",
+        target: "orders-table/columns/total",
+        width: 200,
+      })
+    ).toBe(false)
   })
 })

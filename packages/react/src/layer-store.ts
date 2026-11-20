@@ -29,6 +29,7 @@ import { createSaveQueue } from "./save-queue"
 import { readSession, writeSession } from "./session-mirror"
 import { createSlotRegistry, type SlotRegistry } from "./slot-registry"
 import type { StorageAdapter, StoredLayers } from "./storage-adapter"
+import { isStorageConflictError } from "./storage-conflict-error"
 import { checkLanguage, uiLanguage } from "./ui-language"
 import { ulid } from "./ulid"
 
@@ -79,8 +80,29 @@ export function createLayerStore({
   const loaded = new WeakMap<object, LoadedOverlay | undefined>()
   const keys = new WeakMap<LoadedOverlay, string | undefined>()
   const { ids, sync, register } = createNodeRegistry(changeLayers)
-  const { flush, save, defer, pendingId } = createSaveQueue({
-    write: (overlay) => storage.save(surface, overlay),
+  // The ids of the personal overlays known to be stored.
+  const stored = new Set<unknown>()
+  const { flush, save, defer, pendingId, settle } = createSaveQueue({
+    write(overlay) {
+      const sentAt = loadCount
+      try {
+        const saved = storage.save(surface, overlay, { ifMatch: null })
+        if (saved instanceof Promise) {
+          return saved.then(
+            () => {
+              confirm(overlay.id, sentAt)
+            },
+            (error: unknown) => {
+              resolveConflict(overlay, error, sentAt)
+            }
+          )
+        }
+        stored.add(overlay.id)
+      } catch (error) {
+        resolveConflict(overlay, error, sentAt)
+      }
+      return undefined
+    },
     report,
     now,
   })
@@ -105,6 +127,9 @@ export function createLayerStore({
   let previewed: object | null = null
   let connection: object | undefined
   let currentLoad: object | undefined
+  let changedWhileLoading = false
+  let loadCount = 0
+  let loadedEtags: string | undefined
   let version = 0
   let lastTime = 0
   let snapshot: { version: number; resolved: ResolvedLayers } | undefined
@@ -196,6 +221,52 @@ export function createLayerStore({
   function savePersonal(overlay: ValidatedOverlay) {
     personal = [...personal, overlay]
     save(overlay)
+  }
+
+  // Each personal version gets a new id in this tab and is saved once, as
+  // a new record, so a conflict over that id means an earlier attempt was
+  // stored though its answer was lost. The stored overlay replaces this
+  // tab's copy, since the adapter may have normalized it, unless it was
+  // removed since: then the version is dropped. A version a load showed
+  // stored is saved whatever the answer says, so a late failure can't
+  // store it again after it was removed elsewhere.
+  function resolveConflict(
+    overlay: ValidatedOverlay,
+    error: unknown,
+    sentAt: number
+  ) {
+    if (stored.has(overlay.id)) {
+      return
+    }
+    const record = isStorageConflictError(error) ? error.current : undefined
+    const current = record?.overlay
+    if (current?.id !== overlay.id) {
+      throw error
+    }
+    if (record?.deletedAt) {
+      personal = personal.filter((saved) => idOf(saved) !== overlay.id)
+      changeLayers()
+      return
+    }
+    seed([current])
+    personal = personal.map((saved) =>
+      idOf(saved) === overlay.id ? current : saved
+    )
+    changeLayers()
+    confirm(overlay.id, sentAt)
+  }
+
+  // A load that started after the save was sent kept the version as still
+  // being saved, though it may have been removed elsewhere since: one more
+  // load tells.
+  function confirm(id: string, sentAt: number) {
+    if (stored.has(id)) {
+      return
+    }
+    stored.add(id)
+    if (loadCount !== sentAt) {
+      fetchLayers(true)
+    }
   }
 
   function lowerOf(layer: "personal" | "session") {
@@ -379,51 +450,128 @@ export function createLayerStore({
     }
   }
 
-  function hydrate(token: object, stored: StoredLayers) {
+  // A tombstone is never applied, even from an adapter that loads one.
+  function recordsOf(records: readonly unknown[] = []) {
+    return records.flatMap((record: unknown) =>
+      typeof record === "object" &&
+      record !== null &&
+      "overlay" in record &&
+      !("deletedAt" in record && record.deletedAt)
+        ? [{ overlay: record.overlay, etag: "etag" in record && record.etag }]
+        : []
+    )
+  }
+
+  // Personal overlays stored before the load started and missing from it
+  // were removed elsewhere. The others not in it are still being saved.
+  function hydrate(
+    token: object,
+    layers: StoredLayers,
+    storedBefore: ReadonlySet<unknown>
+  ) {
     if (currentLoad !== token) {
       return
     }
-    const saved = stored.personal ?? []
-    org = stored.org ?? []
-    team = stored.team ?? []
-    personal = mergeById(saved, personal)
-    seed(saved)
-    if (org.length > 0 || team.length > 0 || saved.length > 0) {
-      version++
+    const records = [layers.org, layers.team, layers.personal].map(recordsOf)
+    const etags = JSON.stringify(
+      records.map((layer) => layer.map(({ etag }) => etag))
+    )
+    const loadedIds = new Set(
+      records[2]?.map(({ overlay }) => idOf(overlay)) ?? []
+    )
+    if (
+      status !== readyStatus ||
+      etags !== loadedEtags ||
+      personal.some(
+        (overlay) =>
+          storedBefore.has(idOf(overlay)) && !loadedIds.has(idOf(overlay))
+      )
+    ) {
+      loadedEtags = etags
+      const [orgRecords = [], teamRecords = [], personalRecords = []] = records
+      const saved = personalRecords.map(({ overlay }) => overlay)
+      org = orgRecords.map(({ overlay }) => overlay)
+      team = teamRecords.map(({ overlay }) => overlay)
+      personal = mergeById(
+        saved,
+        personal.filter((overlay) => !storedBefore.has(idOf(overlay)))
+      )
+      for (const overlay of saved) {
+        const id = idOf(overlay)
+        stored.add(id)
+        if (typeof id === "string") {
+          settle(id)
+        }
+      }
+      seed(saved)
+      if (
+        version > 0 ||
+        org.length > 0 ||
+        team.length > 0 ||
+        saved.length > 0
+      ) {
+        version++
+      }
+      setStatus(readyStatus)
     }
-    setStatus(readyStatus)
+    settled()
   }
 
-  function reload() {
+  // Changes reported while a load runs are read by one more load after it.
+  function settled() {
+    currentLoad = undefined
+    if (changedWhileLoading) {
+      changedWhileLoading = false
+      fetchLayers(true)
+    }
+  }
+
+  // A quiet load, after a change elsewhere, keeps what shows until it
+  // succeeds, and reports a failure to `onError` once the layers are ready.
+  function fetchLayers(quiet: boolean) {
     if (!connection) {
       return
     }
-    const token = {}
-    currentLoad = token
-    if (status !== loadingStatus) {
-      setStatus(loadingStatus)
-    }
-    let stored: StoredLayers | Promise<StoredLayers>
-    try {
-      stored = storage.load(surface)
-    } catch (error) {
-      setStatus({ status: "error", error })
+    if (quiet && currentLoad) {
+      changedWhileLoading = true
       return
     }
-    if (stored instanceof Promise) {
-      stored.then(
-        (layers) => {
-          hydrate(token, layers)
-        },
-        (error: unknown) => {
-          if (currentLoad === token) {
-            setStatus({ status: "error", error })
-          }
-        }
-      )
-    } else {
-      hydrate(token, stored)
+    const token = {}
+    const storedBefore = new Set(stored)
+    currentLoad = token
+    loadCount++
+    if (!quiet && status !== loadingStatus) {
+      setStatus(loadingStatus)
     }
+    function fail(error: unknown) {
+      if (currentLoad !== token) {
+        return
+      }
+      if (quiet && status === readyStatus) {
+        report(error)
+      } else {
+        setStatus({ status: "error", error })
+      }
+      settled()
+    }
+    let layers: StoredLayers | Promise<StoredLayers>
+    try {
+      layers = storage.load(surface)
+    } catch (error) {
+      fail(error)
+      return
+    }
+    if (layers instanceof Promise) {
+      layers.then((loaded) => {
+        hydrate(token, loaded, storedBefore)
+      }, fail)
+    } else {
+      hydrate(token, layers, storedBefore)
+    }
+  }
+
+  function reload() {
+    fetchLayers(false)
   }
 
   function getServerResolved() {
@@ -467,6 +615,17 @@ export function createLayerStore({
       changeLayers()
     }
     mirror()
+    // A burst of changes, such as many `storage` events, loads once.
+    let changed = false
+    const unsubscribe = storage.subscribe?.(surface, () => {
+      if (!changed) {
+        changed = true
+        queueMicrotask(() => {
+          changed = false
+          fetchLayers(true)
+        })
+      }
+    })
     reload()
 
     function onVisibilityChange() {
@@ -482,6 +641,7 @@ export function createLayerStore({
       flush()
       window.removeEventListener("pagehide", flush)
       document.removeEventListener("visibilitychange", onVisibilityChange)
+      unsubscribe?.()
     }
   }
 

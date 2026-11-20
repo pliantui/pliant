@@ -34,7 +34,8 @@ export interface ApplyOpsOptions {
 /**
  * Changes the layers of the surface that the nearest `PliantRoot` holds.
  *
- * Each tab holds its own copy of the layers: another tab's changes show
+ * Each tab holds its own copy of the layers. Changes stored elsewhere show
+ * when the storage adapter reports them (see `PliantRoot`), and otherwise
  * after a reload.
  *
  * @experimental

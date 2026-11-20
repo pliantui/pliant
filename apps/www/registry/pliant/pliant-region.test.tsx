@@ -11,6 +11,7 @@ import {
 import { renderToString } from "react-dom/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import type { Overlay } from "@pliantui/contract"
 import {
   PliantRoot,
   usePliantStore,
@@ -25,25 +26,36 @@ const surface = "/dashboard"
 type Op = Parameters<PliantStore["applyOps"]>[1][number]
 
 function storageWith(ops: readonly unknown[]): StorageAdapter {
+  const overlay: Overlay = {
+    v: 1,
+    id: "01KAB0000000000000000000P1",
+    surface,
+    layer: "personal",
+    ops: [...ops],
+    basis: { contract: 1, core: "0.0.0", manifests: {} },
+    source: "manual",
+    createdBy: "local",
+    createdAt: "2026-11-19T00:00:00.000Z",
+  }
   return {
     load: () => ({
       personal: ops.length
         ? [
             {
-              v: 1,
-              id: "01KAB0000000000000000000P1",
-              surface,
-              layer: "personal",
-              ops,
-              basis: { contract: 1, core: "0.0.0", manifests: {} },
-              source: "manual",
-              createdBy: "local",
-              createdAt: "2026-11-19T00:00:00.000Z",
+              overlay,
+              etag: "1",
+              version: 1,
+              updatedAt: "2026-11-19T00:00:00.000Z",
             },
           ]
         : [],
     }),
-    save: () => undefined,
+    save: (_surface, saved) => ({
+      overlay: saved,
+      etag: crypto.randomUUID(),
+      version: 1,
+      updatedAt: new Date().toISOString(),
+    }),
   }
 }
 

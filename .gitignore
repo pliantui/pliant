@@ -5,12 +5,17 @@ node_modules
 
 # testing
 coverage
+packages/*/reports
+packages/*/.stryker-tmp
+packages/tests/temp
 
 # build
 dist
 .next/
 out/
 .source
+.open-next
+.wrangler
 
 # misc
 .DS_Store
@@ -25,6 +30,7 @@ npm-debug.log*
 # env files
 .env*
 !.env.example
+.dev.vars*
 
 # turbo
 .turbo
@@ -39,8 +45,9 @@ CLAUDE.local.md
 .fleet
 .vscode
 
-# registry build output
+# registry and schema build output
 apps/www/public/r
+apps/www/public/schema
 
 # playwright
 apps/www/playwright-report

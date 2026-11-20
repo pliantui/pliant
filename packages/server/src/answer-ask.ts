@@ -135,8 +135,9 @@ function interpret(
     return { done: false, error: errors.join("\n") }
   }
   const now = options.now()
-  // Previews live in the session layer. Resolution against the lower layers
-  // (`validateOverlay(overlay, { layers })`) slots in here once core has it.
+  // Previews live in the session layer. The handler has no access to the
+  // user's saved layers, so the preview is checked on its own: an id that
+  // collides with a saved insert is caught when the layers are resolved.
   const result = validateOverlay({
     v: 1,
     id: options.generateId(),

@@ -1,5 +1,5 @@
 import {
-  functionCatalog,
+  functionSignatures,
   type Expression,
   type FunctionName,
 } from "@pliantui/contract"
@@ -340,7 +340,7 @@ function argumentScope(
   path: readonly PropertyKey[],
   scope: Scope
 ): Scope {
-  const { kind } = functionCatalog.functions[name]
+  const { kind } = functionSignatures[name]
   if (kind === "row") {
     return scope
   }

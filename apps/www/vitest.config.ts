@@ -3,6 +3,11 @@ import { defineConfig } from "vitest/config"
 export default defineConfig({
   resolve: { tsconfigPaths: true },
   test: {
-    include: ["app/**/*.test.ts", "registry/**/*.test.tsx"],
+    setupFiles: ["./vitest.setup.ts"],
+    include: [
+      "app/**/*.test.ts",
+      "registry/**/*.test.tsx",
+      "scripts/**/*.test.ts",
+    ],
   },
 })

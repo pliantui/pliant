@@ -9,3 +9,4 @@ onlyBuiltDependencies:
 
 ignoredBuiltDependencies:
   - unrs-resolver
+  - workerd

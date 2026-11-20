@@ -6,21 +6,26 @@ const surface = "/examples/orders"
 
 async function seed(page: Page, ops: unknown[]) {
   await page.addInitScript(
-    ({ key, overlay }) => {
-      localStorage.setItem(key, JSON.stringify({ v: 1, personal: [overlay] }))
+    ({ key, record }) => {
+      localStorage.setItem(key, JSON.stringify(record))
     },
     {
-      key: `pliant:${surface}`,
-      overlay: {
-        v: 1,
-        id: "01KAB0000000000000000000P1",
-        surface,
-        layer: "personal",
-        ops,
-        basis: { contract: 1, core: "0.0.0", manifests: {} },
-        source: "manual",
-        createdBy: "local",
-        createdAt: "2026-11-19T00:00:00.000Z",
+      key: `pliant:${surface}:01KAB0000000000000000000P1`,
+      record: {
+        overlay: {
+          v: 1,
+          id: "01KAB0000000000000000000P1",
+          surface,
+          layer: "personal",
+          ops,
+          basis: { contract: 1, core: "0.0.0", manifests: {} },
+          source: "manual",
+          createdBy: "local",
+          createdAt: "2026-11-19T00:00:00.000Z",
+        },
+        etag: "1",
+        version: 1,
+        updatedAt: "2026-11-19T00:00:00.000Z",
       },
     }
   )

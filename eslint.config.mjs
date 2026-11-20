@@ -6,7 +6,18 @@ import globals from "globals"
 import tseslint from "typescript-eslint"
 
 export default defineConfig(
-  globalIgnores(["**/dist/**", "**/.next/**", "**/.source/**", "**/.turbo/**"]),
+  globalIgnores([
+    "**/dist/**",
+    "**/.next/**",
+    "**/.source/**",
+    "**/.turbo/**",
+    "packages/*/reports/**",
+    "packages/*/.stryker-tmp/**",
+    "**/.open-next/**",
+    "**/.wrangler/**",
+    "packages/tests/fixtures/**",
+    "packages/tests/temp/**",
+  ]),
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,
@@ -38,7 +49,13 @@ export default defineConfig(
     },
   },
   {
-    files: ["**/*.config.{ts,mjs,cjs}"],
+    files: ["**/*.config.{ts,mjs,cjs}", "knip.ts"],
+    rules: {
+      "no-restricted-exports": "off",
+    },
+  },
+  {
+    files: ["packages/tests/next-fixture/app/**/{page,layout,route}.{ts,tsx}"],
     rules: {
       "no-restricted-exports": "off",
     },

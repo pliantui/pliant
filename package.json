@@ -12,19 +12,20 @@
     "build:packages": "turbo run build --filter=./packages/*",
     "dev": "turbo run dev",
     "lint": "turbo run lint && pnpm lint:root",
-    "lint:root": "eslint --max-warnings 0 \"*.{js,mjs,cjs}\" .github",
-    "lint:fix": "turbo run lint:fix && eslint --fix \"*.{js,mjs,cjs}\" .github",
+    "lint:root": "eslint --max-warnings 0 \"*.{js,mjs,cjs,ts}\" .github",
+    "lint:fix": "turbo run lint:fix && eslint --fix \"*.{js,mjs,cjs,ts}\" .github",
     "typecheck": "turbo run typecheck",
     "format:check": "prettier --check . --cache",
     "format:write": "prettier --write . --cache",
-    "check": "turbo run lint typecheck && pnpm lint:root && pnpm format:check && manypkg check",
+    "check": "turbo run lint typecheck && pnpm lint:root && pnpm format:check && pnpm knip && manypkg check",
     "check:packages": "turbo run check:package size --filter=./packages/*",
     "test": "turbo run test",
+    "test:mutation": "turbo run test:mutation --concurrency=1",
+    "knip": "knip",
     "changeset": "changeset"
   },
   "packageManager": "pnpm@10.33.4",
   "devDependencies": {
-    "@arethetypeswrong/cli": "^0.18.5",
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "^3.0.3",
     "@commitlint/cli": "^21.2.4",
@@ -38,14 +39,12 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-config-turbo": "^2.11.11",
     "globals": "^17.14.0",
+    "knip": "^6.45.1",
     "prettier": "^3.10.0",
     "prettier-plugin-tailwindcss": "^0.8.1",
-    "publint": "^0.3.25",
     "size-limit": "^14.3.0",
-    "tsup": "^9.0.0",
     "turbo": "^2.11.11",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.72.2",
-    "vitest": "^5.1.0"
+    "typescript-eslint": "^8.72.2"
   }
 }
