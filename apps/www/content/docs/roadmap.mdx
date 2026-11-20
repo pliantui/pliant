@@ -1,0 +1,37 @@
+---
+title: Roadmap
+description: What's planned for Pliant.
+---
+
+Pliant is pre-1.0. These lists describe intent, not commitments, and carry no dates.
+
+## Planned before 1.0
+
+- Published `@pliantui/*` packages on npm and a hosted component registry.
+- A `pliantui init` command that sets Pliant up in your app.
+- Guides for Vite, React Router and the Next.js Pages Router.
+- Team and org overlays: publishing a layout as a team default, with a self-hosted server storage adapter.
+- Saved views: named arrangements a user can switch between.
+- Manual editing of regions without AI.
+- Deriving the ask panel's `context` from your regions.
+- Case-insensitive text functions in expressions, such as `containsI` and `eqI`.
+- Custom operations: your own namespaced operations, such as `crm:star`, that users and the AI can apply like built-in ones.
+- Org locks: org and team defaults that users can't hide or move. A lock is a UI policy, not access control.
+- Translated labels in team and org overlays, one per language.
+- A per-user theme choice among your app's own themes.
+- A history panel listing each change, with undo to any point.
+- "View as user" for admins, so support sees exactly what a user sees.
+- Server data: describe your data on the server, with each user's rows and fields scoped by your own rules, including which fields the AI may see.
+- Sorting, filtering, paging and expressions on your data, compiled to parameterized SQL on the server. Postgres first, then MySQL and SQLite, with approximate percentiles where the database supports them.
+- Data adapters for Drizzle, Prisma, and plain Postgres through `node-postgres` or `postgres.js`, each applying the user's scope to every query.
+- A documented way to read rows from REST, GraphQL or any other source yourself.
+- Tailwind CSS v3 support for the components, if apps adopting Pliant need it.
+- Built-in rate limiting for the ask route.
+
+## After 1.0
+
+- Packs of saved views that you can share between apps, with signatures that show who made them.
+- Relations between your tables, and one query layer over them.
+- Vue and Svelte.
+- Export to A2UI, an open format for describing interfaces that AI agents can generate.
+- Several answer variants to choose from in the ask panel.
