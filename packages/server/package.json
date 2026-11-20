@@ -28,6 +28,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./data": {
+      "types": "./dist/data.d.ts",
+      "default": "./dist/data.js"
+    },
     "./recordings": {
       "types": "./dist/recordings.d.ts",
       "default": "./dist/recordings.js"
@@ -58,6 +62,15 @@
       "limit": "5 kB",
       "ignore": [
         "ai",
+        "zod",
+        "@pliantui/contract",
+        "@pliantui/core"
+      ]
+    },
+    {
+      "path": "dist/data.js",
+      "limit": "2.2 kB",
+      "ignore": [
         "zod",
         "@pliantui/contract",
         "@pliantui/core"
