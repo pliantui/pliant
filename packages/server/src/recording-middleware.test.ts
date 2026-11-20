@@ -93,7 +93,9 @@ describe("recordingMiddleware", () => {
     expect((await run("replay", replayer)).text).toBe("Recorded")
     expect(replayer.doGenerateCalls).toHaveLength(0)
     expect(warn).toHaveBeenCalledTimes(1)
-    expect(warn.mock.calls[0]?.[0]).toContain("stand-in")
+    expect(warn.mock.calls[0]?.[0]).toContain(
+      "Replaying a recorded response from a stand-in"
+    )
 
     await expect(run("replay", replayer, "Something else")).rejects.toThrow(
       "No recorded answer for this ask"
