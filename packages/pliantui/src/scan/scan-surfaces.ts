@@ -16,13 +16,15 @@ import {
   type Manifest,
 } from "@pliantui/contract"
 
-import { createDiagnostic } from "../utils/diagnostic"
+import { createDiagnostic, type Diagnostic } from "../utils/diagnostic"
 import {
   describeExpression,
   getDeclarations,
   readObject,
+  resolveExpression,
   unwrapExpression,
 } from "../utils/read-static"
+import { appRoutes, isAppLayout } from "./app-routes"
 import { isPliantExport } from "./pliant-export"
 import { readColumns } from "./read-columns"
 import {
@@ -41,6 +43,7 @@ import {
   readString,
   type ComponentFunction,
   type PropValue,
+  type Route,
   type Scope,
 } from "./scope"
 
@@ -207,17 +210,120 @@ function walkRendered(
     follow(node, scope, parent, walk)
     return
   }
+  if (
+    Node.isCallExpression(node) &&
+    callRenderProp(node, scope, parent, walk)
+  ) {
+    return
+  }
   walkNode(node, scope, parent, walk)
+}
+
+/**
+ * Walks what a render prop returns, like `render(item)`, when the prop is a
+ * function written where the component is rendered. Returns whether the
+ * call is a render prop.
+ */
+function callRenderProp(
+  call: CallExpression,
+  scope: Scope,
+  parent: Parent,
+  walk: Walk
+) {
+  const callee = call.getExpression()
+  const prop = propOf(callee, scope)
+  if (prop === undefined || prop === "*") {
+    return false
+  }
+  const value = scope.props.get(prop)
+  const [first] = value?.nodes ?? []
+  if (!value || !first) {
+    if (scope.unknownProps) {
+      unfollowed(walk, call, prop)
+    }
+    return true
+  }
+  const resolved = resolveExpression(first)
+  const declaration = getDeclarations(resolved)[0]
+  const fn = isFunction(resolved)
+    ? resolved
+    : declaration && isFunction(declaration)
+      ? declaration
+      : undefined
+  if (!fn) {
+    unfollowed(walk, call, prop)
+    return true
+  }
+  claim(walk, value.scope, first)
+  const body = fn.getBody()
+  if (body) {
+    walkRendered(body, value.scope, parent, walk)
+  }
+  return true
+}
+
+// Content props: `children`, and render props such as `renderItem`.
+function isContentProp(prop: string) {
+  return prop === "children" || /^render(?:[A-Z]|$)/.test(prop)
+}
+
+function unfollowed(walk: Walk, node: Node, prop: string) {
+  if (isContentProp(prop) && !node.getFirstAncestor(Node.isJsxAttribute)) {
+    warn(
+      walk,
+      node,
+      `Content passed as ${prop} isn't followed, so the nodes in it are in no inventory.`
+    )
+  }
+}
+
+function walkRoutes(
+  routes: readonly Route[],
+  scope: Scope,
+  parent: Parent,
+  walk: Walk
+) {
+  for (const route of routes) {
+    if (scope.rendering.has(route.fn)) {
+      continue
+    }
+    const props = new Map<string, PropValue>()
+    if (route.children.length > 0) {
+      props.set("children", { nodes: [], scope, routes: route.children })
+    }
+    walkComponent(
+      route.fn,
+      {
+        fn: route.fn,
+        props,
+        // Next.js passes route props such as `params`.
+        unknownProps: true,
+        rendering: new Set([...scope.rendering, route.fn]),
+      },
+      parent,
+      walk
+    )
+  }
 }
 
 /** Walks the value a rendered prop or variable holds. */
 function follow(node: Node, scope: Scope, parent: Parent, walk: Walk) {
   const prop = propOf(node, scope)
   if (prop !== undefined) {
-    const value = prop === "*" ? undefined : scope.props.get(prop)
-    for (const item of value?.nodes ?? []) {
-      claim(walk, value?.scope ?? scope, item)
-      walkRendered(item, value?.scope ?? scope, parent, walk)
+    if (prop === "*") {
+      return
+    }
+    const value = scope.props.get(prop)
+    if (!value) {
+      if (scope.unknownProps) {
+        unfollowed(walk, node, prop)
+      }
+      return
+    }
+    walkRoutes(value.routes ?? [], value.scope, parent, walk)
+    for (const item of value.nodes) {
+      claim(walk, value.scope, item)
+      walkRendered(item, value.scope, parent, walk)
     }
     return
   }
@@ -524,6 +630,17 @@ function idArgumentOf(call: CallExpression, scope: Scope) {
     : undefined
 }
 
+// A node reached along several paths is reported once.
+function unique(diagnostics: readonly Diagnostic[]) {
+  const seen = new Set<string>()
+  return diagnostics.filter((diagnostic) => {
+    const key = `${diagnostic.file}:${String(diagnostic.line)}:${diagnostic.message}`
+    const isNew = !seen.has(key)
+    seen.add(key)
+    return isNew
+  })
+}
+
 function jsxElementsOf(sourceFile: SourceFile) {
   return [
     ...sourceFile.getDescendantsOfKind(SyntaxKind.JsxElement),
@@ -554,6 +671,9 @@ export function scanSurfaces(
 ) {
   const surfaces = new Map<string, ScannedSurface>()
   const report: ScanReport = { errors: [], warnings: [] }
+  const files = new Map(
+    sourceFiles.map((sourceFile) => [sourceFile.getFilePath(), sourceFile])
+  )
   const visited = new Set<Node>()
   const kindOf = (fn: ComponentFunction): NodeKind | undefined => {
     const name = componentName(fn)
@@ -572,11 +692,27 @@ export function scanSurfaces(
       }
       visited.add(element)
       const fn = element.getFirstAncestor(isFunction)
+      const props = new Map<string, PropValue>()
       const scope: Scope = {
         fn,
-        props: new Map(),
+        props,
         unknownProps: true,
         rendering: new Set(fn ? [fn] : []),
+      }
+      if (isAppLayout(sourceFile.getFilePath())) {
+        const { routes, unreadable } = appRoutes(
+          sourceFile.getFilePath(),
+          files
+        )
+        props.set("children", { nodes: [], scope, routes })
+        for (const route of unreadable) {
+          report.warnings.push(
+            createDiagnostic(
+              route,
+              "The default export of this route can't be read as a component, so its nodes are in no inventory."
+            )
+          )
+        }
       }
       const attribute = (
         Node.isJsxElement(element) ? element.getOpeningElement() : element
@@ -629,7 +765,13 @@ export function scanSurfaces(
   }
 
   reportUnreached(sourceFiles, visited, report)
-  return { surfaces: [...surfaces.values()], report }
+  return {
+    surfaces: [...surfaces.values()],
+    report: {
+      errors: unique(report.errors),
+      warnings: unique(report.warnings),
+    },
+  }
 }
 
 /**

@@ -9,7 +9,13 @@ export interface SurfaceInventory {
     readonly source: "inventory" | "mounted"
   }
   readonly baseParents: Readonly<Record<string, string | null>>
-  readonly hashes: Readonly<Record<string, string>>
+  /** Each node's child nodes, in the order they render. */
+  readonly baseOrder: Readonly<Record<string, readonly string[]>>
+  /**
+   * What each id is: its kind, and a hash of its kind and manifest, which
+   * changes when either does.
+   */
+  readonly ids: Readonly<Record<string, { kind: string; hash: string }>>
 }
 
 function stableJson(value: unknown): string {
@@ -46,7 +52,7 @@ export function buildInventory(
       byCodePoint(a.id, b.id)
     )
     const baseParents: Record<string, string | null> = {}
-    const hashes: Record<string, string> = {}
+    const ids: Record<string, { kind: string; hash: string }> = {}
     for (const node of nodes) {
       // Columns are items: their table is in their address.
       if (node.parent !== undefined && !node.id.includes("/")) {
@@ -54,18 +60,35 @@ export function buildInventory(
       }
       const { kind, manifest } = node.own ??
         node.content ?? { kind: builtInKinds.slot }
-      hashes[node.id] = createHash("sha256")
-        .update(stableJson([kind, manifest ?? null]))
-        .digest("hex")
-        .slice(0, 16)
+      ids[node.id] = {
+        kind,
+        hash: createHash("sha256")
+          .update(stableJson([kind, manifest ?? null]))
+          .digest("hex")
+          .slice(0, 16),
+      }
     }
+    // Nodes are recorded as the scan reaches them, which is render order.
+    const children = new Map<string, string[]>()
+    for (const node of surface.nodes.values()) {
+      if (typeof node.parent === "string" && !node.id.includes("/")) {
+        children.set(node.parent, [
+          ...(children.get(node.parent) ?? []),
+          node.id,
+        ])
+      }
+    }
+    const baseOrder = Object.fromEntries(
+      [...children].sort(([a], [b]) => byCodePoint(a, b))
+    )
     inventory[surface.surface] = {
       baseIds: {
         ids: nodes.map((node) => node.id),
         source: surface.incomplete ? "mounted" : "inventory",
       },
       baseParents,
-      hashes,
+      baseOrder,
+      ids,
     }
   }
   return inventory

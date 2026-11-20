@@ -16,10 +16,21 @@ import {
 export type ComponentFunction =
   FunctionDeclaration | ArrowFunction | FunctionExpression
 
+/**
+ * A route component an App Router layout renders as its `children`, with
+ * the routes it renders as its own `children` when it's a layout.
+ */
+export interface Route {
+  readonly fn: ComponentFunction
+  readonly children: readonly Route[]
+}
+
 /** A prop as written where the component is rendered. */
 export interface PropValue {
   readonly nodes: readonly Node[]
   readonly scope: Scope
+  /** The routes a layout's `children` stand for. */
+  readonly routes?: readonly Route[] | undefined
 }
 
 /**

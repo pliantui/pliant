@@ -171,6 +171,9 @@ The command reads the files your `tsconfig.json` or `jsconfig.json` includes, sk
 - a call to `usePliantRegion` or `useRegionSlots` is a region. The keys of its slots object are its slots, in order, and each slot holds what it renders. `PliantRegion` calls `usePliantRegion` with its `id` and `slots` props, so `<PliantRegion id="key-metrics" slots={{ revenue: <KpiCard /> }} />` is the region `key-metrics` holding the slot `revenue`. A region rendered as the slot of the same id is that slot.
 - a call to `usePliantTable` from `@pliantui/react/table` is a table. Its columns are read as TanStack names them: `id`, else `accessorKey` with dots as underscores, else a string `header`. Arrays of column defs and `columnHelper.columns`, `accessor`, `display` and `group` are read, also inside a `useMemo`. A column is listed by its address, like `orders-table/columns/customer`.
 - a region or table holds everything its component renders, and a slot holds everything rendered in it.
+- a render prop, like `renderItem={(item) => …}`, is followed to where the component calls it.
+
+A `PliantRoot` in an App Router layout (`app/**/layout.tsx`) that renders `{children}` holds the pages under that layout: the page of its own segment, and the pages of nested segments, each inside the nested layouts between. Route groups like `(shop)` and dynamic segments like `[id]` are followed like any other segment. Parallel routes (`@modal`), private folders (`_components`) and intercepting routes aren't, since they don't render as the layout's `children`.
 
 Ids can be written inline, kept in a `const` or imported, or passed down as props, as `PliantRegion` passes its own. Content rendered conditionally, like `{open && <PliantRegion … />}` or either side of a ternary, is listed too: the inventory is every node that can exist, not the ones on screen now.
 
@@ -181,8 +184,11 @@ The command writes `inventory.generated.ts` to the `pliant` folder inside your `
 It exports `inventory`, keyed by surface. Each surface has:
 
 - `baseIds`: the surface's ids, sorted, as `{ ids, source }`.
-- `baseParents`: each node id mapped to the id of the node that holds it, or `null` at the top of the surface. Columns aren't nodes, so they aren't in it; their address names their table.
-- `hashes`: a short hash per id of what the node is: a region, a table, a column, or what a slot renders. A slot that renders a component with a manifest from `pliantui manifest` takes that manifest's kind and contents, so the hash changes when the kind or the manifest changes. Run `scan` again after `manifest`.
+- `baseParents`: each node id mapped to the id of the node that holds it, or `null` at the top of the surface. Columns aren't nodes, so they aren't in it; their address names their table. Its key order carries no meaning.
+- `baseOrder`: each node that holds other nodes, mapped to those nodes in the order they render, such as a region's slots in key order. Columns aren't listed; a table's columns keep TanStack's order.
+- `ids`: what each id is, as `{ kind, hash }`. The kind is `pliant:region`, `pliant:table` or `pliant:column`, or for a slot, the kind of the component it renders. A slot that renders a component with a manifest from `pliantui manifest` takes that manifest's kind, like `app:badge`; any other slot is `pliant:slot`. The hash covers the kind and the manifest, so it changes when either does.
+
+The kinds and hashes come from the manifests, so run `scan` again after `pliantui manifest`.
 
 ```ts title="lib/pliant/inventory.generated.ts"
 export const inventory = {
@@ -208,8 +214,14 @@ export const inventory = {
       overdue: "key-metrics",
       revenue: "key-metrics",
     },
-    hashes: {
-      "average-order-value": "a220a621c23f938c",
+    baseOrder: {
+      "key-metrics": ["revenue", "orders", "average-order-value", "overdue"],
+    },
+    ids: {
+      "average-order-value": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
       // …
     },
   },
@@ -243,8 +255,9 @@ When the command can't read something as written, it says so, with the file and 
 - columns built at runtime, like `fields.map(...)`
 - a `PliantRoot` whose `surface` can't be read
 - a region or table that no `PliantRoot` renders, as far as the command can follow
+- content passed as `children` or as a render prop that the command can't see, like a `PliantRoot` in a provider component outside a layout, whose `children` come from wherever it's used
 
-When part of a surface can't be read, its `baseIds` are listed with `source: "mounted"` instead of `"inventory"`. Core then treats an op into a node that isn't listed as `dormant` rather than `missing-container`, since the node may be one the command couldn't read. The summary marks the surface as **not read in full**.
+When part of a surface can't be read, the inventory can't claim to be complete, so the surface's `baseIds` use `source: "mounted"` instead of `"inventory"`. Core's `baseIds` know only those two sources. With `"mounted"`, an op into a node that isn't listed is `dormant`: it waits until that node shows up, rather than being dropped as `missing-container`, since the node may be one the command couldn't read. The summary marks the surface as **not read in full**. Fix what the warnings point to and run the command again to get `"inventory"` back.
 
 A column whose id isn't one overlays can address, like `2fa`, is left out with a warning: column ids must start with a letter and contain only letters, digits, `-` and `_`.
 
@@ -264,4 +277,4 @@ Run `scan` with `--check` in CI. It exits with code 1 when the committed invento
 npx pliantui scan --check
 ```
 
-Pass `--json` to get the inventory, errors and warnings as JSON, for scripts and agents.
+Pass `--json` to get the inventory, errors and warnings as JSON, for scripts and agents. Without `--check`, it still writes the file, as a plain run does.

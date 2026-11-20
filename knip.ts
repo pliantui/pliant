@@ -13,6 +13,8 @@ const config: KnipConfig = {
         "registry/pliant/*.{ts,tsx}",
         // OpenNext loads its config by name when it builds the worker.
         "open-next.config.ts",
+        // Written by `pliantui scan` and kept current by CI's `scan --check`.
+        "lib/pliant/inventory.generated.ts",
       ],
     },
     "packages/tests": {

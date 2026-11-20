@@ -17,7 +17,8 @@ afterAll(removeFixtureDirectories)
 interface SurfaceInventory {
   baseIds: { ids: string[]; source: "inventory" | "mounted" }
   baseParents: Record<string, string | null>
-  hashes: Record<string, string>
+  baseOrder: Record<string, string[]>
+  ids: Record<string, { kind: string; hash: string }>
 }
 
 const inventoryFile = "lib/pliant/inventory.generated.ts"
@@ -80,14 +81,23 @@ describe("pliantui scan", () => {
 
     expect(exitCode).toBe(0)
     const inventory = await readInventory(cwd)
-    expect(Object.keys(inventory)).toEqual(["/orders", "reports"])
+    expect(Object.keys(inventory)).toEqual([
+      "/orders",
+      "reports",
+      "settings",
+      "shop",
+    ])
     const orders = inventory["/orders"]
     expect(orders?.baseIds).toEqual({
       ids: [
         "address",
+        "alerts",
         "billing",
         "details",
         "invoice",
+        "item-list",
+        "items",
+        "late",
         "orders-table",
         "orders-table/columns/actions",
         "orders-table/columns/cents",
@@ -115,12 +125,70 @@ describe("pliantui scan", () => {
       status: "shipping",
       billing: "details",
       invoice: "billing",
+      "item-list": null,
+      items: "item-list",
+      // Rendered by a render prop, where the component calls it.
+      alerts: "items",
+      late: "alerts",
       // Rendered through a component that passes its children on.
       "orders-table": null,
     })
-    expect(Object.keys(orders?.hashes ?? {}).sort()).toEqual(
-      orders?.baseIds.ids
-    )
+    // Each node's children in the order they render, not sorted.
+    expect(orders?.baseOrder).toEqual({
+      page: ["summary", "details"],
+      summary: ["revenue", "refunds"],
+      details: ["shipping", "billing"],
+      shipping: ["address", "status"],
+      billing: ["invoice"],
+      "item-list": ["items"],
+      items: ["alerts"],
+      alerts: ["late"],
+    })
+    expect(Object.keys(orders?.ids ?? {}).sort()).toEqual(orders?.baseIds.ids)
+    expect(orders?.ids["page"]?.kind).toBe("pliant:region")
+    expect(orders?.ids["orders-table"]?.kind).toBe("pliant:table")
+    expect(orders?.ids["orders-table/columns/id"]?.kind).toBe("pliant:column")
+    expect(orders?.ids["address"]?.kind).toBe("pliant:slot")
+  })
+
+  it("follows an App Router layout's children into the pages under it", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await runCli(cwd, ["scan"])
+    const shop = (await readInventory(cwd))["shop"]
+
+    expect(shop?.baseIds.source).toBe("inventory")
+    expect(shop?.baseParents).toEqual({
+      "shop-header": null,
+      cart: "shop-header",
+      // The page of the layout's own segment.
+      "shop-home": null,
+      hero: "shop-home",
+      // A page in a route group.
+      about: null,
+      story: "about",
+      // A page under a nested layout, in a dynamic segment, sits where that
+      // layout renders its children.
+      product: null,
+      details: "product",
+      gallery: "details",
+      photos: "gallery",
+    })
+  })
+
+  it("warns about children it can't see instead of listing nothing", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    const { output } = await scanJson(cwd)
+
+    expect(output.inventory["settings"]?.baseIds).toEqual({
+      ids: [],
+      source: "mounted",
+    })
+    expect(output.warnings).toContainEqual({
+      file: "components/providers.tsx",
+      line: 6,
+      message:
+        "Content passed as children isn't followed, so the nodes in it are in no inventory.",
+    })
   })
 
   it("gives core's resolveLayers what it needs", async () => {
@@ -165,6 +233,7 @@ describe("pliantui scan", () => {
         ({ file, line, message }) => `${file}:${String(line)} ${message}`
       )
     ).toEqual([
+      "components/providers.tsx:6 Content passed as children isn't followed, so the nodes in it are in no inventory.",
       'app/orders/columns.tsx:22 The column "2fa" of orders-table is left out: overlays can only address column ids that start with a letter and contain only letters, digits, - and _.',
       "app/reports/page.tsx:38 A slot of overview can't be read: the computed key [`${prefix}-total`].",
       "app/reports/page.tsx:39 A slot of overview can't be read: the spread ...extra.",
@@ -172,6 +241,9 @@ describe("pliantui scan", () => {
       "app/reports/page.tsx:45 The id of a region can't be read: chart.",
       "app/reports/page.tsx:19 A column of reports-table can't be read: the columns fields.map((field) => ({ accessorKey:....",
       "components/unused-panel.tsx:4 <PliantRegion> isn't rendered under a PliantRoot the scan can follow, so it's in no inventory.",
+      // A parallel route renders as its own prop of the layout, not as its
+      // children.
+      "app/(shop)/@modal/page.tsx:4 <PliantRegion> isn't rendered under a PliantRoot the scan can follow, so it's in no inventory.",
     ])
   })
 
@@ -215,20 +287,21 @@ describe("pliantui scan", () => {
     )
   })
 
-  it("hashes what each id is, so a change of kind shows", async () => {
+  it("records what each id is, so a change of kind shows", async () => {
     const cwd = await createFixtureDirectory("scan-app")
     await runCli(cwd, ["scan"])
-    const before = (await readInventory(cwd))["/orders"]?.hashes ?? {}
+    const before = (await readInventory(cwd))["/orders"]?.ids ?? {}
     // The badge in the status slot gets a manifest, so its kind changes.
     await runCli(cwd, ["manifest", "--yes"])
     await runCli(cwd, ["scan"])
-    const after = (await readInventory(cwd))["/orders"]?.hashes ?? {}
+    const after = (await readInventory(cwd))["/orders"]?.ids ?? {}
 
-    expect(before["status"]).toBe(before["address"])
-    expect(after["status"]).not.toBe(before["status"])
-    expect(after["address"]).toBe(before["address"])
-    expect(after["page"]).not.toBe(after["address"])
-    expect(after["orders-table"]).not.toBe(after["page"])
+    expect(before["status"]).toEqual(before["address"])
+    expect(after["status"]?.kind).toBe("app:badge")
+    expect(after["status"]?.hash).not.toBe(before["status"]?.hash)
+    expect(after["address"]).toEqual(before["address"])
+    expect(after["page"]?.hash).not.toBe(after["address"]?.hash)
+    expect(after["orders-table"]?.hash).not.toBe(after["page"]?.hash)
   })
 
   describe("--check", () => {

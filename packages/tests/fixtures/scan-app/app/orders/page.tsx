@@ -1,5 +1,6 @@
 import { PliantRoot } from "@pliantui/react"
 
+import { ItemList } from "@/components/item-list"
 import { KpiCard } from "@/components/kpi-card"
 import { PliantRegion } from "@/components/pliant/pliant-region"
 import { Section } from "@/components/section"
@@ -24,6 +25,12 @@ export default function OrdersPage() {
           summary: <PliantRegion id="summary" slots={metrics} />,
           details: <OrderDetails />,
         }}
+      />
+      <ItemList
+        items={["late"]}
+        renderItem={() => (
+          <PliantRegion id="alerts" slots={{ late: <p>Late orders</p> }} />
+        )}
       />
       <Section title="All orders">
         <OrdersTable />
