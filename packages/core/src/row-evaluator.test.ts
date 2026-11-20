@@ -116,6 +116,14 @@ describe("createRowEvaluator", () => {
           shipped: new Date("9999-12-31T23:59:59.999Z"),
         })
       ).toBe("9999-12-31T23:59:59.999Z")
+      const first = new Date("0000-01-01T00:00:00Z")
+      expect(evaluate(field("shipped"), { shipped: first })).toBe(
+        "0000-01-01T00:00:00.000Z"
+      )
+      expect(evaluate(field("placed"), { placed: first })).toBe("0000-01-01")
+      const earlier = new Date("-000001-12-31T23:59:59.999Z")
+      expect(evaluate(field("placed"), { placed: earlier })).toBeNull()
+      expect(evaluate(field("shipped"), { shipped: earlier })).toBeNull()
     })
 
     it("reads a Date in a date field as its UTC calendar date", () => {

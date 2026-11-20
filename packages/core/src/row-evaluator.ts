@@ -84,7 +84,7 @@ export interface RowExpression<
  *
  * @experimental
  */
-export interface RowAccessorOptions {
+export interface RowExpressionOptions {
   /**
    * The time zone `today` reads the current date in for this expression.
    * Defaults to the dataset's. A time zone the runtime doesn't know fails
@@ -101,7 +101,7 @@ export interface RowAccessorOptions {
  */
 export type RowEvaluator<TRow extends object = object> = (
   expression: Expression,
-  options?: RowAccessorOptions
+  options?: RowExpressionOptions
 ) => Result<RowExpression<TRow>>
 
 type Run = (scope: Scope) => Value

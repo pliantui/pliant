@@ -44,7 +44,7 @@ export {
 export {
   createRowEvaluator,
   type RowAccessor,
-  type RowAccessorOptions,
+  type RowExpressionOptions,
   type RowEvaluator,
   type RowEvaluatorOptions,
   type RowExpression,
