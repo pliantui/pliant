@@ -137,7 +137,7 @@ function layerIssues(
   overlay: LoadedOverlay,
   { overlays, surface, baseIds, teamOrder = [] }: ValidateOverlayLayers,
   flags: ReadFlags | undefined,
-  baseParents: ReadonlyMap<string, string> | undefined
+  baseParents: ReadonlyMap<string, string | null> | undefined
 ): z.core.$ZodIssue[] {
   if (overlay.surface !== surface && overlay.surface !== "@app") {
     return [
@@ -208,7 +208,7 @@ export function validateOverlay(
   { layers }: ValidateOverlayOptions = {}
 ): Result<ValidatedOverlay> {
   let flags: ReadFlags | undefined
-  let baseParents: ReadonlyMap<string, string> | undefined
+  let baseParents: ReadonlyMap<string, string | null> | undefined
   if (layers) {
     checkSurface(layers.surface)
     const baseIds = readBaseIds(layers.baseIds)
@@ -216,7 +216,11 @@ export function validateOverlay(
       throw new TypeError("layers.baseIds must list node ids in an array")
     }
     flags = readFlags(layers.flags, "layers.flags")
-    baseParents = readBaseParents(layers.baseParents, "layers.baseParents")
+    baseParents = readBaseParents(
+      layers.baseParents,
+      flags,
+      "layers.baseParents"
+    )
   }
   const entries = ownEntries(input)
   const result = overlaySchema.safeParse(entries ?? input)

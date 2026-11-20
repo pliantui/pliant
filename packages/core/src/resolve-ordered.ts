@@ -1,3 +1,4 @@
+import { compareOrdered } from "./compare-ordered"
 import type { Guardrail, Violation } from "./guardrail"
 import { addressParents } from "./node-identity"
 import { scopeKeyOf } from "./overlay-scope"
@@ -31,9 +32,14 @@ interface Blocked {
 function baseParentsOf(
   ops: readonly ResolvedOp[],
   flags: ReadFlags,
-  baseParents: ReadonlyMap<string, string> | undefined
+  baseParents: ReadonlyMap<string, string | null> | undefined
 ): Map<string, string> {
-  const parents = new Map(baseParents ?? flags.parents)
+  const parents = new Map(baseParents ? [] : flags.parents)
+  for (const [id, parent] of baseParents ?? []) {
+    if (parent !== null) {
+      parents.set(id, parent)
+    }
+  }
   for (const id of flags.flags.keys()) {
     addressParents(id).forEach(([item, node]) => parents.set(item, node))
   }
@@ -68,7 +74,7 @@ export function resolveOrdered(
   ordered: readonly OrderedOverlay[],
   baseIds: ResolveLayersOptions["baseIds"],
   flags: ReadFlags | undefined,
-  baseParents?: ReadonlyMap<string, string>
+  baseParents?: ReadonlyMap<string, string | null>
 ) {
   const steps: Step[] = []
   for (const { overlay, reason } of ordered) {
@@ -131,13 +137,26 @@ export function resolveOrdered(
             guardrail({ ...settled, flags: flags.flags, parents })
           )
         : []
+    const order = (op: ResolvedOp) => sequence.indexOf(op)
+    // Violations whose op to skip applied first go first, so skipping it can
+    // settle later ones that share it, and the result never depends on the
+    // order of `flags`.
+    const queue = violations
+      .map((violation) => ({
+        violation,
+        last: Math.max(...violation.ops.map(order)),
+      }))
+      .sort(
+        (a, b) =>
+          a.last - b.last || compareOrdered(a.violation.node, b.violation.node)
+      )
     const count = blocked.size
-    for (const violation of violations) {
-      const order = (op: ResolvedOp) => sequence.indexOf(op)
+    for (const { violation, last } of queue) {
       const [decides, ...others] = violation.ops
-      const last = Math.max(...violation.ops.map(order))
       const culprit = sequence[last]
-      if (!culprit || blocked.has(culprit)) {
+      // An op skipped earlier in this pass may settle this violation, so the
+      // next pass checks it again.
+      if (!culprit || violation.ops.some((op) => blocked.has(op))) {
         continue
       }
       blocked.set(culprit, {

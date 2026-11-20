@@ -37,7 +37,17 @@ Every answer is validated on the server, then validated again in the browser bef
 
 If you resolve overlays with `@pliantui/core` directly, pass the page's flags by address to `resolveLayers` and `validateOverlay`. A node or form field flagged `critical` or `required` can't be hidden, collapsed, demoted or removed, directly or through a node that holds it, and can't be moved into a hidden node or a cycle of nodes. When the layers together would hide one, the operation from the highest layer involved is skipped and reported, and `validateOverlay` rejects it.
 
-To know which nodes hold a flagged one, pass the page's node tree as `baseParents`. Without it, parents come from the addresses in your flags and in the overlays, so give each flag by its full address, such as `page/slots/checkout-actions/slots/pay-now`. A node that an overlay names only by its id, such as the destination of a `move … into`, then isn't traced to the nodes that hold it.
+To know which nodes hold a flagged one, pass the page's node tree as `baseParents`: each node id mapped to the id of the node that holds it, or `null` at the top of the page.
+
+```ts
+const baseParents = {
+  page: null,
+  "checkout-actions": "page",
+  "pay-now": "checkout-actions",
+}
+```
+
+The tree must have no cycle, list every node your flags' addresses name, and agree with those addresses. When you pass it, addresses in overlays don't change it. Without it, parents come from the addresses in your flags and in the overlays, so give each flag by its full address, such as `page/slots/checkout-actions/slots/pay-now`. A node that an overlay names only by its id, such as the destination of a `move … into`, then isn't traced to the nodes that hold it.
 
 ## Team and org defaults aren't locks
 

@@ -79,8 +79,8 @@ function sameBelow(
  * Why `node` is out of sight, if it is: a `hide`, `collapse`, `demote` or
  * `remove` on it or on a node that holds it, plus every op that moved the
  * node, or a node on the way up, into the one hidden, unless that node
- * holds it in the base anyway. A node in a cycle of containers is out of
- * sight too, through the ops that made the cycle.
+ * holds it in the base anyway. A node inside a cycle of containers is out
+ * of sight too, through the ops that place each node on the cycle.
  */
 function hidingOps(
   node: string,
@@ -88,12 +88,15 @@ function hidingOps(
 ): Pick<Violation, "ops" | "next"> | undefined {
   const base = baseChain(node, input.parents)
   const path: ResolvedOp[] = []
-  const seen = new Set<string>()
+  // Every node visited, with the op that put it in the next one.
+  const walk: { id: string; via: ResolvedOp | undefined }[] = []
   for (let id: string | undefined = node; id !== undefined;) {
-    if (seen.has(id)) {
-      return path.length > 0 ? { ops: path, next: [] } : undefined
+    const repeat: string = id
+    const start = walk.findIndex((step) => step.id === repeat)
+    if (start >= 0) {
+      const cycle = walk.slice(start).flatMap(({ via }) => (via ? [via] : []))
+      return cycle.length > 0 ? { ops: cycle, next: [] } : undefined
     }
-    seen.add(id)
     // A node that holds it in the base hides it whatever moved it in here.
     if (base.includes(id)) {
       path.length = 0
@@ -126,6 +129,7 @@ function hidingOps(
         }
       }
     }
+    walk.push({ id, via })
     if (via) {
       path.push(via)
     }

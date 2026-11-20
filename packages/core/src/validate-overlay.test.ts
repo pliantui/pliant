@@ -1028,7 +1028,13 @@ describe("validateOverlay", () => {
             overlays: [lower([{ op: "hide", target: "aside" }])],
             surface,
             flags,
-            baseParents: { drawer: "aside", aside: null },
+            baseParents: {
+              page: null,
+              "checkout-actions": "page",
+              "pay-now": "checkout-actions",
+              drawer: "aside",
+              aside: null,
+            },
           },
         }
       )
@@ -1039,6 +1045,35 @@ describe("validateOverlay", () => {
           message: "The item pay-now is critical, so it must stay visible",
         },
       ])
+    })
+
+    it("rejects an op that closes a cycle around a critical node", () => {
+      const result = validateOverlay(
+        overlay([
+          { ...move, to: { into: "panel" } },
+          {
+            op: "move",
+            target: "page/slots/panel",
+            to: { into: "checkout-actions" },
+          },
+        ]),
+        {
+          layers: {
+            overlays: [
+              lower([
+                {
+                  op: "move",
+                  target: "page/slots/checkout-actions",
+                  to: { into: "panel" },
+                },
+              ]),
+            ],
+            surface,
+            flags,
+          },
+        }
+      )
+      expect(result.error?.issues.map(({ path }) => path)).toEqual([["ops", 1]])
     })
 
     it("throws a TypeError for a base tree that isn't node ids, whatever the input", () => {

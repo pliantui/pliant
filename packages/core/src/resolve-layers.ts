@@ -111,7 +111,7 @@ export type SkippedOp =
   /**
    * A valid op skipped because it would break a guardrail. Every guardrail
    * skip names the flagged node the rule protects and the flag that makes
-   * it protected; a rule may add fields of its own.
+   * it protected.
    */
   | {
       readonly check: Extract<OpCheck, { status: "valid" }>
@@ -167,7 +167,8 @@ export interface UnappliedOp extends ResolvedOp {
 
 /**
  * The surface's known node ids, and where they come from: `"inventory"` for
- * the full `pliantui scan` inventory, where an unlisted node doesn't exist,
+ * every node in your app's component tree, where an unlisted node doesn't
+ * exist,
  * or `"mounted"` for the nodes mounted now (such as `PliantRegion` slot
  * keys), where an unlisted node may mount later, so an op that needs it is
  * `dormant` rather than `missing-container`.
@@ -234,12 +235,15 @@ export interface ResolveLayersOptions {
    */
   readonly flags?: Readonly<Record<string, Flags>> | undefined
   /**
-   * The surface's node tree as you rendered it, from `pliantui scan` or
-   * the mounted nodes: each node id mapped to the id of the node that holds
-   * it, or `null` for a node at the top of the surface. When given, it is
-   * the only source of which node holds another in the page; addresses in
-   * flags and overlays don't change it. An item's node always comes from
-   * its address.
+   * The surface's node tree, from your app's component tree: each node id
+   * mapped to the id of the node that holds it, or `null` for a node at the
+   * top of the surface, such as `{ page: null, "pay-now": "page" }`.
+   * When given, it is the only source of which node holds another in the
+   * page; addresses in overlays don't change it. An item's node always
+   * comes from its address.
+   *
+   * It must have no cycle, list every node that a flag's address names, and
+   * put each in the parent that address shows.
    */
   readonly baseParents?: Readonly<Record<string, string | null>> | undefined
 }
@@ -302,7 +306,8 @@ export interface ResolvedLayers {
  * ids or `{ ids, source }`, `flags` isn't a plain object that maps
  * addresses to valid flags, two of its addresses put one node in different
  * parents, or `baseParents` isn't a plain object that maps node ids to
- * node ids or `null`.
+ * node ids or `null`, has a cycle, leaves out a node a flag's address names,
+ * or puts one in another parent than that address shows.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],
@@ -314,12 +319,13 @@ export function resolveLayers(
     source: read.source,
   }
   const ordered = surfaceOrder(overlays, surface, teamOrder)
+  const flagged = readFlags(flags)
   return {
     ...resolveOrdered(
       ordered,
       known,
-      readFlags(flags),
-      readBaseParents(baseParents)
+      flagged,
+      readBaseParents(baseParents, flagged)
     ),
     overlays: ordered.map(({ overlay }) => overlay),
     baseIds: known,
