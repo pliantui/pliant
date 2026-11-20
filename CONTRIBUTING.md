@@ -79,6 +79,12 @@ Use `pnpm --filter=[WORKSPACE]` to run a script in a workspace.
 pnpm --filter=www dev
 ```
 
+The site is deployed to Cloudflare Workers. To build it for Workers and serve it locally in the Workers runtime:
+
+```bash
+pnpm --filter=www preview
+```
+
 2. To build a package in watch mode:
 
 ```bash

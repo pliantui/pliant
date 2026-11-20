@@ -12,15 +12,21 @@ type CallOptions = Parameters<WrapGenerate>[0]["params"]
 
 /**
  * Where model answers are recorded and replayed from. `record` calls the model
- * and writes each answer to `directory`; `replay` serves answers from there and
- * never calls the model.
+ * and writes each answer to `directory`. `replay` serves answers from
+ * `directory`, or from `recordings` (the parsed recording files keyed by their
+ * `key`), and never calls the model. Replaying from `recordings` never reads
+ * the file system, so it also runs where there is none, such as Cloudflare
+ * Workers with the `nodejs_compat` flag.
  *
  * @experimental
  */
-export interface RecordingOptions {
-  mode: "record" | "replay"
-  directory: string
-}
+export type RecordingOptions =
+  | { mode: "record" | "replay"; directory: string; recordings?: never }
+  | {
+      mode: "replay"
+      recordings: Readonly<Record<string, unknown>>
+      directory?: never
+    }
 
 const contentSchema = z.union([
   z.looseObject({
@@ -117,10 +123,8 @@ function toRecording(
 
 const warned = new Set<string>()
 
-function fromRecording(text: string): GenerateResult {
-  const { key, source, standIn, result } = recordingSchema.parse(
-    JSON.parse(text)
-  )
+function fromRecording(recording: unknown): GenerateResult {
+  const { key, source, standIn, result } = recordingSchema.parse(recording)
   if (standIn === true && !warned.has(key)) {
     warned.add(key)
     console.warn(
@@ -143,11 +147,22 @@ function isMissing(error: unknown) {
   return error instanceof Error && "code" in error && error.code === "ENOENT"
 }
 
+async function readRecording(directory: string, key: string) {
+  let text: string
+  try {
+    text = await readFile(join(directory, `${key}.json`), "utf8")
+  } catch (error) {
+    throw isMissing(error) ? new MissingRecordingError(key) : error
+  }
+  const recording: unknown = JSON.parse(text)
+  return recording
+}
+
 /**
  * Records model answers to JSON files keyed by a hash of the model, the prompt
  * and the tools, or replays them without calling the model, following the AI
- * SDK's caching middleware pattern. For development and tests: it needs
- * Node.js, and recording writes every ask to disk.
+ * SDK's caching middleware pattern. For development, tests and demos: it
+ * imports `node:crypto` and `node:fs`, and recording writes every ask to disk.
  *
  * ```ts
  * const model = wrapLanguageModel({
@@ -158,28 +173,28 @@ function isMissing(error: unknown) {
  *
  * @experimental
  */
-export function recordingMiddleware({
-  mode,
-  directory,
-}: RecordingOptions): LanguageModelMiddleware {
+export function recordingMiddleware(
+  options: RecordingOptions
+): LanguageModelMiddleware {
   return {
     specificationVersion: "v4",
     wrapGenerate: async ({ doGenerate, params, model }) => {
       const key = recordingKey(model, params)
-      const file = join(directory, `${key}.json`)
-      if (mode === "replay") {
-        let text: string
-        try {
-          text = await readFile(file, "utf8")
-        } catch (error) {
-          throw isMissing(error) ? new MissingRecordingError(key) : error
+      const { recordings } = options
+      if (recordings !== undefined) {
+        if (!Object.hasOwn(recordings, key)) {
+          throw new MissingRecordingError(key)
         }
-        return fromRecording(text)
+        return fromRecording(recordings[key])
+      }
+      const { mode, directory } = options
+      if (mode === "replay") {
+        return fromRecording(await readRecording(directory, key))
       }
       const result = await doGenerate()
       await mkdir(directory, { recursive: true })
       await writeFile(
-        file,
+        join(directory, `${key}.json`),
         `${JSON.stringify(toRecording(key, model, result, new Date()), null, 2)}\n`
       )
       return result

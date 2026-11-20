@@ -8,6 +8,8 @@
     "build": "pnpm registry:build && next build",
     "registry:build": "shadcn build",
     "start": "next start --port 4000",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "next typegen && eslint --max-warnings 0 .",
     "lint:fix": "next typegen && eslint . --fix",
@@ -36,6 +38,7 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
+    "@opennextjs/cloudflare": "^1.20.17",
     "@playwright/test": "^1.65.1",
     "@tailwindcss/postcss": "^4.3.5",
     "@testing-library/dom": "^10.4.2",
@@ -52,6 +55,7 @@
     "shadcn": "^4.23.0",
     "tailwindcss": "^4.3.5",
     "typescript": "~6.0.3",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "wrangler": "^4.164.0"
   }
 }

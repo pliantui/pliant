@@ -94,4 +94,68 @@ describe("recordingMiddleware", () => {
       )
     ).rejects.toThrow("No recorded answer for this ask")
   })
+
+  describe("replaying from recordings in memory", () => {
+    async function recorded() {
+      await run("record", new MockLanguageModelV4({ doGenerate: answer }))
+      const [file = ""] = await readdir(directory)
+      const recording: unknown = JSON.parse(
+        await readFile(join(directory, file), "utf8")
+      )
+      return { key: file.replace(/\.json$/, ""), recording }
+    }
+
+    function replay(
+      recordings: Record<string, unknown>,
+      model: MockLanguageModelV4,
+      prompt = "Hello"
+    ) {
+      return generateText({
+        model: wrapLanguageModel({
+          model,
+          middleware: recordingMiddleware({ mode: "replay", recordings }),
+        }),
+        instructions: "Be brief.",
+        prompt,
+      })
+    }
+
+    it("replays the recording for the ask without calling the model", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => undefined)
+      const { key, recording } = await recorded()
+      const replayer = new MockLanguageModelV4({ doGenerate: [] })
+
+      const { text } = await replay({ [key]: recording }, replayer)
+
+      expect(text).toBe("Recorded")
+      expect(replayer.doGenerateCalls).toHaveLength(0)
+    })
+
+    it("throws MissingRecordingError for an ask with no recording", async () => {
+      const { key, recording } = await recorded()
+
+      await expect(
+        replay(
+          { [key]: recording },
+          new MockLanguageModelV4({ doGenerate: [] }),
+          "Something else"
+        )
+      ).rejects.toMatchObject({
+        name: "MissingRecordingError",
+        message: expect.stringContaining(
+          "No recorded answer for this ask"
+        ) as string,
+      })
+    })
+
+    it("rejects a recording that doesn't match the recording format", async () => {
+      const { key } = await recorded()
+      const replayer = new MockLanguageModelV4({ doGenerate: [] })
+
+      await expect(
+        replay({ [key]: { key, result: { content: "Recorded" } } }, replayer)
+      ).rejects.toMatchObject({ name: "ZodError" })
+      expect(replayer.doGenerateCalls).toHaveLength(0)
+    })
+  })
 })

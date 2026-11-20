@@ -11,6 +11,8 @@ dist
 .next/
 out/
 .source
+.open-next
+.wrangler
 
 # misc
 .DS_Store

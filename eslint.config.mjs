@@ -6,7 +6,14 @@ import globals from "globals"
 import tseslint from "typescript-eslint"
 
 export default defineConfig(
-  globalIgnores(["**/dist/**", "**/.next/**", "**/.source/**", "**/.turbo/**"]),
+  globalIgnores([
+    "**/dist/**",
+    "**/.next/**",
+    "**/.source/**",
+    "**/.turbo/**",
+    "**/.open-next/**",
+    "**/.wrangler/**",
+  ]),
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylisticTypeChecked,

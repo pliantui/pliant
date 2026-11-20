@@ -69,6 +69,46 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm check:packages
 
+  worker:
+    runs-on: ubuntu-latest
+    name: worker size
+    timeout-minutes: 15
+    env:
+      # Cloudflare Workers allow 64 MiB uncompressed, the only size limit they
+      # enforce. The budget sits far below it, so bundle growth gets noticed.
+      WORKER_BUDGET_KIB: "10240"
+      # Stops wrangler from handing deploys over to `opennextjs-cloudflare
+      # deploy`. The dry run and the startup check need no Cloudflare account.
+      OPEN_NEXT_DEPLOY: "true"
+      WRANGLER_SEND_METRICS: "false"
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/www
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm build:packages
+      - run: pnpm exec opennextjs-cloudflare build
+      - run: pnpm exec opennextjs-cloudflare populateCache local
+      - name: Check the upload size
+        run: |
+          pnpm exec wrangler deploy --dry-run --outfile "$RUNNER_TEMP/worker.bundle" | tee "$RUNNER_TEMP/dry-run.log"
+          total=$(sed -n 's/^Total Upload: \([0-9.]*\) KiB.*/\1/p' "$RUNNER_TEMP/dry-run.log")
+          if [ -z "$total" ]; then
+            echo "::error::wrangler printed no upload size"
+            exit 1
+          fi
+          echo "Upload: $total KiB of a $WORKER_BUDGET_KIB KiB budget"
+          if awk -v total="$total" -v budget="$WORKER_BUDGET_KIB" 'BEGIN { exit !(total > budget) }'; then
+            echo "::error::The worker upload is $total KiB, over the $WORKER_BUDGET_KIB KiB budget"
+            exit 1
+          fi
+      # Fails if the worker throws while starting up.
+      - run: pnpm exec wrangler check startup --worker "$RUNNER_TEMP/worker.bundle" --outfile "$RUNNER_TEMP/worker-startup.cpuprofile"
+
   actionlint:
     runs-on: ubuntu-latest
     name: actionlint

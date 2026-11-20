@@ -24,7 +24,7 @@ Install `ai` and the provider you use; the package doesn't depend on a provider.
 
 ## Recordings
 
-`@pliantui/server/recordings` exports `recordingMiddleware`, an AI SDK middleware for development and tests that needs Node.js. In `replay` mode it serves answers from JSON files instead of calling the model, keyed by a hash of the model, the prompt and the tools; `record` mode writes them, including every ask.
+`@pliantui/server/recordings` exports `recordingMiddleware`, an AI SDK middleware for development, tests and demos that imports `node:crypto` and `node:fs`. In `replay` mode it serves answers from JSON files instead of calling the model, keyed by a hash of the model, the prompt and the tools; `record` mode writes them, including every ask.
 
 ```ts
 import { wrapLanguageModel } from "ai"
@@ -37,4 +37,6 @@ const model = wrapLanguageModel({
 })
 ```
 
-The orders demo's recordings, and the script that records them with `pnpm --filter www record`, live in `apps/www`. They are recorded through `claude -p` (headless Claude Code), not the Anthropic API, and each file says so with `standIn: true`.
+Where there is no file system, such as on Cloudflare Workers with the `nodejs_compat` flag, pass the parsed recordings keyed by their `key` instead of a directory: `recordingMiddleware({ mode: "replay", recordings })`. Each one is still checked against the recording format before it is replayed.
+
+The orders demo's recordings, and the script that records them with `pnpm --filter www record` and writes the `recordings/index.ts` module the demo imports them from, live in `apps/www`. They are recorded through `claude -p` (headless Claude Code), not the Anthropic API, and each file says so with `standIn: true`.
