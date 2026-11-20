@@ -230,6 +230,7 @@ test.describe("asking about the table", () => {
     for (const name of ["Region", "Status", "Value", "Created", "Notes"]) {
       await page.getByRole("button", { name: "Columns" }).click()
       await page.getByRole("menuitemcheckbox", { name }).click()
+      await expect(page.getByRole("menu")).toBeHidden()
       await expect(header(page, name)).toHaveCount(0)
     }
     expect(await headers(page)).toEqual(["Order", "Customer"])
