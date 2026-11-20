@@ -12,6 +12,7 @@ import { StorageConflictError } from "./storage-conflict-error"
 
 const p1 = "01KAB0000000000000000000P1"
 const p2 = "01KAB0000000000000000000P2"
+const p3 = "01KAB0000000000000000000P3"
 const keyOf = (id: string, surface = "/orders") => `pliant:${surface}:${id}`
 
 function overlay(id: string, width: number, surface = "/orders"): Overlay {
@@ -44,6 +45,12 @@ function local() {
     load: (surface: string) => sync(adapter.load(surface)).personal ?? [],
     save: (...args: Parameters<StorageAdapter["save"]>) =>
       sync(adapter.save(...args)),
+    history: (surface: string, id?: string) => {
+      if (!adapter.history) {
+        throw new TypeError("Expected localAdapter to keep history")
+      }
+      return sync(adapter.history(surface, id))
+    },
     remove: (...args: Parameters<NonNullable<StorageAdapter["remove"]>>) => {
       if (!adapter.remove) {
         throw new TypeError("Expected localAdapter to remove")
@@ -159,19 +166,75 @@ describe("localAdapter", () => {
     ).toEqual(again)
   })
 
-  it("rejects a stale etag after the overlay was removed and saved again", () => {
+  it("leaves a tombstone in place of a removed overlay", () => {
+    vi.useFakeTimers({ now: Date.UTC(2026, 10, 20) })
+    const adapter = local()
+    const first = adapter.save("/orders", overlay(p1, 200), { ifMatch: null })
+    vi.setSystemTime(Date.UTC(2026, 10, 21))
+    adapter.remove("/orders", p1, { ifMatch: first.etag })
+    const [tombstone] = adapter.history("/orders", p1)
+
+    expect(adapter.load("/orders")).toEqual([])
+    expect(tombstone?.etag).not.toBe(first.etag)
+    expect(tombstone).toMatchObject({
+      overlay: overlay(p1, 200),
+      version: 2,
+      updatedAt: "2026-11-21T00:00:00.000Z",
+      deletedAt: "2026-11-21T00:00:00.000Z",
+    })
+    expect(storedOverlaySchema.parse(tombstone)).toEqual(tombstone)
+  })
+
+  it("never stores an overlay again under a removed id", () => {
     const adapter = local()
     const first = adapter.save("/orders", overlay(p1, 200), { ifMatch: null })
     adapter.remove("/orders", p1, { ifMatch: first.etag })
-    const again = adapter.save("/orders", overlay(p1, 200), { ifMatch: null })
+    const [tombstone] = adapter.history("/orders", p1)
 
-    expect(again.etag).not.toBe(first.etag)
-    expect(again.version).toBe(1)
     expect(
       conflictOf(() =>
-        adapter.save("/orders", overlay(p1, 260), { ifMatch: first.etag })
+        adapter.save("/orders", overlay(p1, 200), { ifMatch: null })
       ).current
-    ).toEqual(again)
+    ).toEqual(tombstone)
+    expect(
+      conflictOf(() =>
+        adapter.save("/orders", overlay(p1, 220), {
+          ifMatch: tombstone?.etag ?? null,
+        })
+      ).current
+    ).toEqual(tombstone)
+    adapter.remove("/orders", p1, { ifMatch: tombstone?.etag ?? "" })
+    expect(adapter.history("/orders", p1)).toEqual([tombstone])
+  })
+
+  it("returns a surface's records, tombstones included, oldest first", () => {
+    vi.useFakeTimers({ now: Date.UTC(2026, 10, 20) })
+    const adapter = local()
+    const first = adapter.save("/orders", overlay(p1, 200), { ifMatch: null })
+    vi.setSystemTime(Date.UTC(2026, 10, 21))
+    const second = adapter.save("/orders", overlay(p2, 220), { ifMatch: null })
+    vi.setSystemTime(Date.UTC(2026, 10, 22))
+    adapter.remove("/orders", p1, { ifMatch: first.etag })
+    adapter.save("/invoices", overlay(p1, 260, "/invoices"), { ifMatch: null })
+    const [, tombstone] = adapter.history("/orders")
+
+    expect(adapter.history("/orders")).toEqual([second, tombstone])
+    expect(tombstone?.deletedAt).toBe("2026-11-22T00:00:00.000Z")
+    expect(adapter.history("/orders", p2)).toEqual([second])
+    expect(adapter.history("/orders/[id]")).toEqual([])
+  })
+
+  it("orders records saved in the same millisecond by version, then id", () => {
+    vi.useFakeTimers({ now: Date.UTC(2026, 10, 20) })
+    const adapter = local()
+    const second = adapter.save("/orders", overlay(p2, 200), { ifMatch: null })
+    const edited = adapter.save("/orders", overlay(p2, 210), {
+      ifMatch: second.etag,
+    })
+    const third = adapter.save("/orders", overlay(p3, 230), { ifMatch: null })
+    const first = adapter.save("/orders", overlay(p1, 220), { ifMatch: null })
+
+    expect(adapter.history("/orders")).toEqual([first, third, edited])
   })
 
   it("stores a new overlay only when none has its id", () => {

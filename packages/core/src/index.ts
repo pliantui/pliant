@@ -50,6 +50,15 @@ export {
   type ResolveRegionOptions,
 } from "./resolve-region"
 export {
+  createRowEvaluator,
+  type RowAccessor,
+  type RowExpressionOptions,
+  type RowEvaluator,
+  type RowEvaluatorOptions,
+  type RowExpression,
+  type RowValue,
+} from "./row-evaluator"
+export {
   validateOverlay,
   type ValidateOverlayLayers,
   type ValidateOverlayOptions,

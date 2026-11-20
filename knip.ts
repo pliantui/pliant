@@ -21,11 +21,7 @@ const config: KnipConfig = {
       // Fixtures are sample apps the CLI reads as files, never imports. The
       // type packages are there so the fixtures' imports resolve.
       ignore: ["fixtures/**"],
-      ignoreDependencies: [
-        "@types/react",
-        "class-variance-authority",
-        "radix-ui",
-      ],
+      ignoreDependencies: ["class-variance-authority", "radix-ui"],
     },
   },
   ignoreIssues: {

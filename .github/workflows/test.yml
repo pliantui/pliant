@@ -91,3 +91,91 @@ jobs:
           exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false
           --types node --module preserve --moduleResolution bundler
           dist/index.d.ts dist/recordings.d.ts
+
+  react:
+    runs-on: ubuntu-latest
+    name: pnpm test (react 19.2.0)
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm build:packages
+      # 19.2.0 is the lowest React version @pliantui/react supports. The type
+      # packages are pinned too, so the declarations check against its types.
+      - run: >-
+          pnpm --filter @pliantui/react --filter www add
+          react@19.2.0 react-dom@19.2.0 @types/react@19.2.0 @types/react-dom@19.2.0
+      - run: .github/assert-versions.sh 19.2.0 "react react-dom @types/react @types/react-dom" @pliantui/react www
+      # The package's own sources aren't type-checked here: one test uses
+      # ViewTransition, which React 19.2's types don't declare.
+      - run: >-
+          pnpm --filter @pliantui/react
+          exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false
+          --module preserve --moduleResolution bundler dist/index.d.ts dist/table.d.ts
+      - run: pnpm --filter @pliantui/react test
+      - run: pnpm --filter www exec vitest run
+
+  next:
+    runs-on: ubuntu-latest
+    name: pnpm build (next 16.0.0)
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm build:packages
+      # 16.0.0 is the first Next.js 16 release.
+      - run: pnpm --filter tests add next@16.0.0
+      - run: .github/assert-versions.sh 16.0.0 "next" tests
+      # Builds a minimal app that uses the packages, as a user's app would.
+      - run: pnpm --filter tests build:fixture
+
+  table:
+    runs-on: ubuntu-latest
+    name: pnpm test (tanstack table 9.3.1)
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm build:packages
+      # 9.3.1 is the lowest TanStack Table version @pliantui/react supports.
+      - run: >-
+          pnpm --filter @pliantui/react --filter www add
+          @tanstack/react-table@9.3.1
+      - run: .github/assert-versions.sh 9.3.1 "@tanstack/react-table" @pliantui/react www
+      - run: pnpm --filter @pliantui/react typecheck
+      - run: >-
+          pnpm --filter @pliantui/react
+          exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false
+          --module preserve --moduleResolution bundler dist/table.d.ts
+      - run: pnpm --filter @pliantui/react test
+      - run: pnpm --filter www exec vitest run
+
+  ai:
+    runs-on: ubuntu-latest
+    name: pnpm test (server, ai 7.0.0)
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm build:packages
+      # 7.0.0 is the lowest version @pliantui/server supports.
+      - run: pnpm --filter @pliantui/server add ai@7.0.0
+      - run: .github/assert-versions.sh 7.0.0 "ai" @pliantui/server
+      - run: pnpm --filter @pliantui/server typecheck
+      - run: pnpm --filter @pliantui/server test
+      # `ai`'s own declarations reference Node.js types, hence --types node.
+      - run: >-
+          pnpm --filter @pliantui/server
+          exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false
+          --types node --module preserve --moduleResolution bundler
+          dist/index.d.ts dist/recordings.d.ts

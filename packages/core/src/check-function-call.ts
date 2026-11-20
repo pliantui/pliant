@@ -321,7 +321,7 @@ function unitOf(
 /**
  * Checks a call of a built-in function against its signature: the number
  * of arguments, constant arguments, argument types and units, and returns the
- * call's type.
+ * call's type with the type each argument is read as.
  */
 export function checkFunctionCall({
   name,
@@ -394,7 +394,11 @@ export function checkFunctionCall({
     report(path, resultUnit.error)
     return undefined
   }
+  const reads = nodes.map((_, index) => {
+    const param = params[Math.min(index, params.length - 1)]
+    return param && unified.get(groupKey(params, param, index))?.type
+  })
   return (type === "number" || type === "integer") && resultUnit !== undefined
-    ? { type, unit: resultUnit }
-    : { type }
+    ? { type, unit: resultUnit, reads }
+    : { type, reads }
 }

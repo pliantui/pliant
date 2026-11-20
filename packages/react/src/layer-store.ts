@@ -226,9 +226,10 @@ export function createLayerStore({
   // Each personal version gets a new id in this tab and is saved once, as
   // a new record, so a conflict over that id means an earlier attempt was
   // stored though its answer was lost. The stored overlay replaces this
-  // tab's copy, since the adapter may have normalized it. A version a load
-  // showed stored is saved whatever the answer says, so a late failure
-  // can't store it again after it was removed elsewhere.
+  // tab's copy, since the adapter may have normalized it, unless it was
+  // removed since: then the version is dropped. A version a load showed
+  // stored is saved whatever the answer says, so a late failure can't
+  // store it again after it was removed elsewhere.
   function resolveConflict(
     overlay: ValidatedOverlay,
     error: unknown,
@@ -237,11 +238,15 @@ export function createLayerStore({
     if (stored.has(overlay.id)) {
       return
     }
-    const current = isStorageConflictError(error)
-      ? error.current?.overlay
-      : undefined
+    const record = isStorageConflictError(error) ? error.current : undefined
+    const current = record?.overlay
     if (current?.id !== overlay.id) {
       throw error
+    }
+    if (record?.deletedAt) {
+      personal = personal.filter((saved) => idOf(saved) !== overlay.id)
+      changeLayers()
+      return
     }
     seed([current])
     personal = personal.map((saved) =>
@@ -445,9 +450,13 @@ export function createLayerStore({
     }
   }
 
+  // A tombstone is never applied, even from an adapter that loads one.
   function recordsOf(records: readonly unknown[] = []) {
     return records.flatMap((record: unknown) =>
-      typeof record === "object" && record !== null && "overlay" in record
+      typeof record === "object" &&
+      record !== null &&
+      "overlay" in record &&
+      !("deletedAt" in record && record.deletedAt)
         ? [{ overlay: record.overlay, etag: "etag" in record && record.etag }]
         : []
     )
