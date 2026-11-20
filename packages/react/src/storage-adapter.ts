@@ -27,7 +27,9 @@ export interface StoredLayers {
  * again starts at 1.
  *
  * `PliantRoot` saves each personal version once, with `ifMatch: null`, and
- * calls only `load`, `save` and `subscribe`.
+ * calls only `load`, `save` and `subscribe`. When a save stores a version
+ * but fails with an error other than a conflict, and the version is removed
+ * elsewhere before the retry, the retry stores it again.
  *
  * Saves also run on `pagehide`, while the page unloads, so an adapter that
  * sends them over the network must use `fetch` with `keepalive: true` or

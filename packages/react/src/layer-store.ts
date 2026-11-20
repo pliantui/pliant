@@ -84,21 +84,22 @@ export function createLayerStore({
   const stored = new Set<unknown>()
   const { flush, save, defer, pendingId, settle } = createSaveQueue({
     write(overlay) {
+      const sentAt = loadCount
       try {
         const saved = storage.save(surface, overlay, { ifMatch: null })
         if (saved instanceof Promise) {
           return saved.then(
             () => {
-              stored.add(overlay.id)
+              confirm(overlay.id, sentAt)
             },
             (error: unknown) => {
-              resolveConflict(overlay, error)
+              resolveConflict(overlay, error, sentAt)
             }
           )
         }
         stored.add(overlay.id)
       } catch (error) {
-        resolveConflict(overlay, error)
+        resolveConflict(overlay, error, sentAt)
       }
       return undefined
     },
@@ -127,6 +128,7 @@ export function createLayerStore({
   let connection: object | undefined
   let currentLoad: object | undefined
   let changedWhileLoading = false
+  let loadCount = 0
   let loadedEtags: string | undefined
   let version = 0
   let lastTime = 0
@@ -227,7 +229,11 @@ export function createLayerStore({
   // tab's copy, since the adapter may have normalized it. A version a load
   // showed stored is saved whatever the answer says, so a late failure
   // can't store it again after it was removed elsewhere.
-  function resolveConflict(overlay: ValidatedOverlay, error: unknown) {
+  function resolveConflict(
+    overlay: ValidatedOverlay,
+    error: unknown,
+    sentAt: number
+  ) {
     if (stored.has(overlay.id)) {
       return
     }
@@ -237,12 +243,22 @@ export function createLayerStore({
     if (current?.id !== overlay.id) {
       throw error
     }
-    stored.add(overlay.id)
     seed([current])
     personal = personal.map((saved) =>
       idOf(saved) === overlay.id ? current : saved
     )
     changeLayers()
+    confirm(overlay.id, sentAt)
+  }
+
+  // A load that started after the save was sent kept the version as still
+  // being saved, though it may have been removed elsewhere since: one more
+  // load tells.
+  function confirm(id: string, sentAt: number) {
+    stored.add(id)
+    if (loadCount !== sentAt) {
+      fetchLayers(true)
+    }
   }
 
   function lowerOf(layer: "personal" | "session") {
@@ -511,6 +527,7 @@ export function createLayerStore({
     const token = {}
     const storedBefore = new Set(stored)
     currentLoad = token
+    loadCount++
     if (!quiet && status !== loadingStatus) {
       setStatus(loadingStatus)
     }

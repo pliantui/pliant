@@ -1113,6 +1113,117 @@ describe("PliantRoot", () => {
       expect(root.widths().total).toBe("base")
     })
 
+    it.each([
+      ["succeeds", (record: StoredOverlay) => Promise.resolve(record)],
+      [
+        "is a conflict over its own id",
+        (record: StoredOverlay) =>
+          Promise.reject(new StorageConflictError(record)),
+      ],
+    ])(
+      "drops a version removed elsewhere before its answer, which %s, arrived",
+      async (_answer, answerWith) => {
+        const { storage, records } = memoryStorage()
+        let notify = (): void => undefined
+        let answer = (): void => undefined
+        const root = renderRoot({
+          storage: {
+            ...storage,
+            load: (name) => Promise.resolve(storage.load(name)),
+            save: (name, overlay, options) => {
+              const record = storage.save(name, overlay, options)
+              return new Promise((resolve) => {
+                answer = () => {
+                  resolve(Promise.resolve(record).then(answerWith))
+                }
+              })
+            },
+            subscribe: (_name, onChange) => {
+              notify = onChange
+              return () => undefined
+            },
+          },
+          onError: vi.fn(),
+        })
+        await vi.waitFor(() => {
+          expect(root.statuses.at(-1)).toBe("ready")
+        })
+
+        act(() => {
+          root.store().applyOps("personal", [columnWidth("total", 260)])
+        })
+        await pageHidden()
+        // Another device removes it, and this tab loads before the answer.
+        records.clear()
+        await act(async () => {
+          notify()
+          await new Promise((resolve) => setTimeout(resolve))
+        })
+        expect(root.widths().total).toBe(260)
+        await act(async () => {
+          answer()
+          await new Promise((resolve) => setTimeout(resolve))
+        })
+        await pageHidden()
+
+        expect(root.widths().total).toBe("base")
+        expect(records.size).toBe(0)
+      }
+    )
+
+    it("keeps a version saved while a load that started before it ran", async () => {
+      const { storage } = memoryStorage()
+      let notify = (): void => undefined
+      let gate: Promise<void> | undefined
+      let openGate = (): void => undefined
+      const root = renderRoot({
+        storage: {
+          ...storage,
+          // Each load reads the store when it starts.
+          load: async (name) => {
+            const layers = storage.load(name)
+            await gate
+            return layers
+          },
+          save: (name, overlay, options) =>
+            Promise.resolve(storage.save(name, overlay, options)),
+          subscribe: (_name, onChange) => {
+            notify = onChange
+            return () => undefined
+          },
+        },
+      })
+      await vi.waitFor(() => {
+        expect(root.statuses.at(-1)).toBe("ready")
+      })
+
+      // Another device saves, and this tab starts loading.
+      void storage.save(
+        surface,
+        personal(
+          "01KAB0000000000000000000P1",
+          [columnWidth("status", 90)],
+          "2026-11-19T00:00:00.000Z"
+        ),
+        { ifMatch: null }
+      )
+      gate = new Promise((resolve) => {
+        openGate = resolve
+      })
+      await changedElsewhere(notify)
+      gate = undefined
+      act(() => {
+        root.store().applyOps("personal", [columnWidth("total", 260)])
+      })
+      await pageHidden()
+      await act(async () => {
+        openGate()
+        await new Promise((resolve) => setTimeout(resolve))
+      })
+
+      expect(root.widths()).toEqual({ total: 260, status: 90 })
+    })
+
     it("loads once for a burst of changes", async () => {
       const adapter = localAdapter()
       const load = vi.fn<StorageAdapter["load"]>((name) => adapter.load(name))
