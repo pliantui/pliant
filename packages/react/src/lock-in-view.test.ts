@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { opSchema, type Op } from "@pliantui/contract"
 import * as core from "@pliantui/core"
 
+import { memoryStorage } from "../test/storage"
 import { createLayerStore, type LayerStoreOptions } from "./layer-store"
 import { readSession } from "./session-mirror"
 
@@ -255,7 +256,7 @@ async function createStore(
 ) {
   const store = createLayerStore({
     surface,
-    storage: { load: () => ({}), save: () => undefined },
+    storage: memoryStorage().storage,
     ...options,
   })
   store.connect()
@@ -357,13 +358,7 @@ describe("lockIn", () => {
       const end = random.pick(["lockIn", "discard"] as const)
       const run = async () => {
         sessionStorage.clear()
-        const saved: unknown[] = []
-        const storage = {
-          load: () => ({ personal: [...saved] }),
-          save: (_surface: string, overlay: unknown) => {
-            saved.push(overlay)
-          },
-        }
+        const { storage, saved } = memoryStorage()
         let store = await createStore(mounted, { storage })
         for (const changes of personalChanges) {
           store.actions.applyOps("personal", changes)
@@ -420,15 +415,7 @@ describe("lockIn", () => {
       }
       store.flush()
       if (
-        saved
-          .slice(savedBefore)
-          .some(
-            (overlay) =>
-              typeof overlay === "object" &&
-              overlay !== null &&
-              "source" in overlay &&
-              overlay.source === "manual"
-          )
+        saved.slice(savedBefore).some((overlay) => overlay.source === "manual")
       ) {
         moved++
       }

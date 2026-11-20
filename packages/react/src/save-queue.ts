@@ -94,5 +94,11 @@ export function createSaveQueue({ write, report, now }: SaveQueueOptions) {
       : undefined
   }
 
-  return { flush, save, defer, pendingId }
+  /** Stops saving a version that turned out to be stored already. */
+  function settle(id: string) {
+    unsaved.delete(id)
+    failures.delete(id)
+  }
+
+  return { flush, save, defer, pendingId, settle }
 }
