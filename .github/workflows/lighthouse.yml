@@ -1,0 +1,47 @@
+name: Lighthouse
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    name: lighthouse
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm -w exec turbo run build --filter=www
+      - run: pnpm lighthouse
+      - name: Summarize scores
+        if: ${{ !cancelled() }}
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const manifest = JSON.parse(fs.readFileSync(".lighthouseci/reports/manifest.json", "utf8"));
+            const rows = manifest.filter((run) => run.isRepresentativeRun).map((run) => {
+              const s = run.summary;
+              const pct = (n) => Math.round(n * 100);
+              return `| ${new URL(run.url).pathname} | ${pct(s.performance)} | ${pct(s.accessibility)} | ${pct(s["best-practices"])} | ${pct(s.seo)} |`;
+            });
+            const table = ["| URL | Performance | Accessibility | Best practices | SEO |", "| --- | --- | --- | --- | --- |", ...rows].join("\n");
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, table + "\n");
+          '
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: lighthouse-report
+          path: .lighthouseci/reports
+          retention-days: 14
+          if-no-files-found: ignore
