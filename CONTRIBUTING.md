@@ -2,7 +2,7 @@
 
 Thanks for your interest in contributing to Pliant. We're happy to have you here.
 
-Please take a moment to review this document before submitting your first pull request. We also recommend checking open issues and pull requests to see if someone else is working on something similar.
+Please take a moment to review this document before submitting your first pull request. By taking part you agree to follow the [code of conduct](./CODE_OF_CONDUCT.md). We also recommend checking open issues and pull requests to see if someone else is working on something similar.
 
 ## About this repository
 

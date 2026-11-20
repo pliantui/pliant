@@ -175,6 +175,25 @@ describe("PliantRoot", () => {
     expect(saved.map(({ ops }) => ops)).toEqual([[width(260)]])
   })
 
+  it("records its lang prop in the overlays it makes", () => {
+    const { storage } = memoryAdapter()
+    let lang = "fr-CA"
+    const { result, rerender } = renderHook(() => usePliantStore(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <PliantRoot surface={surface} storage={storage} lang={lang}>
+          {children}
+        </PliantRoot>
+      ),
+    })
+    const first = result.current.applyOps("session", [width(200)])
+    lang = "de"
+    rerender()
+    const second = result.current.applyOps("session", [width(220)])
+
+    expect(first.success && first.overlay.lang).toBe("fr-CA")
+    expect(second.success && second.overlay.lang).toBe("de")
+  })
+
   it("flushes pending personal changes when the page is hidden", () => {
     const { storage, saved } = memoryAdapter()
     const { result } = renderHook(() => usePliantStore(), {

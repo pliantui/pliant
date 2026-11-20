@@ -16,8 +16,8 @@ const model = wrapLanguageModel({
 })
 
 function isEnabled() {
-  // Read per request, not at build time. The ask endpoint has no rate limits
-  // yet, so it stays off unless the deployment opts in.
+  // Read per request, not at build time. The ask endpoint has no rate
+  // limits, so it stays off unless the deployment opts in.
   // eslint-disable-next-line turbo/no-undeclared-env-vars
   return process.env["PLIANT_ASK_ENABLED"] === "1"
 }

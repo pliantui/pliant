@@ -17,6 +17,7 @@ export {
   type FunctionName,
 } from "./function-catalog"
 export { itemIdSchema } from "./identifier"
+export { languageTagSchema } from "./language-tag"
 export { breakpointSchema, type Breakpoint } from "./layout"
 export { layerSchema, type Layer } from "./layer"
 export {
@@ -26,6 +27,7 @@ export {
   type Manifest,
   type ManifestProp,
 } from "./manifest"
+export { manifestDefaultSchema, type ManifestDefault } from "./manifest-default"
 export { opSchema, opSchemas, type Op, type OpName } from "./op"
 export { opCatalog, type OpDefinition } from "./op-catalog"
 export {
@@ -36,4 +38,5 @@ export {
 } from "./overlay"
 export { savedViewSchema, type SavedView } from "./saved-view"
 export { sortSchema, type Sort } from "./sort"
+export { storedOverlaySchema, type StoredOverlay } from "./stored-overlay"
 export { surfaceSchema, type Surface } from "./surface"

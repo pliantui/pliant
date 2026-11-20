@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import * as z from "zod"
 
 import { readOpFixtures } from "../test/fixtures"
 import { expectCrossFieldIssue } from "../test/fixtures/cross-field"
@@ -6,6 +7,70 @@ import { opSchema } from "./op"
 import { opCatalog } from "./op-catalog"
 
 const fixtures = readOpFixtures()
+
+const physical = /left|right/i
+
+function get(node: unknown, ...keys: string[]): unknown {
+  return keys.reduce<unknown>(
+    (value, key) =>
+      typeof value === "object" && value !== null
+        ? Reflect.get(value, key)
+        : undefined,
+    node
+  )
+}
+
+function list(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : []
+}
+
+function* schemaObjects(node: unknown): Generator<object> {
+  if (typeof node !== "object" || node === null) {
+    return
+  }
+  if (!Array.isArray(node)) {
+    yield node
+  }
+  for (const value of Object.values(node)) {
+    yield* schemaObjects(value)
+  }
+}
+
+// Shortcut keys such as arrowleft are physical keys by design, so the one
+// pattern that may mention left or right is bindShortcut's keys.
+function shortcutKeys(nodes: object[]) {
+  return get(
+    nodes.find(
+      (node) => get(node, "properties", "op", "const") === "bindShortcut"
+    ),
+    "properties",
+    "keys"
+  )
+}
+
+function physicalDirections(schema: unknown) {
+  const nodes = [...schemaObjects(schema)]
+  const exempt = shortcutKeys(nodes)
+  return nodes.flatMap((node) => {
+    const properties = get(node, "properties")
+    const pattern = get(node, "pattern")
+    const found = [
+      get(node, "const"),
+      ...list(get(node, "enum")),
+      ...(typeof properties === "object" && properties !== null
+        ? Object.keys(properties)
+        : []),
+    ].filter((value) => typeof value === "string" && physical.test(value))
+    if (
+      typeof pattern === "string" &&
+      physical.test(pattern) &&
+      node !== exempt
+    ) {
+      found.push(pattern)
+    }
+    return found
+  })
+}
 
 describe("opSchema", () => {
   it("has a fixture for every op in the catalog, and no others", () => {
@@ -24,6 +89,17 @@ describe("opSchema", () => {
     it.each(fixture.crossField)("reports $message for $value", (entry) => {
       expectCrossFieldIssue(opSchema, entry)
     })
+  })
+
+  // Directions are logical (start and end) so overlays work in right-to-left
+  // apps. Allowed values, property names and patterns can't name left or
+  // right, except the shortcut key pattern.
+  it("allows no physical left or right direction in any op", () => {
+    const schema = z.toJSONSchema(opSchema, { io: "input" })
+    expect(get(shortcutKeys([...schemaObjects(schema)]), "pattern")).toMatch(
+      physical
+    )
+    expect(physicalDirections(schema)).toEqual([])
   })
 
   it("rejects a deeply nested expression without throwing", () => {

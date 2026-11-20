@@ -26,6 +26,37 @@ describe("manifestSchema", () => {
     expectCrossFieldIssue(manifestSchema, entry)
   })
 
+  it("keeps namespaced capabilities and their values", () => {
+    const capabilities = {
+      label: true,
+      "crm:starrable": { icon: "star", levels: [1, 2, 3] },
+    }
+    expect(
+      manifestSchema.parse({
+        kind: "button",
+        version: 1,
+        description: "Clickable action",
+        capabilities,
+      }).capabilities
+    ).toEqual(capabilities)
+  })
+
+  it("reports a misspelled capability as an unrecognized key", () => {
+    const result = manifestSchema.safeParse({
+      kind: "button",
+      version: 1,
+      description: "Clickable action",
+      capabilities: { hidable: true, "crm:starrable": true },
+    })
+    expect(result.error?.issues).toEqual([
+      expect.objectContaining({
+        code: "unrecognized_keys",
+        keys: ["hidable"],
+        path: ["capabilities"],
+      }),
+    ])
+  })
+
   it("reports only the format issue for a malformed namespaced kind", () => {
     const result = manifestSchema.safeParse({
       kind: "pliant:Button",
@@ -54,6 +85,21 @@ describe("defineManifest", () => {
       description: "Status label",
       capabilities: { label: true },
     })
+  })
+
+  it("accepts only built-in and namespaced capability keys in its type", () => {
+    expect(() =>
+      defineManifest({
+        kind: "badge",
+        version: 1,
+        description: "Status label",
+        capabilities: {
+          "crm:starrable": { icon: "star" },
+          // @ts-expect-error a misspelled capability is a type error
+          hidable: true,
+        },
+      })
+    ).toThrow("hidable")
   })
 
   it("throws on an invalid manifest", () => {

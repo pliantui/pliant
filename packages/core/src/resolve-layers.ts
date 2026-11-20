@@ -33,21 +33,19 @@ import { surfaceOrder } from "./surface-order"
  * first op that placed it, in resolution order: if a team pins
  * `sidebar/slots/a` and a personal overlay pins `dashboard/slots/a`, `a` stays
  * in `sidebar`. A node created again starts over in its new base parent.
- * The parent an item was created in isn't versioned yet, so an item created
- * in a node that is later created again goes back into it
- * (https://github.com/pliantui/pliant/issues/28).
+ * The parent an item was created in isn't versioned, so an item created in
+ * a node that is later created again goes back into it.
  * When the base parent is a node that was removed, the item sits where that
  * node would, up the chain; with no live node left, as in a cycle of removed
  * nodes, it sits on `@surface`. Ops that create a container cycle aren't
- * rejected yet (https://github.com/pliantui/pliant/issues/26).
+ * rejected.
  *
  * A `pin`, reorder, `promote` or `demote` applied while the item has no
  * placement that holds and its base parent is a removed node follows the
  * base: it always holds, and positions the item wherever its base parent
  * chain resolves once every op has applied, even if that changes later.
  * Later position ops on the item follow the base too, until a `move … into`
- * or wrap places it. Such a pin isn't tied to the base parent's version yet
- * (https://github.com/pliantui/pliant/issues/27).
+ * or wrap places it. Such a pin isn't tied to the base parent's version.
  */
 export interface ResolvedItemPlacement extends ResolvedPlacement {
   /** The placement op that holds, absent when none does. */
@@ -84,16 +82,27 @@ export interface ResolvedProperty {
 }
 
 /**
- * Why an op was skipped: its check status, `duplicate-id` when its overlay
+ * Why an op was skipped: its check status, `extension-not-installed` for an
+ * unknown op with a namespaced name, `duplicate-id` when its overlay
  * shares its id with an overlay earlier in the resolution order, or with one
  * that ties with it on every sort key but has other contents, or
  * `surface-mismatch` when the overlay is for another surface.
  */
 export type SkippedOp =
   | {
-      readonly check: Exclude<OpCheck, { status: "valid" }>
+      readonly check: Extract<OpCheck, { status: "unknown" }>
       readonly overlay: LoadedOverlay
-      readonly reason: Exclude<OpCheck["status"], "valid">
+      readonly reason: "unknown" | "extension-not-installed"
+    }
+  | {
+      readonly check: Extract<OpCheck, { status: "newer" }>
+      readonly overlay: LoadedOverlay
+      readonly reason: "newer"
+    }
+  | {
+      readonly check: Extract<OpCheck, { status: "invalid" }>
+      readonly overlay: LoadedOverlay
+      readonly reason: "invalid"
     }
   | {
       readonly check: OpCheck
@@ -135,8 +144,8 @@ export interface UnappliedOp extends ResolvedOp {
  * The surface's known node ids, and where they come from: `"inventory"` for
  * the full `pliantui scan` inventory, where an unlisted node doesn't exist,
  * or `"mounted"` for the nodes mounted now (such as `PliantRegion` slot
- * keys), where an unlisted node may mount later (spec 5.2, dormant vs
- * dangling).
+ * keys), where an unlisted node may mount later, so an op that needs it is
+ * `dormant` rather than `missing-container`.
  */
 export interface BaseIds {
   readonly ids: ReadonlySet<string> | readonly string[]
@@ -250,8 +259,16 @@ export function resolveLayers(
     for (const check of overlay.ops) {
       if (reason) {
         skipped.push({ check, overlay, reason })
-      } else if (check.status !== "valid") {
-        skipped.push({ check, overlay, reason: check.status })
+      } else if (check.status === "unknown") {
+        skipped.push({
+          check,
+          overlay,
+          reason: check.extension ? "extension-not-installed" : "unknown",
+        })
+      } else if (check.status === "newer") {
+        skipped.push({ check, overlay, reason: "newer" })
+      } else if (check.status === "invalid") {
+        skipped.push({ check, overlay, reason: "invalid" })
       } else {
         const notApplied = applyOp(state, { check, overlay }, scope)
         if (notApplied) {

@@ -204,6 +204,31 @@ describe("resolveLayers", () => {
     expect(baseIds).toEqual({ ids: new Set(["a"]), source: "mounted" })
   })
 
+  it("resolves setDefault with prop per prop, apart from a field default", () => {
+    const overlay = overlays()
+    const tabs = "settings-tabs"
+    const setTab = (value: string) => ({
+      op: "setDefault",
+      target: tabs,
+      prop: "defaultValue",
+      value,
+    })
+    const team = overlay("team", [
+      setTab("overview"),
+      { op: "setDefault", target: tabs, prop: "defaultOpen", value: true },
+      { op: "setDefault", target: "ticket-form/fields/priority", value: "low" },
+    ])
+    const personal = overlay("personal", [setTab("activity")])
+
+    const { properties } = resolve([personal, team])
+    expect(winner(properties, tabs, "defaults.defaultValue")).toBe(personal)
+    expect(winner(properties, tabs, "defaults.defaultOpen")).toBe(team)
+    expect(winner(properties, "ticket-form/fields/priority", "default")).toBe(
+      team
+    )
+    expect(get(properties, tabs, "default")).toBeUndefined()
+  })
+
   it("lets the higher layer win, whatever order overlays are given in", () => {
     const overlay = overlays()
     const session = overlay("session", [show])
@@ -2517,27 +2542,39 @@ describe("resolveLayers", () => {
       { op: "rename", target: notes, label: "" },
       { op: "setPage", target: "orders-table", index: 1 },
     ])
-    const team = overlay("team", [hide, { op: "setTheme", target: notes }])
+    const team = overlay("team", [
+      hide,
+      { op: "setTheme", target: notes },
+      { op: "crm:star", target: notes },
+    ])
     const { properties, skipped } = resolve([personal, team])
 
     expect(properties.get(notes)?.get("visible")?.winner.overlay).toBe(team)
     expect(properties.get(notes)?.has("label")).toBe(false)
     expect(properties.has("orders-table")).toBe(false)
     expect(
-      skipped.map(({ check, overlay }) => [
+      skipped.map(({ check, overlay, reason }) => [
         overlay.layer,
         check.index,
         check.status,
+        reason,
       ])
     ).toEqual([
-      ["team", 1, "unknown"],
-      ["personal", 0, "newer"],
-      ["personal", 1, "unknown"],
-      ["personal", 2, "invalid"],
-      ["personal", 3, "invalid"],
+      ["team", 1, "unknown", "unknown"],
+      ["team", 2, "unknown", "extension-not-installed"],
+      ["personal", 0, "newer", "newer"],
+      ["personal", 1, "unknown", "unknown"],
+      ["personal", 2, "invalid", "invalid"],
+      ["personal", 3, "invalid", "invalid"],
     ])
-    expect(skipped[1]?.check).toBe(personal.ops[0])
-    expect(skipped[1]?.overlay).toBe(personal)
+    const extensionOps = skipped.flatMap((entry) =>
+      entry.reason === "extension-not-installed"
+        ? [[entry.check.op.op, entry.check.extension]]
+        : []
+    )
+    expect(extensionOps).toEqual([["crm:star", true]])
+    expect(skipped[2]?.check).toBe(personal.ops[0])
+    expect(skipped[2]?.overlay).toBe(personal)
     expect(skipped[0]?.overlay).toBe(team)
   })
 

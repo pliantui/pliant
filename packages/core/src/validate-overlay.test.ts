@@ -32,6 +32,22 @@ describe("validateOverlay", () => {
     expect(result.data?.ops.map(({ op }) => op)).toEqual(["hide", "setDensity"])
   })
 
+  it("rejects an op from an extension as unknown", () => {
+    const result = validateOverlay(
+      overlay([
+        { op: "hide", target: "orders-table/columns/notes" },
+        { op: "crm:star", target: "orders-table" },
+      ])
+    )
+    expect(result.error?.issues).toEqual([
+      {
+        code: "custom",
+        path: ["ops", 1, "op"],
+        message: "Unknown op crm:star",
+      },
+    ])
+  })
+
   it("rejects the whole overlay when any op fails, with paths into ops", () => {
     const result = validateOverlay(
       overlay([

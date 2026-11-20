@@ -19,7 +19,7 @@ Before writing a package, study how the best comparable library does it and matc
 
 ## Layout
 
-- Only these paths exist: `.changeset`, `.github`, `apps/www`, `packages/{contract,core,react,server,pliantui,tests}`, the root config files, and the root documents (`README.md`, `CONTRIBUTING.md`, `RELEASING.md`, `SECURITY.md`, `LICENSE.md`, `AGENTS.md`, `CLAUDE.md`). Adding a path, app or package needs the maintainer's approval first.
+- Only these paths exist: `.changeset`, `.github`, `apps/www`, `packages/{contract,core,react,server,pliantui,tests}`, the root config files, and the root documents (`README.md`, `CONTRIBUTING.md`, `RELEASING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `LICENSE.md`, `AGENTS.md`, `CLAUDE.md`).
 - No stray files: no notes, plans, reports, scratch scripts, logs or extra markdown. Planning and experiments live outside this repository.
 - Documentation is MDX in `apps/www/content/docs`. Package `README.md` files stay short.
 - File names are kebab-case. Tests sit next to the code as `*.test.ts`; integration tests go in `packages/tests`.
@@ -33,8 +33,24 @@ Before writing a package, study how the best comparable library does it and matc
 - No `any`. Use `unknown` and narrow it. No non-null assertions. Type assertions only at validated boundaries.
 - Use only public React APIs. Never touch React internals (`_init`, `_payload`, `$$typeof` checks, `__SECRET_INTERNALS…`).
 - No comments that narrate what the code does. Comment only a non-obvious why.
-- No dead code: no commented-out code, unused exports, or `TODO`s without a linked issue.
+- No dead code: no commented-out code or unused exports.
 - No new dependency without a reason stated in the pull request. Versions must be older than the 48-hour `minimumReleaseAge`.
+
+## Writing for the public
+
+Everything in this repository and on GitHub (code, comments, docs, READMEs, changesets, pull request titles and descriptions, issues) is written for a reader who knows only what is public.
+
+- Don't refer to private planning: specification sections, phases, internal work or pull request codes, internal registers, release or marketing plans, approvals, or how the work was produced.
+- Comments and docs describe what the code does now and why. Don't promise or narrate future work, and don't leave `TODO`s; pending work belongs in an issue or on the public roadmap.
+- Link an issue in a comment only when it explains current behaviour, such as a known upstream bug, never to mark something as not done.
+- Changesets are release notes: say what changed for users, in plain language.
+
+## Tests
+
+- Tests assert behaviour a user or an API caller can observe. Query UI by role or label, as the user perceives it.
+- Never assert implementation details: exact class strings, internal state or private functions. Never read source text.
+- Every test must fail when the behaviour it describes breaks. Check a new test by breaking that behaviour locally and watching it fail.
+- Layout and visual order are tested in the browser with Playwright (`apps/www/e2e`), not in jsdom or happy-dom, which don't apply CSS.
 
 ## Checks
 

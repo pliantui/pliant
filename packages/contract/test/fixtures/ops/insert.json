@@ -17,6 +17,19 @@
       "op": "insert",
       "target": "dashboard",
       "node": {
+        "id": "open-orders",
+        "kind": "list",
+        "dataset": "orders",
+        "label": "Open orders"
+      },
+      "at": {
+        "before": "orders"
+      }
+    },
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
         "id": "rating",
         "kind": "acme:rating"
       },
@@ -56,6 +69,17 @@
       "node": {
         "id": "revenue-chart",
         "kind": "chart"
+      },
+      "at": {
+        "index": 0
+      }
+    },
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "open-orders",
+        "kind": "list"
       },
       "at": {
         "index": 0
@@ -111,6 +135,51 @@
       "node": {
         "id": "rating",
         "kind": "pliant:rating"
+      },
+      "at": {
+        "index": 0
+      }
+    },
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "my-note",
+        "kind": "note"
+      },
+      "at": {
+        "index": 0
+      }
+    },
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "my-link",
+        "kind": "link"
+      },
+      "at": {
+        "index": 0
+      }
+    },
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "my-embed",
+        "kind": "embed"
+      },
+      "at": {
+        "index": 0
+      }
+    },
+    {
+      "op": "insert",
+      "target": "dashboard",
+      "node": {
+        "id": "my-note",
+        "kind": "note",
+        "dataset": "orders"
       },
       "at": {
         "index": 0

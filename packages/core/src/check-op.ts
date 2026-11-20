@@ -12,9 +12,15 @@ import {
 
 import { ownEntries } from "./own-entries"
 
+/**
+ * One op's status. An `unknown` op with `extension: true` has a namespaced
+ * name (`namespace:name`): it needs an extension that isn't installed, so a
+ * runtime skips it quietly instead of flagging it as needing an update.
+ * Otherwise `unknown` means a built-in op from a newer version.
+ */
 export type OpCheck =
   | { index: number; status: "valid"; op: Op }
-  | { index: number; status: "unknown"; op: OverlayOp }
+  | { index: number; status: "unknown"; op: OverlayOp; extension: boolean }
   | { index: number; status: "newer"; op: OverlayOp; keys: string[] }
   | { index: number; status: "invalid"; op: unknown; error: z.ZodError }
 
@@ -65,7 +71,7 @@ export function checkOp(
     target: envelope.data.target,
   }
   if (!isOpName(op.op)) {
-    return { index, status: "unknown", op }
+    return { index, status: "unknown", op, extension: op.op.includes(":") }
   }
   const issues = contextIssues({ op: op.op, target: op.target }, context)
   const known = new Set(["op", "target", ...opCatalog[op.op].args.flat()])

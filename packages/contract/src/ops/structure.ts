@@ -1,6 +1,6 @@
 import * as z from "zod"
 
-import { itemAddressSchema, nodeAddressSchema } from "../address"
+import { itemAddressSchema, nodeAddressSchema, rejectPerRow } from "../address"
 import {
   itemIdSchema,
   kebabIdSchema,
@@ -23,12 +23,14 @@ const movableSlotSchema = itemAddressSchema("slots", { template: false })
  * so a template slot is rejected. Whether a bare id names a node the user
  * added is checked when the overlay is resolved, not by this schema.
  */
-const removableSchema = z.union([kebabIdSchema, movableSlotSchema], {
-  error: (issue) =>
-    typeof issue.input === "string"
-      ? "Must be a slot address or the id of a node the user added"
-      : undefined,
-})
+const removableSchema = rejectPerRow(
+  z.union([kebabIdSchema, movableSlotSchema], {
+    error: (issue) =>
+      typeof issue.input === "string"
+        ? "Must be a slot address or the id of a node the user added"
+        : undefined,
+  })
+)
 
 const placementSchema = z.union([
   z.strictObject({ before: itemIdSchema }),
@@ -127,13 +129,19 @@ export const structureOpSchemas = {
     columns: layoutColumnsSchema,
     at: breakpointSchema.optional(),
   }),
+  /**
+   * A built-in `chart`, `stat` or `list` node over a dataset, or a registered
+   * `namespace:name` node, which may name one. Whether the dataset is one the
+   * surface already shows is checked where the surface's datasets are known,
+   * not by this schema.
+   */
   insert: z.strictObject({
     op: z.literal("insert"),
     target: nodeAddressSchema({ template: false }),
     node: z.union([
       z.strictObject({
         id: kebabIdSchema,
-        kind: z.enum(["chart", "stat"]),
+        kind: z.enum(["chart", "stat", "list"]),
         dataset: kebabIdSchema,
         label: labelSchema.optional(),
       }),

@@ -1,9 +1,11 @@
 import * as z from "zod"
 
-import { kebabIdSchema, kindSchema } from "./identifier"
+import { kebabIdSchema, kindSchema, opNameSchema } from "./identifier"
+import { languageTagSchema } from "./language-tag"
 import { withoutReservedKeys } from "./reserved-keys"
 import { surfaceSchema } from "./surface"
 import { textSchema } from "./text"
+import { timestampSchema } from "./timestamp"
 import { ulidSchema } from "./ulid"
 
 const referenceSchema = textSchema(256, { min: 1 })
@@ -15,10 +17,7 @@ const layerVersionSchema = z.looseObject({
 
 export const overlayOpSchema = withoutReservedKeys(
   z.looseObject({
-    op: z
-      .string()
-      .max(64)
-      .regex(/^[a-z][A-Za-z0-9]*$/, "Must be an op name"),
+    op: opNameSchema,
     target: z
       .string()
       .max(256)
@@ -55,12 +54,16 @@ const overlayShape = {
       .optional(),
   }),
   source: z.enum(["ai", "manual", "chip", "share", "promote"]),
+  lang: languageTagSchema.optional().meta({
+    description:
+      "The BCP 47 language tag of the overlay's plain label strings.",
+  }),
   explain: z
     .array(textSchema(200, { min: 1 }))
     .max(500)
     .optional(),
   createdBy: referenceSchema,
-  createdAt: z.iso.datetime({ offset: true }),
+  createdAt: timestampSchema,
 }
 
 export const overlayObjectSchema = z

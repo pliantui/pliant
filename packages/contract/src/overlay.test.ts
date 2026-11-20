@@ -3,7 +3,7 @@ import * as z from "zod"
 
 import { readFixture } from "../test/fixtures"
 import { expectCrossFieldIssue } from "../test/fixtures/cross-field"
-import { overlaySchema } from "./overlay"
+import { overlayOpSchema, overlaySchema } from "./overlay"
 
 const fixture = readFixture("overlay")
 
@@ -27,7 +27,7 @@ describe("overlaySchema", () => {
     expect(overlays.flatMap((overlay) => overlay.ops)).toContainEqual({
       op: "pinColumns",
       target: "@page",
-      side: "left",
+      side: "start",
     })
     expect(overlays).toContainEqual(
       expect.objectContaining({ future: { kept: true } })
@@ -49,6 +49,33 @@ describe("overlaySchema", () => {
         .success
     ).toBe(true)
     expect(overlaySchema.safeParse({ ...withoutExplain, ops }).success).toBe(
+      false
+    )
+  })
+})
+
+describe("overlayOpSchema", () => {
+  it.each(["hide", "setTheme", "crm:star", "acme-crm:markMine"])(
+    "accepts the op name %s",
+    (op) => {
+      expect(overlayOpSchema.safeParse({ op, target: "orders" }).success).toBe(
+        true
+      )
+    }
+  )
+
+  it.each([
+    "Hide",
+    "set_theme",
+    "pliant:star",
+    "crm:Star",
+    "crm:mark-mine",
+    "Crm:star",
+    "crm:star:x",
+    "crm:",
+    `crm:${"a".repeat(61)}`,
+  ])("rejects the op name %s", (op) => {
+    expect(overlayOpSchema.safeParse({ op, target: "orders" }).success).toBe(
       false
     )
   })
