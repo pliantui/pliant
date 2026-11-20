@@ -11,14 +11,14 @@ import {
   type SourceFile,
 } from "ts-morph"
 
-import { createDiagnostic, type Diagnostic } from "./diagnostic"
-import type { PropSource } from "./inferred-component"
+import { createDiagnostic, type Diagnostic } from "../utils/diagnostic"
 import {
   getDeclarations,
   readLiteral,
   readPropertyKey,
   unwrapExpression,
-} from "./read-static"
+} from "../utils/read-static"
+import type { PropSource } from "./inferred-component"
 
 type ComponentFunction =
   FunctionDeclaration | ArrowFunction | FunctionExpression

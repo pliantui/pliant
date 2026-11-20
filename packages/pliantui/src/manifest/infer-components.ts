@@ -1,9 +1,9 @@
 import type { CallExpression, Node, SourceFile } from "ts-morph"
 
+import { createDiagnostic, type Diagnostic } from "../utils/diagnostic"
 import { classifyValues } from "./classify"
 import { findComponents, type Component } from "./component"
 import { describeComponent } from "./describe-component"
-import { createDiagnostic, type Diagnostic } from "./diagnostic"
 import { followProps } from "./follow-props"
 import type { InferredComponent } from "./inferred-component"
 import { readDefaults } from "./read-defaults"

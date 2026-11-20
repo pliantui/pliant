@@ -1,8 +1,8 @@
 import path from "node:path"
 
+import type { Diagnostic } from "../utils/diagnostic"
 import { highlighter } from "../utils/highlighter"
 import type { ValueClass } from "./classify"
-import type { Diagnostic } from "./diagnostic"
 import type { DefaultType, InferredComponent } from "./inferred-component"
 
 const classLabels: Record<ValueClass, string> = {
