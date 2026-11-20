@@ -276,10 +276,10 @@ export interface ResolveLayersOptions {
    * ops such as sorts and widths add nothing. With a `primary` action,
    * each op that touches its group also orders the group, which grows with
    * the placement ops applied so far. For scale, 20 flags at depth 6 over
-   * 2,000 ops take about 150 to 230 ms; when one of them is a primary
-   * action whose group every op reorders, 1,000 ops take about 140 ms and
-   * 2,000 about 0.5 s, while ops in other nodes add little. 500 flags at
-   * depth 30 take about 7 s.
+   * 2,000 ops take about 120 to 230 ms. When one of them is a primary
+   * action whose group every op reorders, 1,000 ops take about 150 to
+   * 200 ms and 2,000 about 0.6 s; ops in other nodes add much less. 500
+   * flags at depth 30 take about 7 s.
    *
    * Which node holds another in the page comes from `baseParents` when
    * given. Without it, it comes from the addresses in `flags`, then from
