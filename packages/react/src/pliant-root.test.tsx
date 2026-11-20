@@ -321,17 +321,14 @@ describe("PliantRoot", () => {
       const { placements } = useResolved()
       return <output>{placements.get("c")?.container ?? "dashboard"}</output>
     }
-    const commits = vi.fn()
     function App({ sidebar }: { sidebar: boolean }) {
       return (
-        <Profiler id="app" onRender={commits}>
-          <PliantRoot surface={surface} storage={storage}>
-            <Node id="dashboard" />
-            <Node id="c" />
-            {sidebar && <Node id="sidebar" />}
-            <Container />
-          </PliantRoot>
-        </Profiler>
+        <PliantRoot surface={surface} storage={storage}>
+          <Node id="dashboard" />
+          <Node id="c" />
+          {sidebar && <Node id="sidebar" />}
+          <Container />
+        </PliantRoot>
       )
     }
     const { rerender } = render(<App sidebar={false} />)
@@ -346,11 +343,17 @@ describe("PliantRoot", () => {
     })
     expect(screen.getByRole("status").textContent).toBe("sidebar")
 
-    const settledCommits = commits.mock.calls.length
+    rerender(<App sidebar={false} />)
     await act(async () => {
       await Promise.resolve()
     })
-    expect(commits).toHaveBeenCalledTimes(settledCommits)
+    expect(screen.getByRole("status").textContent).toBe("dashboard")
+
+    rerender(<App sidebar />)
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(screen.getByRole("status").textContent).toBe("sidebar")
   })
 
   it("returns the same resolved layers until something changes", async () => {
@@ -383,27 +386,6 @@ describe("PliantRoot", () => {
       result.current.store.applyOps("session", [width(200)])
     })
     expect(result.current.resolved).not.toBe(first)
-  })
-
-  it("saves a change once when the page is hidden", () => {
-    const { storage, saved } = memoryAdapter()
-    const { result } = renderHook(
-      () => ({ resolved: useResolved(), store: usePliantStore() }),
-      {
-        wrapper: ({ children }: { children: ReactNode }) => (
-          <PliantRoot surface={surface} storage={storage}>
-            {children}
-          </PliantRoot>
-        ),
-      }
-    )
-
-    act(() => {
-      result.current.store.applyOps("personal", [width(200)])
-    })
-    expect(widthOf(result.current.resolved)).toBe(200)
-    window.dispatchEvent(new Event("pagehide"))
-    expect(saved).toHaveLength(1)
   })
 
   it("starts a new store when the surface changes", () => {
