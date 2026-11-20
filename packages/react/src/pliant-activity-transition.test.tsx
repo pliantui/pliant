@@ -1,3 +1,4 @@
+import * as React from "react"
 import {
   startTransition,
   useLayoutEffect,
@@ -73,69 +74,73 @@ afterEach(() => {
 })
 
 // A view transition waiting on fonts defers the layout phase of the commit
-// that shows region-a past a microtask.
-it("keeps a region registered while a view transition defers showing it", async () => {
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false)
-  vi.spyOn(console, "error").mockImplementation(() => undefined)
-  let fontsLoading = false
-  let reads = 0
-  let loadFonts: () => void = () => undefined
-  const ready = new Promise<void>((resolve) => {
-    loadFonts = resolve
-  })
-  Object.defineProperty(document, "fonts", {
-    configurable: true,
-    value: {
-      get status() {
-        return fontsLoading && reads++ > 0 ? "loading" : "loaded"
+// that shows region-a past a microtask. ViewTransition ships in React 19.3, so
+// earlier supported releases have no such deferral to test.
+it.skipIf(!("ViewTransition" in React))(
+  "keeps a region registered while a view transition defers showing it",
+  async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false)
+    vi.spyOn(console, "error").mockImplementation(() => undefined)
+    let fontsLoading = false
+    let reads = 0
+    let loadFonts: () => void = () => undefined
+    const ready = new Promise<void>((resolve) => {
+      loadFonts = resolve
+    })
+    Object.defineProperty(document, "fonts", {
+      configurable: true,
+      value: {
+        get status() {
+          return fontsLoading && reads++ > 0 ? "loading" : "loaded"
+        },
+        ready,
       },
-      ready,
-    },
-  })
-  Object.defineProperty(document, "startViewTransition", {
-    configurable: true,
-    value: ({ update }: { update: () => unknown }) => {
-      const done = Promise.resolve().then(update)
-      return {
-        ready: done.then(() => undefined),
-        finished: done.then(() => undefined),
-        updateCallbackDone: done,
-        skipTransition: () => undefined,
-        types: new Set(),
-      }
-    },
-  })
-  Object.defineProperty(document.documentElement, "getAnimations", {
-    configurable: true,
-    value: () => [],
-  })
+    })
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: ({ update }: { update: () => unknown }) => {
+        const done = Promise.resolve().then(update)
+        return {
+          ready: done.then(() => undefined),
+          finished: done.then(() => undefined),
+          updateCallbackDone: done,
+          skipTransition: () => undefined,
+          types: new Set(),
+        }
+      },
+    })
+    Object.defineProperty(document.documentElement, "getAnimations", {
+      configurable: true,
+      value: () => [],
+    })
 
-  const container = document.createElement("div")
-  document.body.append(container)
-  const root = createRoot(container)
-  root.render(<App />)
-  await wait()
-  startTransition(() => {
-    setTab("b")
-  })
-  await wait()
-  expect(store?.slots.getContent("card-a")).toBe("A")
+    const container = document.createElement("div")
+    document.body.append(container)
+    const root = createRoot(container)
+    root.render(<App />)
+    await wait()
+    startTransition(() => {
+      setTab("b")
+    })
+    await wait()
+    expect(store?.slots.getContent("card-a")).toBe("A")
 
-  const seen: unknown[] = []
-  store?.slots.subscribe("card-a", () => {
-    seen.push(store?.slots.getContent("card-a"))
-  })
-  fontsLoading = true
-  startTransition(() => {
-    setTab("a")
-  })
-  await wait()
-  expect(store?.slots.getContent("card-a")).toBe("A")
-  loadFonts()
-  await wait()
+    const seen: unknown[] = []
+    store?.slots.subscribe("card-a", () => {
+      seen.push(store?.slots.getContent("card-a"))
+    })
+    fontsLoading = true
+    startTransition(() => {
+      setTab("a")
+    })
+    await wait()
+    expect(store?.slots.getContent("card-a")).toBe("A")
+    loadFonts()
+    await wait()
 
-  expect(store?.slots.getContent("card-a")).toBe("A")
-  expect(seen).not.toContain(undefined)
-  root.unmount()
-  container.remove()
-})
+    expect(store?.slots.getContent("card-a")).toBe("A")
+    expect(seen).not.toContain(undefined)
+    root.unmount()
+    container.remove()
+  }
+)
