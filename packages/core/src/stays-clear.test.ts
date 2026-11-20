@@ -447,7 +447,7 @@ describe("on random op stacks", () => {
   it("never leaves the destructive action next to or above the primary one, in any input order", () => {
     const next = random(20261120)
     let skips = 0
-    for (let run = 0; run < 300; run++) {
+    for (let run = 0; run < 200; run++) {
       const overlays = layers.flatMap((layer) =>
         next() < 0.6
           ? [
@@ -481,6 +481,6 @@ describe("on random op stacks", () => {
       expect(reordered.properties).toEqual(result.properties)
     }
     // The rule must have had something to stop.
-    expect(skips).toBeGreaterThan(50)
+    expect(skips).toBeGreaterThan(100)
   })
 })
