@@ -73,3 +73,13 @@ The adapter methods and the `conflict` result of a conditional save belong to `@
 A SQL translation must give the same results as `rules` and `describe` say, even where the dialect's own functions differ. Where the database raises an error on floating-point overflow instead of returning an infinity, the translation must guard against it or not compile the function.
 
 The `in` function takes at most 15 values, because a function takes at most 16 arguments. The 100-value limit is for the `in` filter operator.
+
+## Flags
+
+`flagsSchema` checks the flags set on one address in `pliant.config.ts`:
+
+```ts
+flags: { "/settings": { "settings-actions/slots/save": { primary: true } } }
+```
+
+`primary` marks the primary action of its action group: a `PliantActions` node, a form or a dialog. Each group has at most one, so a page with several forms or dialogs can have several. It is set by address, never derived from position, because a user's reorder would change it. `flagsSchema` validates one address at a time, so it doesn't check that a group has only one.
