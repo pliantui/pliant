@@ -289,6 +289,64 @@ describe("pliantui scan", () => {
     expect(help?.baseOrder["pair"]).toEqual(["two-a", "two-banner", "two-b"])
   })
 
+  it("places a region and a table where the component renders each", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    const { output } = await scanJson(cwd)
+    const help = output.inventory["help"]
+
+    // The table is rendered by passing it to <Grid table={table} />.
+    expect(help?.baseOrder["mixed"]).toEqual([
+      "mixed-banner",
+      "mixed-region",
+      "mixed-table",
+    ])
+    expect(help?.baseParents["mixed-table"]).toBe("mixed")
+    expect(help?.baseOrder["tables"]).toEqual([
+      "table-two",
+      "tables-banner",
+      "table-one",
+    ])
+  })
+
+  it("puts a region in the node it's rendered in", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    const { output } = await scanJson(cwd)
+    const help = output.inventory["help"]
+
+    // inner-a renders inside the card-body slot of another region.
+    expect(help?.baseParents["inner-a"]).toBe("card-body")
+    expect(help?.baseOrder["card-body"]).toEqual(["inner-a"])
+    expect(help?.baseOrder["nested"]).toEqual(["card", "inner-b"])
+  })
+
+  it("doesn't count a use in an effect or an event handler as rendering", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await edit(
+      cwd,
+      "components/two-panel.tsx",
+      "  return (\n    <section>",
+      [
+        "  useEffect(() => {",
+        "    console.log(both.b.entries.length)",
+        "  }, [both])",
+        "  return (",
+        "    <section>",
+        '      <button type="button" onClick={() => console.log(both.b)} />',
+      ].join("\n")
+    )
+    await edit(
+      cwd,
+      "components/two-panel.tsx",
+      "import { PliantRegion }",
+      'import { useEffect } from "react"\n\nimport { PliantRegion }'
+    )
+    const { output } = await scanJson(cwd)
+    const help = output.inventory["help"]
+
+    expect(help?.baseIds.source).toBe("inventory")
+    expect(help?.baseOrder["pair"]).toEqual(["two-a", "two-banner", "two-b"])
+  })
+
   it("places regions destructured from one hook where each renders", async () => {
     const cwd = await createFixtureDirectory("scan-app")
     await edit(
@@ -342,7 +400,7 @@ describe("pliantui scan", () => {
       file: "components/two-panel.tsx",
       line: 5,
       message:
-        "Where TwoPanel renders the slots of two-a and two-b can't be told, so their order among its other nodes isn't known.",
+        "Where TwoPanel renders two-a and two-b can't be told, so their place among its other nodes isn't known.",
     })
   })
 
@@ -402,7 +460,7 @@ describe("pliantui scan", () => {
       file: "components/two-panel.tsx",
       line: 5,
       message:
-        "Where TwoPanel renders the slots of two-b can't be told, so their order among its other nodes isn't known.",
+        "Where TwoPanel renders two-b can't be told, so its place among its other nodes isn't known.",
     })
   })
 

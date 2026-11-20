@@ -74,9 +74,10 @@ interface Walk {
 interface PendingSlots {
   /** Where the region sits in the variable's value, if the scan can tell. */
   readonly path: MemberPath | undefined
-  /** The region's id, for reports. */
+  /** The region's or table's id, for reports. */
   readonly name: string
-  readonly render: () => void
+  /** Records it, and walks its slots, where the component renders it. */
+  readonly place: (parent: Parent) => void
 }
 
 type Hook = "region" | "table"
@@ -205,7 +206,7 @@ function walkNode(node: Node, scope: Scope, parent: Parent, walk: Walk) {
     return
   }
   if (Node.isIdentifier(node)) {
-    renderPendingSlots(node, walk)
+    renderPendingSlots(node, parent, walk)
     return
   }
   if (Node.isJsxElement(node) || Node.isJsxSelfClosingElement(node)) {
@@ -370,8 +371,38 @@ function walkRoutes(
   }
 }
 
-function renderPendingSlots(node: Node, walk: Walk) {
-  if (walk.pendingSlots.size === 0) {
+/**
+ * Whether a reference is where the component renders its value: in a JSX
+ * child expression, or in a prop of a component element, and not inside a
+ * callback such as an event handler or an effect.
+ */
+function isRendered(reference: Node) {
+  for (
+    let node: Node | undefined = reference.getParent();
+    node;
+    node = node.getParent()
+  ) {
+    if (isFunction(node)) {
+      return false
+    }
+    if (Node.isJsxExpression(node)) {
+      const owner = node.getParent()
+      if (Node.isJsxAttribute(owner)) {
+        const element = owner.getParent().getParent()
+        return (
+          (Node.isJsxOpeningElement(element) ||
+            Node.isJsxSelfClosingElement(element)) &&
+          componentOf(element.getTagNameNode()) !== undefined
+        )
+      }
+      return true
+    }
+  }
+  return false
+}
+
+function renderPendingSlots(node: Node, parent: Parent, walk: Walk) {
+  if (walk.pendingSlots.size === 0 || !isRendered(node)) {
     return
   }
   const usage = usageOf(node)
@@ -386,14 +417,14 @@ function renderPendingSlots(node: Node, walk: Walk) {
     usage.variable,
     pending.filter((item) => !ready.includes(item))
   )
-  for (const { render } of ready) {
-    render()
+  for (const { place } of ready) {
+    place(parent)
   }
 }
 
 /** Walks the value a rendered prop or variable holds. */
 function follow(node: Node, scope: Scope, parent: Parent, walk: Walk) {
-  renderPendingSlots(node, walk)
+  renderPendingSlots(node, parent, walk)
   const prop = propOf(node, scope)
   if (prop !== undefined) {
     if (prop === "*") {
@@ -536,8 +567,8 @@ function walkComponent(
 ) {
   walk.surface.files.add(fn.getSourceFile().getFilePath())
   // A lone region or table holds everything its component renders. With
-  // several, the rest belongs where the component sits, since a region
-  // renders no element of its own, and each region takes its place where
+  // several, which render no element of their own, the rest belongs where
+  // the component sits, and each takes its place, parent and order, where
   // the component renders it.
   const calls = hookCalls(fn)
   const several = calls.length > 1
@@ -558,19 +589,34 @@ function walkComponent(
             unknownProps: true,
             hook: true,
           }
-    if (hook === "table") {
-      const table = declareTable(call, callScope, parent, walk)
-      holder = several ? parent : table
-      continue
+    const declared =
+      hook === "table"
+        ? declareTable(call, callScope, walk)
+        : declareRegion(call, callScope, walk)
+    if (!several) {
+      holder = declared.id
+      declared.record(parent)
+      if (hook === "table") {
+        continue
+      }
     }
-    const region = declareRegion(call, callScope, parent, walk, several)
-    holder = several ? parent : region.id
-    // The variable that holds the region in the component, such as
+    // The variable that holds it in the component, such as
     // `const region = useFramed()`.
     const key = site.getParentIfKind(SyntaxKind.VariableDeclaration) ?? site
     walk.pendingSlots.set(key, [
       ...(walk.pendingSlots.get(key) ?? []),
-      { path, name: region.id ?? "a region", render: region.renderSlots },
+      {
+        path,
+        name: declared.id ?? `a ${hook}`,
+        place: several
+          ? (at) => {
+              declared.record(at)
+              declared.renderSlots()
+            }
+          : () => {
+              declared.renderSlots()
+            },
+      },
     ])
     pending.add(key)
   }
@@ -578,8 +624,8 @@ function walkComponent(
   if (body) {
     walkNode(body, scope, holder, walk)
   }
-  // Slots still waiting belong to the region all the same, but where they
-  // render among the component's other nodes is unknown.
+  // What's still waiting belongs to the surface all the same, but where the
+  // component renders it among its other nodes is unknown.
   for (const key of pending) {
     const left = walk.pendingSlots.get(key) ?? []
     walk.pendingSlots.delete(key)
@@ -588,11 +634,11 @@ function walkComponent(
       warn(
         walk,
         key,
-        `Where ${componentName(fn) ?? "this component"} renders the slots of ${names} can't be told, so their order among its other nodes isn't known.`
+        `Where ${componentName(fn) ?? "this component"} renders ${names} can't be told, so ${left.length === 1 ? "its" : "their"} place among its other nodes isn't known.`
       )
     }
-    for (const { render } of left) {
-      render()
+    for (const { place } of left) {
+      place(parent)
     }
   }
 }
@@ -608,14 +654,19 @@ function contentKind(value: Node, walk: Walk): NodeKind {
   return (fn && walk.kindOf(fn)) ?? { kind: builtInKinds.slot }
 }
 
+interface Declared {
+  readonly id: string | undefined
+  /** Records the node in `parent`. */
+  readonly record: (parent: Parent) => void
+  /** Records a region's slots and walks what they render. */
+  readonly renderSlots: () => void
+}
+
 function declareRegion(
   call: CallExpression,
   scope: Scope,
-  parent: Parent,
-  walk: Walk,
-  /** Whether the region is recorded where its slots render, not now. */
-  deferred = false
-): { id: Parent; renderSlots: () => void } {
+  walk: Walk
+): Declared {
   const [idArgument, slotsArgument] = call.getArguments()
   let id: string | undefined
   const read = idArgument && readString(idArgument, scope)
@@ -629,7 +680,7 @@ function declareRegion(
     id = read.value
   }
   const regionId = id
-  const addRegion = () => {
+  const record = (parent: Parent) => {
     if (regionId !== undefined) {
       addNode(
         walk.surface,
@@ -645,9 +696,6 @@ function declareRegion(
       )
     }
   }
-  if (!deferred) {
-    addRegion()
-  }
 
   const name = id ?? "a region"
   const slots = slotsArgument && readObjectLiteral(slotsArgument, scope)
@@ -657,7 +705,7 @@ function declareRegion(
       slots && "node" in slots ? slots.node : call,
       `The slots of ${name} can't be read${slots ? `: ${slots.problem}` : ""}.`
     )
-    return { id, renderSlots: deferred ? addRegion : () => undefined }
+    return { id, record, renderSlots: () => undefined }
   }
   claim(walk, slots.scope, slots.value)
   const object = readObject(slots.value)
@@ -665,12 +713,9 @@ function declareRegion(
     warn(walk, node, `A slot of ${name} can't be read: ${reason}.`)
   }
   const renderSlots = () => {
-    if (deferred) {
-      addRegion()
-    }
     renderSlotsOf(object?.entries ?? new Map(), id, name, slots.scope, walk)
   }
-  return { id, renderSlots }
+  return { id, record, renderSlots }
 }
 
 function renderSlotsOf(
@@ -702,9 +747,13 @@ function renderSlotsOf(
 function declareTable(
   call: CallExpression,
   scope: Scope,
-  parent: Parent,
   walk: Walk
-): Parent {
+): Declared {
+  const none: Declared = {
+    id: undefined,
+    record: () => undefined,
+    renderSlots: () => undefined,
+  }
   const [optionsArgument, settingsArgument] = call.getArguments()
   const settings =
     settingsArgument && readObjectLiteral(settingsArgument, scope)
@@ -722,24 +771,14 @@ function declareTable(
       read && "node" in read ? read.node : call,
       `The id of a table can't be read${read && "problem" in read ? `: ${read.problem}` : ""}.`
     )
-    return undefined
+    return none
   }
   if (!checkId(walk, idNode, read.value, "table")) {
-    return undefined
+    return none
   }
   const id = read.value
-  addNode(
-    walk.surface,
-    {
-      id,
-      parent: parent === id ? undefined : parent,
-      own: { kind: builtInKinds.table },
-      content: undefined,
-    },
-    call,
-    walk.report
-  )
 
+  const columnIds: { id: string; at: Node }[] = []
   const options = optionsArgument && readObjectLiteral(optionsArgument, scope)
   const columnsNode =
     options && "value" in options
@@ -747,35 +786,52 @@ function declareTable(
       : undefined
   if (!columnsNode || !options || !("value" in options)) {
     warn(walk, call, `The columns of ${id} can't be read.`)
-    return id
-  }
-  const columns = readColumns(columnsNode, options.scope)
-  for (const { node, reason } of columns.problems) {
-    warn(walk, node, `A column of ${id} can't be read: ${reason}.`)
-  }
-  for (const column of columns.ids) {
-    if (!itemIdSchema.safeParse(column.id).success) {
+  } else {
+    const columns = readColumns(columnsNode, options.scope)
+    for (const { node, reason } of columns.problems) {
+      warn(walk, node, `A column of ${id} can't be read: ${reason}.`)
+    }
+    for (const column of columns.ids) {
+      if (itemIdSchema.safeParse(column.id).success) {
+        columnIds.push(column)
+        continue
+      }
       walk.report.warnings.push(
         createDiagnostic(
           column.at,
           `The column "${column.id}" of ${id} is left out: overlays can only address column ids that start with a letter and contain only letters, digits, - and _.`
         )
       )
-      continue
     }
+  }
+
+  const record = (parent: Parent) => {
     addNode(
       walk.surface,
       {
-        id: `${id}/columns/${column.id}`,
-        parent: undefined,
-        own: { kind: builtInKinds.column },
+        id,
+        parent: parent === id ? undefined : parent,
+        own: { kind: builtInKinds.table },
         content: undefined,
       },
-      column.at,
+      call,
       walk.report
     )
+    for (const column of columnIds) {
+      addNode(
+        walk.surface,
+        {
+          id: `${id}/columns/${column.id}`,
+          parent: undefined,
+          own: { kind: builtInKinds.column },
+          content: undefined,
+        },
+        column.at,
+        walk.report
+      )
+    }
   }
-  return id
+  return { id, record, renderSlots: () => undefined }
 }
 
 function idArgumentOf(call: CallExpression, scope: Scope) {
