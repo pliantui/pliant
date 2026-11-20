@@ -73,11 +73,12 @@ Records stored without `deletedAt` stay valid and are live.
 
 A save can store a version while the app sees only a network error. If another device removes that overlay before the app retries, a retry that creates the record again would bring it back, and the removal would be lost. Tombstones prevent this.
 
-- Removing an overlay writes a tombstone instead of deleting the record. The tombstone keeps the same overlay id and the overlay it removed, so history and audit can show what was removed. It gets a fresh etag and `version` + 1, and `updatedAt` and `deletedAt` are both the removal time, written as the same string. `storedOverlaySchema` rejects a record whose `deletedAt` differs from its `updatedAt`.
-- A tombstone is never applied. Reading the live overlays returns live records only; reading history returns tombstones too.
+- Removing an overlay writes a tombstone instead of deleting the record. The tombstone keeps the same overlay id and the overlay it removed, so history and audit can show what was removed. It gets a fresh etag and `version` + 1, and `updatedAt` and `deletedAt` are both the removal time. `storedOverlaySchema` rejects a record whose `deletedAt` isn't the same instant as its `updatedAt`.
+- A tombstone is never applied. Loading a surface returns live records only; reading history returns tombstones too.
 - A create-only save (one that expects no current record) whose id has a tombstone is a conflict, and the conflict returns the tombstone as the current record. The client then treats that version as removed, never as saved, so a retry can't bring it back.
-- A tombstone can't be revived. A save under its id is a conflict even when it expects the tombstone's etag, because an id is never reused for new content.
-- An adapter keeps each tombstone for as long as the app might retry a save, and for at least 30 days. After that it may purge it. Once a tombstone is purged, a retry of a save from before the removal can bring the overlay back, so a removal is protected only from retries made within the retention period.
+- A tombstone can't be revived. While it exists, a save under its id is a conflict even when it expects the tombstone's etag: the id is never reused for new content.
+- An adapter keeps each tombstone for as long as the app might retry a save, and for at least 30 days. After that it may purge it. Once the tombstone is purged, the id is free again, and a retry of a save from before the removal can store the overlay again. A removal is protected only from retries made within the retention period.
+- A removed overlay's content stays in its tombstone until the tombstone is purged. An app that must erase content at once, such as when a user asks for their data to be erased, can purge the tombstone right away and accept that a late retry could store the overlay again.
 
 The adapter methods and `StorageConflictError`, which a conditional save throws on a conflict, belong to `@pliantui/react`, not to the contract.
 

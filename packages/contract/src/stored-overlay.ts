@@ -19,8 +19,10 @@ const storedOverlayObjectSchema = z
     deletedAt: timestampSchema.optional(),
   })
   .refine(
-    (record) => (record.deletedAt ?? record.updatedAt) === record.updatedAt,
-    { path: ["deletedAt"], message: "Must equal updatedAt" }
+    (record) =>
+      !record.deletedAt ||
+      Date.parse(record.deletedAt) === Date.parse(record.updatedAt),
+    { path: ["deletedAt"], message: "Must be the same time as updatedAt" }
   )
   .meta({
     title: "Pliant stored overlay",
