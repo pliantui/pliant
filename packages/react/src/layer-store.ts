@@ -224,8 +224,13 @@ export function createLayerStore({
   // Each personal version gets a new id in this tab and is saved once, as
   // a new record, so a conflict over that id means an earlier attempt was
   // stored though its answer was lost. The stored overlay replaces this
-  // tab's copy, since the adapter may have normalized it.
+  // tab's copy, since the adapter may have normalized it. A version a load
+  // showed stored is saved whatever the answer says, so a late failure
+  // can't store it again after it was removed elsewhere.
   function resolveConflict(overlay: ValidatedOverlay, error: unknown) {
+    if (stored.has(overlay.id)) {
+      return
+    }
     const current = isStorageConflictError(error)
       ? error.current?.overlay
       : undefined
@@ -443,7 +448,17 @@ export function createLayerStore({
     const etags = JSON.stringify(
       records.map((layer) => layer.map(({ etag }) => etag))
     )
-    if (status !== readyStatus || etags !== loadedEtags) {
+    const loadedIds = new Set(
+      records[2]?.map(({ overlay }) => idOf(overlay)) ?? []
+    )
+    if (
+      status !== readyStatus ||
+      etags !== loadedEtags ||
+      personal.some(
+        (overlay) =>
+          storedBefore.has(idOf(overlay)) && !loadedIds.has(idOf(overlay))
+      )
+    ) {
       loadedEtags = etags
       const [orgRecords = [], teamRecords = [], personalRecords = []] = records
       const saved = personalRecords.map(({ overlay }) => overlay)
@@ -571,8 +586,16 @@ export function createLayerStore({
       changeLayers()
     }
     mirror()
+    // A burst of changes, such as many `storage` events, loads once.
+    let changed = false
     const unsubscribe = storage.subscribe?.(surface, () => {
-      fetchLayers(true)
+      if (!changed) {
+        changed = true
+        queueMicrotask(() => {
+          changed = false
+          fetchLayers(true)
+        })
+      }
     })
     reload()
 
