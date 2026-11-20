@@ -23,14 +23,22 @@ export interface StoredLayers {
  * don't overwrite each other's changes unseen. Every successful save must
  * give the record an etag it has never had before, even when it stores the
  * same overlay again. `version` starts at 1 when a record is created, and
- * each save of that record increases it; an overlay removed and stored
- * again starts at 1.
+ * each save of that record increases it.
+ *
+ * Removing an overlay stores a tombstone in place of its record: the same
+ * overlay with `deletedAt` set, a new etag and the next version, as the
+ * `@pliantui/contract` README describes. `load` never returns a tombstone.
+ * A save under a tombstone's id is a conflict whose `current` is the
+ * tombstone, whatever `ifMatch` is, so a removed overlay's id is never
+ * reused. Keep tombstones as long as the app might retry a save, and at
+ * least 30 days; after that they may be purged, and a retry of a save from
+ * before the removal can then store the overlay again.
  *
  * `PliantRoot` stores each personal version as one record, with
  * `ifMatch: null`, and calls only `load`, `save` and `subscribe`. When a
- * save stores a version but fails with an error other than a conflict, and
- * the version is removed elsewhere before this tab loads it again or
- * retries, the retry stores it again.
+ * save's answer is lost and the version is removed elsewhere before the
+ * retry, the retry's conflict carries the tombstone, and the version is
+ * dropped instead of stored again.
  *
  * Saves also run on `pagehide`, while the page unloads, so an adapter that
  * sends them over the network must use `fetch` with `keepalive: true` or
@@ -41,7 +49,7 @@ export interface StoredLayers {
 export interface StorageAdapter {
   /**
    * Loads the stored overlays of a surface, in every layer the user can
-   * read, with the `@app` overlays. A rejection sets the status to `error`
+   * read, with the `@app` overlays, without tombstones. A rejection sets the status to `error`
    * (see `usePliantStatus`).
    *
    * A load must see every save that finished before it started: read from
@@ -64,10 +72,13 @@ export interface StorageAdapter {
   ): StoredOverlay | Promise<StoredOverlay>
   /**
    * Removes the overlay with this id when its record's etag is `ifMatch`,
-   * and throws a `StorageConflictError` when it isn't. Removing an overlay
-   * that isn't stored does nothing. It lets an app delete stored overlays,
-   * such as when a user resets their changes or asks for their data to be
-   * erased.
+   * by storing a tombstone in its place, and throws a
+   * `StorageConflictError` when it isn't. Removing an overlay that isn't
+   * stored, or is already removed, does nothing. It lets an app delete
+   * stored overlays, such as when a user resets their changes. The
+   * tombstone keeps the removed overlay until it is purged: to erase it at
+   * once, such as when a user asks for their data to be erased, purge the
+   * tombstone too, and accept that a late retry could store it again.
    */
   remove?(
     surface: string,
@@ -81,6 +92,17 @@ export interface StorageAdapter {
    */
   list?(
     layer: "org" | "team" | "personal"
+  ): readonly StoredOverlay[] | Promise<readonly StoredOverlay[]>
+  /**
+   * Returns the stored records of a surface, or of the overlay with this
+   * id, tombstones included, oldest first. It returns what the adapter
+   * keeps: an adapter that keeps only the latest record of each overlay
+   * returns that. Pliant doesn't call it. It lets an app show an audit
+   * trail, or undo a removal by saving the removed overlay under a new id.
+   */
+  history?(
+    surface: string,
+    id?: string
   ): readonly StoredOverlay[] | Promise<readonly StoredOverlay[]>
   /**
    * Calls `onChange` when the stored overlays of a surface change from

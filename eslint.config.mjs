@@ -55,6 +55,12 @@ export default defineConfig(
     },
   },
   {
+    files: ["packages/tests/next-fixture/app/**/{page,layout,route}.{ts,tsx}"],
+    rules: {
+      "no-restricted-exports": "off",
+    },
+  },
+  {
     files: ["**/*.{js,cjs,mjs}"],
     extends: [tseslint.configs.disableTypeChecked],
   },
