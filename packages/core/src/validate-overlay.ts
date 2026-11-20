@@ -12,8 +12,10 @@ import { checkOp, type OpCheck, type OpContext } from "./check-op"
 import { loadOverlay, type LoadedOverlay } from "./load-overlay"
 import { identityOf } from "./node-identity"
 import { ownEntries } from "./own-entries"
+import { readBaseParents } from "./read-base-parents"
+import { readFlags, type ReadFlags } from "./read-flags"
 import { readBaseIds } from "./resolution"
-import { readFlags, resolveOrdered, type ReadFlags } from "./resolve-ordered"
+import { resolveOrdered } from "./resolve-ordered"
 import type { Result } from "./result"
 import { checkSurface, surfaceOrder } from "./surface-order"
 import type { WithOps } from "./with-ops"
@@ -47,6 +49,8 @@ export interface ValidateOverlayLayers {
   readonly teamOrder?: readonly string[] | undefined
   /** The surface's instance flags by address, as in `resolveLayers`. */
   readonly flags?: Readonly<Record<string, Flags>> | undefined
+  /** The surface's node tree, as in `resolveLayers`. */
+  readonly baseParents?: Readonly<Record<string, string | null>> | undefined
 }
 
 /** How `validateOverlay` checks an overlay beyond its own shape. */
@@ -65,7 +69,8 @@ export interface ValidateOverlayOptions {
    * overlay applied last, it is the highest op involved. Throws a
    * `TypeError` when `layers.surface` isn't a string, `layers.baseIds` isn't
    * an array of ids or `{ ids, source }` with an array, or `layers.flags`
-   * isn't an object of valid flags, whatever the input.
+   * or `layers.baseParents` aren't valid as in `resolveLayers`, whatever
+   * the input.
    */
   readonly layers?: ValidateOverlayLayers | undefined
 }
@@ -131,7 +136,8 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
 function layerIssues(
   overlay: LoadedOverlay,
   { overlays, surface, baseIds, teamOrder = [] }: ValidateOverlayLayers,
-  flags: ReadFlags | undefined
+  flags: ReadFlags | undefined,
+  baseParents: ReadonlyMap<string, string> | undefined
 ): z.core.$ZodIssue[] {
   if (overlay.surface !== surface && overlay.surface !== "@app") {
     return [
@@ -152,7 +158,8 @@ function layerIssues(
       { overlay, reason: undefined },
     ],
     baseIds,
-    flags
+    flags,
+    baseParents
   )
   const issues = new Map<number, z.core.$ZodIssue>()
   for (const entry of skipped) {
@@ -160,7 +167,7 @@ function layerIssues(
       issues.set(entry.check.index, {
         code: "custom",
         path: ["ops", entry.check.index],
-        message: `The node ${entry.node} is ${entry.flag}, so it must stay visible`,
+        message: `The item ${entry.node} is ${entry.flag}, so it must stay visible`,
       })
     }
   }
@@ -201,6 +208,7 @@ export function validateOverlay(
   { layers }: ValidateOverlayOptions = {}
 ): Result<ValidatedOverlay> {
   let flags: ReadFlags | undefined
+  let baseParents: ReadonlyMap<string, string> | undefined
   if (layers) {
     checkSurface(layers.surface)
     const baseIds = readBaseIds(layers.baseIds)
@@ -208,6 +216,7 @@ export function validateOverlay(
       throw new TypeError("layers.baseIds must list node ids in an array")
     }
     flags = readFlags(layers.flags, "layers.flags")
+    baseParents = readBaseParents(layers.baseParents, "layers.baseParents")
   }
   const entries = ownEntries(input)
   const result = overlaySchema.safeParse(entries ?? input)
@@ -236,7 +245,7 @@ export function validateOverlay(
     ...listIssues,
     ...checks.flatMap(issuesOf),
     ...(result.success && layers
-      ? layerIssues({ ...result.data, ops: checks }, layers, flags)
+      ? layerIssues({ ...result.data, ops: checks }, layers, flags, baseParents)
       : []),
   ]
   if (!result.success || issues.length > 0) {

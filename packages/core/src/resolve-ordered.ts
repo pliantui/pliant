@@ -1,9 +1,7 @@
-import { flagsSchema, type Flags } from "@pliantui/contract"
-
 import type { Guardrail, Violation } from "./guardrail"
-import type { LoadedOverlay } from "./load-overlay"
-import { identityOf } from "./node-identity"
+import { addressParents } from "./node-identity"
 import { scopeKeyOf } from "./overlay-scope"
+import type { ReadFlags } from "./read-flags"
 import { applyOp, createResolution, settleResolution } from "./resolution"
 import type {
   ResolvedOp,
@@ -16,155 +14,144 @@ import type { OrderedOverlay } from "./surface-order"
 
 const guardrails: readonly Guardrail[] = [staysVisible]
 
-/** Records each node's parent as its address shows it, the first one wins. */
-function addParents(parents: Map<string, string>, address: string): void {
-  let rest = address
-  for (;;) {
-    const parent = rest.replace(/\/[^/]+\/[^/]+$/, "")
-    if (parent === rest) {
-      return
-    }
-    const id = identityOf(rest)
-    if (!parents.has(id)) {
-      parents.set(id, identityOf(parent))
-    }
-    rest = parent
-  }
-}
+type Step =
+  | { readonly skipped: SkippedOp }
+  | { readonly op: ResolvedOp; readonly scope: string }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
-/** Flags by identity, and each node's parent as the flags' addresses show. */
-export interface ReadFlags {
-  readonly flags: ReadonlyMap<string, Flags>
-  readonly parents: ReadonlyMap<string, string>
+interface Blocked {
+  readonly violation: Violation
+  readonly conflictsWith: readonly ResolvedOp[]
 }
 
 /**
- * Checks `flags` and reads them by identity. Addresses of the same node
- * combine their flags. Returns undefined when no node is flagged, so
- * resolution can skip the guardrails. `name` names the option in errors.
+ * Each node's parent in the base: `baseParents` when given, else what the
+ * flags' addresses show, then what the ops' addresses show, the first one
+ * wins. An item's parent always comes from its address.
  */
-export function readFlags(
-  flags: unknown,
-  name = "flags"
-): ReadFlags | undefined {
-  if (flags === undefined) {
-    return undefined
+function baseParentsOf(
+  ops: readonly ResolvedOp[],
+  flags: ReadFlags,
+  baseParents: ReadonlyMap<string, string> | undefined
+): Map<string, string> {
+  const parents = new Map(baseParents ?? flags.parents)
+  for (const id of flags.flags.keys()) {
+    addressParents(id).forEach(([item, node]) => parents.set(item, node))
   }
-  if (!isRecord(flags)) {
-    throw new TypeError(`${name} must map addresses to flags`)
-  }
-  const read = new Map<string, Flags>()
-  const parents = new Map<string, string>()
-  for (const [address, value] of Object.entries(flags)) {
-    const parsed = flagsSchema.safeParse(value)
-    if (!parsed.success) {
-      throw new TypeError(`${name}["${address}"] must be valid flags`)
-    }
-    const id = identityOf(address)
-    const merged: Flags = { ...read.get(id) }
-    for (const flag of flagsSchema.keyof().options) {
-      if (parsed.data[flag] === true) {
-        merged[flag] = true
+  for (const { check } of ops) {
+    const { op } = check
+    const addresses = [
+      op.target,
+      ...(op.op === "move" && "into" in op.to ? [op.to.into] : []),
+    ]
+    for (const [id, parent] of addresses.flatMap(addressParents)) {
+      // An item's parent is part of its identity, so no input overrides it.
+      if (!parents.has(id) && (!baseParents || id.includes("/"))) {
+        parents.set(id, parent)
       }
     }
-    read.set(id, merged)
-    addParents(parents, address)
   }
-  return read.size > 0 ? { flags: read, parents } : undefined
+  return parents
 }
 
 /**
  * Applies the ordered overlays' valid ops, then checks the guardrails on the
  * result. Each violation skips the op among those involved that applied
  * last, which is the op from the highest layer, and everything resolves
- * again without it. Each extra pass skips at least one more op, so there
- * are at most as many passes as ops, plus one.
+ * again without it. When that op decides a property, the ops below it that
+ * would break the rule the same way, and still applied after every other op
+ * involved, are skipped in the same pass, so a stack of hides on one node
+ * takes one pass. Each extra pass skips at least one more op, so there are
+ * at most as many passes as valid ops, plus one, each applying every op: in
+ * the worst case, time grows with the square of the number of ops.
  */
 export function resolveOrdered(
   ordered: readonly OrderedOverlay[],
   baseIds: ResolveLayersOptions["baseIds"],
-  flags: ReadFlags | undefined
+  flags: ReadFlags | undefined,
+  baseParents?: ReadonlyMap<string, string>
 ) {
-  // Ops apply by overlay, then index, so this ranks them in that order.
-  const ranks = new Map<LoadedOverlay, number>()
-  let next = 0
-  for (const { overlay } of ordered) {
-    if (!ranks.has(overlay)) {
-      ranks.set(overlay, next)
-      next += overlay.ops.length
-    }
-  }
-  const rank = ({ overlay, check }: ResolvedOp) =>
-    (ranks.get(overlay) ?? 0) + check.index
-  const parents = new Map(flags?.parents)
-  if (flags) {
-    for (const { overlay, reason } of ordered) {
-      for (const check of reason ? [] : overlay.ops) {
-        if (check.status === "valid") {
-          addParents(parents, check.op.target)
-          if (check.op.op === "move" && "into" in check.op.to) {
-            addParents(parents, check.op.to.into)
-          }
-        }
+  const steps: Step[] = []
+  for (const { overlay, reason } of ordered) {
+    const scope = scopeKeyOf(overlay)
+    for (const check of overlay.ops) {
+      if (reason) {
+        steps.push({ skipped: { check, overlay, reason } })
+      } else if (check.status === "unknown") {
+        steps.push({
+          skipped: {
+            check,
+            overlay,
+            reason: check.extension ? "extension-not-installed" : "unknown",
+          },
+        })
+      } else if (check.status === "newer") {
+        steps.push({ skipped: { check, overlay, reason: "newer" } })
+      } else if (check.status === "invalid") {
+        steps.push({ skipped: { check, overlay, reason: "invalid" } })
+      } else {
+        steps.push({ op: { check, overlay }, scope })
       }
     }
   }
-  const blocked = new Map<number, Violation>()
+  const sequence = steps.flatMap((step) => ("op" in step ? [step.op] : []))
+  const parents = flags && baseParentsOf(sequence, flags, baseParents)
+  const blocked = new Map<ResolvedOp, Blocked>()
   for (;;) {
     const state = createResolution(baseIds)
     const skipped: SkippedOp[] = []
     const unapplied: UnappliedOp[] = []
-    for (const { overlay, reason } of ordered) {
-      const scope = scopeKeyOf(overlay)
-      for (const check of overlay.ops) {
-        if (reason) {
-          skipped.push({ check, overlay, reason })
-        } else if (check.status === "unknown") {
-          skipped.push({
-            check,
-            overlay,
-            reason: check.extension ? "extension-not-installed" : "unknown",
-          })
-        } else if (check.status === "newer") {
-          skipped.push({ check, overlay, reason: "newer" })
-        } else if (check.status === "invalid") {
-          skipped.push({ check, overlay, reason: "invalid" })
-        } else {
-          const violation = blocked.get(rank({ check, overlay }))
-          if (violation) {
-            const { guardrail, flag, node } = violation
-            skipped.push({
-              check,
-              overlay,
-              reason: "guardrail",
-              guardrail,
-              flag,
-              node,
-            })
-            continue
-          }
-          const notApplied = applyOp(state, { check, overlay }, scope)
-          if (notApplied) {
-            unapplied.push({ check, overlay, reason: notApplied })
-          }
-        }
+    for (const step of steps) {
+      if ("skipped" in step) {
+        skipped.push(step.skipped)
+        continue
+      }
+      const { op, scope } = step
+      const block = blocked.get(op)
+      if (block) {
+        const { guardrail, flag, node } = block.violation
+        skipped.push({
+          ...op,
+          reason: "guardrail",
+          guardrail,
+          flag,
+          node,
+          conflictsWith: block.conflictsWith,
+        })
+        continue
+      }
+      const notApplied = applyOp(state, op, scope)
+      if (notApplied) {
+        unapplied.push({ ...op, reason: notApplied })
       }
     }
     const settled = settleResolution(state)
-    const violations = flags
-      ? guardrails.flatMap((guardrail) =>
-          guardrail({ ...settled, flags: flags.flags, parents })
-        )
-      : []
+    const violations =
+      flags && parents
+        ? guardrails.flatMap((guardrail) =>
+            guardrail({ ...settled, flags: flags.flags, parents })
+          )
+        : []
     const count = blocked.size
     for (const violation of violations) {
-      const last = Math.max(...violation.ops.map(rank))
-      if (!blocked.has(last)) {
-        blocked.set(last, violation)
+      const order = (op: ResolvedOp) => sequence.indexOf(op)
+      const [decides, ...others] = violation.ops
+      const last = Math.max(...violation.ops.map(order))
+      const culprit = sequence[last]
+      if (!culprit || blocked.has(culprit)) {
+        continue
+      }
+      blocked.set(culprit, {
+        violation,
+        conflictsWith: violation.ops.filter((op) => op !== culprit),
+      })
+      if (culprit === decides) {
+        const after = Math.max(-1, ...others.map(order))
+        for (const op of violation.next) {
+          if (order(op) < after) {
+            break
+          }
+          blocked.set(op, { violation, conflictsWith: others })
+        }
       }
     }
     if (blocked.size === count) {

@@ -959,7 +959,7 @@ describe("validateOverlay", () => {
         {
           code: "custom",
           path: ["ops", 1],
-          message: "The node pay-now is critical, so it must stay visible",
+          message: "The item pay-now is critical, so it must stay visible",
         },
       ])
     })
@@ -1002,8 +1002,8 @@ describe("validateOverlay", () => {
     it("lists each op's issues in op order", () => {
       const result = validateOverlay(
         overlay([
-          { op: "hide", target: "pay-now" },
           { ...move, to: { into: "drawer" } },
+          { op: "hide", target: "pay-now" },
         ]),
         {
           layers: {
@@ -1015,9 +1015,42 @@ describe("validateOverlay", () => {
         }
       )
       expect(result.error?.issues.map(({ path }) => path)).toEqual([
-        ["ops", 0],
-        ["ops", 1, "to", "into"],
+        ["ops", 0, "to", "into"],
+        ["ops", 1],
       ])
+    })
+
+    it("traces nodes through the base tree when given", () => {
+      const result = validateOverlay(
+        overlay([{ ...move, to: { into: "drawer" } }]),
+        {
+          layers: {
+            overlays: [lower([{ op: "hide", target: "aside" }])],
+            surface,
+            flags,
+            baseParents: { drawer: "aside", aside: null },
+          },
+        }
+      )
+      expect(result.error?.issues).toEqual([
+        {
+          code: "custom",
+          path: ["ops", 0],
+          message: "The item pay-now is critical, so it must stay visible",
+        },
+      ])
+    })
+
+    it("throws a TypeError for a base tree that isn't node ids, whatever the input", () => {
+      expect(() =>
+        validateOverlay(null, {
+          layers: {
+            overlays: [],
+            surface,
+            baseParents: { drawer: 4 } as never,
+          },
+        })
+      ).toThrow(TypeError)
     })
 
     it("throws a TypeError for flags that aren't flags, whatever the input", () => {

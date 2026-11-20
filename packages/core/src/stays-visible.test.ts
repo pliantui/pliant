@@ -378,4 +378,182 @@ describe("critical and required nodes", () => {
     expect(guarded(result).map(({ op }) => op)).toEqual([hide])
     expect(result.placements.get("pay-now")?.container).toBe("pay-group")
   })
+
+  it("skips a move that puts a node into the node it holds", () => {
+    const move = {
+      op: "move",
+      target: "page/slots/checkout-actions",
+      to: { into: "pay-now" },
+    }
+    const result = resolve(overlay("personal", [move]))
+    expect(guarded(result).map(({ op }) => op)).toEqual([move])
+  })
+
+  it("skips the higher of two moves that make a cycle of containers", () => {
+    const intoSidebar = {
+      op: "move",
+      target: "page/slots/checkout-actions",
+      to: { into: "sidebar" },
+    }
+    const intoActions = {
+      op: "move",
+      target: "page/slots/sidebar",
+      to: { into: "checkout-actions" },
+    }
+    const result = resolve(
+      overlay("team", [intoSidebar]),
+      overlay("personal", [intoActions])
+    )
+    expect(guarded(result)).toMatchObject([
+      { layer: "personal", op: intoActions },
+    ])
+    expect(result.placements.get("checkout-actions")?.container).toBe("sidebar")
+  })
+
+  it("lists the other ops involved with a skipped op", () => {
+    const move = {
+      op: "move",
+      target: "checkout-actions/slots/pay-now",
+      to: { into: "sidebar" },
+    }
+    const result = resolve(
+      overlay("team", [move]),
+      overlay("personal", [{ op: "hide", target: "sidebar" }])
+    )
+    const [skip] = result.skipped
+    expect(
+      skip?.reason === "guardrail" &&
+        skip.conflictsWith.map(({ check, overlay }) => [
+          overlay.layer,
+          check.op,
+        ])
+    ).toEqual([["team", move]])
+  })
+
+  it("reports a node flagged both critical and required as critical", () => {
+    const result = resolveLayers(
+      [overlay("personal", [{ op: "hide", target: "pay-now" }])],
+      { surface, flags: { "pay-now": { critical: true, required: true } } }
+    )
+    expect(guarded(result).map(({ flag }) => flag)).toEqual(["critical"])
+  })
+
+  it("reads parents from the targets of ops", () => {
+    const hide = { op: "hide", target: "page/slots/checkout-actions" }
+    const result = resolveLayers(
+      [
+        overlay("team", [
+          {
+            op: "rename",
+            target: "checkout-actions/slots/pay-now",
+            label: "Pay",
+          },
+        ]),
+        overlay("personal", [hide]),
+      ],
+      { surface, flags: { "pay-now": { critical: true } } }
+    )
+    expect(guarded(result).map(({ op }) => op)).toEqual([hide])
+  })
+
+  it("reads parents from move … into destinations", () => {
+    const hide = { op: "hide", target: "aside" }
+    const move = {
+      op: "move",
+      target: "checkout-actions/slots/pay-now",
+      to: { into: "aside/slots/drawer" },
+    }
+    const result = resolve(overlay("team", [move]), overlay("personal", [hide]))
+    expect(guarded(result).map(({ op }) => op)).toEqual([hide])
+  })
+
+  it("prefers the parents a flag's address shows over an op's", () => {
+    const hidePanel = { op: "hide", target: "panel" }
+    const hideActions = { op: "hide", target: "checkout-actions" }
+    const result = resolve(
+      overlay("team", [
+        { op: "rename", target: "panel/slots/pay-now", label: "Pay" },
+      ]),
+      overlay("personal", [hidePanel, hideActions])
+    )
+    expect(guarded(result).map(({ op }) => op)).toEqual([hideActions])
+    expect(winner(result, "panel", "visible")).toEqual(hidePanel)
+  })
+
+  describe("with the base tree", () => {
+    const hide = { op: "hide", target: "aside" }
+    const move = {
+      op: "move",
+      target: "checkout-actions/slots/pay-now",
+      to: { into: "drawer" },
+    }
+
+    it("doesn't trace a node named only by its id without the tree", () => {
+      const result = resolve(
+        overlay("team", [hide]),
+        overlay("personal", [move])
+      )
+      expect(guarded(result)).toEqual([])
+    })
+
+    it("traces it through the tree", () => {
+      const result = resolveLayers(
+        [overlay("team", [hide]), overlay("personal", [move])],
+        { surface, flags, baseParents: { drawer: "aside", aside: null } }
+      )
+      expect(guarded(result).map(({ op }) => op)).toEqual([move])
+    })
+
+    it("ignores the parents that addresses show", () => {
+      const hidePanel = { op: "hide", target: "panel" }
+      const result = resolveLayers(
+        [
+          overlay("personal", [
+            { op: "rename", target: "panel/slots/pay-now", label: "Pay" },
+            hidePanel,
+          ]),
+        ],
+        {
+          surface,
+          flags: { "pay-now": { critical: true } },
+          baseParents: { "checkout-actions": null },
+        }
+      )
+      expect(guarded(result)).toEqual([])
+      expect(winner(result, "panel", "visible")).toEqual(hidePanel)
+    })
+
+    it("throws a TypeError for a tree that isn't node ids", () => {
+      for (const baseParents of [[], { drawer: 4 }, { "Drawer!": null }]) {
+        expect(() =>
+          resolveLayers([], { surface, baseParents: baseParents as never })
+        ).toThrow(TypeError)
+      }
+    })
+  })
+
+  it("throws a TypeError for flags at addresses that aren't addresses", () => {
+    expect(() =>
+      resolveLayers([], { surface, flags: { "Pay Now": { critical: true } } })
+    ).toThrow(TypeError)
+  })
+
+  it("throws a TypeError for flags that aren't a plain object", () => {
+    const flagMap = new Map([["pay-now", { critical: true }]])
+    expect(() =>
+      resolveLayers([], { surface, flags: flagMap as never })
+    ).toThrow(TypeError)
+  })
+
+  it("throws a TypeError when two addresses put a node in different parents", () => {
+    expect(() =>
+      resolveLayers([], {
+        surface,
+        flags: {
+          "panel/slots/pay-now": { critical: true },
+          "checkout-actions/slots/pay-now": { required: true },
+        },
+      })
+    ).toThrow(TypeError)
+  })
 })

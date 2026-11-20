@@ -4,8 +4,10 @@ import type { OpCheck } from "./check-op"
 import type { LoadedOverlay } from "./load-overlay"
 import type { OpPropertyKey } from "./op-property"
 import type { ResolvedPlacement } from "./placement"
+import { readBaseParents } from "./read-base-parents"
+import { readFlags } from "./read-flags"
 import { readBaseIds } from "./resolution"
-import { readFlags, resolveOrdered } from "./resolve-ordered"
+import { resolveOrdered } from "./resolve-ordered"
 import { surfaceOrder } from "./surface-order"
 
 /**
@@ -106,6 +108,11 @@ export type SkippedOp =
       readonly overlay: LoadedOverlay
       readonly reason: "duplicate-id" | "surface-mismatch"
     }
+  /**
+   * A valid op skipped because it would break a guardrail. Every guardrail
+   * skip names the flagged node the rule protects and the flag that makes
+   * it protected; a rule may add fields of its own.
+   */
   | {
       readonly check: Extract<OpCheck, { status: "valid" }>
       readonly overlay: LoadedOverlay
@@ -118,8 +125,14 @@ export type SkippedOp =
       readonly guardrail: "stays-visible"
       /** The flag of `node` that the rule protects. */
       readonly flag: "critical" | "required"
-      /** The identity of the flagged node the op would hide. */
+      /** The identity of the flagged node or item the rule protects. */
       readonly node: string
+      /**
+       * The other applied ops that, together with this one, would break the
+       * rule, such as the `move … into` a node this op hides. Empty when the
+       * op breaks it alone.
+       */
+      readonly conflictsWith: readonly ResolvedOp[]
     }
 
 /**
@@ -202,24 +215,33 @@ export interface ResolveLayersOptions {
    * `page/slots/ticket-form/fields/email`. Addresses of the same node
    * combine their flags.
    *
-   * A node or field flagged `critical` or `required` stays visible and
-   * reachable: a `hide`, `collapse`, `demote` or `remove` on it, or on a node
-   * that holds it once every op applies, breaks the guardrail, and so does a
-   * `move … into` or `wrap` that puts it in such a node. Each time, the op
-   * among those involved that applied last, the one from the highest layer,
-   * is skipped with reason `guardrail` and guardrail `stays-visible`, and the rest resolve again without
-   * it. An op that changes nothing, because the node would be hidden without
-   * it, is not skipped.
+   * A node or item flagged `critical` or `required` stays visible and
+   * reachable: a `hide`, `collapse`, `demote` or `remove` on it, or on a
+   * node that holds it once every op applies, breaks the guardrail, and so
+   * does a `move … into` or `wrap` that puts it in such a node, or in a
+   * cycle of containers. Each time, the op among those involved that
+   * applied last, the one from the highest layer, is skipped with reason
+   * `guardrail` and guardrail `stays-visible`, and the rest resolve again
+   * without it. A `move … into` or `wrap` into a node that holds the
+   * flagged node in the page anyway isn't involved; only the op that hides
+   * that node is skipped.
    *
-   * Resolution knows a node holds another only when an op placed it there,
-   * an `insert` or `wrap` created it there, or an address shows it: a flag's
-   * own address, or the target or `move … into` destination of an op. So
-   * give flags by full address to protect them from ops on nodes further up.
-   * A node that only a bare id names, such as `drawer` in
-   * `move … into drawer`, has no known parent, so hiding a node that holds
-   * it in the page isn't caught.
+   * Which node holds another in the page comes from `baseParents` when
+   * given. Without it, it comes from the addresses in `flags`, then from
+   * the targets and `move … into` destinations of the ops, so give flags by
+   * full address; a node named only by its id, such as `drawer` in
+   * `move … into drawer`, isn't traced to the nodes that hold it.
    */
   readonly flags?: Readonly<Record<string, Flags>> | undefined
+  /**
+   * The surface's node tree as you rendered it, from `pliantui scan` or
+   * the mounted nodes: each node id mapped to the id of the node that holds
+   * it, or `null` for a node at the top of the surface. When given, it is
+   * the only source of which node holds another in the page; addresses in
+   * flags and overlays don't change it. An item's node always comes from
+   * its address.
+   */
+  readonly baseParents?: Readonly<Record<string, string | null>> | undefined
 }
 
 /** The result of `resolveLayers`. */
@@ -277,11 +299,14 @@ export interface ResolvedLayers {
  * Both lists follow the resolution order.
  *
  * Throws a `TypeError` when `surface` isn't a string, `baseIds` isn't node
- * ids or `{ ids, source }`, or `flags` isn't an object of valid flags.
+ * ids or `{ ids, source }`, `flags` isn't a plain object that maps
+ * addresses to valid flags, two of its addresses put one node in different
+ * parents, or `baseParents` isn't a plain object that maps node ids to
+ * node ids or `null`.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],
-  { surface, baseIds, teamOrder = [], flags }: ResolveLayersOptions
+  { surface, baseIds, teamOrder = [], flags, baseParents }: ResolveLayersOptions
 ): ResolvedLayers {
   const read = readBaseIds(baseIds)
   const known: BaseIds | undefined = read && {
@@ -290,7 +315,12 @@ export function resolveLayers(
   }
   const ordered = surfaceOrder(overlays, surface, teamOrder)
   return {
-    ...resolveOrdered(ordered, known, readFlags(flags)),
+    ...resolveOrdered(
+      ordered,
+      known,
+      readFlags(flags),
+      readBaseParents(baseParents)
+    ),
     overlays: ordered.map(({ overlay }) => overlay),
     baseIds: known,
   }

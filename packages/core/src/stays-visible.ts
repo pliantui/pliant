@@ -1,8 +1,8 @@
 import type { Op } from "@pliantui/contract"
 
-import type { Guardrail, GuardrailInput } from "./guardrail"
+import type { Guardrail, GuardrailInput, Violation } from "./guardrail"
 import { identityOf } from "./node-identity"
-import type { ResolvedOp } from "./resolve-layers"
+import type { ResolvedOp, ResolvedProperty } from "./resolve-layers"
 
 function setsContainer(op: Op, container: string): boolean {
   return op.op === "wrap"
@@ -53,21 +53,46 @@ function baseChain(node: string, parents: ReadonlyMap<string, string>) {
   return chain
 }
 
+function hides(op: ResolvedOp | undefined, name: string): boolean {
+  const check = op?.check.op
+  return (
+    check?.op === name && !(check.op === "collapse" && check.into === "none")
+  )
+}
+
+/** The ops below the winner that would decide the same way, nearest first. */
+function sameBelow(
+  property: ResolvedProperty | undefined,
+  name: string
+): ResolvedOp[] {
+  const below: ResolvedOp[] = []
+  for (const op of [...(property?.overridden ?? [])].reverse()) {
+    if (!hides(op, name)) {
+      break
+    }
+    below.push(op)
+  }
+  return below
+}
+
 /**
- * The ops that keep `node` out of sight: a `hide`, `collapse`, `demote` or
- * `remove` on it or on a node that holds it, plus, unless that node holds it
- * in the base too, every op that moved the node, or a node on the way up,
- * into the one hidden.
+ * Why `node` is out of sight, if it is: a `hide`, `collapse`, `demote` or
+ * `remove` on it or on a node that holds it, plus every op that moved the
+ * node, or a node on the way up, into the one hidden, unless that node
+ * holds it in the base anyway. A node in a cycle of containers is out of
+ * sight too, through the ops that made the cycle.
  */
 function hidingOps(
   node: string,
   input: GuardrailInput
-): ResolvedOp[] | undefined {
+): Pick<Violation, "ops" | "next"> | undefined {
   const base = baseChain(node, input.parents)
   const path: ResolvedOp[] = []
   const seen = new Set<string>()
-  let id: string | undefined = node
-  while (id !== undefined && !seen.has(id)) {
+  for (let id: string | undefined = node; id !== undefined;) {
+    if (seen.has(id)) {
+      return path.length > 0 ? { ops: path, next: [] } : undefined
+    }
     seen.add(id)
     // A node that holds it in the base hides it whatever moved it in here.
     if (base.includes(id)) {
@@ -80,23 +105,25 @@ function hidingOps(
         ? undefined
         : input.properties
             .get(container)
-            ?.get(`collapse.${id.slice(id.lastIndexOf("/") + 1)}`)?.winner
-    const candidates: [ResolvedOp | undefined, string][] = [
-      [own?.get("visible")?.winner, "hide"],
-      [own?.get("inserted")?.winner, "remove"],
-      [input.placements.get(id)?.winner, "demote"],
-      [collapse, "collapse"],
+            ?.get(`collapse.${id.slice(id.lastIndexOf("/") + 1)}`)
+    const candidates: [
+      ResolvedOp | undefined,
+      string,
+      ResolvedProperty | undefined,
+    ][] = [
+      [own?.get("visible")?.winner, "hide", own?.get("visible")],
+      [own?.get("inserted")?.winner, "remove", undefined],
+      [input.placements.get(id)?.winner, "demote", undefined],
+      [collapse?.winner, "collapse", collapse],
     ]
-    for (const [op, name] of candidates) {
-      const check = op?.check.op
-      if (
-        op &&
-        check?.op === name &&
-        !(check.op === "collapse" && check.into === "none")
-      ) {
+    for (const [op, name, property] of candidates) {
+      if (op && hides(op, name)) {
         const movedIn =
           name === "collapse" && via && input.parents.get(id) !== container
-        return [op, ...path, ...(movedIn ? [via] : [])]
+        return {
+          ops: [op, ...path, ...(movedIn ? [via] : [])],
+          next: sameBelow(property, name),
+        }
       }
     }
     if (via) {
@@ -113,12 +140,14 @@ function hidingOps(
  * holds them. A node with both flags is reported as `critical`.
  */
 export const staysVisible: Guardrail = (input) =>
-  [...input.flags].flatMap(([node, flags]) => {
+  [...input.flags].flatMap(([node, flags]): Violation[] => {
     const flag = flags.critical
       ? "critical"
       : flags.required
         ? "required"
         : undefined
-    const ops = flag && hidingOps(node, input)
-    return flag && ops ? [{ guardrail: "stays-visible", flag, node, ops }] : []
+    const hidden = flag && hidingOps(node, input)
+    return flag && hidden
+      ? [{ guardrail: "stays-visible", flag, node, ...hidden }]
+      : []
   })
