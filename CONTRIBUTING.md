@@ -79,6 +79,18 @@ Use `pnpm --filter=[WORKSPACE]` to run a script in a workspace.
 pnpm --filter=www dev
 ```
 
+The site is deployed to Cloudflare Workers. To build it for Workers and serve it locally in the Workers runtime:
+
+```bash
+pnpm --filter=www preview
+```
+
+To build the worker without deploying it, as a deployment's build step does, run this from `apps/www`:
+
+```bash
+pnpm -w exec turbo run build --filter=www^... && pnpm exec opennextjs-cloudflare build && pnpm exec opennextjs-cloudflare populateCache local
+```
+
 2. To build a package in watch mode:
 
 ```bash

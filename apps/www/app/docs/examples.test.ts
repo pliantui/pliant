@@ -29,7 +29,7 @@ function isObject(value: unknown): value is Json {
 }
 
 function jsonExamples() {
-  const examples: { name: string; source: string }[] = []
+  const examples: { name: string; title: string; source: string }[] = []
   let fences = 0
   for (const file of readdirSync(docs, { recursive: true, encoding: "utf8" })) {
     if (!file.endsWith(".mdx")) {
@@ -37,13 +37,14 @@ function jsonExamples() {
     }
     const text = readFileSync(path.join(docs, file), "utf8")
     const blocks = [
-      ...text.matchAll(/^[ \t]*```json[^\n]*\n([\s\S]*?)^[ \t]*```$/gm),
+      ...text.matchAll(/^[ \t]*```json([^\n]*)\n([\s\S]*?)^[ \t]*```$/gm),
     ]
     fences += text.match(/```json/g)?.length ?? 0
     for (const [index, match] of blocks.entries()) {
       examples.push({
         name: `${file} #${String(index + 1)}`,
-        source: match[1] ?? "",
+        title: /title="([^"]*)"/.exec(match[1] ?? "")?.[1] ?? "",
+        source: match[2] ?? "",
       })
     }
   }
@@ -101,13 +102,18 @@ it("finds every JSON example", () => {
   expect(examples).toHaveLength(fences)
 })
 
-describe.each(examples)("$name", ({ source }) => {
+describe.each(examples)("$name", ({ title, source }) => {
   it("is valid against the contract", () => {
     const example: unknown = JSON.parse(source)
     if (!isObject(example)) {
       throw new TypeError("A JSON example must be an object")
     }
-    if ("ops" in example) {
+    if (title.endsWith("manifest-decisions.json")) {
+      // The CLI's own decisions file, not part of the contract. The pliantui
+      // tests cover its format; this only checks the example's shape.
+      expect(typeof example["namespace"]).toBe("string")
+      expect(isObject(example["components"])).toBe(true)
+    } else if ("ops" in example) {
       expectValid(example)
     } else if ("op" in example) {
       expectValid(overlayOf(example))
