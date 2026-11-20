@@ -31,6 +31,13 @@ function overlay(id: string, width: number, surface = "/orders"): Overlay {
   }
 }
 
+function appOverlay(id: string, scale: number): Overlay {
+  return {
+    ...overlay(id, 0, "@app"),
+    ops: [{ op: "setTextScale", target: "@app", scale }],
+  }
+}
+
 function sync<T>(value: T | Promise<T>): T {
   if (value instanceof Promise) {
     throw new TypeError("Expected localAdapter to answer synchronously")
@@ -285,20 +292,21 @@ describe("localAdapter", () => {
 
   it("loads the @app overlays with the overlays of every surface", () => {
     const adapter = local()
-    adapter.save("@app", overlay(p3, 120, "@app"), { ifMatch: null })
+    adapter.save("@app", appOverlay(p3, 1.25), { ifMatch: null })
     adapter.save("/orders", overlay(p1, 100), { ifMatch: null })
+    const ids = (surface: string) =>
+      adapter
+        .load(surface)
+        .map(({ overlay }) => overlay.id)
+        .toSorted()
 
-    expect(adapter.load("/orders").map(({ overlay }) => overlay.id)).toEqual(
-      expect.arrayContaining([p1, p3])
-    )
-    expect(adapter.load("/invoices").map(({ overlay }) => overlay.id)).toEqual([
-      p3,
-    ])
+    expect(ids("/orders")).toEqual([p1, p3])
+    expect(ids("/invoices")).toEqual([p3])
   })
 
   it("leaves removed @app overlays out of a surface's load", () => {
     const adapter = local()
-    const saved = adapter.save("@app", overlay(p3, 120, "@app"), {
+    const saved = adapter.save("@app", appOverlay(p3, 1.25), {
       ifMatch: null,
     })
     adapter.save("/orders", overlay(p1, 100), { ifMatch: null })
@@ -312,26 +320,44 @@ describe("localAdapter", () => {
 
   it("loads each @app overlay once when the surface is @app", () => {
     const adapter = local()
-    adapter.save("@app", overlay(p3, 120, "@app"), { ifMatch: null })
+    adapter.save("@app", appOverlay(p3, 1.25), { ifMatch: null })
 
     expect(adapter.load("@app").map(({ overlay }) => overlay.id)).toEqual([p3])
   })
 
   it("skips @app entries that aren't valid records", () => {
-    localStorage.setItem(keyOf(p3, "@app"), "{}")
+    const adapter = local()
+    adapter.save("@app", appOverlay(p3, 1.25), { ifMatch: null })
+    localStorage.setItem(keyOf(p2, "@app"), "{}")
 
-    expect(local().load("/orders")).toEqual([])
+    expect(adapter.load("/orders").map(({ overlay }) => overlay.id)).toEqual([
+      p3,
+    ])
   })
 
   it("tells other tabs when the @app overlays change", () => {
     const onChange = vi.fn()
     const unsubscribe = local().subscribe("/orders", onChange)
-    window.dispatchEvent(
-      new StorageEvent("storage", {
-        key: keyOf(p3, "@app"),
-        storageArea: localStorage,
-      })
-    )
+    const otherTab = (key: string) => {
+      window.dispatchEvent(
+        new StorageEvent("storage", { key, storageArea: localStorage })
+      )
+    }
+
+    otherTab(keyOf(p3, "@appx"))
+    otherTab(keyOf(p3, "/invoices"))
+    expect(onChange).not.toHaveBeenCalled()
+    otherTab(keyOf(p3, "@app"))
+    expect(onChange).toHaveBeenCalledTimes(1)
+    unsubscribe()
+  })
+
+  it("tells other adapters in this tab when the @app overlays change", async () => {
+    const onChange = vi.fn()
+    const unsubscribe = local().subscribe("/orders", onChange)
+
+    local().save("@app", appOverlay(p3, 1.25), { ifMatch: null })
+    await Promise.resolve()
     expect(onChange).toHaveBeenCalledTimes(1)
     unsubscribe()
   })

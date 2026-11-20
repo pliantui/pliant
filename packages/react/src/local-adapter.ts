@@ -61,19 +61,19 @@ function write(
   return record
 }
 
-// Every readable record of a surface, tombstones included.
+function owns(key: string, surfaces: readonly string[]) {
+  return surfaces.some((surface) => {
+    const prefix = prefixOf(surface)
+    return key.startsWith(prefix) && !key.includes(":", prefix.length)
+  })
+}
+
+// Every readable record of the surfaces, tombstones included.
 function recordsOf(...surfaces: string[]) {
-  const prefixes = surfaces.map(prefixOf)
   const records: StoredOverlay[] = []
   for (let index = 0; index < localStorage.length; index++) {
     const key = localStorage.key(index)
-    const record =
-      key &&
-      prefixes.some(
-        (prefix) => key.startsWith(prefix) && !key.includes(":", prefix.length)
-      )
-        ? readRecord(key)
-        : undefined
+    const record = key && owns(key, surfaces) ? readRecord(key) : undefined
     if (record) {
       records.push(record)
     }
@@ -142,9 +142,8 @@ export function localAdapter(): StorageAdapter {
         )
     },
     subscribe(surface, onChange) {
-      const prefixes = [surface, "@app"].map(prefixOf)
       const listener = (key: string | null) => {
-        if (key === null || prefixes.some((prefix) => key.startsWith(prefix))) {
+        if (key === null || owns(key, [surface, "@app"])) {
           onChange()
         }
       }
