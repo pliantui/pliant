@@ -102,29 +102,60 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm build:packages
-      # 19.2.0 is the lowest React version `@pliantui/react` supports.
+      # 19.2.0 is the lowest React version @pliantui/react supports. The type
+      # packages are pinned too, so the declarations check against its types.
       - run: >-
-          pnpm --filter @pliantui/react --filter www
-          add --save-dev --save-exact react@19.2.0 react-dom@19.2.0
+          pnpm --filter @pliantui/react --filter www add
+          react@19.2.0 react-dom@19.2.0 @types/react@19.2.0 @types/react-dom@19.2.0
+      - run: |
+          for pkg in @pliantui/react www; do
+            for dep in react react-dom @types/react @types/react-dom; do
+              pnpm --filter "$pkg" exec node -e '
+                const [dep, want] = process.argv.slice(1)
+                const { version } = JSON.parse(
+                  require("node:fs").readFileSync(`node_modules/${dep}/package.json`, "utf8")
+                )
+                if (version !== want) throw new Error(`${dep} is ${version}, not ${want}`)
+              ' "$dep" 19.2.0
+            done
+          done
       - run: pnpm --filter @pliantui/react typecheck
+      - run: >-
+          pnpm --filter @pliantui/react
+          exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false
+          --module preserve --moduleResolution bundler dist/index.d.ts dist/table.d.ts
       - run: pnpm --filter @pliantui/react test
       - run: pnpm --filter www exec vitest run
 
   next:
     runs-on: ubuntu-latest
-    name: pnpm build (next 16.2.0)
+    name: pnpm build (next ${{ matrix.next }})
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        next: ["16.0.0", "16.0.11", "16.1.0", "16.1.7", "16.2.0"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm build:packages
-      # 16.2.0 is the lowest version that builds the docs app. Earlier 16.x
-      # releases can't parse the Turbopack loader rules that fumadocs-mdx sets.
-      - run: pnpm --filter www add --save-dev --save-exact next@16.2.0
-      - run: pnpm --filter www exec vitest run
-      - run: pnpm --filter www build
+      - run: pnpm --filter tests add next@${{ matrix.next }}
+      - run: |
+          for pkg in tests; do
+            for dep in next; do
+              pnpm --filter "$pkg" exec node -e '
+                const [dep, want] = process.argv.slice(1)
+                const { version } = JSON.parse(
+                  require("node:fs").readFileSync(`node_modules/${dep}/package.json`, "utf8")
+                )
+                if (version !== want) throw new Error(`${dep} is ${version}, not ${want}`)
+              ' "$dep" ${{ matrix.next }}
+            done
+          done
+      # Builds a minimal app that uses the packages, as an app of ours would.
+      - run: pnpm --filter tests build:fixture
 
   table:
     runs-on: ubuntu-latest
@@ -136,12 +167,29 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm build:packages
-      # 9.3.1 is the lowest TanStack Table version `@pliantui/react` supports.
+      # 9.3.1 is the lowest TanStack Table version @pliantui/react supports.
       - run: >-
-          pnpm --filter @pliantui/react --filter www
-          add --save-dev --save-exact @tanstack/react-table@9.3.1
+          pnpm --filter @pliantui/react --filter www add
+          @tanstack/react-table@9.3.1
+      - run: |
+          for pkg in @pliantui/react www; do
+            for dep in @tanstack/react-table; do
+              pnpm --filter "$pkg" exec node -e '
+                const [dep, want] = process.argv.slice(1)
+                const { version } = JSON.parse(
+                  require("node:fs").readFileSync(`node_modules/${dep}/package.json`, "utf8")
+                )
+                if (version !== want) throw new Error(`${dep} is ${version}, not ${want}`)
+              ' "$dep" 9.3.1
+            done
+          done
       - run: pnpm --filter @pliantui/react typecheck
+      - run: >-
+          pnpm --filter @pliantui/react
+          exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false
+          --module preserve --moduleResolution bundler dist/table.d.ts
       - run: pnpm --filter @pliantui/react test
+      - run: pnpm --filter www exec vitest run
 
   ai:
     runs-on: ubuntu-latest
@@ -153,7 +201,25 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm build:packages
-      # 7.0.0 is the first stable AI SDK 7 release.
-      - run: pnpm --filter @pliantui/server add --save-dev --save-exact ai@7.0.0
+      # 7.0.0 is the lowest version @pliantui/server supports.
+      - run: pnpm --filter @pliantui/server add ai@7.0.0
+      - run: |
+          for pkg in @pliantui/server; do
+            for dep in ai; do
+              pnpm --filter "$pkg" exec node -e '
+                const [dep, want] = process.argv.slice(1)
+                const { version } = JSON.parse(
+                  require("node:fs").readFileSync(`node_modules/${dep}/package.json`, "utf8")
+                )
+                if (version !== want) throw new Error(`${dep} is ${version}, not ${want}`)
+              ' "$dep" 7.0.0
+            done
+          done
       - run: pnpm --filter @pliantui/server typecheck
       - run: pnpm --filter @pliantui/server test
+      # `ai`'s own declarations reference Node.js types, hence --types node.
+      - run: >-
+          pnpm --filter @pliantui/server
+          exec tsc --ignoreConfig --noEmit --strict --skipLibCheck false
+          --types node --module preserve --moduleResolution bundler
+          dist/index.d.ts dist/recordings.d.ts

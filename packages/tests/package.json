@@ -8,10 +8,17 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --max-warnings 0 .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "build:fixture": "next build next-fixture"
   },
   "dependencies": {
-    "pliantui": "workspace:*"
+    "@pliantui/react": "workspace:*",
+    "@pliantui/server": "workspace:*",
+    "ai": "^7.0.173",
+    "next": "^16.4.6",
+    "pliantui": "workspace:*",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@pliantui/contract": "workspace:*",

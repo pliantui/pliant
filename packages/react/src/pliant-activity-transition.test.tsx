@@ -1,8 +1,8 @@
-import * as React from "react"
 import {
   startTransition,
   useLayoutEffect,
   useState,
+  version,
   ViewTransition,
   type ReactNode,
 } from "react"
@@ -76,7 +76,7 @@ afterEach(() => {
 // A view transition waiting on fonts defers the layout phase of the commit
 // that shows region-a past a microtask. ViewTransition ships in React 19.3, so
 // earlier supported releases have no such deferral to test.
-it.skipIf(!("ViewTransition" in React))(
+it.skipIf(version.startsWith("19.2."))(
   "keeps a region registered while a view transition defers showing it",
   async () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false)
