@@ -87,6 +87,21 @@ describe("defineManifest", () => {
     })
   })
 
+  it("accepts only built-in and namespaced capability keys in its type", () => {
+    expect(() =>
+      defineManifest({
+        kind: "badge",
+        version: 1,
+        description: "Status label",
+        capabilities: {
+          "crm:starrable": { icon: "star" },
+          // @ts-expect-error a misspelled capability is a type error
+          hidable: true,
+        },
+      })
+    ).toThrow("hidable")
+  })
+
   it("throws on an invalid manifest", () => {
     expect(() =>
       defineManifest({

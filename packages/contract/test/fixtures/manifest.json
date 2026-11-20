@@ -612,6 +612,14 @@
       "capabilities": {
         "crm:": true
       }
+    },
+    {
+      "kind": "button",
+      "version": 1,
+      "description": "Clickable action",
+      "capabilities": {
+        "crm:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": true
+      }
     }
   ],
   "crossField": [

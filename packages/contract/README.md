@@ -53,7 +53,7 @@ A saved view also needs every overlay to have the view's `surface` and `layer`, 
 
 Bare op names and the `pliant:` namespace belong to built-in ops. An op named `namespace:name`, with a kebab-case namespace and a camelCase name such as `crm:markMine`, belongs to an extension. It writes a single property on its target, `ext.<namespace>.<name>`, whose value is its arguments, and it can't write any other property. No built-in op writes a property that starts with `ext.`. `catalog.json` lists only built-in ops, so a validator that reads it treats every namespaced op as unknown.
 
-A manifest's `capabilities` may hold namespaced keys, such as `"crm:starrable"`, with any JSON value. Keep them and otherwise ignore them. Every other key must be one of the built-in capabilities, so a typo like `hidable` is an error.
+A manifest's `capabilities` may hold namespaced keys, such as `"crm:starrable"`, with any JSON value. A namespaced key is a kebab-case `namespace:name` of at most 64 characters, outside the `pliant:` namespace. Keep them and otherwise ignore them. Every other key must be one of the built-in capabilities, so a typo like `hidable` is an error.
 
 ## Stored overlays
 

@@ -2567,6 +2567,12 @@ describe("resolveLayers", () => {
       ["personal", 2, "invalid", "invalid"],
       ["personal", 3, "invalid", "invalid"],
     ])
+    const extensionOps = skipped.flatMap((entry) =>
+      entry.reason === "extension-not-installed"
+        ? [[entry.check.op.op, entry.check.extension]]
+        : []
+    )
+    expect(extensionOps).toEqual([["crm:star", true]])
     expect(skipped[2]?.check).toBe(personal.ops[0])
     expect(skipped[2]?.overlay).toBe(personal)
     expect(skipped[0]?.overlay).toBe(team)

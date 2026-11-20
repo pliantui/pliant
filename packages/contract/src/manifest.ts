@@ -58,8 +58,11 @@ const builtInCapabilities = {
 // Namespaced capabilities hold any JSON value, kept but not read, so a
 // manifest written for an extension still loads where it isn't installed.
 // Any other unknown key is rejected, so a typo like `hidable` stays an error.
-const capabilitiesSchema = z
-  .object(builtInCapabilities)
+const builtInCapabilitiesSchema = z.object(builtInCapabilities)
+
+type NamespacedCapabilities = Record<`${string}:${string}`, unknown>
+
+const capabilitiesSchema = builtInCapabilitiesSchema
   .catchall(z.unknown())
   .superRefine((capabilities, ctx) => {
     const keys = Object.keys(capabilities).filter(
@@ -73,7 +76,10 @@ const capabilitiesSchema = z
   })
   .meta({
     patternProperties: { [`^${idPatterns.namespaced}$`]: {} },
-    propertyNames: { not: { pattern: "^pliant:" } },
+    propertyNames: {
+      maxLength: registeredNameSchema.maxLength,
+      not: { pattern: "^pliant:" },
+    },
     additionalProperties: false,
   })
 
@@ -91,8 +97,18 @@ const manifestObjectSchema = z
 
 export const manifestSchema = withoutReservedKeys(manifestObjectSchema)
 
-export type Manifest = z.infer<typeof manifestSchema>
+// The schema's own types allow any capability key; these allow only the
+// built-in ones and namespaced ones, so a typo is a type error.
+export type Manifest = Omit<z.output<typeof manifestSchema>, "capabilities"> & {
+  capabilities: z.output<typeof builtInCapabilitiesSchema> &
+    NamespacedCapabilities
+}
 
-export function defineManifest(manifest: z.input<typeof manifestSchema>) {
+type ManifestInput = Omit<z.input<typeof manifestSchema>, "capabilities"> & {
+  capabilities: z.input<typeof builtInCapabilitiesSchema> &
+    NamespacedCapabilities
+}
+
+export function defineManifest(manifest: ManifestInput): Manifest {
   return manifestSchema.parse(manifest)
 }

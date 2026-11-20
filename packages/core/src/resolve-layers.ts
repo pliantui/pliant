@@ -90,10 +90,19 @@ export interface ResolvedProperty {
  */
 export type SkippedOp =
   | {
-      readonly check: Exclude<OpCheck, { status: "valid" }>
+      readonly check: Extract<OpCheck, { status: "unknown" }>
       readonly overlay: LoadedOverlay
-      readonly reason:
-        Exclude<OpCheck["status"], "valid"> | "extension-not-installed"
+      readonly reason: "unknown" | "extension-not-installed"
+    }
+  | {
+      readonly check: Extract<OpCheck, { status: "newer" }>
+      readonly overlay: LoadedOverlay
+      readonly reason: "newer"
+    }
+  | {
+      readonly check: Extract<OpCheck, { status: "invalid" }>
+      readonly overlay: LoadedOverlay
+      readonly reason: "invalid"
     }
   | {
       readonly check: OpCheck
@@ -250,10 +259,16 @@ export function resolveLayers(
     for (const check of overlay.ops) {
       if (reason) {
         skipped.push({ check, overlay, reason })
-      } else if (check.status === "unknown" && check.extension) {
-        skipped.push({ check, overlay, reason: "extension-not-installed" })
-      } else if (check.status !== "valid") {
-        skipped.push({ check, overlay, reason: check.status })
+      } else if (check.status === "unknown") {
+        skipped.push({
+          check,
+          overlay,
+          reason: check.extension ? "extension-not-installed" : "unknown",
+        })
+      } else if (check.status === "newer") {
+        skipped.push({ check, overlay, reason: "newer" })
+      } else if (check.status === "invalid") {
+        skipped.push({ check, overlay, reason: "invalid" })
       } else {
         const notApplied = applyOp(state, { check, overlay }, scope)
         if (notApplied) {
