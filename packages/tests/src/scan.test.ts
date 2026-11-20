@@ -274,6 +274,55 @@ describe("pliantui scan", () => {
     expect(help?.baseOrder["hooked"]).toEqual(["one", "two", "hooked-footer"])
   })
 
+  it("places each region from one hook where its own member renders", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    const { output } = await scanJson(cwd)
+    const help = output.inventory["help"]
+
+    expect(help?.baseIds.source).toBe("inventory")
+    // useTwoRegions returns { a, b }: both regions keep their slots, and
+    // b's slots render after the banner, where both.b is used.
+    expect(help?.baseOrder["two-a"]).toEqual(["a1"])
+    expect(help?.baseOrder["two-b"]).toEqual(["two-banner", "b1"])
+  })
+
+  it("places the slots of a destructured region where they render", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    const { output } = await scanJson(cwd)
+    const help = output.inventory["help"]
+
+    // `const { entries } = usePliantRegion(…)`, and the same through
+    // `hooks.useHookedRegion()`.
+    expect(help?.baseOrder["destructured"]).toEqual([
+      "d1",
+      "d2",
+      "destructured-footer",
+    ])
+    expect(help?.baseOrder["hooked"]).toEqual(["one", "two", "hooked-footer"])
+  })
+
+  it("warns when it can't tell where a region's slots render", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await edit(
+      cwd,
+      "components/two-panel.tsx",
+      "{both.b.entries.map(",
+      "{[].map("
+    )
+    const { output } = await scanJson(cwd)
+    const help = output.inventory["help"]
+
+    expect(help?.baseIds.source).toBe("mounted")
+    // The slots are still listed.
+    expect(help?.baseParents["b1"]).toBe("two-b")
+    expect(output.warnings).toContainEqual({
+      file: "components/two-panel.tsx",
+      line: 5,
+      message:
+        "Where TwoPanel renders the slots of two-b can't be told, so their order among its other nodes isn't known.",
+    })
+  })
+
   it("reports ids passed into the app's own hook", async () => {
     const cwd = await createFixtureDirectory("scan-app")
     await writeFile(

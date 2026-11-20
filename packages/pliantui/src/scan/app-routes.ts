@@ -55,9 +55,12 @@ export function appDirectory(
  * extension, in the App Router folder `app`.
  */
 export function isAppLayout(file: string, app: string) {
+  const relative = path.relative(app, file)
+  // On Windows, a file on another drive has an absolute relative path.
   return (
     /^layout\.[cm]?[jt]sx?$/.test(path.basename(file)) &&
-    !path.relative(app, file).startsWith("..")
+    !relative.startsWith("..") &&
+    !path.isAbsolute(relative)
   )
 }
 

@@ -28,6 +28,12 @@ import { appDirectory, appRoutes, isAppLayout } from "./app-routes"
 import { isPliantExport } from "./pliant-export"
 import { readColumns } from "./read-columns"
 import {
+  reaches,
+  returnPath,
+  usageOf,
+  type MemberPath,
+} from "./region-placement"
+import {
   addNode,
   builtInKinds,
   type NodeKind,
@@ -61,7 +67,16 @@ interface Walk {
    * Slots declared but not yet walked, by the variable holding the region,
    * so they take their place where the component renders the region.
    */
-  readonly pendingSlots: Map<Node, () => void>
+  readonly pendingSlots: Map<Node, PendingSlots[]>
+}
+
+/** A region's slots, waiting for the place the component renders them. */
+interface PendingSlots {
+  /** Where the region sits in the variable's value, if the scan can tell. */
+  readonly path: MemberPath | undefined
+  /** The region's id, for reports. */
+  readonly name: string
+  readonly render: () => void
 }
 
 type Hook = "region" | "table"
@@ -89,6 +104,8 @@ interface HookCall {
   readonly caller: ComponentFunction
   /** The call in the component that leads to the hook. */
   readonly site: CallExpression
+  /** Where the region or table sits in the value `site` returns. */
+  readonly path: MemberPath | undefined
 }
 
 /**
@@ -106,7 +123,7 @@ function hookCalls(
     .flatMap((call): HookCall[] => {
       const hook = hookOf(call)
       if (hook) {
-        return [{ call, hook, caller: fn, site: call }]
+        return [{ call, hook, caller: fn, site: call, path: [] }]
       }
       // The app's own hook, called as `useX()` or `hooks.useX()`.
       const callee = call.getExpression()
@@ -117,7 +134,14 @@ function hookCalls(
           : ""
       const custom = /^use[A-Z]/.test(name) ? functionIn(callee) : undefined
       return custom && !seen.has(custom)
-        ? hookCalls(custom, seen).map((found) => ({ ...found, site: call }))
+        ? hookCalls(custom, seen).map((found) => {
+            const outer = returnPath(custom, found.site)
+            return {
+              ...found,
+              site: call,
+              path: outer && found.path && [...outer, ...found.path],
+            }
+          })
         : []
     })
 }
@@ -350,10 +374,19 @@ function renderPendingSlots(node: Node, walk: Walk) {
   if (walk.pendingSlots.size === 0) {
     return
   }
-  const declaration = getDeclarations(node)[0]
-  const render = declaration && walk.pendingSlots.get(declaration)
-  if (declaration && render) {
-    walk.pendingSlots.delete(declaration)
+  const usage = usageOf(node)
+  const pending = usage && walk.pendingSlots.get(usage.variable)
+  if (!usage || !pending) {
+    return
+  }
+  const ready = pending.filter(
+    ({ path }) => path !== undefined && reaches(usage.path, path)
+  )
+  walk.pendingSlots.set(
+    usage.variable,
+    pending.filter((item) => !ready.includes(item))
+  )
+  for (const { render } of ready) {
     render()
   }
 }
@@ -504,8 +537,8 @@ function walkComponent(
   walk.surface.files.add(fn.getSourceFile().getFilePath())
   // A region or table holds everything its component renders.
   let holder = parent
-  const pending: Node[] = []
-  for (const { call, hook, caller, site } of hookCalls(fn)) {
+  const pending = new Set<Node>()
+  for (const { call, hook, caller, site, path } of hookCalls(fn)) {
     walk.visited.add(call)
     walk.surface.files.add(caller.getSourceFile().getFilePath())
     // The app's own hook can't read the component's props, and its
@@ -529,17 +562,32 @@ function walkComponent(
     // The variable that holds the region in the component, such as
     // `const region = useFramed()`.
     const key = site.getParentIfKind(SyntaxKind.VariableDeclaration) ?? site
-    walk.pendingSlots.set(key, region.renderSlots)
-    pending.push(key)
+    walk.pendingSlots.set(key, [
+      ...(walk.pendingSlots.get(key) ?? []),
+      { path, name: region.id ?? "a region", render: region.renderSlots },
+    ])
+    pending.add(key)
   }
   const body = fn.getBody()
   if (body) {
     walkNode(body, scope, holder, walk)
   }
-  // Slots the component never visibly renders still belong to the region.
+  // Slots still waiting belong to the region all the same, but where they
+  // render among the component's other nodes is unknown.
   for (const key of pending) {
-    walk.pendingSlots.get(key)?.()
+    const left = walk.pendingSlots.get(key) ?? []
     walk.pendingSlots.delete(key)
+    if (left.length > 0) {
+      const names = left.map((item) => item.name).join(" and ")
+      warn(
+        walk,
+        key,
+        `Where ${componentName(fn) ?? "this component"} renders the slots of ${names} can't be told, so their order among its other nodes isn't known.`
+      )
+    }
+    for (const { render } of left) {
+      render()
+    }
   }
 }
 
