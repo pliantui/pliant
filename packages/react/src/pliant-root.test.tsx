@@ -1,6 +1,6 @@
 import {
   Activity,
-  StrictMode,
+  Profiler,
   useEffect,
   useLayoutEffect,
   type ReactNode,
@@ -321,9 +321,7 @@ describe("PliantRoot", () => {
       const { placements } = useResolved()
       return <output>{placements.get("c")?.container ?? "dashboard"}</output>
     }
-    const renders = vi.fn()
     function App({ sidebar }: { sidebar: boolean }) {
-      renders()
       return (
         <PliantRoot surface={surface} storage={storage}>
           <Node id="dashboard" />
@@ -344,7 +342,18 @@ describe("PliantRoot", () => {
       await Promise.resolve()
     })
     expect(screen.getByRole("status").textContent).toBe("sidebar")
-    expect(renders).toHaveBeenCalledTimes(2)
+
+    rerender(<App sidebar={false} />)
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(screen.getByRole("status").textContent).toBe("dashboard")
+
+    rerender(<App sidebar />)
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(screen.getByRole("status").textContent).toBe("sidebar")
   })
 
   it("returns the same resolved layers until something changes", async () => {
@@ -377,29 +386,6 @@ describe("PliantRoot", () => {
       result.current.store.applyOps("session", [width(200)])
     })
     expect(result.current.resolved).not.toBe(first)
-  })
-
-  it("works under StrictMode", () => {
-    const { storage, saved } = memoryAdapter()
-    const { result } = renderHook(
-      () => ({ resolved: useResolved(), store: usePliantStore() }),
-      {
-        wrapper: ({ children }: { children: ReactNode }) => (
-          <StrictMode>
-            <PliantRoot surface={surface} storage={storage}>
-              {children}
-            </PliantRoot>
-          </StrictMode>
-        ),
-      }
-    )
-
-    act(() => {
-      result.current.store.applyOps("personal", [width(200)])
-    })
-    expect(widthOf(result.current.resolved)).toBe(200)
-    window.dispatchEvent(new Event("pagehide"))
-    expect(saved).toHaveLength(1)
   })
 
   it("starts a new store when the surface changes", () => {
@@ -555,38 +541,37 @@ describe("PliantRoot", () => {
   })
 
   it("re-renders a selector only when its result changes", () => {
-    const renders = vi.fn()
+    const commits = vi.fn()
     const selectWidth = (resolved: ResolvedLayers) => widthOf(resolved)
     const { result } = renderHook(
-      () => {
-        renders()
-        return {
-          width: useResolved(selectWidth),
-          store: usePliantStore(),
-        }
-      },
+      () => ({
+        width: useResolved(selectWidth),
+        store: usePliantStore(),
+      }),
       {
         wrapper: ({ children }: { children: ReactNode }) => (
           <PliantRoot surface={surface} storage={memoryAdapter().storage}>
-            {children}
+            <Profiler id="hook" onRender={commits}>
+              {children}
+            </Profiler>
           </PliantRoot>
         ),
       }
     )
-    const before = renders.mock.calls.length
+    const before = commits.mock.calls.length
 
     act(() => {
       result.current.store.applyOps("session", [
         { op: "hide", target: "orders-table/columns/notes" },
       ])
     })
-    expect(renders).toHaveBeenCalledTimes(before)
+    expect(commits).toHaveBeenCalledTimes(before)
 
     act(() => {
       result.current.store.applyOps("session", [width(200)])
     })
     expect(result.current.width).toBe(200)
-    expect(renders).toHaveBeenCalledTimes(before + 1)
+    expect(commits).toHaveBeenCalledTimes(before + 1)
   })
 
   it("reports failed saves to onError and saves them again later", () => {

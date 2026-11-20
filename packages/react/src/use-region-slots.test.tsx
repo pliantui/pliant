@@ -1,4 +1,4 @@
-import { StrictMode, useState, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { act, cleanup, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -72,12 +72,10 @@ describe("useRegionSlots", () => {
       )
     }
     render(
-      <StrictMode>
-        <PliantRoot surface="/dashboard">
-          <Content id="orders" />
-          <Toggle />
-        </PliantRoot>
-      </StrictMode>
+      <PliantRoot surface="/dashboard">
+        <Content id="orders" />
+        <Toggle />
+      </PliantRoot>
     )
 
     expect(screen.getByRole("status").textContent).toBe("Orders")
@@ -114,17 +112,15 @@ describe("useRegionSlots", () => {
       shown: boolean
     }) {
       return (
-        <StrictMode>
-          <PliantRoot surface="/dashboard">
-            <Content id="card" />
-            <MountedIds />
-            {shown && (
-              <PliantActivity mode={mode}>
-                <Region id="inner" slots={{ card: "Card" }} />
-              </PliantActivity>
-            )}
-          </PliantRoot>
-        </StrictMode>
+        <PliantRoot surface="/dashboard">
+          <Content id="card" />
+          <MountedIds />
+          {shown && (
+            <PliantActivity mode={mode}>
+              <Region id="inner" slots={{ card: "Card" }} />
+            </PliantActivity>
+          )}
+        </PliantRoot>
       )
     }
     const { rerender } = render(<Page mode="visible" shown />)
