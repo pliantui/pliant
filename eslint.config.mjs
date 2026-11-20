@@ -13,6 +13,8 @@ export default defineConfig(
     "**/.turbo/**",
     "**/.open-next/**",
     "**/.wrangler/**",
+    "packages/tests/fixtures/**",
+    "packages/tests/temp/**",
   ]),
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
