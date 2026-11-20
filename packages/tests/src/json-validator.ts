@@ -84,7 +84,7 @@ const catalog = new Map(
 )
 
 const kebab = "[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
-const opName = new RegExp(`^(?:[a-z][A-Za-z0-9]*|${kebab}:${kebab})$`)
+const opName = new RegExp(`^(?:${kebab}:)?[a-z][A-Za-z0-9]*$`)
 const target = /^(?:[a-z][A-Za-z0-9_\-[\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$/
 const slotTarget = /\/slots\/[^/]+$/
 const fieldTarget = /\/fields\/[^/]+$/

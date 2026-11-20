@@ -68,8 +68,9 @@ export const opNameSchema = notReserved(
   z
     .string()
     .max(64)
-    .regex(new RegExp(`^(?:[a-z][A-Za-z0-9]*|${namespaced})$`), {
-      message: "Must be a built-in op name or namespace:name",
+    .regex(new RegExp(`^(?:${kebab}:)?[a-z][A-Za-z0-9]*$`), {
+      message:
+        "Must be camelCase, optionally namespaced, for example crm:markMine",
       abort: true,
     })
 )

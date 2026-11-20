@@ -33,7 +33,7 @@ describe("checkOp", () => {
     })
   })
 
-  it.each(["crm:star", "acme-crm:mark-mine", "crm:hide"])(
+  it.each(["crm:star", "acme-crm:markMine", "crm:hide"])(
     "treats the namespaced op %s as unknown, from an extension",
     (name) => {
       const op = { op: name, target: "orders-table", value: { on: true } }
@@ -49,6 +49,8 @@ describe("checkOp", () => {
   it.each([
     "pliant:star",
     "crm:Star",
+    "crm:mark-mine",
+    "crm:1x",
     "Crm:star",
     "crm:",
     ":star",

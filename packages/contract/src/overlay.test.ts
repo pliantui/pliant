@@ -55,7 +55,7 @@ describe("overlaySchema", () => {
 })
 
 describe("overlayOpSchema", () => {
-  it.each(["hide", "setTheme", "crm:star", "acme-crm:mark-mine"])(
+  it.each(["hide", "setTheme", "crm:star", "acme-crm:markMine"])(
     "accepts the op name %s",
     (op) => {
       expect(overlayOpSchema.safeParse({ op, target: "orders" }).success).toBe(
@@ -69,6 +69,8 @@ describe("overlayOpSchema", () => {
     "set_theme",
     "pliant:star",
     "crm:Star",
+    "crm:mark-mine",
+    "Crm:star",
     "crm:star:x",
     "crm:",
     `crm:${"a".repeat(61)}`,

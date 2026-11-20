@@ -16,7 +16,7 @@ To validate an overlay:
 
 1. Check it against `overlay.json`, plus one `explain` sentence per op when `explain` is present.
 2. Give each op one status:
-   - **invalid** unless it is an object whose `op` matches `^(?:[a-z][A-Za-z0-9]*|[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$` and doesn't start with `pliant:` (at most 64 characters) and whose `target` matches `^(?:[a-z][A-Za-z0-9_\-[\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$` (at most 256);
+   - **invalid** unless it is an object whose `op` matches `^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*:)?[a-z][A-Za-z0-9]*$` and doesn't start with `pliant:` (at most 64 characters) and whose `target` matches `^(?:[a-z][A-Za-z0-9_\-[\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$` (at most 256);
    - **unknown** if its name isn't in `catalog.json`;
    - **valid** if it matches `op.json`, the overlay's `layer` is in its `layers`, its `target` is `@app` exactly when the overlay's `surface` is `@app`, and it passes the rules below;
    - **newer** if it is valid once every key other than `op` and `target` that appears in none of its `args` lists is removed;
@@ -51,7 +51,7 @@ A saved view also needs every overlay to have the view's `surface` and `layer`, 
 
 ## Namespaced ops and capabilities
 
-Bare op names and the `pliant:` namespace belong to built-in ops. An op named `namespace:name`, such as `crm:star`, belongs to an extension. It writes a single property on its target, `ext.<namespace>.<name>`, whose value is its arguments, and it can't write any other property. No built-in op writes a property that starts with `ext.`. `catalog.json` lists only built-in ops, so a validator that reads it treats every namespaced op as unknown.
+Bare op names and the `pliant:` namespace belong to built-in ops. An op named `namespace:name`, with a kebab-case namespace and a camelCase name such as `crm:markMine`, belongs to an extension. It writes a single property on its target, `ext.<namespace>.<name>`, whose value is its arguments, and it can't write any other property. No built-in op writes a property that starts with `ext.`. `catalog.json` lists only built-in ops, so a validator that reads it treats every namespaced op as unknown.
 
 A manifest's `capabilities` may hold namespaced keys, such as `"crm:starrable"`, with any JSON value. Keep them and otherwise ignore them. Every other key must be one of the built-in capabilities, so a typo like `hidable` is an error.
 
