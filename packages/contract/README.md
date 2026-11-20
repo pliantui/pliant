@@ -28,6 +28,10 @@ To validate an overlay:
 
 A `remove` targets a slot address outside a template or the bare id of a node. Whether a bare id names a node the user inserted or wrapped is checked at resolution time, not during validation.
 
+A reserved per-row address is a kebab-case node id, then `[`, one or more characters from `[A-Za-z0-9_-]`, then `]`, then `/` or the end of the address, for example `order-card[42]` or `order-card[42]/actions/refund`. That is, it matches `^[a-z][a-z0-9]*(?:-[a-z0-9]+)*\[[A-Za-z0-9_-]+\](?:/|$)`. It isn't valid, and the patterns in `schema/` don't match it. `order-card[]` addresses every row of a template. The Zod address and op schemas report a reserved address, whatever the rest of the address, with a custom issue whose `params.code` is `per-row-address-reserved`, in place of a format issue. It's always the first issue; on older Zod 4 releases, an address over the length limit also gets a length issue after it. An op with such a target is invalid.
+
+An overlay's optional `lang` is the BCP 47 language tag of its plain label strings. It must match `#/$defs/languageTag`: RFC 5646's `langtag` form, without grandfathered or private-use-only tags, in at most 64 characters. Zod checks the same pattern and length limit and nothing more, so the pattern is authoritative: the tag needn't be registered or canonical, and `Intl.getCanonicalLocales`, which is stricter (it rejects a repeated variant, for example), isn't used.
+
 When loading a saved overlay, apply only valid ops, flag unknown and newer ones, and keep every op unchanged when saving it again. Reject an AI answer or an import unless every op is valid.
 
 `validateOverlay` in `@pliantui/core` makes the checks above and doesn't read manifests. The following rules need manifests, so whatever applies ops with the manifests at hand must check them:

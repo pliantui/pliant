@@ -15,9 +15,7 @@ function Probe() {
   const { properties } = useResolved()
   const preview = usePreview()
   return (
-    <output>
-      {properties.size}:{preview === null ? "none" : preview.id}
-    </output>
+    <output>{`${String(properties.size)}:${preview?.id ?? "none"}`}</output>
   )
 }
 
@@ -33,7 +31,7 @@ describe("PliantRoot on the server", () => {
           <Probe />
         </PliantRoot>
       )
-    ).toBe("<output>0<!-- -->:<!-- -->none</output>")
+    ).toBe("<output>0:none</output>")
     expect(load).not.toHaveBeenCalled()
   })
 

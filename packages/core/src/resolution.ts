@@ -189,10 +189,9 @@ function baseParentOf(state: Resolution, id: string): string | undefined {
 /**
  * The container an item sits in when no placement of its own holds: its
  * base parent, or, when that node was removed, where that node sits, up the
- * chain. With no node left in the chain, as in a
- * cycle of removed nodes, it is the surface (cycles aren't rejected yet:
- * https://github.com/pliantui/pliant/issues/26). `memo` maps removed nodes to the
- * container their items go to, so a resolved chain is walked once.
+ * chain. With no node left in the chain, as in a cycle of removed nodes, it
+ * is the surface. `memo` maps removed nodes to the container their items go
+ * to, so a resolved chain is walked once.
  */
 function baseContainer(
   state: Resolution,
