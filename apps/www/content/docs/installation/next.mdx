@@ -3,9 +3,9 @@ title: Next.js
 description: Add Pliant to a Next.js app and make one region and one table customizable.
 ---
 
-<Callout type="warn" title="Not installable yet">
+<Callout type="warn" title="Not installable">
   The `@pliantui/*` packages aren't published to npm, and the component registry
-  isn't hosted yet, so the setup commands below don't work outside the Pliant
+  isn't hosted, so the setup commands below don't work outside the Pliant
   repository. You can try Pliant today from a clone. See the
   [roadmap](/docs/roadmap).
 </Callout>
@@ -26,11 +26,11 @@ PLIANT_ASK_ENABLED=1 pnpm --filter www dev
 
 Open [localhost:4000/examples/orders](http://localhost:4000/examples/orders). Sort the table, hide a column from the **Columns** menu and reload: the changes stay.
 
-When the packages are published, setup looks like this.
+The rest of this guide shows setup with the published packages.
 
 ## Before you start
 
-You need a Next.js app that uses the App Router, React 19.2 or later, and [shadcn/ui](https://ui.shadcn.com/docs/installation/next) with Tailwind CSS v4. If you don't have one, follow shadcn's Next.js guide first.
+You need a Next.js app that uses the App Router, Next.js 16 or later, React 19.2 or later, and [shadcn/ui](https://ui.shadcn.com/docs/installation/next) with Tailwind CSS v4. If you don't have one, follow shadcn's Next.js guide first.
 
 ## Install
 
@@ -48,7 +48,7 @@ pnpm add @pliantui/react zod
 pnpm dlx shadcn@latest add https://pliantui.dev/r/pliant-region.json
 ```
 
-This copies `pliant-region.tsx` into `components/pliant`, and adds the shadcn `button` if you don't have it. The file is yours to edit, like any shadcn component.
+This copies `pliant-region.tsx` into `components/pliant`. The shadcn CLI also installs the item's npm dependencies, and adds the shadcn `button` if you don't have it. The file is yours to edit, like any shadcn component.
 
 ## Make a page customizable
 
@@ -101,11 +101,11 @@ export default function OrdersPage() {
 
 The order of the keys is the default order. Ids are kebab-case and start with a letter. Give the region its spacing with `gap-*` classes: each slot sits in a `display: contents` wrapper, so `space-*` and `divide-*` won't work.
 
-Nothing changes on screen yet: the region renders as before. Overlays can now reorder, hide and resize the cards, group them, or fold some behind a "More" button. Users make those changes through the [ask panel](/docs/ask-panel). Pliant has no manual controls for regions yet. See the [roadmap](/docs/roadmap).
+The region renders as before. Overlays can now reorder, hide and resize the cards, group them, or fold some behind a "More" button. Users make those changes through the [ask panel](/docs/ask-panel). Pliant has no manual controls for regions. See the [roadmap](/docs/roadmap).
 
 ### Make a table remember its sort
 
-Pliant works with tables built on [TanStack Table](https://tanstack.com/table) v9, such as shadcn's data table. Pass your table's options through `usePliantTable` before they reach `useTable`, with an id for the table:
+Pliant works with tables built on [TanStack Table](https://tanstack.com/table) 9.3 or later, such as shadcn's data table. If your app doesn't have it, run `pnpm add @tanstack/react-table`; shadcn's data table installs it already. Pass your table's options through `usePliantTable` before they reach `useTable`, with an id for the table:
 
 ```tsx title="components/orders-table.tsx"
 "use client"

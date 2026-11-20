@@ -1,16 +1,16 @@
 ---
 title: Introduction
-description: The per-user and per-team customization layer you'd otherwise build yourself for your shadcn app.
+description: The layer that stores what each user changed in your shadcn app and applies it on top, so you don't build it yourself.
 ---
 
 <Callout type="warn" title="Experimental">
   Pliant is pre-1.0 and experimental. Its APIs can change in any release. Parts
-  that aren't built yet are noted where they come up.
+  that don't exist are noted where they come up.
 </Callout>
 
 Every app with tables and dashboards ends up needing the same thing: users want the page arranged their way. They want the columns they care about, sorted the way they work, with the cards they look at first on top. Teams want a shared default. The app wants all of it to survive a reload.
 
-Most teams build this by hand, one feature at a time: a sort that's saved per user, a column picker, a "reset layout" button. Pliant is that layer, built once. You keep your app and your shadcn components. Pliant stores what each user and team changed, and applies it on top.
+Most teams build this by hand, one feature at a time: a sort that's saved per user, a column picker, a "reset layout" button. Pliant is that layer, built once. You keep your app and your shadcn components. Pliant stores what each user changed and applies it on top, along with any team or org defaults your storage returns.
 
 AI is one way to make those changes. A user can ask "hide the notes column" and see the result before saving it. It's optional. Clicking a column header to sort saves the same way.
 
@@ -49,13 +49,13 @@ Overlays live in **layers**. There are four, from lowest to highest:
 
 When two layers set the same property, the higher layer wins. That's decided per property, not per page. A team can set a default sort while a user hides a column, and both apply.
 
-Put together: a surface contains regions and tables; overlays describe changes to them; layers stack overlays from `org` (lowest) up to `session` (highest); Pliant applies the result on top of the page you wrote.
+Put together: a surface contains regions and tables; overlays describe changes to them; layers stack overlays from `org` (lowest) up to `session` (highest); Pliant applies the result on top of the page you wrote. See [Core concepts](/docs/concepts) for details.
 
 The page you wrote is the base. With no overlays, it renders your page as you wrote it.
 
 <Callout>
   Pliant loads `org` and `team` overlays from your storage, but doesn't create
-  them yet, so users create `personal` and `session` overlays only. See the
+  them, so users create `personal` and `session` overlays only. See the
   [roadmap](/docs/roadmap).
 </Callout>
 
@@ -63,7 +63,7 @@ The page you wrote is the base. With no overlays, it renders your page as you wr
 
 ### Works without AI
 
-Sorting, column order, visibility and widths are saved as you use the table, with no AI involved. Pagination stays in the session layer. Filters do too, unless you choose to save them. Pliant doesn't have saved views, named arrangements a user can switch between, yet. See the [roadmap](/docs/roadmap).
+Sorting, column order, visibility and widths are saved as you use the table, with no AI involved. Pagination stays in the session layer. Filters do too, unless you choose to save them. Pliant doesn't have saved views, which are named arrangements a user can switch between. See the [roadmap](/docs/roadmap).
 
 ### Uses your design system
 

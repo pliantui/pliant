@@ -1,11 +1,14 @@
 {
   "pages": [
+    "---Get started---",
     "index",
     "installation",
-    "concepts",
-    "cli",
+    "---Guides---",
     "storage",
     "ask-panel",
+    "---Reference---",
+    "concepts",
+    "cli",
     "roadmap"
   ]
 }

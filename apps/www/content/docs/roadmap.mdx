@@ -1,6 +1,6 @@
 ---
 title: Roadmap
-description: What's planned for Pliant, and what isn't built yet.
+description: What's planned for Pliant.
 ---
 
 Pliant is pre-1.0. These lists describe intent, not commitments, and carry no dates.
@@ -11,7 +11,6 @@ Pliant is pre-1.0. These lists describe intent, not commitments, and carry no da
 - A `pliantui init` command that sets Pliant up in your app.
 - Guides for Vite, React Router and the Next.js Pages Router.
 - Team and org overlays: publishing a layout as a team default, with a self-hosted server storage adapter.
-- Conflict-safe saves in the storage adapter, for two tabs or devices saving at once.
 - Saved views: named arrangements a user can switch between.
 - Manual editing of regions without AI.
 - Deriving the ask panel's `context` from your regions.
@@ -22,14 +21,14 @@ Pliant is pre-1.0. These lists describe intent, not commitments, and carry no da
 - A per-user theme choice among your app's own themes.
 - A history panel listing each change, with undo to any point.
 - "View as user" for admins, so support sees exactly what a user sees.
-- A Prisma adapter, and MySQL and SQLite support for server data.
-- Approximate percentiles on server data.
+- A Prisma adapter for storage, and support for querying your data on the server with MySQL and SQLite.
+- Approximate percentiles in server queries.
 - Tailwind CSS v3 support for the components, if apps adopting Pliant need it.
 
 ## After 1.0
 
-- Packs of saved views, with signing.
-- Relations between datasets and a query layer.
+- Packs of saved views that you can share between apps, with signatures that show who made them.
+- Relations between your tables, and one query layer over them.
 - Vue and Svelte.
-- Export to A2UI.
+- Export to A2UI, an open format for describing interfaces that AI agents can generate.
 - Several answer variants to choose from in the ask panel.

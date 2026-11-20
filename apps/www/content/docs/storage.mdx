@@ -7,7 +7,7 @@ description: Save each user's changes to your backend instead of the browser.
 
 ## The adapter
 
-An adapter is an object of functions. Any of them may return a Promise.
+An adapter is an object of functions. Any of them except `subscribe` may return a Promise.
 
 | Method                                | Required | What it does                                                                 |
 | ------------------------------------- | -------- | ---------------------------------------------------------------------------- |
@@ -38,11 +38,11 @@ type StoredOverlay = {
 - `etag` is an opaque string. Every successful save must give the record an etag it has never had before, even when it stores the same overlay again.
 - `version` starts at 1 when a record is created, and each save of that record increases it.
 - `updatedAt` is an RFC 3339 date-time with an offset.
-- `deletedAt` has the same format. A record that has it is a tombstone.
+- `deletedAt` has the same format and the same value as `updatedAt`. A record that has it is a tombstone.
 
 ### Load
 
-`load` returns the live stored records of the surface in every layer the user can read, without tombstones:
+`load` returns the live stored records of the surface in every layer the user can read, without tombstones. It also returns the overlays of the `@app` surface, which apply to every surface:
 
 ```ts
 { org?: StoredOverlay[], team?: StoredOverlay[], personal?: StoredOverlay[] }
@@ -86,7 +86,8 @@ This adapter keeps overlays behind your own `/api/layers` route and turns a 412 
 
 ```ts title="lib/pliant-storage.ts"
 import type { StorageAdapter, StoredLayers } from "@pliantui/react"
-import type { StoredOverlay } from "@pliantui/contract"
+
+type StoredOverlay = Awaited<ReturnType<StorageAdapter["save"]>>
 
 function conflict(current: StoredOverlay | undefined) {
   const error = new Error("The stored overlay doesn't match ifMatch")

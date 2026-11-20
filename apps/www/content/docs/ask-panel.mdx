@@ -36,8 +36,17 @@ The route turns an ask into a validated overlay and sends it back. It never chan
 - `model` takes an [AI SDK](https://ai-sdk.dev) language model instance, such as `anthropic("claude-haiku-5-5")`. A model id string isn't accepted.
 - `getUser` returns the signed-in user's id, or `null` to answer with a 401.
 
+Other options:
+
+| Option         | Default | What it does                                                |
+| -------------- | ------- | ----------------------------------------------------------- |
+| `maxToolCalls` | 8       | Most tool calls the model may make in one answer.           |
+| `timeout`      | 15000   | Milliseconds allowed for each model call.                   |
+| `onError`      | none    | Called with errors the response hides, so you can log them. |
+
 <Callout type="warn">
-  The route has no rate limits yet. Keep it behind your sign-in.
+  The route doesn't rate-limit asks. Keep it behind your sign-in, and add rate
+  limiting before you expose it.
 </Callout>
 
 ## Add the panel
@@ -84,11 +93,11 @@ export function AskButton() {
 }
 ```
 
-`context` tells the model what the region holds: its kind, what can change, and its items. It never includes your rows.
+`context` tells the model what the region holds: its kind, what can change, and its items. It never includes your rows. A target can also have `suggestions`, a list of example asks shown as chips that fill in the prompt.
 
 <Callout>
   You write each target's `context` by hand. Pliant doesn't derive it from the
-  region yet. See the [roadmap](/docs/roadmap).
+  region. See the [roadmap](/docs/roadmap).
 </Callout>
 
 Render it inside `PliantRoot`, next to the region:
@@ -120,3 +129,5 @@ The panel opens from an "Ask" button. From the `sm` breakpoint up it docks to th
   …
 </main>
 ```
+
+To let users point at the part of the page they want to change instead of picking it from a list, add `pliant-point-mode` with the same shadcn command.
