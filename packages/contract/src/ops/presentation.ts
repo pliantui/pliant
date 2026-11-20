@@ -13,7 +13,7 @@ export const presentationOpSchemas = {
       op: z.literal("setPresentation"),
       target: nodeAddressSchema(),
       as: z.enum(["sheet", "drawer"]),
-      side: z.enum(["top", "right", "bottom", "left"]).optional(),
+      side: z.enum(["top", "end", "bottom", "start"]).optional(),
     }),
   ]),
   setSize: z.strictObject({

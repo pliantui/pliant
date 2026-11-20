@@ -19,7 +19,7 @@ Before writing a package, study how the best comparable library does it and matc
 
 ## Layout
 
-- Only these paths exist: `.changeset`, `.github`, `apps/www`, `packages/{contract,core,react,server,pliantui,tests}`, the root config files, and the root documents (`README.md`, `CONTRIBUTING.md`, `RELEASING.md`, `SECURITY.md`, `LICENSE.md`, `AGENTS.md`, `CLAUDE.md`).
+- Only these paths exist: `.changeset`, `.github`, `apps/www`, `packages/{contract,core,react,server,pliantui,tests}`, the root config files, and the root documents (`README.md`, `CONTRIBUTING.md`, `RELEASING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, `LICENSE.md`, `AGENTS.md`, `CLAUDE.md`).
 - No stray files: no notes, plans, reports, scratch scripts, logs or extra markdown. Planning and experiments live outside this repository.
 - Documentation is MDX in `apps/www/content/docs`. Package `README.md` files stay short.
 - File names are kebab-case. Tests sit next to the code as `*.test.ts`; integration tests go in `packages/tests`.

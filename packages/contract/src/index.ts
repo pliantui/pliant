@@ -27,6 +27,7 @@ export {
   type Manifest,
   type ManifestProp,
 } from "./manifest"
+export { manifestDefaultSchema, type ManifestDefault } from "./manifest-default"
 export { opSchema, opSchemas, type Op, type OpName } from "./op"
 export { opCatalog, type OpDefinition } from "./op-catalog"
 export {

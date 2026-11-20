@@ -20,5 +20,6 @@ export default defineConfig({
   define: { __PLIANT_CORE_VERSION__: JSON.stringify(version) },
   test: {
     environment: "happy-dom",
+    setupFiles: ["./vitest.setup.ts"],
   },
 })

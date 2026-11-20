@@ -12,6 +12,7 @@ export const capabilitySchema = z.enum([
   "nav",
   "actions",
   "data",
+  "defaults",
 ])
 
 export type Capability = z.infer<typeof capabilitySchema>

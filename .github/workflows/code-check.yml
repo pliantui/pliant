@@ -47,6 +47,17 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm typecheck
 
+  knip:
+    runs-on: ubuntu-latest
+    name: pnpm knip
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm knip
+
   build:
     runs-on: ubuntu-latest
     name: pnpm build

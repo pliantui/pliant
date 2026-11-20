@@ -10,7 +10,7 @@ The documentation lives in [`apps/www/content/docs`](apps/www/content/docs).
 
 ## Contributing
 
-Please read the [contributing guide](/CONTRIBUTING.md).
+Please read the [contributing guide](/CONTRIBUTING.md). Everyone taking part in this project follows the [code of conduct](/CODE_OF_CONDUCT.md).
 
 ## License
 

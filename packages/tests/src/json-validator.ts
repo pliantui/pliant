@@ -66,7 +66,9 @@ function catalogEntry(value: unknown): CatalogEntry {
     !isObject(value) ||
     !isStrings(value["layers"]) ||
     !Array.isArray(value["args"]) ||
-    !value["args"].every(isStrings)
+    !value["args"].every(isStrings) ||
+    !Array.isArray(value["capability"]) ||
+    value["capability"].length !== value["args"].length
   ) {
     throw new TypeError("catalog.json has a malformed entry")
   }
@@ -81,9 +83,12 @@ const catalog = new Map(
   Object.entries(catalogOps).map(([name, entry]) => [name, catalogEntry(entry)])
 )
 
-const opName = /^[a-z][A-Za-z0-9]*$/
+const kebab = "[a-z][a-z0-9]*(?:-[a-z0-9]+)*"
+const opName = new RegExp(`^(?:${kebab}:)?[a-z][A-Za-z0-9]*$`)
 const target = /^(?:[a-z][A-Za-z0-9_\-[\]/]*|@[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$/
 const slotTarget = /\/slots\/[^/]+$/
+const fieldTarget = /\/fields\/[^/]+$/
+const itemSegment = /\/(?:columns|fields|items|actions)\//
 
 const reservedKeys = new Set(["__proto__", "constructor", "prototype"])
 
@@ -122,7 +127,23 @@ function countNodes(expression: unknown): number {
   return 1
 }
 
+function isDefaultValue(value: unknown) {
+  return typeof value === "string"
+    ? /^.{1,64}$/su.test(value)
+    : typeof value === "number" || typeof value === "boolean"
+}
+
+function passesSetDefaultRules(op: Json) {
+  const from = String(op["target"])
+  return "prop" in op
+    ? !itemSegment.test(`${from}/`) && isDefaultValue(op["value"])
+    : fieldTarget.test(from)
+}
+
 function passesExtraRules(op: Json) {
+  if (op["op"] === "setDefault" && !passesSetDefaultRules(op)) {
+    return false
+  }
   const to = op["to"]
   if (op["op"] === "move" && isObject(to) && "into" in to) {
     const from = String(op["target"])
@@ -176,6 +197,7 @@ export function opStatus(op: unknown, layer: string, surface: string): Status {
     typeof op["op"] !== "string" ||
     op["op"].length > 64 ||
     !opName.test(op["op"]) ||
+    op["op"].startsWith("pliant:") ||
     typeof op["target"] !== "string" ||
     op["target"].length > 256 ||
     !target.test(op["target"])
@@ -273,17 +295,27 @@ export function isManifestValid(manifest: unknown) {
   }
   const capabilities = manifest["capabilities"]
   const props = isObject(capabilities) ? capabilities["props"] : undefined
-  return Object.values(isObject(props) ? props : {}).every((prop: unknown) => {
-    if (!isObject(prop) || !isStrings(prop["values"])) {
-      return false
-    }
-    const allowed = new Set(prop["values"])
-    const semantic = isStrings(prop["semantic"]) ? prop["semantic"] : []
-    return (
-      (prop["default"] === undefined ||
-        (typeof prop["default"] === "string" &&
-          allowed.has(prop["default"]))) &&
-      semantic.every((value) => allowed.has(value))
-    )
-  })
+  const defaults = isObject(capabilities) ? capabilities["defaults"] : undefined
+  const ranges = Object.values(isObject(defaults) ? defaults : {}).every(
+    (declaration: unknown) =>
+      !isObject(declaration) ||
+      declaration["type"] !== "number" ||
+      Number(declaration["min"]) <= Number(declaration["max"])
+  )
+  return (
+    ranges &&
+    Object.values(isObject(props) ? props : {}).every((prop: unknown) => {
+      if (!isObject(prop) || !isStrings(prop["values"])) {
+        return false
+      }
+      const allowed = new Set(prop["values"])
+      const semantic = isStrings(prop["semantic"]) ? prop["semantic"] : []
+      return (
+        (prop["default"] === undefined ||
+          (typeof prop["default"] === "string" &&
+            allowed.has(prop["default"]))) &&
+        semantic.every((value) => allowed.has(value))
+      )
+    })
+  )
 }

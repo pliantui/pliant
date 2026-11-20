@@ -24,6 +24,43 @@ describe("checkOp", () => {
     }
   )
 
+  it("marks an unknown built-in op as not from an extension", () => {
+    expect(check({ op: "setTheme", target: "orders-table" })).toEqual({
+      index: 0,
+      status: "unknown",
+      op: { op: "setTheme", target: "orders-table" },
+      extension: false,
+    })
+  })
+
+  it.each(["crm:star", "acme-crm:markMine", "crm:hide"])(
+    "treats the namespaced op %s as unknown, from an extension",
+    (name) => {
+      const op = { op: name, target: "orders-table", value: { on: true } }
+      expect(check(op)).toEqual({
+        index: 0,
+        status: "unknown",
+        op,
+        extension: true,
+      })
+    }
+  )
+
+  it.each([
+    "pliant:star",
+    "crm:Star",
+    "crm:mark-mine",
+    "crm:1x",
+    "Crm:star",
+    "crm:",
+    ":star",
+    "crm:star:x",
+    "crm_x:star",
+    `crm:${"a".repeat(61)}`,
+  ])("treats %s as invalid", (name) => {
+    expect(check({ op: name, target: "orders-table" }).status).toBe("invalid")
+  })
+
   it.each([
     [{ op: "hide", target: "orders-table/columns/notes", at: "sm" }, ["at"]],
     [
@@ -34,12 +71,27 @@ describe("checkOp", () => {
       { op: "setLayout", target: "dashboard", mode: "row", gap: 2, wrap: true },
       ["gap", "wrap"],
     ],
+    [
+      {
+        op: "setDefault",
+        target: "app-sidebar",
+        prop: "defaultOpen",
+        value: true,
+        at: "md",
+      },
+      ["at"],
+    ],
   ])("treats unknown top-level arguments as newer: %j", (op, keys) => {
     expect(check(op)).toEqual({ index: 0, status: "newer", op, keys })
   })
 
   it.each([
-    { op: "setPresentation", target: "edit-order", as: "dialog", side: "left" },
+    {
+      op: "setPresentation",
+      target: "edit-order",
+      as: "dialog",
+      side: "start",
+    },
     { op: "setLayout", target: "dashboard", mode: "row", columns: 2 },
     {
       op: "wrap",
@@ -66,12 +118,38 @@ describe("checkOp", () => {
     },
     { op: "setPresentation", target: "edit-order", as: "popover" },
     { op: "rename", target: "orders-table/columns/notes", label: "" },
+    { op: "setDefault", target: "settings-tabs", value: "activity" },
+    {
+      op: "setDefault",
+      target: "ticket-form/fields/priority",
+      prop: "defaultValue",
+      value: "high",
+    },
+    {
+      op: "setDefault",
+      target: "app-sidebar",
+      prop: "defaultOpen",
+      value: null,
+    },
   ])("treats %j as invalid, with its error", (op) => {
     const result = check(op)
     expect(result.status).toBe("invalid")
     expect(
       result.status === "invalid" && result.error.issues.length
     ).toBeGreaterThan(0)
+  })
+
+  it.each([
+    { op: "setDefault", target: "ticket-form/fields/tags", value: ["a", "b"] },
+    {
+      op: "setDefault",
+      target: "settings-tabs",
+      prop: "defaultValue",
+      value: "activity",
+    },
+    { op: "setDefault", target: "orders-table", prop: "pageSize", value: 50 },
+  ])("accepts both setDefault shapes: %j", (op) => {
+    expect(check(op)).toEqual({ index: 0, status: "valid", op })
   })
 
   it("keeps the original op for ops it can't apply", () => {

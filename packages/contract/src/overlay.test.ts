@@ -27,7 +27,7 @@ describe("overlaySchema", () => {
     expect(overlays.flatMap((overlay) => overlay.ops)).toContainEqual({
       op: "pinColumns",
       target: "@page",
-      side: "left",
+      side: "start",
     })
     expect(overlays).toContainEqual(
       expect.objectContaining({ future: { kept: true } })
@@ -55,33 +55,53 @@ describe("overlaySchema", () => {
 })
 
 describe("overlayOpSchema", () => {
+  it.each(["hide", "setTheme", "crm:star", "acme-crm:markMine"])(
+    "accepts the op name %s",
+    (op) => {
+      expect(overlayOpSchema.safeParse({ op, target: "orders" }).success).toBe(
+        true
+      )
+    }
+  )
+
   it.each([
-    { op: "hide", target: "orders-table/columns/value" },
-    { op: "setLabel", target: "order-card[]/actions/refund" },
-    { op: "pinColumns", target: "@page" },
-    { op: "futureOp2", target: "@my-app-2" },
-    { op: "a".repeat(64), target: `a${"/b".repeat(127)}c` },
-  ])("accepts %j", (op) => {
-    expect(overlayOpSchema.safeParse(op).success).toBe(true)
+    "Hide",
+    "set_theme",
+    "pliant:star",
+    "crm:Star",
+    "crm:mark-mine",
+    "Crm:star",
+    "crm:star:x",
+    "crm:",
+    `crm:${"a".repeat(61)}`,
+  ])("rejects the op name %s", (op) => {
+    expect(overlayOpSchema.safeParse({ op, target: "orders" }).success).toBe(
+      false
+    )
   })
 
   it.each([
-    { op: "Hide", target: "orders-table" },
-    { op: "1hide", target: "orders-table" },
-    { op: "hide!", target: "orders-table" },
-    { op: "!hide", target: "orders-table" },
-    { op: "", target: "orders-table" },
-    { op: "a".repeat(65), target: "orders-table" },
-    { op: "hide", target: "Orders-table" },
-    { op: "hide", target: "orders table" },
-    { op: "hide", target: "/orders-table" },
-    { op: "hide", target: "@App" },
-    { op: "hide", target: "@app-" },
-    { op: "hide", target: "@app--x" },
-    { op: "hide", target: "@-app" },
-    { op: "hide", target: `a${"/b".repeat(128)}` },
-    { op: "hide" },
-  ])("rejects %j", (op) => {
-    expect(overlayOpSchema.safeParse(op).success).toBe(false)
+    "orders-table/columns/value",
+    "order-card[]/actions/refund",
+    "@page",
+    "@my-app-2",
+    `a${"/b".repeat(127)}c`,
+  ])("accepts the target %s", (target) => {
+    expect(overlayOpSchema.safeParse({ op: "hide", target }).success).toBe(true)
+  })
+
+  it.each([
+    "Orders-table",
+    "orders table",
+    "/orders-table",
+    "@App",
+    "@app-",
+    "@app--x",
+    "@-app",
+    `a${"/b".repeat(128)}`,
+  ])("rejects the target %s", (target) => {
+    expect(overlayOpSchema.safeParse({ op: "hide", target }).success).toBe(
+      false
+    )
   })
 })

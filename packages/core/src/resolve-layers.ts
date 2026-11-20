@@ -82,16 +82,27 @@ export interface ResolvedProperty {
 }
 
 /**
- * Why an op was skipped: its check status, `duplicate-id` when its overlay
+ * Why an op was skipped: its check status, `extension-not-installed` for an
+ * unknown op with a namespaced name, `duplicate-id` when its overlay
  * shares its id with an overlay earlier in the resolution order, or with one
  * that ties with it on every sort key but has other contents, or
  * `surface-mismatch` when the overlay is for another surface.
  */
 export type SkippedOp =
   | {
-      readonly check: Exclude<OpCheck, { status: "valid" }>
+      readonly check: Extract<OpCheck, { status: "unknown" }>
       readonly overlay: LoadedOverlay
-      readonly reason: Exclude<OpCheck["status"], "valid">
+      readonly reason: "unknown" | "extension-not-installed"
+    }
+  | {
+      readonly check: Extract<OpCheck, { status: "newer" }>
+      readonly overlay: LoadedOverlay
+      readonly reason: "newer"
+    }
+  | {
+      readonly check: Extract<OpCheck, { status: "invalid" }>
+      readonly overlay: LoadedOverlay
+      readonly reason: "invalid"
     }
   | {
       readonly check: OpCheck
@@ -248,8 +259,16 @@ export function resolveLayers(
     for (const check of overlay.ops) {
       if (reason) {
         skipped.push({ check, overlay, reason })
-      } else if (check.status !== "valid") {
-        skipped.push({ check, overlay, reason: check.status })
+      } else if (check.status === "unknown") {
+        skipped.push({
+          check,
+          overlay,
+          reason: check.extension ? "extension-not-installed" : "unknown",
+        })
+      } else if (check.status === "newer") {
+        skipped.push({ check, overlay, reason: "newer" })
+      } else if (check.status === "invalid") {
+        skipped.push({ check, overlay, reason: "invalid" })
       } else {
         const notApplied = applyOp(state, { check, overlay }, scope)
         if (notApplied) {

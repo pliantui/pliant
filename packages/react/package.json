@@ -104,6 +104,9 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@size-limit/preset-small-lib": "^14.3.0",
+    "@stryker-mutator/core": "^10.1.1",
+    "@stryker-mutator/typescript-checker": "^10.1.1",
+    "@stryker-mutator/vitest-runner": "^10.1.1",
     "@tanstack/react-table": "^9.3.1",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
