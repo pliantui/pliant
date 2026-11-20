@@ -76,11 +76,12 @@ function expectStacked(top: Box, bottom: Box) {
   expect(bottom.x).toBe(top.x)
 }
 
-// The cards aren't focusable on their own, so they're made tabbable to check
-// that keyboard order follows the cards' order.
+// The cards aren't focusable on their own, so every card, hidden ones
+// included, is made tabbable to check that keyboard order follows the cards'
+// order and skips hidden cards.
 async function expectTabOrder(page: Page, expected: readonly string[]) {
   await region(page)
-    .getByRole("group")
+    .getByRole("group", { includeHidden: true })
     .evaluateAll((elements) => {
       for (const element of elements) {
         element.setAttribute("tabindex", "0")
@@ -158,8 +159,6 @@ test("hides a key metric from view and from the tab order", async ({
 }) => {
   await load(page, [{ op: "hide", target: "key-metrics/slots/overdue" }])
 
-  await expect(card(page, "Overdue")).toBeHidden()
-  await expect(card(page, "Revenue")).toBeVisible()
   await expectTabOrder(page, ["Revenue", "Orders", "Average order value"])
   await page.keyboard.press("Tab")
   expect(
@@ -167,6 +166,8 @@ test("hides a key metric from view and from the tab order", async ({
       element.contains(document.activeElement)
     )
   ).toBe(false)
+  await expect(card(page, "Overdue")).toBeHidden()
+  await expect(card(page, "Revenue")).toBeVisible()
   expect(errors).toEqual([])
 })
 
@@ -228,6 +229,51 @@ test("lays out wrapped key metrics as a grid across the region", async ({
   expect(box.revenue.width).toBeGreaterThan(box.orders.width)
   expectBelow(box.revenue, box.orders)
   expectSideBySide(box.orders, box.average)
+  expect(errors).toEqual([])
+})
+
+test("keeps a stacked wrapper one column wide", async ({ page, errors }) => {
+  await load(page, [
+    {
+      op: "wrap",
+      target: "key-metrics",
+      id: "money",
+      items: ["revenue", "overdue"],
+      mode: "row",
+    },
+    { op: "setLayout", target: "money", mode: "stack", at: "lg" },
+  ])
+
+  const box = await boxes(page)
+  expectStacked(box.revenue, box.overdue)
+  expect(box.revenue.width).toBeCloseTo(box.orders.width, 0)
+  expectSideBySide(box.revenue, box.orders)
+  expect(errors).toEqual([])
+})
+
+test("spans a wrapper over the columns its span sets", async ({
+  page,
+  errors,
+}) => {
+  await load(page, [
+    {
+      op: "wrap",
+      target: "key-metrics",
+      id: "money",
+      items: ["revenue", "overdue"],
+      mode: "grid",
+      columns: 2,
+    },
+    { op: "span", target: "key-metrics/slots/money", columns: 2 },
+  ])
+
+  const box = await boxes(page)
+  const whole = await boxOf(region(page))
+  const wrapperWidth = box.overdue.x + box.overdue.width - box.revenue.x
+  expectSideBySide(box.revenue, box.overdue)
+  expect(wrapperWidth).toBeGreaterThan(2 * box.orders.width)
+  expect(wrapperWidth).toBeLessThan(whole.width - box.orders.width)
+  expectSideBySide(box.overdue, box.orders)
   expect(errors).toEqual([])
 })
 

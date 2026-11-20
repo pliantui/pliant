@@ -249,7 +249,9 @@ test("keeps a label on screen for a target at the right edge", async ({
   const width = await page.evaluate(() => document.documentElement.clientWidth)
   await page.keyboard.up("Alt")
 
-  expect(box && box.x >= 0 && box.x + box.width <= width).toBe(true)
+  expect(box).not.toBeNull()
+  expect(box?.x).toBeGreaterThanOrEqual(0)
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(width)
   expect(errors).toEqual([])
 })
 
