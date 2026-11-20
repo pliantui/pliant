@@ -45,7 +45,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["**/*.config.{ts,mjs,cjs}"],
+    files: ["**/*.config.{ts,mjs,cjs}", "knip.ts"],
     rules: {
       "no-restricted-exports": "off",
     },
