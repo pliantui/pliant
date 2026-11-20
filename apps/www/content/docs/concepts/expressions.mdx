@@ -141,6 +141,8 @@ The catalog also defines rules that apply to every function:
 
 The full catalog, with each function's arguments, result type, unit, null handling and exact semantics, is `functionCatalog` in `@pliantui/contract`, and `schema/functions.json` in the same package.
 
+Code that type-checks or evaluates expressions can import `functionSignatures` from the same package instead. It holds the same entries without their descriptions, so the descriptions and rules stay out of the bundle.
+
 ## Filters
 
 A filter is a field, an operator and a value:
