@@ -129,13 +129,19 @@ export const structureOpSchemas = {
     columns: layoutColumnsSchema,
     at: breakpointSchema.optional(),
   }),
+  /**
+   * A built-in `chart`, `stat` or `list` node over a dataset, or a registered
+   * `namespace:name` node, which may name one. Whether the dataset is one the
+   * surface already shows is checked where the surface's datasets are known,
+   * not by this schema.
+   */
   insert: z.strictObject({
     op: z.literal("insert"),
     target: nodeAddressSchema({ template: false }),
     node: z.union([
       z.strictObject({
         id: kebabIdSchema,
-        kind: z.enum(["chart", "stat"]),
+        kind: z.enum(["chart", "stat", "list"]),
         dataset: kebabIdSchema,
         label: labelSchema.optional(),
       }),
