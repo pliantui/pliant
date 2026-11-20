@@ -1,10 +1,4 @@
-import {
-  StrictMode,
-  use,
-  useInsertionEffect,
-  useLayoutEffect,
-  type ReactNode,
-} from "react"
+import { use, useInsertionEffect, useLayoutEffect, type ReactNode } from "react"
 import { act, cleanup, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -50,13 +44,11 @@ function Page({
   children: ReactNode
 }) {
   return (
-    <StrictMode>
-      <PliantRoot surface="/dashboard">
-        <Content id="card" />
-        <MountedIds />
-        {shown && <PliantActivity mode={mode}>{children}</PliantActivity>}
-      </PliantRoot>
-    </StrictMode>
+    <PliantRoot surface="/dashboard">
+      <Content id="card" />
+      <MountedIds />
+      {shown && <PliantActivity mode={mode}>{children}</PliantActivity>}
+    </PliantRoot>
   )
 }
 
