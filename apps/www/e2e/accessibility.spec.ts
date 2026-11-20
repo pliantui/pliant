@@ -11,44 +11,53 @@ async function violations(page: Page) {
     id,
     impact,
     help,
-    targets: nodes.map((node) => node.target),
+    targets: nodes.map((node) => node.html),
   }))
 }
 
-test("the home page has no accessibility violations", async ({ page }) => {
-  await page.goto("/")
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Pliant" })
-  ).toBeVisible()
-  expect(await violations(page)).toEqual([])
-})
-
-test("a docs page has no accessibility violations", async ({ page }) => {
-  await page.goto("/docs")
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Introduction" })
-  ).toBeVisible()
-  expect(await violations(page)).toEqual([])
-})
-
-test("the orders example has no accessibility violations", async ({ page }) => {
+async function loadOrders(page: Page) {
   await page.goto("/examples/orders")
   await expect(
     page.locator('[data-pliant-id="key-metrics"]')
   ).not.toHaveAttribute("data-pliant-pending")
   await expect(page.getByRole("table", { name: "All orders" })).toBeVisible()
-  expect(await violations(page)).toEqual([])
-})
+}
 
-test("the orders example has no accessibility violations with the ask panel open", async ({
-  page,
-}) => {
-  await page.goto("/examples/orders")
-  await expect(
-    page.locator('[data-pliant-id="key-metrics"]')
-  ).not.toHaveAttribute("data-pliant-pending")
-  await page.getByRole("button", { name: "Ask" }).click()
-  const panel = page.getByRole("complementary", { name: "Ask" })
-  await expect(panel.getByRole("textbox", { name: "Ask" })).toBeFocused()
-  expect(await violations(page)).toEqual([])
-})
+for (const colorScheme of ["light", "dark"] as const) {
+  test.describe(`in ${colorScheme} mode`, () => {
+    test.use({ colorScheme })
+
+    test("the home page has no accessibility violations", async ({ page }) => {
+      await page.goto("/")
+      await expect(
+        page.getByRole("heading", { level: 1, name: "Pliant" })
+      ).toBeVisible()
+      expect(await violations(page)).toEqual([])
+    })
+
+    test("a docs page has no accessibility violations", async ({ page }) => {
+      await page.goto("/docs")
+      await expect(
+        page.getByRole("heading", { level: 1, name: "Introduction" })
+      ).toBeVisible()
+      expect(await violations(page)).toEqual([])
+    })
+
+    test("the orders example has no accessibility violations", async ({
+      page,
+    }) => {
+      await loadOrders(page)
+      expect(await violations(page)).toEqual([])
+    })
+
+    test("the orders example has no accessibility violations with the ask panel open", async ({
+      page,
+    }) => {
+      await loadOrders(page)
+      await page.getByRole("button", { name: "Ask" }).click()
+      const panel = page.getByRole("complementary", { name: "Ask" })
+      await expect(panel.getByRole("textbox", { name: "Ask" })).toBeFocused()
+      expect(await violations(page)).toEqual([])
+    })
+  })
+}
