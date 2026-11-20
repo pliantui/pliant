@@ -4,6 +4,10 @@ export default defineConfig({
   resolve: { tsconfigPaths: true },
   test: {
     setupFiles: ["./vitest.setup.ts"],
-    include: ["app/**/*.test.ts", "registry/**/*.test.tsx"],
+    include: [
+      "app/**/*.test.ts",
+      "registry/**/*.test.tsx",
+      "scripts/**/*.test.ts",
+    ],
   },
 })

@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --port 4000",
-    "build": "pnpm registry:build && next build",
+    "dev": "pnpm schema:build && next dev --port 4000",
+    "build": "pnpm registry:build && pnpm schema:build && next build",
     "registry:build": "shadcn build",
+    "schema:build": "node scripts/build-schema.ts",
     "start": "next start --port 4000",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
@@ -19,6 +20,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.105",
+    "@pliantui/contract": "workspace:*",
     "@pliantui/core": "workspace:*",
     "@pliantui/react": "workspace:*",
     "@pliantui/server": "workspace:*",
