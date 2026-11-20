@@ -7,7 +7,7 @@ test("finds a docs page from the search dialog", async ({ page, errors }) => {
   await dialog.getByRole("combobox", { name: "Search" }).fill("built once")
 
   await expect(
-    dialog.getByRole("option", { name: "Docs Introduction" })
+    dialog.getByRole("option", { name: /Introduction$/ })
   ).toBeVisible()
   await expect(
     dialog.getByRole("option", { name: "Pliant is that layer, built once." })
