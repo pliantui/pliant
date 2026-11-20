@@ -11,11 +11,12 @@ export { expressionSchema, type Expression } from "./expression"
 export { filterSchema, type Filter } from "./filter"
 export { flagsSchema, type Flags } from "./flags"
 export { formatSchema, type Format } from "./format"
+export { functionCatalog, type FunctionDefinition } from "./function-catalog"
 export {
-  functionCatalog,
-  type FunctionDefinition,
+  functionSignatures,
   type FunctionName,
-} from "./function-catalog"
+  type FunctionSignature,
+} from "./function-signatures"
 export { itemIdSchema } from "./identifier"
 export { languageTagSchema } from "./language-tag"
 export { breakpointSchema, type Breakpoint } from "./layout"

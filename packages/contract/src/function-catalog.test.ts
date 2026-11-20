@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { functionCatalog, type FunctionDefinition } from "./function-catalog"
+import { functionSignatures } from "./function-signatures"
 import { functionNameSchema } from "./identifier"
 
 type Arg = FunctionDefinition["args"][number]
@@ -213,6 +214,19 @@ describe("functionCatalog", () => {
       "returns is like d, which isn't an earlier fixed argument",
       "has a percent unit but doesn't return a number",
     ])
+  })
+
+  it("agrees with functionSignatures", () => {
+    const signatures = Object.entries(functionCatalog.functions).map(
+      ([name, { kind, args, returns, unit }]) => [
+        name,
+        { kind, args, returns, unit },
+      ]
+    )
+    expect(Object.fromEntries(signatures)).toEqual(functionSignatures)
+    expect(Object.keys(functionSignatures)).toEqual(
+      Object.keys(functionCatalog.functions)
+    )
   })
 
   it("states every rule as sentences", () => {

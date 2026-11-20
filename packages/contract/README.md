@@ -72,6 +72,8 @@ The adapter methods and the `conflict` result of a conditional save belong to `@
 
 `functions.json` is `{ "contract": 1, "rules": [...], "functions": { [name]: { kind, args, returns, unit, nulls, mergeable, describe } } }`, and `functionCatalog` holds the same `rules` and `functions`. The `rules` hold for every function. Names and documented semantics don't change within contract 1: a different behaviour gets a new name, and the only exception is a fix where a function's output contradicted its documented semantics. New functions and fields may be added, so ignore keys you don't know.
 
+`functionSignatures` holds only each function's `kind`, `args`, `returns` and `unit`, the same values as in `functionCatalog`. A type checker that imports it instead of `functionCatalog` leaves the descriptions and rules out of its bundle.
+
 - `kind` is `row`, `aggregate` or `window`.
 - Each `args` entry has a `name` and a `type`. It may be `optional` (only trailing arguments, with the `default` it takes when left out, if any), `variadic` (only the last argument; one or more values), `constant` (a `{ value }` node, within `range` when given), or list `values` (a `{ value }` node holding one of those strings).
 - A `type` is `number`, `integer`, `string`, `boolean`, `date` or `datetime`, a list of those, or `{ "like": "<argument>" }`, which joins an earlier argument's group. Integer fields are `integer`; number, currency and percent fields are `number`; string, text, enum, id, url and email fields are `string`.
