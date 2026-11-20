@@ -15,9 +15,10 @@ type UserItemKind = (typeof userItemKinds)[number]
 
 /**
  * A property an op writes on a node or item. Keyed families carry their key
- * after a dot: `collapse.<item>`, `filter.<field>`, `format.<field>`,
- * `props.<prop>`, and `<kind>.<id>` for each user item kind (`derived`,
- * `aggregate`, `highlight`, `sortOption`, `filterControl`, `preset`).
+ * after a dot: `collapse.<item>`, `defaults.<prop>`, `filter.<field>`,
+ * `format.<field>`, `props.<prop>`, and `<kind>.<id>` for each user item kind
+ * (`derived`, `aggregate`, `highlight`, `sortOption`, `filterControl`,
+ * `preset`).
  */
 export type OpPropertyKey =
   | "chart"
@@ -41,6 +42,7 @@ export type OpPropertyKey =
   | "visible"
   | "width"
   | `collapse.${string}`
+  | `defaults.${string}`
   | `filter.${string}`
   | `format.${string}`
   | `props.${string}`
@@ -130,7 +132,10 @@ export function opProperties(op: Op): readonly OpProperty[] {
     case "remove":
       return one(target, "inserted")
     case "setDefault":
-      return one(target, "default")
+      return one(
+        target,
+        op.prop === undefined ? "default" : `defaults.${op.prop}`
+      )
     case "setPresentation":
       return one(target, "presentation")
     case "setSize":

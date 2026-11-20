@@ -14,6 +14,42 @@
       "op": "setDefault",
       "target": "ticket-form/fields/dueDate",
       "value": null
+    },
+    {
+      "op": "setDefault",
+      "target": "settings-tabs",
+      "prop": "defaultValue",
+      "value": "activity"
+    },
+    {
+      "op": "setDefault",
+      "target": "app-sidebar",
+      "prop": "defaultOpen",
+      "value": false
+    },
+    {
+      "op": "setDefault",
+      "target": "workspace/slots/panels",
+      "prop": "defaultSize",
+      "value": 35
+    },
+    {
+      "op": "setDefault",
+      "target": "orders-table",
+      "prop": "pageSize",
+      "value": 50
+    },
+    {
+      "op": "setDefault",
+      "target": "due-calendar",
+      "prop": "defaultMonth",
+      "value": "2026-11-01"
+    },
+    {
+      "op": "setDefault",
+      "target": "rows[]",
+      "prop": "defaultOpen",
+      "value": true
     }
   ],
   "invalid": [
@@ -36,13 +72,120 @@
     },
     {
       "op": "setDefault",
-      "target": "ticket-form",
+      "target": "Ticket Form",
       "value": "high"
     },
     {
       "op": "setDefault",
-      "target": "ticket-form/columns/priority",
-      "value": "high"
+      "target": "settings-tabs",
+      "prop": "defaultValue"
+    },
+    {
+      "op": "setDefault",
+      "target": "settings-tabs",
+      "prop": "DefaultValue",
+      "value": "activity"
+    },
+    {
+      "op": "setDefault",
+      "target": "settings-tabs",
+      "prop": "default-value",
+      "value": "activity"
+    },
+    {
+      "op": "setDefault",
+      "target": "settings-tabs",
+      "prop": "defaultValue",
+      "value": {
+        "tab": "a"
+      }
+    },
+    {
+      "op": "setDefault",
+      "target": "settings-tabs",
+      "prop": "defaultValue",
+      "value": "activity",
+      "field": "x"
+    }
+  ],
+  "crossField": [
+    {
+      "value": {
+        "op": "setDefault",
+        "target": "ticket-form",
+        "value": "high"
+      },
+      "message": "Must address a field",
+      "path": ["target"]
+    },
+    {
+      "value": {
+        "op": "setDefault",
+        "target": "ticket-form/columns/priority",
+        "value": "high"
+      },
+      "message": "Must address a field",
+      "path": ["target"]
+    },
+    {
+      "value": {
+        "op": "setDefault",
+        "target": "ticket-form/fields/priority",
+        "prop": "defaultOpen",
+        "value": true
+      },
+      "message": "Must address a node",
+      "path": ["target"]
+    },
+    {
+      "value": {
+        "op": "setDefault",
+        "target": "orders-table/columns/total",
+        "prop": "width",
+        "value": 120
+      },
+      "message": "Must address a node",
+      "path": ["target"]
+    },
+    {
+      "value": {
+        "op": "setDefault",
+        "target": "app-sidebar",
+        "prop": "defaultOpen",
+        "value": null
+      },
+      "message": "Must be a string of 1 to 64 characters, a number or a boolean",
+      "path": ["value"]
+    },
+    {
+      "value": {
+        "op": "setDefault",
+        "target": "app-sidebar",
+        "prop": "defaultValue",
+        "value": ["a", "b"]
+      },
+      "message": "Must be a string of 1 to 64 characters, a number or a boolean",
+      "path": ["value"]
+    },
+    {
+      "value": {
+        "op": "setDefault",
+        "target": "settings-tabs",
+        "prop": "defaultValue",
+        "value": ""
+      },
+      "message": "Must be a string of 1 to 64 characters, a number or a boolean",
+      "path": ["value"]
+    },
+    {
+      "value": {
+        "op": "setDefault",
+        "target": "settings-tabs",
+        "prop": "defaultValue",
+        "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "message": "Must be a string of 1 to 64 characters, a number or a boolean",
+      "path": ["value"]
     }
   ]
 }

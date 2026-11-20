@@ -1,6 +1,7 @@
 import * as z from "zod"
 
 import { kindSchema, propNameSchema } from "./identifier"
+import { manifestDefaultSchema } from "./manifest-default"
 import { withoutReservedKeys } from "./reserved-keys"
 import { textSchema } from "./text"
 import { uniqueArray } from "./unique"
@@ -51,6 +52,7 @@ const manifestObjectSchema = z
       nav: z.boolean().optional(),
       actions: z.boolean().optional(),
       data: z.boolean().optional(),
+      defaults: z.record(propNameSchema, manifestDefaultSchema).optional(),
     }),
   })
   .meta({

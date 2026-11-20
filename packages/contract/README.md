@@ -8,7 +8,7 @@ Pliant is in early development. See https://github.com/pliantui/pliant.
 
 `schema/` holds JSON Schemas for overlays, ops, saved views, stored overlays and manifests, the op catalog as data in `catalog.json`, and the function catalog in `functions.json`. Patterns are ECMA-262 regular expressions: `\d` matches only ASCII digits and `$` matches only at the end of the string (Python's `re` differs on both). `format: date-time` (RFC 3339) must be checked. String lengths count Unicode code points, as `maxLength` does.
 
-`catalog.json` is `{ "contract": 1, "ops": { [name]: { capability, layers, args } } }`. `capability` is checked against manifests at resolution time; `null` means none is needed. `layers` and each `args` list are unordered. `args` holds one list of top-level argument keys per shape, without `op` and `target`. New ops and fields may be added within contract 1, so ignore keys you don't know.
+`catalog.json` is `{ "contract": 1, "ops": { [name]: { capability, layers, args } } }`. `args` holds one list of top-level argument keys per shape, without `op` and `target`, ordered from narrowest to widest. `capability` is a list with one entry per `args` list: `capability[i]` names the capability that the manifest of the node the op applies to must have for the shape `args[i]`, and `null` means none is needed. Most ops have a single shape and a single-entry list. An op takes the `capability` entry of the first `args` list that contains every argument key it has. `setDefault` is the only op whose shapes need different capabilities: without `prop` it takes `["value"]`, and the field's parent node must have `form`; with `prop` it takes `["prop", "value"]`, and the target must have `defaults`. `layers` and the keys inside each `args` list are unordered. New ops and fields may be added within contract 1, so ignore keys you don't know.
 
 Before anything else, reject an overlay, saved view, stored overlay or manifest if any object in it, at any depth, has a key named `__proto__`, `constructor` or `prototype`. JSON parsers can produce these keys, and some runtimes treat them specially.
 
@@ -24,6 +24,8 @@ To validate an overlay:
 
    Rules JSON Schema can't express: a `move` with `to.into` needs a target that ends in `/slots/<id>` and whose node id doesn't end in `[]`, and `to.into` can't be the target or start with the target followed by `/`; the `field`s in a value matching `op.json`'s `#/$defs/sort` are unique; a value matching `#/$defs/expression` has at most 128 nodes.
 
+   Rules `op.json` doesn't carry: a `setDefault` without `prop` targets an address ending in `/fields/<id>`. A `setDefault` with `prop` targets a node address only: no `/columns/`, `/fields/`, `/items/` or `/actions/` segment, and never a reserved target such as `@app` or `@surface`. Its `value` is a string of 1 to 64 characters, a number or a boolean.
+
 A `remove` targets a slot address outside a template or the bare id of a node. Whether a bare id names a node the user inserted or wrapped is checked at resolution time, not during validation.
 
 A reserved per-row address is a kebab-case node id, then `[`, one or more characters from `[A-Za-z0-9_-]`, then `]`, then `/` or the end of the address, for example `order-card[42]` or `order-card[42]/actions/refund`. That is, it matches `^[a-z][a-z0-9]*(?:-[a-z0-9]+)*\[[A-Za-z0-9_-]+\](?:/|$)`. It isn't valid, and the patterns in `schema/` don't match it. `order-card[]` addresses every row of a template. The Zod address and op schemas report a reserved address, whatever the rest of the address, with a custom issue whose `params.code` is `per-row-address-reserved`, in place of a format issue. It's always the first issue; on older Zod 4 releases, an address over the length limit also gets a length issue after it. An op with such a target is invalid.
@@ -32,7 +34,18 @@ An overlay's optional `lang` is the BCP 47 language tag of its plain label strin
 
 When loading a saved overlay, apply only valid ops, flag unknown and newer ones, and keep every op unchanged when saving it again. Reject an AI answer or an import unless every op is valid.
 
-A saved view also needs every overlay to have the view's `surface` and `layer`, the same `scope.org` and `scope.team` as the others, and a unique `id`. In a manifest, a prop's `default` and `semantic` values must be among its `values`.
+`validateOverlay` in `@pliantui/core` makes the checks above and doesn't read manifests. The following rules need manifests, so whatever applies ops with the manifests at hand must check them:
+
+- The node the op applies to has the `capability` entry for the op's shape, as `catalog.json` describes.
+- A `setDefault` with `prop` names a prop declared in the target's `defaults`, and its `value` fits that declaration:
+  - for `values`, it is one of them, so a string when the values are strings and a number when they are numbers;
+  - for `type: "boolean"`, it is a boolean;
+  - for `type: "number"`, it is a number from `min` to `max`;
+  - for `type: "date"`, it is a real calendar date written `YYYY-MM-DD` (`2026-02-30` doesn't fit).
+
+These values are never data values. With `persist: true`, the user's own changes to that prop are saved to their personal layer automatically. A field's default, set by `setDefault` without `prop`, is a data value and must parse with the field's schema.
+
+A saved view also needs every overlay to have the view's `surface` and `layer`, the same `scope.org` and `scope.team` as the others, and a unique `id`. In a manifest, a prop's `default` and `semantic` values must be among its `values`. A `defaults` declaration of `type: "number"` needs `min` at most `max`.
 
 ## Stored overlays
 

@@ -204,6 +204,31 @@ describe("resolveLayers", () => {
     expect(baseIds).toEqual({ ids: new Set(["a"]), source: "mounted" })
   })
 
+  it("resolves setDefault with prop per prop, apart from a field default", () => {
+    const overlay = overlays()
+    const tabs = "settings-tabs"
+    const setTab = (value: string) => ({
+      op: "setDefault",
+      target: tabs,
+      prop: "defaultValue",
+      value,
+    })
+    const team = overlay("team", [
+      setTab("overview"),
+      { op: "setDefault", target: tabs, prop: "defaultOpen", value: true },
+      { op: "setDefault", target: "ticket-form/fields/priority", value: "low" },
+    ])
+    const personal = overlay("personal", [setTab("activity")])
+
+    const { properties } = resolve([personal, team])
+    expect(winner(properties, tabs, "defaults.defaultValue")).toBe(personal)
+    expect(winner(properties, tabs, "defaults.defaultOpen")).toBe(team)
+    expect(winner(properties, "ticket-form/fields/priority", "default")).toBe(
+      team
+    )
+    expect(get(properties, tabs, "default")).toBeUndefined()
+  })
+
   it("lets the higher layer win, whatever order overlays are given in", () => {
     const overlay = overlays()
     const session = overlay("session", [show])
