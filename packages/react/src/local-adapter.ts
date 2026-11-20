@@ -46,7 +46,7 @@ function write(
   key: string,
   overlay: StoredOverlay["overlay"],
   previous: StoredOverlay | undefined,
-  removed?: boolean
+  { removed = false }: { removed?: boolean } = {}
 ): StoredOverlay {
   const now = Date.now()
   const updatedAt = new Date(now).toISOString()
@@ -89,7 +89,8 @@ function recordsOf(surface: string) {
  * `localStorage`, and a late retry of a save from before the removal can
  * then store the overlay again. `history` returns the record under each
  * key, tombstones included: the latest record of every overlay, not
- * earlier versions.
+ * earlier versions. Records are ordered by `updatedAt`; records with the
+ * same millisecond are ordered by `version`, then by overlay id.
  *
  * `subscribe` tells each `PliantRoot` when another one, in this tab or
  * another tab of the same origin, changes a surface's overlays.
@@ -115,14 +116,23 @@ export function localAdapter(): StorageAdapter {
       if (localStorage.getItem(key) !== null && !readRecord(key)?.deletedAt) {
         const current = claim(key, ifMatch)
         if (current) {
-          write(key, current.overlay, current, true)
+          write(key, current.overlay, current, { removed: true })
         }
       }
     },
     history(surface, id) {
       return recordsOf(surface)
         .filter((record) => id === undefined || record.overlay.id === id)
-        .sort((a, b) => Date.parse(a.updatedAt) - Date.parse(b.updatedAt))
+        .sort(
+          (a, b) =>
+            Date.parse(a.updatedAt) - Date.parse(b.updatedAt) ||
+            a.version - b.version ||
+            (a.overlay.id < b.overlay.id
+              ? -1
+              : a.overlay.id > b.overlay.id
+                ? 1
+                : 0)
+        )
     },
     subscribe(surface, onChange) {
       const prefix = prefixOf(surface)
