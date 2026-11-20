@@ -775,9 +775,9 @@
               "type": "string",
               "enum": [
                 "top",
-                "right",
+                "end",
                 "bottom",
-                "left"
+                "start"
               ]
             }
           },

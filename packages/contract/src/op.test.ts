@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import * as z from "zod"
 
 import { readOpFixtures } from "../test/fixtures"
 import { expectCrossFieldIssue } from "../test/fixtures/cross-field"
@@ -6,6 +7,21 @@ import { opSchema } from "./op"
 import { opCatalog } from "./op-catalog"
 
 const fixtures = readOpFixtures()
+
+function allowedValues(node: unknown): unknown[] {
+  if (Array.isArray(node)) {
+    return node.flatMap(allowedValues)
+  }
+  if (typeof node !== "object" || node === null) {
+    return []
+  }
+  return Object.entries(node).flatMap(([key, value]: [string, unknown]) => {
+    if (key === "enum" && Array.isArray(value)) {
+      return value as unknown[]
+    }
+    return key === "const" ? [value] : allowedValues(value)
+  })
+}
 
 describe("opSchema", () => {
   it("has a fixture for every op in the catalog, and no others", () => {
@@ -24,6 +40,17 @@ describe("opSchema", () => {
     it.each(fixture.crossField)("reports $message for $value", (entry) => {
       expectCrossFieldIssue(opSchema, entry)
     })
+  })
+
+  // Directions are logical (start and end) so overlays work in right-to-left
+  // apps. Shortcut keys such as arrowleft are physical keys, but they are
+  // matched by a pattern, not listed as allowed values.
+  it("allows no physical left or right direction in any op", () => {
+    const values = allowedValues(z.toJSONSchema(opSchema, { io: "input" }))
+    expect(values).toContain("start")
+    expect(
+      values.filter((value) => value === "left" || value === "right")
+    ).toEqual([])
   })
 
   it("rejects a deeply nested expression without throwing", () => {
