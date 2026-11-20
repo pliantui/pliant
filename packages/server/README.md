@@ -39,4 +39,4 @@ const model = wrapLanguageModel({
 
 To replay without a file system, such as on Cloudflare Workers, pass the parsed recording files instead of a directory: `recordingMiddleware({ mode: "replay", recordings })`. Replaying from `recordings` uses only Web APIs. Each recording is checked against the recording format when the middleware is created. Recording and replaying from a directory need Node.js.
 
-The orders demo's recordings live in `apps/www`. `pnpm --filter www record` records them. They are recorded through `claude -p` (headless Claude Code), not the Anthropic API, and each file says so with `standIn: true`.
+The orders demo's recordings live in `apps/www`. `pnpm --filter www record` records them and writes `recordings/index.ts`, the module the demo imports them from. They are recorded through `claude -p` (headless Claude Code), not the Anthropic API, and each file says so with `standIn: true`.
