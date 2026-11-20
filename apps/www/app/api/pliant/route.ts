@@ -1,18 +1,17 @@
-import { join } from "node:path"
 import { anthropic } from "@ai-sdk/anthropic"
 import { wrapLanguageModel } from "ai"
 
 import { createPliantHandler } from "@pliantui/server"
 import { recordingMiddleware } from "@pliantui/server/recordings"
 
+import { recordings } from "@/recordings"
+
 // The demo replays the committed recordings of the orders asks, so it never
-// calls the model. `next start` and `next dev` run from apps/www.
+// calls the model. They are bundled with the route, so replaying needs no
+// file system.
 const model = wrapLanguageModel({
   model: anthropic("claude-haiku-5-5"),
-  middleware: recordingMiddleware({
-    mode: "replay",
-    directory: join(process.cwd(), "recordings"),
-  }),
+  middleware: recordingMiddleware({ mode: "replay", recordings }),
 })
 
 function isEnabled() {

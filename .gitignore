@@ -11,6 +11,8 @@ dist
 .next/
 out/
 .source
+.open-next
+.wrangler
 
 # misc
 .DS_Store
@@ -25,6 +27,7 @@ npm-debug.log*
 # env files
 .env*
 !.env.example
+.dev.vars*
 
 # turbo
 .turbo

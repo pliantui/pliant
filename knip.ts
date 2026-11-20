@@ -7,9 +7,13 @@ const config: KnipConfig = {
       entry: [".github/changeset-version.js"],
     },
     "apps/www": {
-      // Registry items ship to other apps through registry.json, so what they
-      // export is public even where this app doesn't import it.
-      entry: ["registry/pliant/*.{ts,tsx}"],
+      entry: [
+        // Registry items ship to other apps through registry.json, so what
+        // they export is public even where this app doesn't import it.
+        "registry/pliant/*.{ts,tsx}",
+        // OpenNext loads its config by name when it builds the worker.
+        "open-next.config.ts",
+      ],
     },
   },
   ignoreIssues: {
