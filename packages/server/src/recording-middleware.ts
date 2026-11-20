@@ -176,12 +176,19 @@ async function writeRecording(directory: string, key: string, text: string) {
 }
 
 function replayFrom(recordings: readonly unknown[]): LanguageModelMiddleware {
-  const byKey = new Map(
-    recordings.map((recording) => {
-      const parsed = recordingSchema.parse(recording)
-      return [parsed.key, parsed]
-    })
-  )
+  const byKey = new Map<string, Recording>()
+  recordings.forEach((recording, index) => {
+    const parsed = recordingSchema.safeParse(recording)
+    if (!parsed.success) {
+      throw new Error(`recordings[${String(index)}] is not a valid recording`, {
+        cause: parsed.error,
+      })
+    }
+    if (byKey.has(parsed.data.key)) {
+      throw new Error(`Two recordings have the key ${parsed.data.key}`)
+    }
+    byKey.set(parsed.data.key, parsed.data)
+  })
   return {
     specificationVersion: "v4",
     wrapGenerate: async ({ params, model }) => {
@@ -215,10 +222,21 @@ function replayFrom(recordings: readonly unknown[]): LanguageModelMiddleware {
 export function recordingMiddleware(
   options: RecordingOptions
 ): LanguageModelMiddleware {
-  if (options.recordings !== undefined) {
-    return replayFrom(options.recordings)
+  // The types rule this out; JavaScript callers get the same check.
+  const given: { mode: string; directory?: unknown; recordings?: unknown } =
+    options
+  if (
+    given.recordings !== undefined &&
+    (given.mode !== "replay" || given.directory !== undefined)
+  ) {
+    throw new TypeError(
+      'Pass recordings only in mode "replay", and without a directory'
+    )
   }
-  const { mode, directory } = options
+  const { mode, directory, recordings } = options
+  if (recordings !== undefined) {
+    return replayFrom(recordings)
+  }
   return {
     specificationVersion: "v4",
     wrapGenerate: async ({ doGenerate, params, model }) => {
