@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 
+import { functionCatalog, opCatalog } from "@pliantui/contract"
 import {
   checkExpression,
   formatError,
@@ -126,4 +127,53 @@ describe.each(examples)("$name", ({ source }) => {
       )
     }
   })
+})
+
+function readDoc(name: string) {
+  return readFileSync(path.join(docs, name), "utf8")
+}
+
+function namesIn(text: string) {
+  return [...text.matchAll(/`([a-z][A-Za-z0-9]*)`/g)].map(([, name]) => name)
+}
+
+// The second column of the body rows of the Markdown table whose header
+// row starts with `header`.
+function tableColumn(text: string, header: string) {
+  const lines = text.split("\n")
+  const start = lines.findIndex((line) => line.startsWith(header))
+  const end = lines.findIndex(
+    (line, index) => index > start && !line.startsWith("|")
+  )
+  return lines
+    .slice(start + 2, end)
+    .map((row) => row.split("|")[2] ?? "")
+    .join(" ")
+}
+
+it("lists every op in the catalog by capability", () => {
+  const text = readDoc("concepts/operations.mdx")
+  const section = text.slice(
+    text.indexOf("## A closed catalog"),
+    text.indexOf("The catalog is part of")
+  )
+  const listed = [
+    ...namesIn(tableColumn(section, "| Capability")),
+    ...namesIn(
+      section
+        .split("\n")
+        .filter((line) => line.startsWith("- "))
+        .join(" ")
+    ),
+  ]
+  expect([...new Set(listed)].toSorted()).toEqual(
+    Object.keys(opCatalog).toSorted()
+  )
+})
+
+it("lists every function in the catalog", () => {
+  const text = readDoc("concepts/expressions.mdx")
+  expect(namesIn(tableColumn(text, "| Group")).toSorted()).toEqual(
+    Object.keys(functionCatalog.functions).toSorted()
+  )
 })

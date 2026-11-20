@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.105",
+    "@pliantui/contract": "workspace:*",
     "@pliantui/core": "workspace:*",
     "@pliantui/react": "workspace:*",
     "@pliantui/server": "workspace:*",

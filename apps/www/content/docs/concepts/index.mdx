@@ -69,20 +69,20 @@ An overlay is a JSON document that holds a list of operations for one surface an
 }
 ```
 
-| Field       | Description                                                                                                                                     |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v`         | The format version, always `1`.                                                                                                                 |
-| `id`        | A [ULID](https://github.com/ulid/spec). Saving an overlay with the same `id` replaces it.                                                       |
-| `surface`   | The surface it applies to.                                                                                                                      |
-| `layer`     | `org`, `team`, `personal` or `session`.                                                                                                         |
-| `scope`     | Who the overlay is for: `{ "org": "…" }` on the `org` layer, `{ "team": "…" }` (optionally with `org`) on the `team` layer, and none otherwise. |
-| `ops`       | Between 1 and 500 [operations](/docs/concepts/operations).                                                                                      |
-| `basis`     | What the overlay was made against: the contract version, the `@pliantui/core` version, and the version of each component manifest it used.      |
-| `source`    | How it was made: `ai`, `manual`, `chip`, `share` or `promote`.                                                                                  |
-| `lang`      | Optional. The BCP 47 language tag of its labels, such as `en-US`.                                                                               |
-| `explain`   | Optional. One short sentence per op, describing the change to the user.                                                                         |
-| `createdBy` | Who made it.                                                                                                                                    |
-| `createdAt` | When it was made, as an RFC 3339 timestamp with seconds.                                                                                        |
+| Field       | Description                                                                                                                                                                                                                                   |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v`         | The format version, always `1`.                                                                                                                                                                                                               |
+| `id`        | A [ULID](https://github.com/ulid/spec). Saving an overlay with the same `id` replaces it.                                                                                                                                                     |
+| `surface`   | The surface it applies to.                                                                                                                                                                                                                    |
+| `layer`     | `org`, `team`, `personal` or `session`.                                                                                                                                                                                                       |
+| `scope`     | Who the overlay is for: `{ "org": "…" }` on the `org` layer, `{ "team": "…" }` (optionally with `org`) on the `team` layer, and none otherwise.                                                                                               |
+| `ops`       | Between 1 and 500 [operations](/docs/concepts/operations).                                                                                                                                                                                    |
+| `basis`     | What the overlay was made against: the contract version, the `@pliantui/core` version, the version of each component manifest it used, and optionally the version of each dataset and of the `org` and `team` overlays it was made on top of. |
+| `source`    | How it was made: `ai`, `manual`, `chip`, `share` or `promote`.                                                                                                                                                                                |
+| `lang`      | Optional. The BCP 47 language tag of its labels, such as `en-US`.                                                                                                                                                                             |
+| `explain`   | Optional. One short sentence per op, describing the change to the user.                                                                                                                                                                       |
+| `createdBy` | Who made it.                                                                                                                                                                                                                                  |
+| `createdAt` | When it was made, as an RFC 3339 timestamp with seconds.                                                                                                                                                                                      |
 
 An overlay keeps fields it doesn't recognize, so an overlay written by a newer version of Pliant loads and saves again without losing anything.
 

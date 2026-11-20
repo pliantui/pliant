@@ -15,21 +15,27 @@ There are 39 ops, and that set is closed. An overlay can't contain code, CSS or 
 
 Each op belongs to a **capability**. A manifest lists the capabilities of a component, such as `slots` and `layout` for a region, or `data` for a table. An op that changes an item, such as a column, belongs to a capability of the item's parent.
 
-| Capability     | Ops                                                                                                                                                                                                                                                                 |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `props`        | `setProp`                                                                                                                                                                                                                                                           |
-| `label`        | `rename`                                                                                                                                                                                                                                                            |
-| `hideable`     | `hide`, `show`                                                                                                                                                                                                                                                      |
-| `slots`        | `move`, `pin`, `collapse`                                                                                                                                                                                                                                           |
-| `layout`       | `setLayout`, `span`                                                                                                                                                                                                                                                 |
-| `insertable`   | `insert`, `wrap`, `remove`                                                                                                                                                                                                                                          |
-| `form`         | `setDefault` on a form field                                                                                                                                                                                                                                        |
-| `defaults`     | `setDefault` with a `prop`                                                                                                                                                                                                                                          |
-| `presentation` | `setPresentation`, `setSize`                                                                                                                                                                                                                                        |
-| `nav`          | `setLanding`                                                                                                                                                                                                                                                        |
-| `actions`      | `promote`, `demote`, `bindShortcut`                                                                                                                                                                                                                                 |
-| `data`         | `setSort`, `setFilter`, `clearFilter`, `setPage`, `setGroupBy`, `setColumnWidth`, `addDerived`, `addAggregate`, `formatField`, `addHighlight`, `addSortOption`, `addFilterControl`, `addPreset`, `setViewKind`, `configureChart`, `configureStat`, `removeUserItem` |
-| none           | `setDensity` on `@surface`; `setTextScale` and `setMotion` on `@app`                                                                                                                                                                                                |
+| Capability     | Ops                                                                  |
+| -------------- | -------------------------------------------------------------------- |
+| `props`        | `setProp`                                                            |
+| `label`        | `rename`                                                             |
+| `hideable`     | `hide`, `show`                                                       |
+| `slots`        | `move`, `pin`, `collapse`                                            |
+| `layout`       | `setLayout`, `span`                                                  |
+| `insertable`   | `insert`, `wrap`, `remove`                                           |
+| `form`         | `setDefault` on a form field                                         |
+| `defaults`     | `setDefault` on one of a node's default-state props                  |
+| `presentation` | `setPresentation`, `setSize`                                         |
+| `nav`          | `setLanding`                                                         |
+| `actions`      | `promote`, `demote`, `bindShortcut`                                  |
+| `data`         | The data ops below                                                   |
+| none           | `setDensity` on `@surface`; `setTextScale` and `setMotion` on `@app` |
+
+The `data` capability covers the ops on tables and other views of data:
+
+- `setSort`, `setFilter`, `clearFilter`, `setPage`, `setGroupBy` and `setColumnWidth`
+- `addDerived`, `addAggregate`, `addHighlight`, `addSortOption`, `addFilterControl`, `addPreset` and `removeUserItem`
+- `formatField`, `setViewKind`, `configureChart` and `configureStat`
 
 The catalog is part of `@pliantui/contract`, as `opCatalog` and as `schema/catalog.json`. Each entry lists the op's capability, the layers it's allowed in, and its argument keys. Every op is allowed in every layer except `setPage`, which is `session` only, so a page number is never saved.
 
@@ -48,14 +54,14 @@ The other ops are part of the format: overlays that contain them load, save and 
 
 Pliant checks every op on its own and gives it one of four statuses:
 
-| Status    | Meaning                                                                                                          | When loading a saved overlay                                                                         |
-| --------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `valid`   | It matches its schema, is allowed in the overlay's layer, and targets `@app` exactly when its surface is `@app`. | Applied.                                                                                             |
-| `newer`   | It would be valid without some new top-level arguments, so a newer version of Pliant wrote it.                   | Skipped and kept.                                                                                    |
-| `unknown` | Its name isn't in the catalog.                                                                                   | Skipped and kept. Core reports a namespaced name (`acme:star`) as an extension that isn't installed. |
-| `invalid` | Anything else.                                                                                                   | Skipped and kept.                                                                                    |
+| Status    | Meaning                                                                                                          |
+| --------- | ---------------------------------------------------------------------------------------------------------------- |
+| `valid`   | It matches its schema, is allowed in the overlay's layer, and targets `@app` exactly when its surface is `@app`. |
+| `newer`   | It would be valid without some new top-level arguments, so a newer version of Pliant wrote it.                   |
+| `unknown` | Its name isn't in the catalog.                                                                                   |
+| `invalid` | Anything else.                                                                                                   |
 
-A saved overlay is never thrown away because of one op. Pliant applies its valid ops, skips the rest, and keeps every op unchanged when the overlay is saved again, so an overlay from a newer version survives a round trip through an older one.
+A saved overlay is never thrown away because of one op. When Pliant loads one, it applies the `valid` ops and skips the others, and it keeps every op unchanged when the overlay is saved again, so an overlay from a newer version survives a round trip through an older one. Core tells skipped ops apart by reason, and reports an `unknown` op with a namespaced name, such as `acme:star`, as an extension that isn't installed.
 
 Answers from the ask route are stricter: an answer is accepted only if every op in it is valid. Otherwise the route sends the errors back to the model once, and answers with an error if the second answer fails too.
 

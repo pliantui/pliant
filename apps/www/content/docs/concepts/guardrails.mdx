@@ -13,11 +13,13 @@ Ops have fixed limits: at most 500 per overlay, layouts of at most four columns,
 
 ## Base items can be hidden, not deleted
 
-`remove` deletes only nodes a user or team added with `insert` or `wrap`, and only from the scope that added them. Everything you wrote can be hidden, and shown again, but never removed. Removing every overlay always brings back your page as you wrote it.
+`remove` deletes only nodes a user, team or org added with `insert` or `wrap`, and only from the scope that added them. Everything you wrote can be hidden, and shown again, but never removed. Removing every overlay always brings back your page as you wrote it.
 
 ## Visual order is DOM order
 
-When an overlay reorders a region or a table, Pliant reorders the rendered elements, not their CSS position. Tab order and screen-reader order follow what the user sees.
+When an overlay reorders a region, Pliant reorders the rendered elements, not their CSS position. Tab order and screen-reader order follow what the user sees.
+
+For tables, Pliant sets TanStack's column order and pinning, so a table rendered from `getHeaderGroups()` and `getVisibleCells()` keeps DOM order and visual order the same.
 
 ## Some state is never saved
 
@@ -25,7 +27,7 @@ When an overlay reorders a region or a table, Pliant reorders the rendered eleme
 
 ## The ask panel can only propose
 
-The ask route offers the model only a fixed set of ops that the target's capabilities allow, and only the ids of items that exist in the target. It turns away asks that start with a verb that acts on data, such as "delete" or "refund", unless they name a part of the view. It has no way to change your data.
+The ask route offers the model only a fixed set of ops that the target's capabilities allow, and only the item ids you list in the target's context. It turns away asks that start with a verb that acts on data, such as "delete" or "refund", unless they name a part of the view. It has no way to change your data.
 
 Every answer is validated on the server, then validated again in the browser before it's applied. It applies to the `session` layer as a preview, and nothing is saved until the user saves it.
 
