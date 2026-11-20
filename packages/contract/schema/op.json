@@ -416,7 +416,8 @@
                   "type": "string",
                   "enum": [
                     "chart",
-                    "stat"
+                    "stat",
+                    "list"
                   ]
                 },
                 "dataset": {

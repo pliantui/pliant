@@ -26,6 +26,8 @@ To validate an overlay:
 
    Rules `op.json` doesn't carry: a `setDefault` without `prop` targets an address ending in `/fields/<id>`. A `setDefault` with `prop` targets a node address only: no `/columns/`, `/fields/`, `/items/` or `/actions/` segment, and never a reserved target such as `@app` or `@surface`. Its `value` is a string of 1 to 64 characters, a number or a boolean.
 
+An `insert` adds a node of a built-in kind, `chart`, `stat` or `list`, which needs a `dataset`, or of a kind an application registers as `namespace:name`, which may name one. Any other bare kind is invalid. The `dataset` must be one the surface already shows. The schemas and `validateOverlay` don't know which datasets those are, so whatever applies ops with the surface's datasets at hand must check it and treat an `insert` over any other dataset as invalid.
+
 A `remove` targets a slot address outside a template or the bare id of a node. Whether a bare id names a node the user inserted or wrapped is checked at resolution time, not during validation.
 
 A `setPresentation` with `as: "sheet"` or `as: "drawer"` may set `side` to `top`, `bottom`, `start` or `end`. `start` and `end` follow the writing direction, so in a right-to-left document `start` is the right edge. A renderer maps them to a physical side using the resolved direction.
