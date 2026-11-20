@@ -1,5 +1,5 @@
 import { compareOrdered } from "./compare-ordered"
-import type { Guardrail, Violation } from "./guardrail"
+import type { Guardrail } from "./guardrail"
 import { addressParents } from "./node-identity"
 import { scopeKeyOf } from "./overlay-scope"
 import type { ReadFlags } from "./read-flags"
@@ -15,14 +15,23 @@ import type { OrderedOverlay } from "./surface-order"
 
 const guardrails: readonly Guardrail[] = [staysVisible]
 
+// Only these ops write `visible`, `inserted`, `collapse.*` or a placement,
+// so only they can hide a node that was visible.
+const canHide = new Set([
+  "hide",
+  "collapse",
+  "move",
+  "pin",
+  "promote",
+  "demote",
+  "insert",
+  "wrap",
+  "remove",
+])
+
 type Step =
   | { readonly skipped: SkippedOp }
   | { readonly op: ResolvedOp; readonly scope: string }
-
-interface Blocked {
-  readonly violation: Violation
-  readonly conflictsWith: readonly ResolvedOp[]
-}
 
 /**
  * Each node's parent in the base: `baseParents` when given, else what the
@@ -60,15 +69,18 @@ function baseParentsOf(
 }
 
 /**
- * Applies the ordered overlays' valid ops, then checks the guardrails on the
- * result. Each violation skips the op among those involved that applied
- * last, which is the op from the highest layer, and everything resolves
- * again without it. When that op decides a property, the ops below it that
- * would break the rule the same way, and still applied after every other op
- * involved, are skipped in the same pass, so a stack of hides on one node
- * takes one pass. Each extra pass skips at least one more op, so there are
- * at most as many passes as valid ops, plus one, each applying every op: in
- * the worst case, time grows with the square of the number of ops.
+ * Applies the ordered overlays' valid ops one at a time, in resolution
+ * order. With flags, after each op that can hide something, it checks the
+ * guardrails on the state so far, and skips the op if it breaks one: every
+ * op before it was kept, so the op that completes a violation is the one
+ * from the highest layer involved. An op is judged against the ops before
+ * it only, so a lower op is skipped even when a higher op would have undone
+ * what it did.
+ *
+ * Each op that can hide something settles the state once, and each skipped
+ * op applies the ops kept before it again, so time grows with the number of
+ * those ops times the number of ops. Ops that can't hide anything, such as
+ * sorts and widths, add no checks.
  */
 export function resolveOrdered(
   ordered: readonly OrderedOverlay[],
@@ -99,82 +111,62 @@ export function resolveOrdered(
       }
     }
   }
-  const sequence = steps.flatMap((step) => ("op" in step ? [step.op] : []))
-  const parents = flags && baseParentsOf(sequence, flags, baseParents)
-  const blocked = new Map<ResolvedOp, Blocked>()
-  for (;;) {
-    const state = createResolution(baseIds)
-    const skipped: SkippedOp[] = []
-    const unapplied: UnappliedOp[] = []
-    for (const step of steps) {
-      if ("skipped" in step) {
-        skipped.push(step.skipped)
-        continue
-      }
-      const { op, scope } = step
-      const block = blocked.get(op)
-      if (block) {
-        const { guardrail, flag, node } = block.violation
-        skipped.push({
-          ...op,
-          reason: "guardrail",
-          guardrail,
-          flag,
-          node,
-          conflictsWith: block.conflictsWith,
-        })
-        continue
-      }
-      const notApplied = applyOp(state, op, scope)
-      if (notApplied) {
-        unapplied.push({ ...op, reason: notApplied })
-      }
+  const parents =
+    flags &&
+    baseParentsOf(
+      steps.flatMap((step) => ("op" in step ? [step.op] : [])),
+      flags,
+      baseParents
+    )
+  const kept: { op: ResolvedOp; scope: string }[] = []
+  const skipped: SkippedOp[] = []
+  const unapplied = new Map<ResolvedOp, UnappliedOp>()
+  let state = createResolution(baseIds)
+  for (const step of steps) {
+    if ("skipped" in step) {
+      skipped.push(step.skipped)
+      continue
     }
-    const settled = settleResolution(state)
-    const violations =
-      flags && parents
-        ? guardrails.flatMap((guardrail) =>
-            guardrail({ ...settled, flags: flags.flags, parents })
-          )
+    const { op, scope } = step
+    const notApplied = applyOp(state, op, scope)
+    if (notApplied) {
+      unapplied.set(op, { ...op, reason: notApplied })
+    }
+    const [violation] =
+      flags && parents && canHide.has(op.check.op.op)
+        ? guardrails
+            .flatMap((guardrail) =>
+              guardrail({
+                ...settleResolution(state),
+                flags: flags.flags,
+                parents,
+              })
+            )
+            .sort((a, b) => compareOrdered(a.node, b.node))
         : []
-    const order = (op: ResolvedOp) => sequence.indexOf(op)
-    // Violations whose op to skip applied first go first, so skipping it can
-    // settle later ones that share it, and the result never depends on the
-    // order of `flags`.
-    const queue = violations
-      .map((violation) => ({
-        violation,
-        last: Math.max(...violation.ops.map(order)),
-      }))
-      .sort(
-        (a, b) =>
-          a.last - b.last || compareOrdered(a.violation.node, b.violation.node)
-      )
-    const count = blocked.size
-    for (const { violation, last } of queue) {
-      const [decides, ...others] = violation.ops
-      const culprit = sequence[last]
-      // An op skipped earlier in this pass may settle this violation, so the
-      // next pass checks it again.
-      if (!culprit || violation.ops.some((op) => blocked.has(op))) {
-        continue
-      }
-      blocked.set(culprit, {
-        violation,
-        conflictsWith: violation.ops.filter((op) => op !== culprit),
-      })
-      if (culprit === decides) {
-        const after = Math.max(-1, ...others.map(order))
-        for (const op of violation.next) {
-          if (order(op) < after) {
-            break
-          }
-          blocked.set(op, { violation, conflictsWith: others })
-        }
-      }
+    if (!violation) {
+      kept.push(step)
+      continue
     }
-    if (blocked.size === count) {
-      return { ...settled, skipped, unapplied }
+    const { guardrail, flag, node, ops } = violation
+    skipped.push({
+      ...op,
+      reason: "guardrail",
+      guardrail,
+      flag,
+      node,
+      conflictsWith: ops.filter((other) => other !== op),
+    })
+    unapplied.delete(op)
+    // The resolution can't take an op back, so it starts over without it.
+    state = createResolution(baseIds)
+    for (const { op: keptOp, scope: keptScope } of kept) {
+      applyOp(state, keptOp, keptScope)
     }
+  }
+  return {
+    ...settleResolution(state),
+    skipped,
+    unapplied: [...unapplied.values()],
   }
 }

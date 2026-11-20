@@ -2,7 +2,7 @@ import type { Op } from "@pliantui/contract"
 
 import type { Guardrail, GuardrailInput, Violation } from "./guardrail"
 import { identityOf } from "./node-identity"
-import type { ResolvedOp, ResolvedProperty } from "./resolve-layers"
+import type { ResolvedOp } from "./resolve-layers"
 
 function setsContainer(op: Op, container: string): boolean {
   return op.op === "wrap"
@@ -60,21 +60,6 @@ function hides(op: ResolvedOp | undefined, name: string): boolean {
   )
 }
 
-/** The ops below the winner that would decide the same way, nearest first. */
-function sameBelow(
-  property: ResolvedProperty | undefined,
-  name: string
-): ResolvedOp[] {
-  const below: ResolvedOp[] = []
-  for (const op of [...(property?.overridden ?? [])].reverse()) {
-    if (!hides(op, name)) {
-      break
-    }
-    below.push(op)
-  }
-  return below
-}
-
 /**
  * Why `node` is out of sight, if it is: a `hide`, `collapse`, `demote` or
  * `remove` on it or on a node that holds it, plus every op that moved the
@@ -85,7 +70,7 @@ function sameBelow(
 function hidingOps(
   node: string,
   input: GuardrailInput
-): Pick<Violation, "ops" | "next"> | undefined {
+): ResolvedOp[] | undefined {
   const base = baseChain(node, input.parents)
   const path: ResolvedOp[] = []
   // Every node visited, with the op that put it in the next one.
@@ -95,7 +80,7 @@ function hidingOps(
     const start = walk.findIndex((step) => step.id === repeat)
     if (start >= 0) {
       const cycle = walk.slice(start).flatMap(({ via }) => (via ? [via] : []))
-      return cycle.length > 0 ? { ops: cycle, next: [] } : undefined
+      return cycle.length > 0 ? cycle : undefined
     }
     // A node that holds it in the base hides it whatever moved it in here.
     if (base.includes(id)) {
@@ -109,24 +94,17 @@ function hidingOps(
         : input.properties
             .get(container)
             ?.get(`collapse.${id.slice(id.lastIndexOf("/") + 1)}`)
-    const candidates: [
-      ResolvedOp | undefined,
-      string,
-      ResolvedProperty | undefined,
-    ][] = [
-      [own?.get("visible")?.winner, "hide", own?.get("visible")],
-      [own?.get("inserted")?.winner, "remove", undefined],
-      [input.placements.get(id)?.winner, "demote", undefined],
-      [collapse?.winner, "collapse", collapse],
+    const candidates: [ResolvedOp | undefined, string][] = [
+      [own?.get("visible")?.winner, "hide"],
+      [own?.get("inserted")?.winner, "remove"],
+      [input.placements.get(id)?.winner, "demote"],
+      [collapse?.winner, "collapse"],
     ]
-    for (const [op, name, property] of candidates) {
+    for (const [op, name] of candidates) {
       if (op && hides(op, name)) {
         const movedIn =
           name === "collapse" && via && input.parents.get(id) !== container
-        return {
-          ops: [op, ...path, ...(movedIn ? [via] : [])],
-          next: sameBelow(property, name),
-        }
+        return [op, ...path, ...(movedIn ? [via] : [])]
       }
     }
     walk.push({ id, via })
@@ -150,8 +128,6 @@ export const staysVisible: Guardrail = (input) =>
       : flags.required
         ? "required"
         : undefined
-    const hidden = flag && hidingOps(node, input)
-    return flag && hidden
-      ? [{ guardrail: "stays-visible", flag, node, ...hidden }]
-      : []
+    const ops = flag && hidingOps(node, input)
+    return flag && ops ? [{ guardrail: "stays-visible", flag, node, ops }] : []
   })

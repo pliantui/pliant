@@ -39,7 +39,7 @@ function overlay(
     stored(
       layer,
       ops,
-      `01JBQ3V8Z7XKQ2M4N5P6R7S8${String(count).padStart(2, "0")}`,
+      `01JBQ3V8Z7XKQ2M4N5P6${String(count).padStart(6, "0")}`,
       onSurface
     )
   )
@@ -53,6 +53,15 @@ const flags: Record<string, Flags> = {
   "page/slots/checkout-actions/slots/pay-now": { critical: true },
   "page/slots/ticket-form/fields/email": { required: true },
   "page/slots/checkout-actions/slots/delete": { destructive: true },
+}
+
+const tree = {
+  page: null,
+  "checkout-actions": "page",
+  "pay-now": "checkout-actions",
+  delete: "checkout-actions",
+  "ticket-form": "page",
+  side: "page",
 }
 
 function resolve(...overlays: LoadedOverlay[]): ResolvedLayers {
@@ -140,7 +149,7 @@ describe("critical and required nodes", () => {
     )
   })
 
-  it("keeps a collapse into none, which shows the items again", () => {
+  it("judges each op by the ops before it, not by a higher layer's undo", () => {
     const collapse = {
       op: "collapse",
       target: "checkout-actions",
@@ -151,7 +160,9 @@ describe("critical and required nodes", () => {
       overlay("team", [{ ...collapse }]),
       overlay("personal", [{ ...collapse, into: "none" }])
     )
-    expect(guarded(result)).toEqual([])
+    expect(guarded(result).map(({ layer, op }) => [layer, op])).toEqual([
+      ["team", collapse],
+    ])
   })
 
   it("skips a demote of a critical action", () => {
@@ -430,6 +441,23 @@ describe("critical and required nodes", () => {
     ).toEqual([["team", move]])
   })
 
+  it("leaves out ops that move the node within the node hidden", () => {
+    const wrap = {
+      op: "wrap",
+      target: "checkout-actions",
+      id: "pay-group",
+      items: ["pay-now", "back"],
+      mode: "row",
+    }
+    const hide = { op: "hide", target: "page/slots/checkout-actions" }
+    const result = resolve(
+      overlay("personal", [wrap]),
+      overlay("session", [hide])
+    )
+    const [skip] = result.skipped
+    expect(skip?.reason === "guardrail" && skip.conflictsWith).toEqual([])
+  })
+
   it("reports a node flagged both critical and required as critical", () => {
     const result = resolveLayers(
       [overlay("personal", [{ op: "hide", target: "pay-now" }])],
@@ -481,13 +509,6 @@ describe("critical and required nodes", () => {
   })
 
   describe("with the base tree", () => {
-    const tree = {
-      page: null,
-      "checkout-actions": "page",
-      "pay-now": "checkout-actions",
-      delete: "checkout-actions",
-      "ticket-form": "page",
-    }
     const hide = { op: "hide", target: "aside" }
     const move = {
       op: "move",
@@ -559,18 +580,21 @@ describe("critical and required nodes", () => {
       }
     })
 
-    it("throws a TypeError for a tree that leaves out a flagged node", () => {
+    it("takes a flag's address for a node the tree leaves out", () => {
+      const hide = { op: "hide", target: "checkout-actions" }
+      const result = resolveLayers([overlay("personal", [hide])], {
+        surface,
+        flags,
+        baseParents: { page: null, "ticket-form": "page" },
+      })
+      expect(guarded(result).map(({ op }) => op)).toEqual([hide])
+    })
+
+    it("throws a TypeError when a flag's address closes a cycle in the tree", () => {
       expect(() =>
         resolveLayers([], {
           surface,
-          flags: { "pay-now": { critical: true } },
-          baseParents: { page: null },
-        })
-      ).toThrow(TypeError)
-      expect(() =>
-        resolveLayers([], {
-          surface,
-          flags: { "page/slots/pay-now": { critical: true } },
+          flags: { "pay-now/slots/page": { critical: true } },
           baseParents: { "pay-now": "page" },
         })
       ).toThrow(TypeError)
@@ -701,7 +725,7 @@ describe("critical and required nodes", () => {
     }
   })
 
-  it("keeps a lower hide that a higher move is what makes harmful", () => {
+  it("keeps a hide that only a later move would make harmful", () => {
     const hide = { op: "hide", target: "page/slots/side" }
     const move = {
       op: "move",
@@ -715,10 +739,229 @@ describe("critical and required nodes", () => {
     )
     expect(guarded(result).map(({ layer, op }) => [layer, op])).toEqual([
       ["personal", move],
-      ["session", hide],
     ])
     expect(
       result.properties.get("side")?.get("visible")?.winner.overlay.layer
-    ).toBe("team")
+    ).toBe("session")
+  })
+
+  it("skips a move into a cycle a lower layer made", () => {
+    const intoB = { op: "move", target: "page/slots/a", to: { into: "b" } }
+    const intoA = { op: "move", target: "page/slots/b", to: { into: "a" } }
+    const move = {
+      op: "move",
+      target: "checkout-actions/slots/pay-now",
+      to: { into: "a" },
+    }
+    const result = resolve(
+      overlay("org", [intoB, intoA]),
+      overlay("session", [move])
+    )
+    expect(guarded(result).map(({ layer, op }) => [layer, op])).toEqual([
+      ["session", move],
+    ])
+  })
+
+  it("skips a move back into the node's own parent that a lower layer hid", () => {
+    const out = {
+      op: "move",
+      target: "checkout-actions/slots/pay-now",
+      to: { into: "side" },
+    }
+    const hide = { op: "hide", target: "page/slots/checkout-actions" }
+    const back = { ...out, to: { into: "checkout-actions" } }
+    for (const baseParents of [undefined, tree]) {
+      const result = resolveLayers(
+        [
+          overlay("org", [out]),
+          overlay("team", [hide]),
+          overlay("session", [back]),
+        ],
+        { surface, flags, baseParents }
+      )
+      expect(guarded(result).map(({ layer, op }) => [layer, op])).toEqual([
+        ["session", back],
+      ])
+      expect(result.placements.get("pay-now")?.container).toBe("side")
+    }
+  })
+
+  it("skips only the ops that hide a flagged node when they apply", () => {
+    const hidePay = { op: "hide", target: "checkout-actions/slots/pay-now" }
+    const hideActions = { op: "hide", target: "page/slots/checkout-actions" }
+    const move = {
+      op: "move",
+      target: "page/slots/side",
+      to: { into: "checkout-actions" },
+    }
+    const result = resolveLayers(
+      [
+        overlay("org", [hidePay]),
+        overlay("personal", [hideActions]),
+        overlay("session", [move]),
+      ],
+      {
+        surface,
+        flags: { ...flags, "page/slots/side/slots/notice": { required: true } },
+      }
+    )
+    expect(guarded(result).map(({ layer, op }) => [layer, op])).toEqual([
+      ["org", hidePay],
+      ["personal", hideActions],
+    ])
+  })
+})
+
+describe("random overlays", () => {
+  const parents: Record<string, string | null> = {
+    page: null,
+    "checkout-actions": "page",
+    side: "page",
+    a: "page",
+    b: "page",
+    "pay-now": "checkout-actions",
+    notice: "side",
+    back: "checkout-actions",
+  }
+  const fuzzFlags = {
+    "page/slots/checkout-actions/slots/pay-now": { critical: true },
+    "page/slots/side/slots/notice": { required: true },
+  }
+  const flagged = ["pay-now", "notice"]
+  const movable = ["checkout-actions", "side", "a", "b", "pay-now", "notice"]
+  const addressOf = (id: string) => {
+    const parent = parents[id]
+    return parent ? `${parent}/slots/${id}` : id
+  }
+
+  // A small seeded generator, so every run checks the same overlays.
+  function generator(seed: number) {
+    let state = seed
+    const next = (n: number) => {
+      state = (state * 1103515245 + 12345) % 2147483648
+      return Math.floor((state / 2147483648) * n)
+    }
+    const pick = <T>(items: readonly T[]): T => {
+      const item = items[next(items.length)]
+      if (item === undefined) {
+        throw new Error("Nothing to pick")
+      }
+      return item
+    }
+    return () => {
+      const kind = next(6)
+      if (kind < 2) {
+        return { op: "hide", target: addressOf(pick(movable)) }
+      }
+      if (kind === 2) {
+        return { op: "show", target: addressOf(pick(movable)) }
+      }
+      if (kind === 3) {
+        const container = pick(["checkout-actions", "side", "page"])
+        const items = Object.keys(parents).filter(
+          (id) => parents[id] === container
+        )
+        return {
+          op: "collapse",
+          target: container,
+          items: [pick(items)],
+          into: pick(["more", "none"]),
+        }
+      }
+      const item = pick(movable)
+      const into = pick(movable)
+      return {
+        op: "move",
+        target: addressOf(item),
+        to: { into: into === item ? "page" : into },
+      }
+    }
+  }
+
+  // Whether a flagged node is out of sight, found by walking the resolved
+  // tree independently of the guardrail.
+  function hidesFlagged(result: ResolvedLayers): boolean {
+    return flagged.some((node) => {
+      const seen = new Set<string>()
+      for (let id: string | null | undefined = node; id;) {
+        if (seen.has(id)) {
+          return true
+        }
+        seen.add(id)
+        if (winner(result, id, "visible")?.op === "hide") {
+          return true
+        }
+        const container: string | null | undefined =
+          result.placements.get(id)?.container ?? parents[id]
+        const collapse = container
+          ? result.properties.get(container)?.get(`collapse.${id}`)?.winner
+              .check.op
+          : undefined
+        if (collapse?.op === "collapse" && collapse.into !== "none") {
+          return true
+        }
+        id = container
+      }
+      return false
+    })
+  }
+
+  const layers: Layer[] = ["org", "team", "personal", "session"]
+
+  it("skips exactly the ops that hide a flagged node, given the ops before them", () => {
+    const randomOp = generator(7)
+    for (let run = 0; run < 150; run++) {
+      const spec = layers.map((layer) => ({
+        layer,
+        ops: Array.from({ length: 1 + (run % 3) }, randomOp),
+      }))
+      const build = (keep: (layer: number, index: number) => boolean) =>
+        spec.flatMap(({ layer, ops }, at) => {
+          const kept = ops.filter((_, index) => keep(at, index))
+          return kept.length > 0 ? [overlay(layer, kept)] : []
+        })
+      const result = resolveLayers(
+        build(() => true),
+        {
+          surface,
+          flags: fuzzFlags,
+          baseParents: parents,
+        }
+      )
+      const reversed = resolveLayers(
+        build(() => true),
+        {
+          surface,
+          flags: Object.fromEntries(Object.entries(fuzzFlags).reverse()),
+          baseParents: parents,
+        }
+      )
+      const skippedOf = (resolved: ResolvedLayers) =>
+        guarded(resolved).map(({ layer, op }) => [layer, op])
+      expect(skippedOf(reversed)).toEqual(skippedOf(result))
+      expect(hidesFlagged(result)).toBe(false)
+
+      const keptOps = new Set<string>()
+      const expected: unknown[] = []
+      spec.forEach(({ layer, ops }, at) => {
+        ops.forEach((op, index) => {
+          const keyOf = (l: number, i: number) => [l, i].join(":")
+          const key = keyOf(at, index)
+          const trial = resolveLayers(
+            build((l, i) => keptOps.has(keyOf(l, i)) || keyOf(l, i) === key),
+            { surface }
+          )
+          const valid = trial.skipped.every(
+            ({ check }) => JSON.stringify(check.op) !== JSON.stringify(op)
+          )
+          if (valid && hidesFlagged(trial)) {
+            expected.push([layer, op])
+          } else {
+            keptOps.add(key)
+          }
+        })
+      })
+      expect(skippedOf(result)).toEqual(expected)
+    }
   })
 })

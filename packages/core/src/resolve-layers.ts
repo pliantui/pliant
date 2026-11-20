@@ -128,9 +128,9 @@ export type SkippedOp =
       /** The identity of the flagged node or item the rule protects. */
       readonly node: string
       /**
-       * The other applied ops that, together with this one, would break the
-       * rule, such as the `move … into` a node this op hides. Empty when the
-       * op breaks it alone.
+       * The ops applied before this one that make it break the rule, such
+       * as the `move … into` the node this op hides. Empty when the op
+       * breaks it alone.
        */
       readonly conflictsWith: readonly ResolvedOp[]
     }
@@ -217,21 +217,28 @@ export interface ResolveLayersOptions {
    * combine their flags.
    *
    * A node or item flagged `critical` or `required` stays visible and
-   * reachable: a `hide`, `collapse`, `demote` or `remove` on it, or on a
-   * node that holds it once every op applies, breaks the guardrail, and so
-   * does a `move … into` or `wrap` that puts it in such a node, or in a
-   * cycle of containers. Each time, the op among those involved that
-   * applied last, the one from the highest layer, is skipped with reason
-   * `guardrail` and guardrail `stays-visible`, and the rest resolve again
-   * without it. A `move … into` or `wrap` into a node that holds the
-   * flagged node in the page anyway isn't involved; only the op that hides
-   * that node is skipped.
+   * reachable: no `hide`, `collapse`, `demote` or `remove` on it or on a
+   * node that holds it, and no `move … into`, `wrap` or other op that puts
+   * it in a hidden node or a cycle of containers.
+   *
+   * Ops apply one at a time in resolution order. Each op that leaves a
+   * flagged node out of sight, given the ops kept before it, is skipped
+   * with reason `guardrail` and guardrail `stays-visible`; every op before
+   * it was kept, so it is the op from the highest layer involved. An op is
+   * judged by the ops before it only: a lower layer's `hide` is skipped even
+   * when a higher layer's `show` would undo it.
+   *
+   * Each op that can hide something checks the state so far, and each
+   * skipped op applies the ops kept before it again, so the time grows with
+   * the number of ops times the number of ops that can hide something; ops
+   * such as sorts and widths add nothing.
    *
    * Which node holds another in the page comes from `baseParents` when
    * given. Without it, it comes from the addresses in `flags`, then from
    * the targets and `move … into` destinations of the ops, so give flags by
-   * full address; a node named only by its id, such as `drawer` in
-   * `move … into drawer`, isn't traced to the nodes that hold it.
+   * full address. A node named only by its id is then not traced to the
+   * nodes that hold it, for example `drawer` in `move … into drawer` or in
+   * the `items` of a `collapse`.
    */
   readonly flags?: Readonly<Record<string, Flags>> | undefined
   /**
@@ -242,8 +249,9 @@ export interface ResolveLayersOptions {
    * page; addresses in overlays don't change it. An item's node always
    * comes from its address.
    *
-   * It must have no cycle, list every node that a flag's address names, and
-   * put each in the parent that address shows.
+   * A node it leaves out, such as one not mounted yet, takes the parent its
+   * flag's address shows. It must put each node a flag's address names in
+   * the parent that address shows, and, with those parents, have no cycle.
    */
   readonly baseParents?: Readonly<Record<string, string | null>> | undefined
 }
@@ -306,8 +314,8 @@ export interface ResolvedLayers {
  * ids or `{ ids, source }`, `flags` isn't a plain object that maps
  * addresses to valid flags, two of its addresses put one node in different
  * parents, or `baseParents` isn't a plain object that maps node ids to
- * node ids or `null`, has a cycle, leaves out a node a flag's address names,
- * or puts one in another parent than that address shows.
+ * node ids or `null`, puts a node in another parent than a flag's address
+ * shows, or has a cycle.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],
