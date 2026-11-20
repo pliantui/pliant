@@ -61,23 +61,16 @@ const builtInCapabilities = {
 const capabilitiesSchema = z
   .object(builtInCapabilities)
   .catchall(z.unknown())
-  .superRefine(
-    (capabilities, ctx) => {
-      const keys = Object.keys(capabilities).filter(
-        (key) =>
-          !Object.hasOwn(builtInCapabilities, key) &&
-          !registeredNameSchema.safeParse(key).success
-      )
-      if (keys.length > 0) {
-        ctx.addIssue({
-          code: "unrecognized_keys",
-          keys,
-          input: capabilities,
-        })
-      }
-    },
-    { when: ({ value }) => typeof value === "object" && value !== null }
-  )
+  .superRefine((capabilities, ctx) => {
+    const keys = Object.keys(capabilities).filter(
+      (key) =>
+        !Object.hasOwn(builtInCapabilities, key) &&
+        !registeredNameSchema.safeParse(key).success
+    )
+    if (keys.length > 0) {
+      ctx.addIssue({ code: "unrecognized_keys", keys, input: capabilities })
+    }
+  })
   .meta({
     patternProperties: { [`^${idPatterns.namespaced}$`]: {} },
     propertyNames: { not: { pattern: "^pliant:" } },

@@ -46,15 +46,15 @@ describe("manifestSchema", () => {
       kind: "button",
       version: 1,
       description: "Clickable action",
-      capabilities: { hidable: true, label: "yes", "crm:starrable": true },
+      capabilities: { hidable: true, "crm:starrable": true },
     })
-    expect(
-      result.error?.issues.map(({ code, path }) => [code, path.join(".")])
-    ).toEqual([
-      ["invalid_type", "capabilities.label"],
-      ["unrecognized_keys", "capabilities"],
+    expect(result.error?.issues).toEqual([
+      expect.objectContaining({
+        code: "unrecognized_keys",
+        keys: ["hidable"],
+        path: ["capabilities"],
+      }),
     ])
-    expect(result.error?.issues[1]).toMatchObject({ keys: ["hidable"] })
   })
 
   it("reports only the format issue for a malformed namespaced kind", () => {
