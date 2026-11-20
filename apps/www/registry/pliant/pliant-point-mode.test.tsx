@@ -41,7 +41,13 @@ const targets = [
 
 const storage: StorageAdapter = {
   load: () => ({ personal: [] }),
-  save: () => undefined,
+  save: (_surface, overlay) => ({
+    overlay,
+    etag: crypto.randomUUID(),
+    version: 1,
+    updatedAt: new Date().toISOString(),
+  }),
+  remove: () => undefined,
 }
 
 // happy-dom has no layout, so each element's box comes from `data-top`.

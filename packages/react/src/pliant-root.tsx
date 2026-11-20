@@ -19,8 +19,11 @@ export interface PliantRootProps {
   /** Team ids, highest precedence first, as in core's `resolveLayers`. */
   readonly teamOrder?: readonly string[] | undefined
   /**
-   * Called when saving a personal version fails. The version stays pending
-   * and is saved again on the next flush. Defaults to `console.error`.
+   * Called when saving a personal version fails, and when loading the
+   * layers again after a change elsewhere fails, which keeps the layers
+   * shown. A failed version stays pending and is saved again on the next
+   * flush. A conflict isn't an error: see `PliantRoot`. Defaults to
+   * `console.error`.
    */
   readonly onError?: ((error: unknown) => void) | undefined
   /**
@@ -82,8 +85,19 @@ function PliantSurfaceRoot({
  * resolves no overlays and a synchronous adapter applies before the first
  * client paint. `usePliantStatus` tells when the layers are ready.
  *
- * Each tab loads the layers once: changes made in another tab show after a
- * reload.
+ * Each personal version is stored as a new record, with `ifMatch: null`.
+ * When the adapter answers with a `StorageConflictError`, a record with that
+ * id is stored already. If it holds the same overlay, as when an earlier
+ * attempt saved it but its answer was lost, the version counts as saved.
+ * Otherwise the stored overlay is kept and the version is saved again under
+ * a new id, with the same `createdAt`. Personal overlays resolve in
+ * `createdAt` order, so the later change wins on a property both write,
+ * and changes to different properties both apply.
+ *
+ * When the adapter implements `subscribe`, changes stored from another tab
+ * or device show as they arrive: the surface loads again without going
+ * back to `loading`. Personal versions this tab hasn't saved yet stay.
+ * `localAdapter` does this for the other tabs of the same browser.
  *
  * @experimental
  */

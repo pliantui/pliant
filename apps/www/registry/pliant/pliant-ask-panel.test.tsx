@@ -101,7 +101,13 @@ const okAnswer = {
 
 const storage: StorageAdapter = {
   load: () => ({ personal: [] }),
-  save: () => undefined,
+  save: (_surface, overlay) => ({
+    overlay,
+    etag: crypto.randomUUID(),
+    version: 1,
+    updatedAt: new Date().toISOString(),
+  }),
+  remove: () => undefined,
 }
 
 const tableIds = ["orders-table"]
