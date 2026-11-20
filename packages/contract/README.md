@@ -80,6 +80,8 @@ The adapter methods and `StorageConflictError`, which a conditional save throws 
 - `nulls` is `propagate` (a null argument makes the result null), `skip` (null values are left out, and window functions give their rows null) or `custom` (as `describe` says).
 - `mergeable` lists the summary an aggregate merges from, or is `null`. `count` and `sum` add, `min` and `max` keep the extreme, and `mean` and `m2` merge with `count` by Chan's parallel algorithm. Whether a value covers all rows or only loaded ones also depends on the mode and the server adapter.
 
+`functionSignatures` holds each function's `kind`, `args`, `returns`, `unit`, `nulls` and `mergeable`, the same values as in `functionCatalog`, without `describe`. Code that type-checks or evaluates expressions can import it instead of `functionCatalog` to leave the descriptions and rules out of its bundle.
+
 A SQL translation must give the same results as `rules` and `describe` say, even where the dialect's own functions differ. Where the database raises an error on floating-point overflow instead of returning an infinity, the translation must guard against it or not compile the function.
 
 The `in` function takes at most 15 values, because a function takes at most 16 arguments. The 100-value limit is for the `in` filter operator.

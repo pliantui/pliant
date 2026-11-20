@@ -1,8 +1,8 @@
 import {
-  functionCatalog,
+  functionSignatures,
   type Expression,
-  type FunctionDefinition,
   type FunctionName,
+  type FunctionSignature,
 } from "@pliantui/contract"
 
 import { productUnit, quotientUnit } from "./combine-units"
@@ -16,13 +16,13 @@ import {
   type ValueType,
 } from "./expression-types"
 
-type Param = FunctionDefinition["args"][number]
+type Param = FunctionSignature["args"][number]
 
 export type Report = (path: readonly PropertyKey[], message: string) => void
 
 interface Member {
   readonly index: number
-  /** The name of the argument in the catalog. */
+  /** The name of the argument in the signature. */
   readonly name: string
   readonly inferred: Inferred
 }
@@ -54,7 +54,7 @@ const dateFormats =
   "a date as YYYY-MM-DD or a datetime as ISO 8601 with seconds and an offset"
 
 export function isFunctionName(name: string): name is FunctionName {
-  return Object.hasOwn(functionCatalog.functions, name)
+  return Object.hasOwn(functionSignatures, name)
 }
 
 function plural(count: number) {
@@ -279,7 +279,7 @@ function joinTypes([first, ...rest]: readonly (ValueType | undefined)[]) {
 type GroupOf = (argName: string) => Unified | undefined
 
 function returnType(
-  { args, returns }: FunctionDefinition,
+  { args, returns }: FunctionSignature,
   nodes: readonly Expression[],
   groupOf: GroupOf
 ): ValueType | undefined {
@@ -300,7 +300,7 @@ function returnType(
 }
 
 function unitOf(
-  { args, unit }: FunctionDefinition,
+  { args, unit }: FunctionSignature,
   groupOf: GroupOf
 ): string | undefined | { error: string } {
   if (typeof unit === "object") {
@@ -319,7 +319,7 @@ function unitOf(
 }
 
 /**
- * Checks a call of a built-in function against its catalog entry: the number
+ * Checks a call of a built-in function against its signature: the number
  * of arguments, constant arguments, argument types and units, and returns the
  * call's type.
  */
@@ -330,8 +330,8 @@ export function checkFunctionCall({
   path,
   report,
 }: Call): Inferred | undefined {
-  const definition = functionCatalog.functions[name]
-  const params = definition.args
+  const signature = functionSignatures[name]
+  const params = signature.args
   if (!checkArity(name, params, nodes, path, report)) {
     return undefined
   }
@@ -384,12 +384,12 @@ export function checkFunctionCall({
     const param = params.find((candidate) => candidate.name === argName)
     return param && unified.get(rootOf(params, param).name)
   }
-  const type = returnType(definition, nodes, groupOf)
+  const type = returnType(signature, nodes, groupOf)
   if (type === undefined) {
     report(path, `The arguments of ${name} must have matching types`)
     return undefined
   }
-  const resultUnit = unitOf(definition, groupOf)
+  const resultUnit = unitOf(signature, groupOf)
   if (typeof resultUnit === "object") {
     report(path, resultUnit.error)
     return undefined
