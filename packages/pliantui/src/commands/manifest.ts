@@ -1,0 +1,171 @@
+import { existsSync } from "node:fs"
+import { mkdir, writeFile } from "node:fs/promises"
+import path from "node:path"
+import { Command } from "commander"
+import { Project } from "ts-morph"
+import * as z from "zod"
+
+import type { Manifest } from "@pliantui/contract"
+
+import { buildManifest } from "../manifest/build-manifest"
+import {
+  applyDecisions,
+  readDecisions,
+  recordDecisions,
+} from "../manifest/decisions"
+import type { Diagnostic } from "../manifest/diagnostic"
+import { formatSummary } from "../manifest/format-summary"
+import { inferComponents } from "../manifest/infer-components"
+import { renderManifests } from "../manifest/render-manifests"
+import { hasUndecided, reviewComponents } from "../manifest/review"
+import { findSourceFiles } from "../utils/find-source-files"
+import { getConfig } from "../utils/get-config"
+import { handleError } from "../utils/handle-error"
+import { highlighter } from "../utils/highlighter"
+import { logger } from "../utils/logger"
+import { pluralize } from "../utils/pluralize"
+
+const manifestOptionsSchema = z.object({
+  cwd: z.string(),
+  yes: z.boolean(),
+})
+
+export const manifest = new Command()
+  .name("manifest")
+  .description("generate manifests for the components you already have")
+  .option("-y, --yes", "skip the review and use the inferred classes.", false)
+  .option(
+    "-c, --cwd <cwd>",
+    "the working directory. defaults to the current directory.",
+    process.cwd()
+  )
+  .action(async (opts: Record<string, unknown>) => {
+    try {
+      const options = manifestOptionsSchema.parse({
+        ...opts,
+        cwd: path.resolve(String(opts["cwd"])),
+      })
+      await generateManifests(options)
+    } catch (error) {
+      handleError(error)
+    }
+  })
+
+async function generateManifests(
+  options: z.infer<typeof manifestOptionsSchema>
+) {
+  const { cwd } = options
+  const relative = (file: string) => path.relative(cwd, file) || "."
+
+  if (!existsSync(cwd)) {
+    throw new Error(`The path ${highlighter.info(cwd)} does not exist.`)
+  }
+  const config = await getConfig(cwd)
+  if (!config) {
+    throw new Error(
+      `No ${highlighter.info("components.json")} found in ${highlighter.info(cwd)}. Run ${highlighter.info("npx shadcn@latest init")} to create one, then try again.`
+    )
+  }
+  const { ui, lib } = config.resolvedPaths
+  if (!existsSync(ui)) {
+    throw new Error(
+      `The ui folder ${highlighter.info(relative(ui))} from ${highlighter.info("components.json")} does not exist.`
+    )
+  }
+
+  const files = await findSourceFiles(ui)
+  const project = new Project({
+    tsConfigFilePath: config.tsConfigFilePath,
+    skipAddingFilesFromTsConfig: true,
+  })
+  const sourceFiles = files.map((file) => project.addSourceFileAtPath(file))
+  const diagnostics: Diagnostic[] = []
+  const inferred = inferComponents(sourceFiles, diagnostics)
+
+  const outputDirectory = path.join(lib, "pliant")
+  const decisionsFile = path.join(outputDirectory, "manifest-decisions.json")
+  const manifestsFile = path.join(outputDirectory, "manifests.generated.ts")
+  const decisions = await readDecisions(decisionsFile)
+  let components = applyDecisions(inferred, decisions)
+
+  if (components.length === 0) {
+    logger.warn(
+      `No components with variants or default-state props found in ${highlighter.info(relative(ui))}.`
+    )
+    return
+  }
+
+  logger.log(
+    `Found ${pluralize(components.length, "component")} in ${highlighter.info(relative(ui))}:`
+  )
+  logger.break()
+  logger.log(formatSummary(components, diagnostics, cwd))
+  logger.break()
+
+  let savedDecisions = false
+  if (!options.yes && hasUndecided(components)) {
+    const reviewed = await reviewComponents(components)
+    if (!reviewed) {
+      logger.warn("Review cancelled. Nothing was written.")
+      process.exit(1)
+    }
+    components = reviewed
+    await mkdir(outputDirectory, { recursive: true })
+    await writeFile(
+      decisionsFile,
+      `${JSON.stringify(recordDecisions(decisions, components), null, 2)}\n`
+    )
+    savedDecisions = true
+  }
+
+  const manifests: Record<string, Manifest> = {}
+  for (const component of components) {
+    const { manifest, rejected, incomplete } = buildManifest(component)
+    const { props, defaults } = manifest.capabilities
+    if (props || defaults || !component.variantsReadable) {
+      manifests[component.name] = manifest
+    }
+    for (const { name, reason } of rejected) {
+      logger.warn(`${component.name}'s ${name} was left out: ${reason}.`)
+    }
+    for (const { name, needs } of incomplete) {
+      logger.warn(
+        `${component.name}'s ${name} was left out: it needs ${needs} in ${relative(decisionsFile)}.`
+      )
+    }
+  }
+
+  await mkdir(outputDirectory, { recursive: true })
+  await writeFile(
+    manifestsFile,
+    renderManifests(manifests, path.basename(decisionsFile))
+  )
+
+  const count = Object.keys(manifests).length
+  logger.success(
+    `✔ Wrote ${pluralize(count, "manifest")} to ${relative(manifestsFile)}.`
+  )
+  if (savedDecisions) {
+    logger.success(`✔ Saved your decisions to ${relative(decisionsFile)}.`)
+  }
+
+  const pendingValues = components.flatMap((component) =>
+    component.props.flatMap((prop) =>
+      prop.values.filter((value) => value.class === "confirm")
+    )
+  ).length
+  const pendingDefaults = components.flatMap((component) =>
+    component.defaults.filter((item) => item.class === "confirm")
+  ).length
+  if (pendingValues + pendingDefaults > 0) {
+    const parts = [
+      ...(pendingValues > 0 ? [pluralize(pendingValues, "value")] : []),
+      ...(pendingDefaults > 0
+        ? [pluralize(pendingDefaults, "default-state prop")]
+        : []),
+    ]
+    logger.info(
+      `${parts.join(" and ")} ${pendingValues + pendingDefaults === 1 ? "needs" : "need"} confirmation and ${pendingValues + pendingDefaults === 1 ? "was" : "were"} left out. Run ${highlighter.info("pliantui manifest")} without --yes to review them.`
+    )
+  }
+}
