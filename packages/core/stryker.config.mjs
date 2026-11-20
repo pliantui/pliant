@@ -2,20 +2,22 @@
 // shards and runs one per job, picked with MUTATION_SHARD. Locally, leave it
 // unset to mutate every file.
 const shards = {
-  diff: [
-    "src/diff-column-placement.ts",
-    "src/diff-table-state.ts",
-    "src/compile-table-state.ts",
-    "src/table-columns.ts",
-  ],
+  // The column order search, split in two by line range. A mutant that
+  // spans both ranges, such as emptying the whole function, runs only when
+  // every file is mutated.
+  search: ["src/diff-column-placement.ts:1-406"],
+  repair: ["src/diff-column-placement.ts:407-661"],
   layers: [
-    "src/resolution.ts",
-    "src/resolve-layers.ts",
-    "src/resolve-region.ts",
+    "src/compile-table-state.ts",
+    "src/diff-table-state.ts",
     "src/order-items.ts",
     "src/placement.ts",
     "src/region-index.ts",
+    "src/resolution.ts",
+    "src/resolve-layers.ts",
+    "src/resolve-region.ts",
     "src/surface-order.ts",
+    "src/table-columns.ts",
   ],
 }
 const all = ["src/**/*.ts", "!src/**/*.test.ts", "!src/index.ts"]
@@ -28,9 +30,11 @@ function mutateOf(name) {
   if (name === "rest") {
     return [
       ...all,
-      ...Object.values(shards)
-        .flat()
-        .map((file) => `!${file}`),
+      ...new Set(
+        Object.values(shards)
+          .flat()
+          .map((file) => `!${file.split(":")[0]}`)
+      ),
     ]
   }
   const files = shards[name]

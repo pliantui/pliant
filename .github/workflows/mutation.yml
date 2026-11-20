@@ -30,7 +30,9 @@ jobs:
         include:
           - package: contract
           - package: core
-            shard: diff
+            shard: search
+          - package: core
+            shard: repair
           - package: core
             shard: layers
           - package: core
