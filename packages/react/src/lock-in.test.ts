@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import { opSchema, type Op } from "@pliantui/contract"
 import { resolveRegion } from "@pliantui/core"
@@ -88,6 +88,31 @@ beforeEach(() => {
 })
 
 describe("lockIn", () => {
+  describe("lang", () => {
+    afterEach(() => {
+      document.documentElement.removeAttribute("lang")
+    })
+
+    it("records the page's language when the preview has none", async () => {
+      document.documentElement.lang = "fr-CA"
+      const { store, saved } = await setup()
+      store.actions.preview(answer([width(320)]))
+
+      expect(store.actions.lockIn()).toMatchObject({
+        overlay: { lang: "fr-CA" },
+      })
+      expect(saved).toMatchObject([{ lang: "fr-CA" }])
+    })
+
+    it("keeps the preview's own language", async () => {
+      document.documentElement.lang = "fr-CA"
+      const { store } = await setup()
+      store.actions.preview({ ...answer([width(320)]), lang: "de" })
+
+      expect(store.actions.lockIn()).toMatchObject({ overlay: { lang: "de" } })
+    })
+  })
+
   it("keeps a session wrap that a locked move would drop", async () => {
     const { store, saved } = await setup()
     store.actions.applyOps("session", [wrapBox])

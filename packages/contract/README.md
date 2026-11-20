@@ -6,11 +6,11 @@ Pliant is in early development. See https://github.com/pliantui/pliant.
 
 ## Validating without JavaScript
 
-`schema/` holds JSON Schemas for overlays, ops, saved views and manifests, the op catalog as data in `catalog.json`, and the function catalog in `functions.json`. Patterns are ECMA-262 regular expressions: `\d` matches only ASCII digits and `$` matches only at the end of the string (Python's `re` differs on both). `format: date-time` (RFC 3339) must be checked. String lengths count Unicode code points, as `maxLength` does.
+`schema/` holds JSON Schemas for overlays, ops, saved views, stored overlays and manifests, the op catalog as data in `catalog.json`, and the function catalog in `functions.json`. Patterns are ECMA-262 regular expressions: `\d` matches only ASCII digits and `$` matches only at the end of the string (Python's `re` differs on both). `format: date-time` (RFC 3339) must be checked. String lengths count Unicode code points, as `maxLength` does.
 
 `catalog.json` is `{ "contract": 1, "ops": { [name]: { capability, layers, args } } }`. `capability` is checked against manifests at resolution time; `null` means none is needed. `layers` and each `args` list are unordered. `args` holds one list of top-level argument keys per shape, without `op` and `target`. New ops and fields may be added within contract 1, so ignore keys you don't know.
 
-Before anything else, reject an overlay, saved view or manifest if any object in it, at any depth, has a key named `__proto__`, `constructor` or `prototype`. JSON parsers can produce these keys, and some runtimes treat them specially.
+Before anything else, reject an overlay, saved view, stored overlay or manifest if any object in it, at any depth, has a key named `__proto__`, `constructor` or `prototype`. JSON parsers can produce these keys, and some runtimes treat them specially.
 
 To validate an overlay:
 
@@ -26,9 +26,24 @@ To validate an overlay:
 
 A `remove` targets a slot address outside a template or the bare id of a node. Whether a bare id names a node the user inserted or wrapped is checked at resolution time, not during validation.
 
+A reserved per-row address is a kebab-case node id, then `[`, one or more characters from `[A-Za-z0-9_-]`, then `]`, then `/` or the end of the address, for example `order-card[42]` or `order-card[42]/actions/refund`. That is, it matches `^[a-z][a-z0-9]*(?:-[a-z0-9]+)*\[[A-Za-z0-9_-]+\](?:/|$)`. It isn't valid, and the patterns in `schema/` don't match it. `order-card[]` addresses every row of a template. The Zod address and op schemas report a reserved address, whatever the rest of the address, with a custom issue whose `params.code` is `per-row-address-reserved`, in place of a format issue. It's always the first issue; on older Zod 4 releases, an address over the length limit also gets a length issue after it. An op with such a target is invalid.
+
+An overlay's optional `lang` is the BCP 47 language tag of its plain label strings. It must match `#/$defs/languageTag`: RFC 5646's `langtag` form, without grandfathered or private-use-only tags, in at most 64 characters. Zod checks the same pattern and length limit and nothing more, so the pattern is authoritative: the tag needn't be registered or canonical, and `Intl.getCanonicalLocales`, which is stricter (it rejects a repeated variant, for example), isn't used.
+
 When loading a saved overlay, apply only valid ops, flag unknown and newer ones, and keep every op unchanged when saving it again. Reject an AI answer or an import unless every op is valid.
 
 A saved view also needs every overlay to have the view's `surface` and `layer`, the same `scope.org` and `scope.team` as the others, and a unique `id`. In a manifest, a prop's `default` and `semantic` values must be among its `values`.
+
+## Stored overlays
+
+A storage adapter stores and returns each overlay as a record that `stored-overlay.json` and `storedOverlaySchema` describe: `{ overlay, etag, version, updatedAt }`.
+
+- `overlay` is checked as a saved overlay: the record is valid even when some ops are unknown, newer or invalid, and the adapter keeps every op and unknown field unchanged.
+- `etag` is an opaque string of 1 to 256 characters. Every successful save gives the overlay an etag it has never had before. Clients only compare etags for equality.
+- `version` is an integer from 1. The adapter increases it on every save. For a team or org overlay it is the version that `basis.layers` records, and clients compare versions to tell that a layer changed.
+- `updatedAt` is an RFC 3339 date-time with an offset, like `createdAt`.
+
+The adapter methods and the `conflict` result of a conditional save belong to `@pliantui/react`, not to the contract.
 
 ## Function catalog
 

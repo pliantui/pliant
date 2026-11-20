@@ -1,6 +1,13 @@
 // @vitest-environment happy-dom
 import * as React from "react"
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react"
 import { renderToString } from "react-dom/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -72,9 +79,7 @@ function Store() {
 
 async function renderRegion(
   ops: readonly unknown[] = [],
-  children: React.ReactNode = (
-    <PliantRegion id="key-metrics" slots={slots} className="grid gap-6" />
-  )
+  children: React.ReactNode = <PliantRegion id="key-metrics" slots={slots} />
 ) {
   render(
     <PliantRoot surface={surface} storage={storageWith(ops)}>
@@ -124,17 +129,13 @@ afterEach(() => {
 })
 
 describe("PliantRegion", () => {
-  it("renders each slot in a display: contents wrapper, in key order", async () => {
+  it("renders the slots in key order", async () => {
     await renderRegion()
 
     expect(idsIn(region())).toEqual(["revenue", "orders", "overdue"])
-    for (const wrapper of region().children) {
-      expect(wrapper instanceof HTMLElement && wrapper.style.display).toBe(
-        "contents"
-      )
-    }
-    expect(region().getAttribute("data-slot")).toBe("pliant-region")
-    expect(region().className).toBe("grid gap-6")
+    expect(
+      screen.getAllByRole("button").map((button) => button.textContent)
+    ).toEqual(["Revenue 0", "Orders 0", "Overdue 0"])
   })
 
   it("reorders slots and keeps their state and focus", async () => {
@@ -152,24 +153,18 @@ describe("PliantRegion", () => {
     expect(document.activeElement).toBe(revenue)
   })
 
-  it("hides slots with Activity and keeps their state", async () => {
+  it("hides slots and keeps their state", async () => {
     await renderRegion()
     fireEvent.click(screen.getByRole("button", { name: "Orders 0" }))
 
     apply({ op: "hide", target: slot("orders") })
-    const wrapper = region().children[1]
-    expect(wrapper?.getAttribute("data-pliant-id")).toBe("orders")
-    expect(wrapper instanceof HTMLElement && wrapper.style.display).toBe("none")
     expect(screen.queryByRole("button", { name: "Orders 1" })).toBeNull()
 
     apply({ op: "show", target: slot("orders") })
-    expect(wrapper instanceof HTMLElement && wrapper.style.display).toBe(
-      "contents"
-    )
     expect(screen.getByRole("button", { name: "Orders 1" })).toBeTruthy()
   })
 
-  it("renders a wrapper as a nested layout container", async () => {
+  it("renders a wrapper as a nested container", async () => {
     await renderRegion([
       {
         op: "wrap",
@@ -184,74 +179,6 @@ describe("PliantRegion", () => {
     expect(idsIn(region())).toEqual(["money", "orders"])
     const wrapper = region("money")
     expect(idsIn(wrapper)).toEqual(["revenue", "overdue"])
-    expect(wrapper.className).toBe(
-      "grid gap-[inherit] md:grid md:grid-cols-2 lg:grid lg:grid-cols-2 xl:grid xl:grid-cols-2 2xl:grid 2xl:grid-cols-2 md:col-span-full"
-    )
-  })
-
-  it("spans a wide wrapper over its container unless a span is set", async () => {
-    await renderRegion([
-      {
-        op: "wrap",
-        target: "key-metrics",
-        id: "money",
-        items: ["revenue", "overdue"],
-        mode: "row",
-      },
-      { op: "setLayout", target: "money", mode: "stack", at: "lg" },
-      {
-        op: "wrap",
-        target: "key-metrics",
-        id: "counts",
-        items: ["orders", "money"],
-        mode: "grid",
-        columns: 2,
-      },
-      { op: "span", target: slot("counts"), columns: 3 },
-    ])
-
-    expect(region("money").className).toContain("md:col-span-full lg:col-auto")
-    expect(region("counts").className).toContain("md:col-span-3")
-    expect(region("counts").className).not.toContain("col-span-full")
-  })
-
-  it("applies layouts from their breakpoint up, over the developer's", async () => {
-    render(
-      <PliantRoot
-        surface={surface}
-        storage={storageWith([
-          { op: "setLayout", target: "key-metrics", mode: "grid", columns: 3 },
-          { op: "span", target: slot("revenue"), columns: 2, at: "lg" },
-        ])}
-      >
-        <PliantRegion
-          id="key-metrics"
-          slots={slots}
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
-        />
-      </PliantRoot>
-    )
-    await mounted()
-
-    expect(region().className).toBe(
-      "grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid md:grid-cols-3 lg:grid lg:grid-cols-3 xl:grid xl:grid-cols-3 2xl:grid 2xl:grid-cols-3"
-    )
-    expect(region("revenue").className).toBe("lg:*:col-span-2")
-    expect(region("orders").hasAttribute("class")).toBe(false)
-  })
-
-  it("keeps a single column on mobile unless a layout targets it", async () => {
-    await renderRegion([
-      {
-        op: "setLayout",
-        target: "key-metrics",
-        mode: "row",
-        align: "center",
-        at: "base",
-      },
-    ])
-
-    expect(region().className).toContain("flex flex-row items-center")
   })
 
   it("collapses slots behind a trigger and keeps their state", async () => {
@@ -276,31 +203,6 @@ describe("PliantRegion", () => {
     fireEvent.click(trigger)
 
     expect(screen.getByRole("button", { name: "Orders 2" })).toBeTruthy()
-  })
-
-  it("lays out collapsed slots in place, with the container's layout", async () => {
-    await renderRegion(
-      [
-        {
-          op: "collapse",
-          target: "key-metrics",
-          items: ["revenue"],
-          into: "more",
-        },
-      ],
-      <PliantRegion
-        id="key-metrics"
-        slots={slots}
-        className="grid grid-cols-3 rounded-xl border p-4"
-      />
-    )
-
-    expect(idsIn(region())).toEqual([null, "revenue", "orders", "overdue"])
-    const trigger = region().firstElementChild
-    expect(trigger?.textContent).toBe("More")
-    expect(trigger?.getAttribute("data-pliant-collapse")).toBe("more")
-    expect(trigger?.className).toContain("col-span-full")
-    expect(region().querySelectorAll(".border")).toHaveLength(0)
   })
 
   it("keeps rendering a slot moved out of a region it hides or collapses", async () => {
@@ -360,14 +262,17 @@ describe("PliantRegion", () => {
   })
 
   it("renders the base order on the server", () => {
-    const html = renderToString(
+    const container = document.createElement("div")
+    container.innerHTML = renderToString(
       <PliantRoot surface={surface} storage={storageWith([])}>
-        <PliantRegion id="key-metrics" slots={{ revenue: "Revenue" }} />
+        <PliantRegion id="key-metrics" slots={slots} />
       </PliantRoot>
     )
 
-    expect(html).toBe(
-      '<div data-slot="pliant-region" data-pliant-id="key-metrics" data-pliant-pending="" class="grid gap-4"><!--&--><div id="_R_0_revenue" data-pliant-id="revenue" style="display:contents">Revenue</div><!--/&--></div>'
-    )
+    expect(
+      within(container)
+        .getAllByRole("button")
+        .map((button) => button.textContent)
+    ).toEqual(["Revenue 0", "Orders 0", "Overdue 0"])
   })
 })

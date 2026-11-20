@@ -11,12 +11,14 @@ import { expressionSchema } from "./expression"
 import { filterSchema } from "./filter"
 import { formatSchema } from "./format"
 import { itemIdSchema } from "./identifier"
+import { languageTagSchema } from "./language-tag"
 import { breakpointSchema } from "./layout"
 import { manifestSchema } from "./manifest"
 import { opSchema } from "./op"
 import { overlaySchema } from "./overlay"
 import { savedViewSchema } from "./saved-view"
 import { sortSchema } from "./sort"
+import { storedOverlaySchema } from "./stored-overlay"
 import { surfaceSchema } from "./surface"
 
 const schemas = [
@@ -36,6 +38,11 @@ const schemas = [
     fixtures: [readFixture("saved-view")],
   },
   {
+    name: "stored-overlay",
+    schema: storedOverlaySchema,
+    fixtures: [readFixture("stored-overlay")],
+  },
+  {
     name: "manifest",
     schema: manifestSchema,
     fixtures: [readFixture("manifest")],
@@ -53,6 +60,7 @@ const definitions = {
   filter: filterSchema,
   format: formatSchema,
   itemId: itemIdSchema,
+  languageTag: languageTagSchema,
   sort: sortSchema,
   surface: surfaceSchema,
 }

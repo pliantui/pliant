@@ -52,7 +52,7 @@ type PliantAskCapability =
  * `@pliantui/server` checks it: its manifest, the items it holds and, for
  * data, the fields it can sort by and its current sort. Never rows. A subset
  * of the server's `AskContext`, kept here so the panel doesn't depend on the
- * server package (see https://github.com/pliantui/pliant/issues/48).
+ * server package.
  */
 interface PliantAskContext {
   manifest: {

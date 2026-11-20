@@ -9,6 +9,8 @@ export interface LayerTools {
   readonly surface: string
   readonly generateId: (time: number) => string
   readonly tick: () => number
+  /** The UI language to record in new overlays, if known. */
+  readonly language: () => string | undefined
   readonly load: (input: unknown) => LoadedOverlay | undefined
   readonly resolve: (inputs: readonly unknown[]) => ResolvedLayers
   /** Validates an overlay of the surface above `overlays`. */

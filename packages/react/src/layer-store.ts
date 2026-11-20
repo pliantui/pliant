@@ -29,6 +29,7 @@ import { createSaveQueue } from "./save-queue"
 import { readSession, writeSession } from "./session-mirror"
 import { createSlotRegistry, type SlotRegistry } from "./slot-registry"
 import type { StorageAdapter, StoredLayers } from "./storage-adapter"
+import { checkLanguage, uiLanguage } from "./ui-language"
 import { ulid } from "./ulid"
 
 export interface LayerStoreOptions {
@@ -36,6 +37,8 @@ export interface LayerStoreOptions {
   readonly storage: StorageAdapter
   readonly teamOrder?: readonly string[] | undefined
   readonly onError?: ((error: unknown) => void) | undefined
+  /** The UI language, as `PliantRoot`'s `lang` prop. */
+  readonly lang?: string | undefined
   readonly now?: (() => number) | undefined
   readonly generateId?: ((time: number) => string) | undefined
   /** Whether changes replace earlier ones; off only to test that it's exact. */
@@ -55,6 +58,7 @@ export interface LayerStore {
   readonly retention: Retention
   readonly setTeamOrder: (teamOrder: readonly string[]) => void
   readonly setOnError: (onError: ((error: unknown) => void) | undefined) => void
+  readonly setLang: (lang: string | undefined) => void
   readonly connect: () => () => void
   readonly flush: () => void
   /** Reports an error to `onError`, or `console.error` without one. */
@@ -66,6 +70,7 @@ export function createLayerStore({
   storage,
   teamOrder: initialTeamOrder = [],
   onError: initialOnError,
+  lang: initialLang,
   now = Date.now,
   generateId = ulid,
   coalesce = true,
@@ -83,6 +88,7 @@ export function createLayerStore({
     surface,
     generateId,
     tick,
+    language: () => uiLanguage(lang),
     load,
     resolve,
     validateAbove,
@@ -90,6 +96,7 @@ export function createLayerStore({
 
   let teamOrder = initialTeamOrder
   let onError = initialOnError
+  let lang = checkLanguage(initialLang)
   let status = loadingStatus
   let org: readonly unknown[] = []
   let team: readonly unknown[] = []
@@ -506,6 +513,9 @@ export function createLayerStore({
     },
     setOnError(next) {
       onError = next
+    },
+    setLang(next) {
+      lang = checkLanguage(next)
     },
     connect,
     flush,

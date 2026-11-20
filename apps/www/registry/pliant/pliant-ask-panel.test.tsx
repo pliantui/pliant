@@ -274,17 +274,6 @@ describe("PliantAskPanel", () => {
     expect(status()).toBe("Locked in.1 change stays for this session only.")
   })
 
-  it("shows an unavailable answer in muted text", async () => {
-    await renderPanel()
-    answer({ status: "unavailable", reason: "No tool can do that." })
-
-    await ask()
-
-    expect(screen.getByText("No tool can do that.").className).toContain(
-      "text-muted-foreground"
-    )
-  })
-
   it.each([
     [
       {

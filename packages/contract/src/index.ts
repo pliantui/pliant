@@ -17,6 +17,7 @@ export {
   type FunctionName,
 } from "./function-catalog"
 export { itemIdSchema } from "./identifier"
+export { languageTagSchema } from "./language-tag"
 export { breakpointSchema, type Breakpoint } from "./layout"
 export { layerSchema, type Layer } from "./layer"
 export {
@@ -36,4 +37,5 @@ export {
 } from "./overlay"
 export { savedViewSchema, type SavedView } from "./saved-view"
 export { sortSchema, type Sort } from "./sort"
+export { storedOverlaySchema, type StoredOverlay } from "./stored-overlay"
 export { surfaceSchema, type Surface } from "./surface"
