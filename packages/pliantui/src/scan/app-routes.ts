@@ -27,20 +27,37 @@ function defaultComponent(sourceFile: SourceFile) {
   if (declaration && isFunction(declaration)) {
     return declaration
   }
-  return Node.isExportAssignment(declaration)
-    ? functionIn(declaration.getExpression())
+  if (Node.isExportAssignment(declaration)) {
+    return functionIn(declaration.getExpression())
+  }
+  // `export { Page as default }`
+  return Node.isExportSpecifier(declaration)
+    ? functionIn(declaration.getNameNode())
     : undefined
 }
 
 /**
- * Whether a file is an App Router layout: `layout.tsx`, or another script
- * extension, in the `app` or `src/app` folder of the project at `root`.
+ * The project's App Router folder: `app`, or `src/app` when there is no
+ * `app`, as Next.js picks it.
  */
-export function isAppLayout(file: string, root: string) {
-  const [first, second] = path.relative(root, file).split(path.sep)
+export function appDirectory(
+  root: string,
+  files: ReadonlyMap<string, SourceFile>
+) {
+  const app = path.join(root, "app")
+  return [...files.keys()].some((file) => file.startsWith(`${app}${path.sep}`))
+    ? app
+    : path.join(root, "src", "app")
+}
+
+/**
+ * Whether a file is an App Router layout: `layout.tsx`, or another script
+ * extension, in the App Router folder `app`.
+ */
+export function isAppLayout(file: string, app: string) {
   return (
     /^layout\.[cm]?[jt]sx?$/.test(path.basename(file)) &&
-    (first === "app" || (first === "src" && second === "app"))
+    !path.relative(app, file).startsWith("..")
   )
 }
 
@@ -83,25 +100,30 @@ export function appRoutes(
       (page) => route(page, new Map())
     )
     for (const segment of segmentsIn(directory)) {
-      if (/^[@_]|^\(\./.test(segment)) {
-        continue
+      if (!/^[@_]|^\(\./.test(segment)) {
+        routes.push(...segmentRoutes(path.join(directory, segment)))
       }
-      const nested = path.join(directory, segment)
-      const [nestedLayout] = routeFilesIn(files, nested, ["layout"])
-      routes.push(
-        ...(nestedLayout
-          ? route(nestedLayout, propsOf(nested))
-          : routesIn(nested))
-      )
     }
     return routes
+  }
+  // A folder with its own layout, a segment's or a parallel route's,
+  // renders through it.
+  const segmentRoutes = (directory: string): Route[] => {
+    const [layout] = routeFilesIn(files, directory, ["layout"])
+    return layout ? route(layout, propsOf(directory)) : routesIn(directory)
   }
   const propsOf = (directory: string) => {
     const props = new Map([["children", routesIn(directory)]])
     for (const segment of segmentsIn(directory)) {
-      if (segment.startsWith("@")) {
-        props.set(segment.slice(1), routesIn(path.join(directory, segment)))
+      if (!segment.startsWith("@")) {
+        continue
       }
+      // `@children` is the same slot as the layout's own children.
+      const name = segment.slice(1)
+      props.set(name, [
+        ...(props.get(name) ?? []),
+        ...segmentRoutes(path.join(directory, segment)),
+      ])
     }
     return props
   }

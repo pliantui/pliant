@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs"
-import { readFile, writeFile } from "node:fs/promises"
+import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { afterAll, describe, expect, it } from "vitest"
@@ -175,8 +175,11 @@ describe("pliantui scan", () => {
 
     expect(shop?.baseIds.source).toBe("inventory")
     expect(shop?.baseParents).toEqual({
-      // The parallel route the layout renders as its modal prop.
-      "sign-in": null,
+      // The parallel route the layout renders as its modal prop, through
+      // that route's own layout.
+      "modal-frame": null,
+      content: "modal-frame",
+      "sign-in": "content",
       form: "sign-in",
       // A page whose default export is wrapped in a function call.
       account: null,
@@ -186,7 +189,7 @@ describe("pliantui scan", () => {
       // The page of the layout's own segment.
       "shop-home": null,
       hero: "shop-home",
-      // A page in a route group.
+      // A page in a route group, exported with `export { … as default }`.
       about: null,
       story: "about",
       // A page under a nested layout, in a dynamic segment, sits where that
@@ -196,6 +199,122 @@ describe("pliantui scan", () => {
       gallery: "details",
       photos: "gallery",
     })
+  })
+
+  it("adds an @children folder's routes to the layout's children", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await mkdir(path.join(cwd, "app/(shop)/@children"))
+    await writeFile(
+      path.join(cwd, "app/(shop)/@children/page.tsx"),
+      [
+        'import { PliantRegion } from "@/components/pliant/pliant-region"',
+        "",
+        "export default function Kids() {",
+        '  return <PliantRegion id="kids" slots={{ toys: <p>Toys</p> }} />',
+        "}",
+        "",
+      ].join("\n")
+    )
+    const { output } = await scanJson(cwd)
+    const shop = output.inventory["shop"]
+
+    expect(shop?.baseParents["kids"]).toBe(null)
+    expect(shop?.baseParents["shop-home"]).toBe(null)
+    expect(shop?.baseParents["sign-in"]).toBe("content")
+  })
+
+  it("follows app and not src/app when both exist, as Next.js does", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await mkdir(path.join(cwd, "src/app/beta"), { recursive: true })
+    await writeFile(
+      path.join(cwd, "src/app/beta/layout.tsx"),
+      [
+        'import * as React from "react"',
+        "",
+        'import { PliantRoot } from "@pliantui/react"',
+        "",
+        "export default function BetaLayout({",
+        "  children,",
+        "}: {",
+        "  children: React.ReactNode",
+        "}) {",
+        '  return <PliantRoot surface="beta">{children}</PliantRoot>',
+        "}",
+        "",
+      ].join("\n")
+    )
+    const { output } = await scanJson(cwd)
+
+    expect(output.inventory["beta"]?.baseIds.source).toBe("mounted")
+    expect(output.warnings).toContainEqual({
+      file: "src/app/beta/layout.tsx",
+      line: 10,
+      message:
+        "Content passed as children isn't followed, so the nodes in it are in no inventory.",
+    })
+  })
+
+  it("puts the slots of a region from the app's own hook where they render", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    const { output } = await scanJson(cwd)
+    const help = output.inventory["help"]
+
+    // useHookedRegion is called as hooks.useHookedRegion(), and its slots
+    // render before the footer.
+    expect(help?.baseOrder["hooked"]).toEqual(["one", "two", "hooked-footer"])
+  })
+
+  it("reports ids passed into the app's own hook", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await writeFile(
+      path.join(cwd, "hooks/use-hooked-region.tsx"),
+      [
+        'import { usePliantRegion } from "@pliantui/react"',
+        "",
+        'export function useHookedRegion(id = "hooked") {',
+        "  return usePliantRegion(id, { one: <p>One</p>, two: <p>Two</p> })",
+        "}",
+        "",
+      ].join("\n")
+    )
+    const { output } = await scanJson(cwd)
+
+    expect(output.inventory["help"]?.baseIds.source).toBe("mounted")
+    expect(output.warnings).toContainEqual({
+      file: "hooks/use-hooked-region.tsx",
+      line: 4,
+      message:
+        "The id of a region can't be read: the hook's argument id, which isn't followed; write ids and slots inside the hook.",
+    })
+  })
+
+  it("stops at components that wrap each other", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await writeFile(
+      path.join(cwd, "components/cycle.tsx"),
+      [
+        'import { memo } from "react"',
+        "",
+        "export const A = memo(B)",
+        "const B = memo(A)",
+        "",
+      ].join("\n")
+    )
+    await edit(
+      cwd,
+      "app/help/page.tsx",
+      "<HookedPanel />",
+      "<HookedPanel />\n      <A />"
+    )
+    await edit(
+      cwd,
+      "app/help/page.tsx",
+      'import { HookedPanel } from "@/components/hooked-panel"',
+      'import { A } from "@/components/cycle"\nimport { HookedPanel } from "@/components/hooked-panel"'
+    )
+    const { exitCode } = await runCli(cwd, ["scan"])
+
+    expect(exitCode).toBe(0)
   })
 
   it("treats only the app folder's layouts as App Router layouts", async () => {

@@ -45,6 +45,8 @@ export interface Scope {
   readonly unknownProps: boolean
   /** The components being rendered, so a recursive one stops. */
   readonly rendering: ReadonlySet<ComponentFunction>
+  /** Whether `fn` is the app's own hook, whose arguments aren't followed. */
+  readonly hook?: boolean | undefined
 }
 
 export function isFunction(node: Node): node is ComponentFunction {
@@ -107,6 +109,15 @@ function readProp<T>(
   scope: Scope,
   read: (node: Node, scope: Scope) => Read<T>
 ): Read<T> | undefined {
+  if (scope.hook) {
+    const argument = hookArgumentOf(expression, scope)
+    return argument === undefined
+      ? undefined
+      : {
+          node: expression,
+          problem: `the hook's argument ${argument}, which isn't followed; write ids and slots inside the hook`,
+        }
+  }
   const prop = propOf(expression, scope)
   if (prop === undefined || prop === "*") {
     return undefined
@@ -122,6 +133,27 @@ function readProp<T>(
     }
   }
   return read(node, value.scope)
+}
+
+// The name of the hook parameter an expression reads, like `id` in
+// `useRegion(id)` or `useRegion({ id })`.
+function hookArgumentOf(expression: Node, scope: Scope) {
+  const node = unwrapExpression(expression)
+  const target = Node.isPropertyAccessExpression(node)
+    ? unwrapExpression(node.getExpression())
+    : node
+  if (
+    !Node.isIdentifier(target) &&
+    !Node.isShorthandPropertyAssignment(target)
+  ) {
+    return undefined
+  }
+  const declaration = getDeclarations(target)[0]
+  const parameter = Node.isParameterDeclaration(declaration)
+    ? declaration
+    : declaration?.getFirstAncestor((node) => Node.isParameterDeclaration(node))
+  const isOwn = parameter !== undefined && parameter.getParent() === scope.fn
+  return isOwn ? target.getText() : undefined
 }
 
 /** Reads a string, through props, `const`s and imports. */
@@ -161,7 +193,14 @@ export function readObjectLiteral(
  * `memo`, `forwardRef` or `withAuth`, or one the app declares under a name
  * the value refers to.
  */
-export function functionIn(value: Node): ComponentFunction | undefined {
+export function functionIn(
+  value: Node,
+  seen = new Set<Node>()
+): ComponentFunction | undefined {
+  if (seen.has(value)) {
+    return undefined
+  }
+  seen.add(value)
   let current = unwrapExpression(value)
   while (Node.isCallExpression(current)) {
     const [first] = current.getArguments()
@@ -195,9 +234,7 @@ export function functionIn(value: Node): ComponentFunction | undefined {
   const initializer = Node.isVariableDeclaration(declaration)
     ? declaration.getInitializer()
     : undefined
-  return initializer && !Node.isIdentifier(unwrapExpression(initializer))
-    ? functionIn(initializer)
-    : undefined
+  return initializer && functionIn(initializer, seen)
 }
 
 /** The function of the component a JSX tag renders, when the app declares it. */

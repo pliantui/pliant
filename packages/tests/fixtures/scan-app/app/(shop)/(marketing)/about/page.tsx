@@ -1,5 +1,7 @@
 import { PliantRegion } from "@/components/pliant/pliant-region"
 
-export default function AboutPage() {
+function AboutPage() {
   return <PliantRegion id="about" slots={{ story: <p>Our story</p> }} />
 }
+
+export { AboutPage as default }

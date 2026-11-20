@@ -24,7 +24,7 @@ import {
   resolveExpression,
   unwrapExpression,
 } from "../utils/read-static"
-import { appRoutes, isAppLayout } from "./app-routes"
+import { appDirectory, appRoutes, isAppLayout } from "./app-routes"
 import { isPliantExport } from "./pliant-export"
 import { readColumns } from "./read-columns"
 import {
@@ -87,6 +87,8 @@ interface HookCall {
   readonly hook: Hook
   /** The function that calls the hook: a component, or the app's own hook. */
   readonly caller: ComponentFunction
+  /** The call in the component that leads to the hook. */
+  readonly site: CallExpression
 }
 
 /**
@@ -104,18 +106,19 @@ function hookCalls(
     .flatMap((call): HookCall[] => {
       const hook = hookOf(call)
       if (hook) {
-        return [{ call, hook, caller: fn }]
+        return [{ call, hook, caller: fn, site: call }]
       }
+      // The app's own hook, called as `useX()` or `hooks.useX()`.
       const callee = call.getExpression()
-      const custom =
-        /^use[A-Z]/.test(
-          Node.isPropertyAccessExpression(callee)
-            ? callee.getName()
-            : callee.getText()
-        ) && Node.isIdentifier(callee)
-          ? functionIn(callee)
-          : undefined
-      return custom && !seen.has(custom) ? hookCalls(custom, seen) : []
+      const name = Node.isPropertyAccessExpression(callee)
+        ? callee.getName()
+        : Node.isIdentifier(callee)
+          ? callee.getText()
+          : ""
+      const custom = /^use[A-Z]/.test(name) ? functionIn(callee) : undefined
+      return custom && !seen.has(custom)
+        ? hookCalls(custom, seen).map((found) => ({ ...found, site: call }))
+        : []
     })
 }
 
@@ -502,22 +505,30 @@ function walkComponent(
   // A region or table holds everything its component renders.
   let holder = parent
   const pending: Node[] = []
-  for (const { call, hook, caller } of hookCalls(fn)) {
+  for (const { call, hook, caller, site } of hookCalls(fn)) {
     walk.visited.add(call)
     walk.surface.files.add(caller.getSourceFile().getFilePath())
-    // The app's own hook can't read the component's props.
+    // The app's own hook can't read the component's props, and its
+    // arguments aren't followed.
     const callScope: Scope =
       caller === fn
         ? scope
-        : { ...scope, fn: caller, props: new Map(), unknownProps: true }
+        : {
+            ...scope,
+            fn: caller,
+            props: new Map(),
+            unknownProps: true,
+            hook: true,
+          }
     if (hook === "table") {
       holder = declareTable(call, callScope, parent, walk)
       continue
     }
     const region = declareRegion(call, callScope, parent, walk)
     holder = region.id
-    const variable = call.getParentIfKind(SyntaxKind.VariableDeclaration)
-    const key = variable && caller === fn ? variable : call
+    // The variable that holds the region in the component, such as
+    // `const region = useFramed()`.
+    const key = site.getParentIfKind(SyntaxKind.VariableDeclaration) ?? site
     walk.pendingSlots.set(key, region.renderSlots)
     pending.push(key)
   }
@@ -757,6 +768,7 @@ export function scanSurfaces(
   const files = new Map(
     sourceFiles.map((sourceFile) => [sourceFile.getFilePath(), sourceFile])
   )
+  const app = appDirectory(root, files)
   const visited = new Set<Node>()
   const kindOf = (fn: ComponentFunction): NodeKind | undefined => {
     const name = componentName(fn)
@@ -782,7 +794,7 @@ export function scanSurfaces(
         unknownProps: true,
         rendering: new Set(fn ? [fn] : []),
       }
-      const fromLayout = isAppLayout(sourceFile.getFilePath(), root)
+      const fromLayout = isAppLayout(sourceFile.getFilePath(), app)
       const attribute = (
         Node.isJsxElement(element) ? element.getOpeningElement() : element
       ).getAttribute("surface")
