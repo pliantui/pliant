@@ -7,9 +7,23 @@ const config: KnipConfig = {
       entry: [".github/changeset-version.js"],
     },
     "apps/www": {
-      // Registry items ship to other apps through registry.json, so what they
-      // export is public even where this app doesn't import it.
-      entry: ["registry/pliant/*.{ts,tsx}"],
+      entry: [
+        // Registry items ship to other apps through registry.json, so what
+        // they export is public even where this app doesn't import it.
+        "registry/pliant/*.{ts,tsx}",
+        // OpenNext loads its config by name when it builds the worker.
+        "open-next.config.ts",
+      ],
+    },
+    "packages/tests": {
+      // Fixtures are sample apps the CLI reads as files, never imports. The
+      // type packages are there so the fixtures' imports resolve.
+      ignore: ["fixtures/**"],
+      ignoreDependencies: [
+        "@types/react",
+        "class-variance-authority",
+        "radix-ui",
+      ],
     },
   },
   ignoreIssues: {
