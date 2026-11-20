@@ -5,6 +5,7 @@ import { languageTagSchema } from "./language-tag"
 import { withoutReservedKeys } from "./reserved-keys"
 import { surfaceSchema } from "./surface"
 import { textSchema } from "./text"
+import { timestampSchema } from "./timestamp"
 import { ulidSchema } from "./ulid"
 
 const referenceSchema = textSchema(256, { min: 1 })
@@ -65,7 +66,7 @@ const overlayShape = {
     .max(500)
     .optional(),
   createdBy: referenceSchema,
-  createdAt: z.iso.datetime({ offset: true }),
+  createdAt: timestampSchema,
 }
 
 export const overlayObjectSchema = z
