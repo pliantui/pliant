@@ -3,7 +3,7 @@ title: Expressions
 description: Calculations as JSON trees over a fixed list of typed functions.
 ---
 
-Some ops carry a calculation: a derived column, an aggregate, or the condition for a highlight. Pliant writes these as expressions: small JSON trees over a fixed catalog of functions. There's no formula language and no parser, so `checkExpression` accepts only what the catalog defines.
+Some ops carry a calculation: a derived column, an aggregate, or the condition for a highlight. Pliant writes these as expressions: small JSON trees over a fixed catalog of functions. There's no formula language to parse: an expression is data, and `checkExpression` accepts only the functions the catalog defines.
 
 <Callout>
   Pliant checks that an expression is well formed when it checks the op. To

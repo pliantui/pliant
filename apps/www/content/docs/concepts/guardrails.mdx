@@ -27,7 +27,7 @@ For tables, Pliant sets TanStack's column order and pinning, so a table rendered
 
 ## The ask panel can only propose
 
-The ask route offers the model only a fixed set of ops that the target's capabilities allow, and only the item ids you list in the target's context. It turns away asks that start with a verb that acts on data, such as "delete" or "refund", unless they name a part of the view. It has no way to change your data.
+The ask route offers the model only a fixed set of ops that the target's capabilities allow, and only the item and field ids you list in the target's context. It turns away asks that start with a verb that acts on data, such as "delete" or "refund", unless they name a part of the view. It has no way to change your data.
 
 Every answer is validated on the server, then validated again in the browser before it's applied. It applies to the `session` layer as a preview, and nothing is saved until the user saves it.
 

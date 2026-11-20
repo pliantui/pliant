@@ -13,7 +13,7 @@ A surface is one of:
 
 - **A route pattern**, such as `/orders` or `/orders/[id]`. Use the pattern, not the URL, so one customization applies to every order page. Catch-all segments (`[...slug]`, `[[...slug]]`) work too. Characters outside ASCII must be percent-encoded as UTF-8, with uppercase hex.
 - **A kebab-case id**, such as `app-shell`, for parts of the app that aren't tied to one route.
-- **`@app`**, which is reserved. Overlays for `@app` are resolved on every surface.
+- **`@app`**, which is reserved. Pliant resolves `@app` overlays together with each surface's overlays; your storage adapter returns them with each surface's layers.
 
 ## Addresses
 
