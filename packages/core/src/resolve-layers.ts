@@ -136,14 +136,15 @@ export type SkippedOp =
        */
       readonly node: string
       /**
-       * The ops applied before this one that make it break the rule: for
-       * `stays-visible`, such as the `move … into` the node this op hides;
-       * for `stays-clear`, the ops that put the destructive or primary
-       * action where it is (a placement, a `move … into`, a `wrap` or a
-       * `collapse`, of it or of a wrapper that holds it), and, when the op
-       * leaves the destructive action right after the primary one, those
-       * that took away an action between them (a `hide`, `collapse`,
-       * `remove`, move out or reorder). Empty when the op breaks it alone.
+       * Ops applied before this one that bear on the break. For
+       * `stays-visible`, the ops that make this op break the rule, such as
+       * the `move … into` the node this op hides; empty when the op breaks
+       * it alone. For `stays-clear`, the earlier ops that place either
+       * action (a placement, a `move … into`, a `wrap` or a `collapse`, of
+       * it or of a wrapper that holds it), and, when the op leaves the
+       * destructive action right after the primary one, those that cleared
+       * the space between them (a `hide`, `collapse`, `remove`, move out or
+       * reorder), even when this op alone completes the violation.
        */
       readonly conflictsWith: readonly ResolvedOp[]
     }
@@ -278,8 +279,10 @@ export interface ResolveLayersOptions {
    * the placement ops applied so far. For scale, 20 flags at depth 6 over
    * 2,000 ops take about 120 to 230 ms. When one of them is a primary
    * action whose group every op reorders, 1,000 ops take about 150 to
-   * 200 ms and 2,000 about 0.6 s; ops in other nodes add much less. 500
-   * flags at depth 30 take about 7 s.
+   * 200 ms and 2,000 about 0.6 s; ops in other nodes add much less. Skips
+   * cost more, since each one applies the kept ops again: in that group,
+   * 1,000 kept ops and 1,000 skipped ones take about 1 to 2 s. 500 flags at
+   * depth 30 take about 7 s.
    *
    * Which node holds another in the page comes from `baseParents` when
    * given. Without it, it comes from the addresses in `flags`, then from
@@ -302,8 +305,7 @@ export interface ResolveLayersOptions {
    *
    * A node it leaves out, such as one not mounted yet, takes the parent its
    * flag's address shows. A node it leaves out that no flag names has no
-   * parent, unless `baseOrder` lists it, and the addresses of ops don't
-   * supply one. It must put each node a flag's address names in the parent
+   * parent, and the addresses of ops don't supply one. It must put each node a flag's address names in the parent
    * that address shows, and, with those parents, have no cycle and no two
    * `primary` nodes in one parent.
    */
@@ -321,7 +323,8 @@ export interface ResolveLayersOptions {
    * `baseParents` gives when given, else the one the child's flag address
    * shows, if any. With `baseParents`, every node it names must be in it;
    * without, a node it lists takes that parent where nothing else gives
-   * one. Two `primary` actions can't share a group.
+   * one, and those parents can't form a cycle. Two `primary` actions can't
+   * share a group.
    */
   readonly baseOrder?: Readonly<Record<string, readonly string[]>> | undefined
 }
@@ -388,7 +391,8 @@ export interface ResolvedLayers {
  * node in another parent than a flag's address shows, or has a cycle, or
  * `baseOrder` isn't a plain object that maps node ids to arrays of node
  * ids and `<node>/<collection>` keys to arrays of item ids, lists a child
- * twice or in another parent, or names a node `baseParents` doesn't.
+ * twice or in another parent, names a node `baseParents` doesn't, or makes
+ * a cycle of parents.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],

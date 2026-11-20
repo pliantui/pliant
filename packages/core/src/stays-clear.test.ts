@@ -426,7 +426,7 @@ describe("destructive actions", () => {
       }
     )
 
-    it("stays empty when the op breaks the rule alone", () => {
+    it("leaves out an op on an action no longer between them", () => {
       const team = { op: "hide", target: slot("archive") }
       const personal = move("delete", { after: "save" })
       const result = resolve([
@@ -890,6 +890,16 @@ describe("baseOrder", () => {
     ).toThrow(
       new TypeError('layers.baseOrder["actions"] lists a child more than once')
     )
+  })
+
+  it("throws for a cycle of parents", () => {
+    expect(() =>
+      resolveLayers([], {
+        surface,
+        flags,
+        baseOrder: { aa: ["bb"], bb: ["aa"] },
+      })
+    ).toThrow(new TypeError("baseOrder puts bb inside a cycle"))
   })
 
   it("supplies the parents baseParents leaves out", () => {

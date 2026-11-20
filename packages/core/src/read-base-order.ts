@@ -7,7 +7,7 @@ import {
 import { isPlainObject } from "./is-plain-object"
 import { checkPrimaries, type ReadFlags } from "./read-flags"
 
-const isId = (id: unknown, item: boolean) =>
+const isId = (id: unknown, item: boolean): id is string =>
   (item ? itemIdSchema : nodeIdSchema).safeParse(id).success
 
 const isIds = (ids: unknown, item: boolean): ids is string[] =>
@@ -28,7 +28,7 @@ const itemCollections = new Set<string>(
  * lists each child once, and puts each child in the parent that
  * `baseParents`, or else the child's flag address, shows. With
  * `baseParents`, every node it names must be in it. With the parents it
- * lists, two primary actions can't share a group.
+ * lists, there must be no cycle and no two primary actions in one group.
  */
 export function readBaseOrder(
   baseOrder: unknown,
@@ -55,17 +55,16 @@ export function readBaseOrder(
     ) {
       throw new TypeError(`${name}["${key}"] must be an array of ids`)
     }
-    const ids = children
-    for (const id of [node ?? key, ...(items ? [] : ids)]) {
+    for (const id of [node, ...(items ? [] : children)]) {
       if (baseParents && !baseParents.has(id)) {
         throw new TypeError(`${name} names ${id}, which isn't in the node tree`)
       }
     }
-    if (new Set(ids).size < ids.length) {
+    if (new Set(children).size < children.length) {
       throw new TypeError(`${name}["${key}"] lists a child more than once`)
     }
     if (!items) {
-      for (const child of ids) {
+      for (const child of children) {
         const shown = parents.get(child)
         if (shown !== undefined && shown !== key) {
           throw new TypeError(
@@ -75,7 +74,16 @@ export function readBaseOrder(
         parents.set(child, key)
       }
     }
-    read.set(key, ids)
+    read.set(key, children)
+  }
+  for (const id of parents.keys()) {
+    const seen = new Set<string>()
+    for (let node = parents.get(id); node; node = parents.get(node)) {
+      if (seen.has(node)) {
+        throw new TypeError(`${name} puts ${id} inside a cycle`)
+      }
+      seen.add(node)
+    }
   }
   checkPrimaries(flags?.flags, parents, name)
   return read

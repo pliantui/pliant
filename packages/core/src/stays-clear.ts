@@ -100,14 +100,10 @@ function orderNow(group: string, input: GuardrailInput): Placed[] {
   }
   const node = group.slice(0, group.indexOf("/"))
   const prefix = `${group}/`
-  return orderItems(start.map(last), (item) => {
-    const position = input.placements.get(prefix + item)?.position
-    return position && "before" in position
-      ? { before: position.before }
-      : position && "after" in position
-        ? { after: position.after }
-        : position
-  }).map((item) => {
+  return orderItems(
+    start.map(last),
+    (item) => input.placements.get(prefix + item)?.position
+  ).map((item) => {
     const id = prefix + item
     const position = input.placements.get(id)?.position
     return {
@@ -272,10 +268,11 @@ export const staysClear: Guardrail = (input) => {
     return destructive.flatMap((action): Violation[] => {
       const own = at.get(action)
       const its = at.get(primary)
+      if (own === undefined || its === undefined) {
+        return []
+      }
       const tier = (id: string) => (placed[at.get(id) ?? -1]?.overflow ? 1 : 0)
       const now =
-        own === undefined ||
-        its === undefined ||
         action === primary ||
         groupNow(action, input) !== group ||
         tier(action) > tier(primary)
@@ -293,11 +290,7 @@ export const staysClear: Guardrail = (input) => {
                 action,
                 primary
               )
-      if (
-        own === undefined ||
-        its === undefined ||
-        now <= closeness(before, action, primary)
-      ) {
+      if (now <= closeness(before, action, primary)) {
         return []
       }
       const moved = [action, primary].flatMap((id) => causes(id, group, input))
