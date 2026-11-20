@@ -1,4 +1,4 @@
 {
   "title": "Concepts",
-  "pages": ["index", "operations", "guardrails", "expressions"]
+  "pages": ["index", "layers", "operations", "guardrails", "expressions"]
 }

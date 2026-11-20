@@ -1,9 +1,9 @@
 ---
 title: Core concepts
-description: Surfaces, addresses, overlays and layers, and how they resolve into the page a user sees.
+description: Surfaces, addresses, regions and overlays: the pieces Pliant is built from.
 ---
 
-The [introduction](/docs) gives the short version: a surface holds regions and tables, overlays describe changes to them, and layers stack overlays on top of the page you wrote. This page covers each piece in detail.
+Pliant is built from a few pieces: surfaces, the nodes and items on them, and overlays that change those nodes. This page covers each one.
 
 ## Surfaces
 
@@ -11,7 +11,7 @@ A surface is the scope that overlays belong to. Every overlay names one surface,
 
 A surface is one of:
 
-- **A route pattern**, such as `/orders` or `/orders/[id]`. Use the pattern, not the URL, so one customization applies to every order page. Catch-all segments (`[...slug]`, `[[...slug]]`) work too. Characters outside ASCII are percent-encoded as UTF-8 with uppercase hex.
+- **A route pattern**, such as `/orders` or `/orders/[id]`. Use the pattern, not the URL, so one customization applies to every order page. Catch-all segments (`[...slug]`, `[[...slug]]`) work too. Characters outside ASCII must be percent-encoded as UTF-8, with uppercase hex.
 - **A kebab-case id**, such as `app-shell`, for parts of the app that aren't tied to one route.
 - **`@app`**, which is reserved. Overlays for `@app` are resolved on every surface.
 
@@ -19,7 +19,7 @@ A surface is one of:
 
 Everything an overlay changes has an address.
 
-A **node** is a part of the page users can change, such as a region or a table. Its id is kebab-case, starts with a letter and is at most 64 characters long. Node ids are unique across a surface.
+A **node** is a part of the page users can change, such as a region or a table. Its id is kebab-case, starts with a letter and is at most 64 characters long. Node ids must be unique across a surface.
 
 A node can have **collections**: named lists of items. There are five: `slots`, `columns`, `fields`, `items` and `actions`. An item's address is its node's address, the collection and the item's id:
 
@@ -32,24 +32,17 @@ A node can have **collections**: named lists of items. There are five: `slots`, 
 
 Slot ids are kebab-case. Ids in the other collections can also contain uppercase letters and `_`, so TanStack column ids such as `createdAt` work as they are. No id contains a dot, and every id starts with a letter.
 
-<Callout>
-  JavaScript puts integer-like object keys, such as `"2024"`, before all other
-  keys, whatever order you wrote them in. Since a region's slots are the keys of
-  an object, a slot id like that would silently change the region's order.
-  Starting every id with a letter rules this out.
-</Callout>
-
-A slot that holds a node is the same node as the node's own id: `dashboard/slots/revenue` and `revenue` address one thing. A node keeps its identity when an overlay moves it to another place, so changes to it follow it.
+`dashboard/slots/revenue` and `revenue` address the same node. A node keeps its identity when an overlay moves it to another place, so changes to it follow it.
 
 ## Regions and slots
 
 A region is a node with an ordered `slots` collection. You give `PliantRegion` an `id` and a `slots` object, and the order of the object's keys is the base order. The region never looks inside a slot's content, so a slot can hold anything: a host element, a client component or a Server Component.
 
-Overlays can reorder a region's slots, hide them, pin them to the start or end, fold some of them behind a "More" button, an accordion or tabs, lay the region out as a stack, a row or a grid of up to four columns, set how many columns a slot spans, and group slots into a new wrapper with its own layout. Layout changes are set per breakpoint. Without one, they apply from `md` up, and below `md` the region keeps the classes you gave it.
+Overlays can reorder a region's slots, hide them, pin them to the start or end, fold some of them behind a disclosure button, labelled "More" unless the overlay gives it a label, lay the region out as a stack, a row or a grid of up to four columns, set how many columns a slot spans, and group slots into a new wrapper with its own layout. Layout changes are set per breakpoint. Without one, they apply from `md` up, and below `md` the region keeps the classes you gave it.
 
 A hidden slot stays mounted with React's `Activity`, so its state survives being hidden and shown again. Its content still reaches the browser.
 
-A table is customized the same way, with its columns as the `columns` collection: `orders-table/columns/notes`.
+Tables use the same addresses, with their columns as the `columns` collection: `orders-table/columns/notes`. Columns can be hidden, reordered, pinned and resized, and tables can be sorted, filtered, grouped and paged.
 
 ## Overlays
 
@@ -95,41 +88,4 @@ An overlay keeps fields it doesn't recognize, so an overlay written by a newer v
 
 The overlay's JSON Schema is published at [`https://pliantui.dev/schema/overlay.json`](https://pliantui.dev/schema/overlay.json), for tools and for implementations in other languages.
 
-## Layers
-
-Overlays live in four layers, stacked on top of the base. From lowest to highest precedence:
-
-1. **The base**: your page as you wrote it.
-2. **`org`**: defaults for everyone in an organization.
-3. **`team`**: defaults for a team.
-4. **`personal`**: one user's own changes.
-5. **`session`**: changes that last for one browser tab, such as an ask panel preview that isn't saved yet, the current page of a table, and its filters, unless you save them with `persistFilters`.
-
-### Precedence is per property
-
-Every operation writes one or more properties of a node or item. `hide` and `show` write a column's `visible`, `move` and `pin` write its placement, and `setSort` writes the table's `sort`. When two layers write the same property, the higher layer wins. Different properties never conflict.
-
-So if the team layer sorts `orders-table` by `value` and a user hides its `notes` column, both apply. If the user then sorts by `date`, their sort replaces the team's, because both write the same property. `setSort` and `setGroupBy` replace the whole list: sorts don't merge field by field.
-
-Some properties are keyed, so they combine:
-
-- Filters are per field. A team filter on `status` and a personal filter on `region` both apply.
-- Layout and span are per breakpoint. Ops from the same scope merge breakpoint by breakpoint. When another scope, such as a higher layer, sets any breakpoint, it replaces every breakpoint set below it.
-
-`move` anchors (`before` and `after` another item) resolve against the full order, hidden items included, so hiding an item never breaks another layer's move.
-
-### Order within a layer
-
-A layer can hold many overlays. They apply in a fixed order, and the later one wins:
-
-- In the `team` layer, by the `teamOrder` you pass to `PliantRoot` (highest precedence first; teams you don't list rank below the ones you do), then by team id.
-- In the `org` layer, by org id.
-- Then, in every layer, by `createdAt`, then by `id`.
-
-Within one overlay, later operations win over earlier ones. The order never depends on the order your storage returns overlays in.
-
-If two overlays share an `id`, the first in this order is used and the other is skipped.
-
-### Removing only undoes your own scope
-
-`remove` deletes a node that was added with `insert` or `wrap`, but only if the same scope added it: the same team or org, or, for `personal` and `session`, the same layer. A user can hide a team's wrapper, but can't delete it from the team layer. A `remove` aimed at something another scope added doesn't apply, and it is never turned into a `hide`.
+Overlays live in layers, from organization-wide defaults down to a single browser tab. See [Layers](/docs/concepts/layers) for how they stack.

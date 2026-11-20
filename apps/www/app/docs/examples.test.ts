@@ -18,10 +18,6 @@ const fields: Record<string, ExpressionField> = {
   price: { type: "currency", currency: "USD" },
   cost: { type: "currency", currency: "USD" },
   value: { type: "currency", currency: "USD" },
-  qty: { type: "integer" },
-  status: { type: "string" },
-  customer: { type: "string" },
-  notes: { type: "text" },
   dueDate: { type: "date" },
 }
 
@@ -33,21 +29,24 @@ function isObject(value: unknown): value is Json {
 
 function jsonExamples() {
   const examples: { name: string; source: string }[] = []
+  let fences = 0
   for (const file of readdirSync(docs, { recursive: true, encoding: "utf8" })) {
     if (!file.endsWith(".mdx")) {
       continue
     }
     const text = readFileSync(path.join(docs, file), "utf8")
-    for (const [index, match] of [
-      ...text.matchAll(/^```json[^\n]*\n([\s\S]*?)^```$/gm),
-    ].entries()) {
+    const blocks = [
+      ...text.matchAll(/^[ \t]*```json[^\n]*\n([\s\S]*?)^[ \t]*```$/gm),
+    ]
+    fences += text.match(/```json/g)?.length ?? 0
+    for (const [index, match] of blocks.entries()) {
       examples.push({
         name: `${file} #${String(index + 1)}`,
         source: match[1] ?? "",
       })
     }
   }
-  return examples
+  return { examples, fences }
 }
 
 function overlayOf(op: unknown) {
@@ -94,10 +93,11 @@ function expectValid(overlay: Json) {
   }
 }
 
-const examples = jsonExamples()
+const { examples, fences } = jsonExamples()
 
-it("finds the JSON examples", () => {
+it("finds every JSON example", () => {
   expect(examples.length).toBeGreaterThan(0)
+  expect(examples).toHaveLength(fences)
 })
 
 describe.each(examples)("$name", ({ source }) => {

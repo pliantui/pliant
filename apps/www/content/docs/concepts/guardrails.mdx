@@ -5,11 +5,11 @@ description: What users can't change, and what Pliant doesn't protect.
 
 Users reshape the page you built. They can't change what it does. These rules hold for every overlay, whether a user made it by hand or with the ask panel.
 
-## Users rearrange, they don't build
+## Only the catalog's changes
 
 An overlay is a list of [operations](/docs/concepts/operations) from a closed catalog. It can't contain code, markup, CSS or a query. Labels are plain text and filter values are data, never interpolated into anything.
 
-Ops have fixed limits: at most 500 per overlay, layouts of at most four columns, column widths clamped to the limits you set on the column, and so on. Addresses for a single row, such as `order-card[42]`, are rejected, so an overlay never depends on the data in your rows.
+Ops have fixed limits: at most 500 per overlay, layouts of at most four columns, column widths clamped to the limits you set on the column, and so on. Addresses for a single row, such as `order-card[42]`, are rejected, so an overlay never targets a single row.
 
 ## Base items can be hidden, not deleted
 
@@ -25,7 +25,7 @@ When an overlay reorders a region or a table, Pliant reorders the rendered eleme
 
 ## The ask panel can only propose
 
-The ask route offers the model only the ops the target's capabilities allow, and only the ids of items that exist in the target. It turns away requests that aren't about the view, such as "delete these orders". It never changes your data.
+The ask route offers the model only a fixed set of ops that the target's capabilities allow, and only the ids of items that exist in the target. It turns away asks that start with a verb that acts on data, such as "delete" or "refund", unless they name a part of the view. It has no way to change your data.
 
 Every answer is validated on the server, then validated again in the browser before it's applied. It applies to the `session` layer as a preview, and nothing is saved until the user saves it.
 

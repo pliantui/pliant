@@ -6,10 +6,9 @@ description: Calculations as JSON trees over a fixed list of typed functions.
 Some ops carry a calculation: a derived column, an aggregate, or the condition for a highlight. Pliant writes these as expressions: small JSON trees over a fixed catalog of functions. There's no formula language and no parser, so an expression can't do anything the catalog doesn't define.
 
 <Callout>
-  Pliant validates and type-checks expressions today, with `checkExpression`
-  from `@pliantui/core`. The table component doesn't compute derived columns,
-  aggregates or highlights yet, so the ops that carry them don't change what
-  renders.
+  Pliant validates and type-checks expressions, with `checkExpression` from
+  `@pliantui/core`. `usePliantTable` doesn't compute derived columns, aggregates
+  or highlights, so the ops that carry them don't change what renders.
 </Callout>
 
 ## Nodes

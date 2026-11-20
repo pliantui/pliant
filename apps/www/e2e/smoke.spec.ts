@@ -22,14 +22,20 @@ test("serves the registry index", async ({ request }) => {
   expect(response.status()).toBe(200)
 })
 
-test("renders the core concepts pages", async ({ page, errors }) => {
-  await page.goto("/docs/concepts")
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Core concepts" })
-  ).toBeVisible()
-  await page.goto("/docs/concepts/expressions")
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Expressions" })
-  ).toBeVisible()
-  expect(errors).toEqual([])
-})
+const conceptPages = [
+  { path: "/docs/concepts", title: "Core concepts" },
+  { path: "/docs/concepts/layers", title: "Layers" },
+  { path: "/docs/concepts/operations", title: "Operations" },
+  { path: "/docs/concepts/guardrails", title: "Guardrails" },
+  { path: "/docs/concepts/expressions", title: "Expressions" },
+]
+
+for (const { path, title } of conceptPages) {
+  test(`renders the ${title} page`, async ({ page, errors }) => {
+    await page.goto(path)
+    await expect(
+      page.getByRole("heading", { level: 1, name: title })
+    ).toBeVisible()
+    expect(errors).toEqual([])
+  })
+}
