@@ -1,19 +1,20 @@
 import { nodeIdSchema } from "@pliantui/contract"
 
 import { isPlainObject } from "./is-plain-object"
-import type { ReadFlags } from "./read-flags"
+import { checkPrimaries, type ReadFlags } from "./read-flags"
 
 const isNodeId = (id: unknown) => nodeIdSchema.safeParse(id).success
 
 /**
  * Checks `baseParents` against itself and `flags`, and reads it as a map of
- * node id to parent id, `null` for a node at the top of the surface. A node
- * it leaves out takes the parent a flag's address shows. `name` names the
- * option in errors.
+ * node id to parent id, `null` for a node at the top of the surface. Its
+ * key order means nothing. A node it leaves out takes the parent a flag's
+ * address shows. `name` names the option in errors.
  *
  * Throws a `TypeError` unless it is a plain object that maps node ids to
  * node ids or `null`, puts each node a flag's address names in the parent
- * that address shows, and, with those parents, has no cycle.
+ * that address shows, and, with those parents, has no cycle and no two
+ * primary nodes in one parent.
  */
 export function readBaseParents(
   baseParents: unknown,
@@ -55,5 +56,6 @@ export function readBaseParents(
       seen.add(node)
     }
   }
+  checkPrimaries(flags?.flags, read, name)
   return read
 }
