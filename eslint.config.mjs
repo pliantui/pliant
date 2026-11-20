@@ -17,6 +17,7 @@ export default defineConfig(
     "**/.wrangler/**",
     "packages/tests/fixtures/**",
     "packages/tests/temp/**",
+    "**/tsup.config.bundled_*",
   ]),
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
