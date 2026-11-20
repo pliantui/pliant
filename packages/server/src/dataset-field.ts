@@ -1,6 +1,7 @@
 import { formatSchema, itemIdSchema, type Format } from "@pliantui/contract"
 import type { ExpressionField } from "@pliantui/core"
 
+import { quote } from "./quote"
 import { isRecord } from "./snapshot"
 
 /**
@@ -164,9 +165,6 @@ const extraKeys: Partial<Record<DatasetFieldType, readonly string[]>> = {
   datetime: ["format"],
   enum: ["values"],
 }
-
-const quote = (value: unknown) =>
-  value === undefined ? "undefined" : JSON.stringify(value)
 
 /** The capabilities a field of this type has unless it overrides them. */
 export function defaultCapabilities(type: DatasetFieldType): Capabilities {

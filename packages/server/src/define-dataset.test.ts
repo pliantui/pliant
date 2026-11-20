@@ -180,21 +180,32 @@ describe("defineDataset", () => {
       expect(undated.timeZone).toBe("UTC")
     })
 
-    it("is stored by its canonical name", () => {
+    it("keeps the name as written, whatever the runtime resolves it to", () => {
+      expect(zoneOf("Asia/Kolkata")).toBe("Asia/Kolkata")
+      expect(zoneOf("Europe/Kyiv")).toBe("Europe/Kyiv")
+      expect(zoneOf("Etc/UTC")).toBe("Etc/UTC")
+    })
+
+    it("fixes the name's case", () => {
       expect(zoneOf("europe/paris")).toBe("Europe/Paris")
-      expect(zoneOf("Etc/UTC")).toBe("UTC")
-      expect(zoneOf("asia/kolkata")).toBe(
-        new Intl.DateTimeFormat("en", {
-          timeZone: "Asia/Kolkata",
-        }).resolvedOptions().timeZone
-      )
+      expect(zoneOf("utc")).toBe("UTC")
     })
 
     it("rejects fixed offsets and unknown zones", () => {
-      for (const timeZone of ["+05:30", "-08:00", "UTC+1", "Mars/Olympus"]) {
+      for (const timeZone of [
+        "+05:30",
+        "-08:00",
+        "UTC+1",
+        "Etc/GMT+5",
+        "etc/gmt-14",
+        "Mars/Olympus",
+        "",
+      ]) {
         expect(
           problemsOf({ ...withField({ type: "date" }), timeZone })
-        ).toContain(`unknown time zone ${JSON.stringify(timeZone)}`)
+        ).toContain(
+          `timeZone ${JSON.stringify(timeZone)} must be an IANA time zone name`
+        )
       }
     })
   })
@@ -235,6 +246,62 @@ describe("defineDataset", () => {
       const dataset = defineDataset(definition)
       expect(Object.keys(dataset.fields)).toEqual(["id"])
       expect(Object.keys(definition.fields)).toContain("secret")
+    })
+
+    it("calls getters inside formats and enum values once", () => {
+      let formatReads = 0
+      const format = {
+        type: "number",
+        get decimals() {
+          formatReads++
+          return formatReads === 1 ? 2 : 99
+        },
+      }
+      let valueReads = 0
+      const values = ["a", "b"]
+      Object.defineProperty(values, 0, {
+        enumerable: true,
+        get() {
+          valueReads++
+          return valueReads === 1 ? "a" : { secret: 1 }
+        },
+      })
+      const dataset = defineDataset({
+        id: "orders",
+        fields: {
+          id: { type: "id" },
+          // @ts-expect-error a format with a getter
+          total: { type: "number", format },
+          // @ts-expect-error values with a getter
+          state: { type: "enum", values },
+        },
+      })
+      expect([formatReads, valueReads]).toEqual([1, 1])
+      expect(
+        describeDataset(dataset, { audience: "client" }).fields
+      ).toMatchObject({
+        total: { format: { type: "number", decimals: 2 } },
+        state: { values: ["a", "b"] },
+      })
+    })
+
+    it("treats ids that Object.prototype also has as plain fields", () => {
+      const dataset = defineDataset({
+        id: "classes",
+        fields: { constructor: { type: "string" }, toString: { type: "text" } },
+        rowKey: "constructor",
+      })
+      expect(dataset.rowKey).toEqual(["constructor"])
+      expect(
+        Object.keys(describeDataset(dataset, { audience: "ai" }).fields)
+      ).toEqual(["constructor", "toString"])
+      expect(
+        problemsOf({
+          id: "classes",
+          fields: { name: { type: "string" } },
+          rowKey: "toString",
+        })
+      ).toContain('rowKey names "toString", which isn\'t a field')
     })
 
     it("ignores inherited properties", () => {
@@ -425,6 +492,11 @@ describe("defineDataset", () => {
         'field id "total value" must start with a letter',
       ],
       [
+        "an array as a field",
+        withField(["number"]),
+        'field "total": must be an object',
+      ],
+      [
         "a field that isn't an object",
         withField("number"),
         'field "total": must be an object',
@@ -588,6 +660,11 @@ describe("defineDataset", () => {
         'rowKey names "code", which isn\'t a field',
       ],
       [
+        "a null row key",
+        { ...valid, rowKey: null },
+        "rowKey names null, which isn't a field",
+      ],
+      [
         "a row key that isn't text",
         { ...valid, rowKey: 5 },
         "rowKey names 5, which isn't a field",
@@ -605,7 +682,7 @@ describe("defineDataset", () => {
       [
         "a time zone that isn't text",
         { ...valid, timeZone: 5 },
-        "unknown time zone 5",
+        "timeZone 5 must be an IANA time zone name",
       ],
     ])("for %s", (_, definition, message) => {
       expect(problemsOf(definition)).toContain(message)
@@ -620,6 +697,35 @@ describe("defineDataset", () => {
       expect(message).toContain('field "a": unknown type')
       expect(message).toContain('field "b": unknown unit')
       expect(message).toContain("has no row key")
+    })
+
+    it("listing the first 20 problems", () => {
+      const fields = Object.fromEntries(
+        Array.from({ length: 25 }, (_, index) => [
+          `f${String(index)}`,
+          { type: "money" },
+        ])
+      )
+      const message = problemsOf({ id: "orders", fields, rowKey: "f0" })
+      expect(message.split("\n- ")).toHaveLength(22)
+      expect(message).toMatch(/\n- …and 6 more$/)
+    })
+
+    it("without reading more of a huge list than it reports", () => {
+      let reads = 0
+      const values = new Proxy(Array.from({ length: 10_000 }, String), {
+        get(target, key, receiver) {
+          if (typeof key === "string" && /^\d+$/.test(key)) {
+            reads++
+          }
+          const value: unknown = Reflect.get(target, key, receiver)
+          return value
+        },
+      })
+      expect(problemsOf(withField({ type: "enum", values }))).toContain(
+        "values must list 1 to 100 values"
+      )
+      expect(reads).toBeLessThanOrEqual(101)
     })
 
     it("without a name when the definition has no id", () => {

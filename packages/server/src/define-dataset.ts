@@ -9,6 +9,7 @@ import {
   type DatasetFieldType,
   type FieldKey,
 } from "./dataset-field"
+import { quote } from "./quote"
 import { isRecord, snapshot } from "./snapshot"
 
 type Fields = Readonly<Record<string, DatasetField>>
@@ -114,7 +115,7 @@ export interface Dataset<
 > {
   readonly id: string
   readonly describe?: string
-  /** The canonical IANA name of the dataset's time zone. */
+  /** The IANA name of the dataset's time zone, as written, with its case fixed. */
   readonly timeZone: string
   readonly rowKey: readonly [TKey, ...TKey[]]
   readonly fields: { readonly [K in keyof TFields]: ResolvedField<TFields[K]> }
@@ -152,26 +153,38 @@ const keyTypes = new Set<unknown>(["id", "string", "integer", "email", "url"])
 
 const datasetKeys = new Set(["id", "describe", "timeZone", "fields", "rowKey"])
 
-const quote = (value: unknown) =>
-  value === undefined ? "undefined" : JSON.stringify(value)
-
 // Objects, then fields, then each field, then its format and values.
 const depth = 4
 
+// One more than the most enum values, so a longer list is still reported.
+const maxItems = 101
+
+const maxProblems = 20
+
 /**
- * The canonical name of an IANA time zone, as `Intl` resolves it, or
- * `undefined` for a zone it doesn't know or a fixed offset such as
- * `+05:30`, which has no daylight saving rules to follow.
+ * An IANA time zone name as the developer wrote it, with its case fixed
+ * (`utc` is `UTC`), or `undefined` for a name `Intl` doesn't know or a
+ * fixed offset, such as `+05:30` or `Etc/GMT-5`. The name isn't replaced by
+ * the one `Intl` resolves it to, which depends on the runtime's time zone
+ * data: some resolve `Asia/Kolkata` to its older name `Asia/Calcutta`.
  */
-function canonicalTimeZone(timeZone: unknown) {
-  if (typeof timeZone !== "string") {
+function timeZoneName(timeZone: unknown) {
+  if (
+    typeof timeZone !== "string" ||
+    /^(?:[+-]|etc\/gmt[+-])/i.test(timeZone)
+  ) {
     return undefined
   }
   try {
     const resolved = new Intl.DateTimeFormat("en", {
       timeZone,
     }).resolvedOptions().timeZone
-    return /^[+-]/.test(resolved) ? undefined : resolved
+    if (/^[+-]/.test(resolved)) {
+      return undefined
+    }
+    return resolved.toLowerCase() === timeZone.toLowerCase()
+      ? resolved
+      : timeZone
   } catch {
     return undefined
   }
@@ -231,7 +244,7 @@ function checkFields(
       'has no row key: add a field named "id" or name the identifying fields in rowKey'
     )
   } else {
-    checkRowKey(rowKey ?? "id", fields, report)
+    checkRowKey(rowKey === undefined ? "id" : rowKey, fields, report)
   }
 }
 
@@ -256,9 +269,9 @@ function check(definition: unknown) {
   if (describe !== undefined && !isText(describe, 500)) {
     report("describe must be non-empty text of up to 500 characters")
   }
-  if (timeZone !== undefined && canonicalTimeZone(timeZone) === undefined) {
+  if (timeZone !== undefined && timeZoneName(timeZone) === undefined) {
     report(
-      `unknown time zone ${quote(timeZone)}; use an IANA name such as "Asia/Tokyo"`
+      `timeZone ${quote(timeZone)} must be an IANA time zone name, such as "Asia/Tokyo"`
     )
   }
   checkFields(definition, report)
@@ -291,8 +304,8 @@ function withoutUndefined(field: Readonly<Record<string, unknown>>) {
  * default by type and can be overridden per field: every field is sortable,
  * filterable and readable by aggregate functions except `text` fields,
  * which are filterable by search only; `string`, `boolean`, `date` and
- * `enum` fields are groupable. The time zone is stored by its canonical
- * name, as `Intl` resolves it.
+ * `enum` fields are groupable. The time zone is kept as written, with its
+ * case fixed (`utc` is `UTC`).
  *
  * Throws a `TypeError` listing every problem: a bad dataset or field id, an
  * unknown type, unit, currency, time zone or option, text that is empty or
@@ -305,14 +318,18 @@ export function defineDataset<
   const TFields extends Fields,
   const TKey extends KeyField<TFields> = "id" & KeyField<TFields>,
 >(definition: DatasetDefinition<TFields, TKey>): Dataset<TFields, TKey> {
-  const copy = snapshot(definition, depth)
+  const copy = snapshot(definition, depth, maxItems)
   const problems = check(copy)
   if (problems.length > 0 || !isRecord(copy) || !isRecord(copy["fields"])) {
     const id = isRecord(copy) ? copy["id"] : undefined
     const name = typeof id === "string" ? ` ${quote(id)}` : ""
-    throw new TypeError(
-      `Invalid dataset${name}:\n${problems.map((problem) => `- ${problem}`).join("\n")}`
-    )
+    const shown = problems
+      .slice(0, maxProblems)
+      .map((problem) => `- ${problem}`)
+    if (problems.length > maxProblems) {
+      shown.push(`- …and ${String(problems.length - maxProblems)} more`)
+    }
+    throw new TypeError(`Invalid dataset${name}:\n${shown.join("\n")}`)
   }
   const { id, describe, timeZone, fields, rowKey } = copy
   const resolved = Object.fromEntries(
@@ -328,8 +345,9 @@ export function defineDataset<
   return freeze({
     id,
     ...(describe === undefined ? {} : { describe }),
-    timeZone: canonicalTimeZone(timeZone ?? "UTC"),
-    rowKey: Array.isArray(rowKey) ? rowKey : [rowKey ?? "id"],
+    timeZone: timeZoneName(timeZone ?? "UTC"),
+    rowKey:
+      rowKey === undefined ? ["id"] : Array.isArray(rowKey) ? rowKey : [rowKey],
     fields: resolved,
   }) as unknown as Dataset<TFields, TKey>
 }

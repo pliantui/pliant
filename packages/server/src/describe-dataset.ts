@@ -1,5 +1,6 @@
 import type { DatasetField } from "./dataset-field"
 import type { Dataset } from "./define-dataset"
+import { quote } from "./quote"
 
 const publicKeys = [
   "type",
@@ -84,7 +85,7 @@ export function describeDataset(
   const audience: unknown = Reflect.get(Object(options), "audience")
   if (!audiences.includes(audience)) {
     throw new TypeError(
-      `audience must be "client" or "ai", not ${JSON.stringify(audience)}`
+      `audience must be "client" or "ai", not ${quote(audience)}`
     )
   }
   const fields = Object.entries(dataset.fields).map(([id, field]) => [
