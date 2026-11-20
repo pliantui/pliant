@@ -60,9 +60,7 @@ function physicalDirections(schema: unknown) {
       ...(typeof properties === "object" && properties !== null
         ? Object.keys(properties)
         : []),
-    ].filter(
-      (value) => typeof value === "string" && /^(?:left|right)$/i.test(value)
-    )
+    ].filter((value) => typeof value === "string" && physical.test(value))
     if (
       typeof pattern === "string" &&
       physical.test(pattern) &&
