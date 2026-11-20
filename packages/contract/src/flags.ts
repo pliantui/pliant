@@ -7,6 +7,7 @@ export const flagsSchema = z.strictObject({
   locked: z.boolean().optional(),
   defaultable: z.boolean().optional(),
   pinned: z.boolean().optional(),
+  primary: z.boolean().optional(),
 })
 
 export type Flags = z.infer<typeof flagsSchema>
