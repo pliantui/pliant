@@ -7,7 +7,6 @@ export default function HomePage() {
       <p className="max-w-md text-fd-muted-foreground">
         Let the users of your shadcn app reshape it to fit their work.
       </p>
-      <button type="button" className="size-4 border" />
       <Link href="/docs" className="font-medium underline underline-offset-4">
         Read the docs
       </Link>
