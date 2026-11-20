@@ -1,16 +1,13 @@
-import type { Breakpoint } from "@pliantui/contract"
+import type { Breakpoint, Flags } from "@pliantui/contract"
 
 import type { OpCheck } from "./check-op"
 import type { LoadedOverlay } from "./load-overlay"
 import type { OpPropertyKey } from "./op-property"
-import { scopeKeyOf } from "./overlay-scope"
 import type { ResolvedPlacement } from "./placement"
-import {
-  applyOp,
-  createResolution,
-  readBaseIds,
-  settleResolution,
-} from "./resolution"
+import { readBaseParents } from "./read-base-parents"
+import { readFlags } from "./read-flags"
+import { readBaseIds } from "./resolution"
+import { resolveOrdered } from "./resolve-ordered"
 import { surfaceOrder } from "./surface-order"
 
 /**
@@ -85,8 +82,10 @@ export interface ResolvedProperty {
  * Why an op was skipped: its check status, `extension-not-installed` for an
  * unknown op with a namespaced name, `duplicate-id` when its overlay
  * shares its id with an overlay earlier in the resolution order, or with one
- * that ties with it on every sort key but has other contents, or
- * `surface-mismatch` when the overlay is for another surface.
+ * that ties with it on every sort key but has other contents,
+ * `surface-mismatch` when the overlay is for another surface, or
+ * `guardrail` when the valid op would break a guardrail (see `flags` in
+ * `ResolveLayersOptions`).
  */
 export type SkippedOp =
   | {
@@ -108,6 +107,32 @@ export type SkippedOp =
       readonly check: OpCheck
       readonly overlay: LoadedOverlay
       readonly reason: "duplicate-id" | "surface-mismatch"
+    }
+  /**
+   * A valid op skipped because it would break a guardrail. Every guardrail
+   * skip names the flagged node the rule protects and the flag that makes
+   * it protected.
+   */
+  | {
+      readonly check: Extract<OpCheck, { status: "valid" }>
+      readonly overlay: LoadedOverlay
+      readonly reason: "guardrail"
+      /**
+       * The rule the op would break, named after what it enforces:
+       * `stays-visible` keeps nodes flagged `critical` or `required` visible
+       * and reachable.
+       */
+      readonly guardrail: "stays-visible"
+      /** The flag of `node` that the rule protects. */
+      readonly flag: "critical" | "required"
+      /** The identity of the flagged node or item the rule protects. */
+      readonly node: string
+      /**
+       * The ops applied before this one that make it break the rule, such
+       * as the `move … into` the node this op hides. Empty when the op
+       * breaks it alone.
+       */
+      readonly conflictsWith: readonly ResolvedOp[]
     }
 
 /**
@@ -142,7 +167,8 @@ export interface UnappliedOp extends ResolvedOp {
 
 /**
  * The surface's known node ids, and where they come from: `"inventory"` for
- * the full `pliantui scan` inventory, where an unlisted node doesn't exist,
+ * every node in your app's component tree, where an unlisted node doesn't
+ * exist,
  * or `"mounted"` for the nodes mounted now (such as `PliantRegion` slot
  * keys), where an unlisted node may mount later, so an op that needs it is
  * `dormant` rather than `missing-container`.
@@ -183,6 +209,54 @@ export interface ResolveLayersOptions {
    * later id wins.
    */
   readonly teamOrder?: readonly string[] | undefined
+  /**
+   * The surface's instance flags, by address, such as
+   * `{ "page/slots/checkout-actions/slots/pay-now": { critical: true } }`. A
+   * form field's address is its item address, such as
+   * `page/slots/ticket-form/fields/email`. Addresses of the same node
+   * combine their flags.
+   *
+   * A node or item flagged `critical` or `required` stays visible and
+   * reachable: no `hide`, `collapse`, `demote` or `remove` on it or on a
+   * node that holds it, and no `move … into`, `wrap` or other op that puts
+   * it in a hidden node or a cycle of containers.
+   *
+   * Ops apply one at a time in resolution order. Each op that leaves a
+   * flagged node out of sight, given the ops kept before it, is skipped
+   * with reason `guardrail` and guardrail `stays-visible`; every op before
+   * it was kept, so it is the op from the highest layer involved. An op is
+   * judged by the ops before it only: a lower layer's `hide` is skipped even
+   * when a higher layer's `show` would undo it.
+   *
+   * Each op that can hide something checks the state so far, and each
+   * skipped op applies the ops kept before it again, so the time grows with
+   * the number of ops times the number of ops that can hide something, and
+   * with the number of flags times the depth of the tree; ops such as sorts
+   * and widths add nothing. For scale, 20 flags at depth 6 over 2,000 ops
+   * take about 230 ms; 500 flags at depth 30 take about 7 s.
+   *
+   * Which node holds another in the page comes from `baseParents` when
+   * given. Without it, it comes from the addresses in `flags`, then from
+   * the targets and `move … into` destinations of the ops, so give flags by
+   * full address. A node named only by its id is then not traced to the
+   * nodes that hold it, for example `drawer` in `move … into drawer` or in
+   * the `items` of a `collapse`.
+   */
+  readonly flags?: Readonly<Record<string, Flags>> | undefined
+  /**
+   * The surface's node tree, from your app's component tree: each node id
+   * mapped to the id of the node that holds it, or `null` for a node at the
+   * top of the surface, such as `{ page: null, "pay-now": "page" }`.
+   * When given, it is the only source of which node holds another in the
+   * page; addresses in overlays don't change it. An item's node always
+   * comes from its address.
+   *
+   * A node it leaves out, such as one not mounted yet, takes the parent its
+   * flag's address shows. A node it leaves out that no flag names has no
+   * parent, and the addresses of ops don't supply one. It must put each node a flag's address names in
+   * the parent that address shows, and, with those parents, have no cycle.
+   */
+  readonly baseParents?: Readonly<Record<string, string | null>> | undefined
 }
 
 /** The result of `resolveLayers`. */
@@ -234,53 +308,36 @@ export interface ResolvedLayers {
  * already used: the first overlay with an id in this order is used, unless
  * overlays tie with it on every sort key. Tied overlays with identical
  * contents keep the first in input order; tied overlays with other contents
- * are all skipped. `unapplied` lists valid ops that didn't apply; a
+ * are all skipped, and so are valid ops that would break a guardrail (see
+ * `flags`). `unapplied` lists valid ops that didn't apply; a
  * `removeUserItem` that removed part of what it names also appears there.
  * Both lists follow the resolution order.
  *
- * Throws a `TypeError` when `surface` isn't a string, or `baseIds` isn't
- * node ids or `{ ids, source }`.
+ * Throws a `TypeError` when `surface` isn't a string, `baseIds` isn't node
+ * ids or `{ ids, source }`, `flags` isn't a plain object that maps
+ * addresses to valid flags, two of its addresses put one node in different
+ * parents, or `baseParents` isn't a plain object that maps node ids to
+ * node ids or `null`, puts a node in another parent than a flag's address
+ * shows, or has a cycle.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],
-  { surface, baseIds, teamOrder = [] }: ResolveLayersOptions
+  { surface, baseIds, teamOrder = [], flags, baseParents }: ResolveLayersOptions
 ): ResolvedLayers {
   const read = readBaseIds(baseIds)
   const known: BaseIds | undefined = read && {
     ids: new Set(read.ids),
     source: read.source,
   }
-  const state = createResolution(known)
-  const skipped: SkippedOp[] = []
-  const unapplied: UnappliedOp[] = []
   const ordered = surfaceOrder(overlays, surface, teamOrder)
-  for (const { overlay, reason } of ordered) {
-    const scope = scopeKeyOf(overlay)
-    for (const check of overlay.ops) {
-      if (reason) {
-        skipped.push({ check, overlay, reason })
-      } else if (check.status === "unknown") {
-        skipped.push({
-          check,
-          overlay,
-          reason: check.extension ? "extension-not-installed" : "unknown",
-        })
-      } else if (check.status === "newer") {
-        skipped.push({ check, overlay, reason: "newer" })
-      } else if (check.status === "invalid") {
-        skipped.push({ check, overlay, reason: "invalid" })
-      } else {
-        const notApplied = applyOp(state, { check, overlay }, scope)
-        if (notApplied) {
-          unapplied.push({ check, overlay, reason: notApplied })
-        }
-      }
-    }
-  }
+  const flagged = readFlags(flags)
   return {
-    ...settleResolution(state),
-    skipped,
-    unapplied,
+    ...resolveOrdered(
+      ordered,
+      known,
+      flagged,
+      readBaseParents(baseParents, flagged)
+    ),
     overlays: ordered.map(({ overlay }) => overlay),
     baseIds: known,
   }

@@ -13,12 +13,16 @@ describe("parseInstant", () => {
     })
   })
 
-  it.each(["", "yesterday", "2026-11-01T10:00:00", "2026-13-45T99:00:00Z"])(
-    "returns undefined for %j",
-    (value) => {
-      expect(parseInstant(value)).toBeUndefined()
-    }
-  )
+  it.each([
+    "",
+    "yesterday",
+    "2026-11-01T10:00:00",
+    "2026-13-45T99:00:00Z",
+    "x2026-11-01T10:00:00Z",
+    "2026-11-01T10:00:00Z later",
+  ])("returns undefined for %j", (value) => {
+    expect(parseInstant(value)).toBeUndefined()
+  })
 })
 
 describe("compareInstants", () => {

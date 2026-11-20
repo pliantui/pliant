@@ -8,6 +8,7 @@ export type {
   PliantStore,
 } from "./pliant-store"
 export type { StorageAdapter, StoredLayers } from "./storage-adapter"
+export { StorageConflictError } from "./storage-conflict-error"
 export { useMountedNodes } from "./use-mounted-nodes"
 export { usePliantNodeProps } from "./use-pliant-node-props"
 export { usePliantRegion } from "./use-pliant-region"

@@ -1,68 +1,113 @@
+import { storedOverlaySchema, type StoredOverlay } from "@pliantui/contract"
+
 import type { StorageAdapter } from "./storage-adapter"
+import { StorageConflictError } from "./storage-conflict-error"
+import { ulid } from "./ulid"
 
-const version = 1
+// The `storage` event reaches only other documents, so roots in this one
+// are told directly.
+const listeners = new Set<(key: string) => void>()
 
-interface LocalDocument {
-  readonly personal: readonly unknown[]
-  readonly newer: boolean
+function prefixOf(surface: string) {
+  return `pliant:${surface}:`
 }
 
-function keyOf(surface: string) {
-  return `pliant:${surface}`
-}
-
-function readDocument(key: string): LocalDocument {
-  let value: unknown
+function readRecord(key: string): StoredOverlay | undefined {
   try {
-    value = JSON.parse(localStorage.getItem(key) ?? "null")
+    const result = storedOverlaySchema.safeParse(
+      JSON.parse(localStorage.getItem(key) ?? "null")
+    )
+    return result.success ? result.data : undefined
   } catch {
-    return { personal: [], newer: false }
+    return undefined
   }
-  if (typeof value !== "object" || value === null || !("v" in value)) {
-    return { personal: [], newer: false }
+}
+
+function claim(key: string, ifMatch: string | null) {
+  const current = readRecord(key)
+  // An entry that isn't a readable record, such as one written by a newer
+  // version, is never overwritten.
+  if (
+    (current?.etag ?? null) !== ifMatch ||
+    (!current && localStorage.getItem(key) !== null)
+  ) {
+    throw new StorageConflictError(current)
   }
-  if (typeof value.v === "number" && value.v > version) {
-    return { personal: [], newer: true }
-  }
-  const personal = "personal" in value ? value.personal : undefined
-  return {
-    personal: value.v === version && Array.isArray(personal) ? personal : [],
-    newer: false,
-  }
+  queueMicrotask(() => {
+    for (const listener of listeners) {
+      listener(key)
+    }
+  })
+  return current
 }
 
 /**
- * Stores personal overlays in `localStorage`, one key per surface, as
- * versioned JSON. Data that doesn't parse loads as no overlays. Data written
- * by a newer version loads as no overlays and is never overwritten: saving
- * over it throws.
+ * Stores personal overlays in `localStorage`, one key per overlay:
+ * `pliant:<surface>:<id>`, holding its stored record as JSON. An entry that
+ * isn't a valid record doesn't load and is never overwritten.
+ *
+ * `subscribe` tells each `PliantRoot` when another one, in this tab or
+ * another tab of the same origin, changes a surface's overlays.
  *
  * @experimental
  */
 export function localAdapter(): StorageAdapter {
   return {
     load(surface) {
-      return { personal: readDocument(keyOf(surface)).personal }
-    },
-    save(surface, overlay) {
-      const key = keyOf(surface)
-      const { personal, newer } = readDocument(key)
-      if (newer) {
-        throw new Error(
-          `The overlays saved for ${surface} were written by a newer version of Pliant`
-        )
+      const prefix = prefixOf(surface)
+      const personal: StoredOverlay[] = []
+      for (let index = 0; index < localStorage.length; index++) {
+        const key = localStorage.key(index)
+        const record =
+          key?.startsWith(prefix) && !key.includes(":", prefix.length)
+            ? readRecord(key)
+            : undefined
+        if (record) {
+          personal.push(record)
+        }
       }
-      const others = personal.filter(
-        (saved) =>
-          typeof saved !== "object" ||
-          saved === null ||
-          !("id" in saved) ||
-          saved.id !== overlay.id
-      )
-      localStorage.setItem(
-        key,
-        JSON.stringify({ v: version, personal: [...others, overlay] })
-      )
+      return { personal }
+    },
+    save(surface, overlay, { ifMatch }) {
+      if (overlay.layer !== "personal") {
+        throw new TypeError("localAdapter stores personal overlays only")
+      }
+      const key = prefixOf(surface) + overlay.id
+      const now = Date.now()
+      const record = {
+        overlay,
+        etag: ulid(now),
+        version: (claim(key, ifMatch)?.version ?? 0) + 1,
+        updatedAt: new Date(now).toISOString(),
+      }
+      localStorage.setItem(key, JSON.stringify(record))
+      return record
+    },
+    remove(surface, id, { ifMatch }) {
+      const key = prefixOf(surface) + id
+      if (localStorage.getItem(key) !== null) {
+        claim(key, ifMatch)
+        localStorage.removeItem(key)
+      }
+    },
+    subscribe(surface, onChange) {
+      const prefix = prefixOf(surface)
+      const listener = (key: string | null) => {
+        if (key === null || key.startsWith(prefix)) {
+          onChange()
+        }
+      }
+      function onStorage(event: StorageEvent) {
+        if (event.storageArea === localStorage) {
+          listener(event.key)
+        }
+      }
+      listeners.add(listener)
+      window.addEventListener("storage", onStorage)
+      return () => {
+        listeners.delete(listener)
+        window.removeEventListener("storage", onStorage)
+      }
     },
   }
 }

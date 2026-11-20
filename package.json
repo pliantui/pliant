@@ -20,6 +20,7 @@
     "check": "turbo run lint typecheck && pnpm lint:root && pnpm format:check && pnpm knip && manypkg check",
     "check:packages": "turbo run check:package size --filter=./packages/*",
     "test": "turbo run test",
+    "test:mutation": "turbo run test:mutation --concurrency=1",
     "knip": "knip",
     "changeset": "changeset"
   },
