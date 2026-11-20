@@ -160,7 +160,7 @@ function layerIssues(
       issues.set(entry.check.index, {
         code: "custom",
         path: ["ops", entry.check.index],
-        message: `The node ${entry.node} is ${entry.guardrail}, so it must stay visible`,
+        message: `The node ${entry.node} is ${entry.flag}, so it must stay visible`,
       })
     }
   }

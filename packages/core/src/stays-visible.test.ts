@@ -67,6 +67,7 @@ function guarded({ skipped }: ResolvedLayers) {
             layer: entry.overlay.layer,
             op: entry.check.op,
             guardrail: entry.guardrail,
+            flag: entry.flag,
             node: entry.node,
           },
         ]
@@ -89,7 +90,8 @@ describe("critical and required nodes", () => {
       {
         layer: "personal",
         op: { op: "hide", target: "checkout-actions/slots/pay-now" },
-        guardrail: "critical",
+        guardrail: "stays-visible",
+        flag: "critical",
         node: "pay-now",
       },
     ])
@@ -118,7 +120,8 @@ describe("critical and required nodes", () => {
       {
         layer: "team",
         op: { op: "hide", target: "page/slots/checkout-actions" },
-        guardrail: "critical",
+        guardrail: "stays-visible",
+        flag: "critical",
         node: "pay-now",
       },
     ])
@@ -132,7 +135,7 @@ describe("critical and required nodes", () => {
       { op: "collapse", target: "page", items: ["ticket-form"], into: "tabs" },
     ]
     const result = resolve(overlay("personal", ops))
-    expect(guarded(result).map(({ op, guardrail }) => [op, guardrail])).toEqual(
+    expect(guarded(result).map(({ op, flag }) => [op, flag])).toEqual(
       ops.map((op) => [op, "required"])
     )
   })
@@ -158,9 +161,7 @@ describe("critical and required nodes", () => {
       surface,
       flags: flagged,
     })
-    expect(guarded(result)).toMatchObject([
-      { op: demote, guardrail: "critical" },
-    ])
+    expect(guarded(result)).toMatchObject([{ op: demote, flag: "critical" }])
     expect(result.placements.get("orders-toolbar/actions/export")?.winner).toBe(
       undefined
     )
@@ -353,5 +354,28 @@ describe("critical and required nodes", () => {
     )
     expect(guarded(result)).toEqual([])
     expect(winner(result, "panel", "visible")).toEqual(hide)
+  })
+
+  it("skips only the hide when a node that holds the node in the base is hidden", () => {
+    const move = {
+      op: "move",
+      target: "page/slots/checkout-actions",
+      to: { into: "sidebar" },
+    }
+    const hide = { op: "hide", target: "sidebar" }
+    const wrap = {
+      op: "wrap",
+      target: "checkout-actions",
+      id: "pay-group",
+      items: ["pay-now", "back"],
+      mode: "row",
+    }
+    const result = resolve(
+      overlay("org", [move]),
+      overlay("team", [hide]),
+      overlay("personal", [wrap])
+    )
+    expect(guarded(result).map(({ op }) => op)).toEqual([hide])
+    expect(result.placements.get("pay-now")?.container).toBe("pay-group")
   })
 })

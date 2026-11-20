@@ -21,12 +21,13 @@ export interface GuardrailInput {
 }
 
 /**
- * A rule the resolved state breaks: the flagged node it protects, and every
- * applied op that together break it. Resolution skips the one among `ops`
+ * A rule the resolved state breaks, named after what it enforces: the flag
+ * and flagged node it protects, and every applied op that together break it. Resolution skips the one among `ops`
  * that applied last, which is the one from the highest layer.
  */
 export interface Violation {
-  readonly guardrail: "critical" | "required"
+  readonly guardrail: "stays-visible"
+  readonly flag: "critical" | "required"
   readonly node: string
   readonly ops: readonly ResolvedOp[]
 }

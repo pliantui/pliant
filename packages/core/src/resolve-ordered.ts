@@ -6,19 +6,15 @@ import { identityOf } from "./node-identity"
 import { scopeKeyOf } from "./overlay-scope"
 import { applyOp, createResolution, settleResolution } from "./resolution"
 import type {
-  BaseIds,
   ResolvedOp,
+  ResolveLayersOptions,
   SkippedOp,
   UnappliedOp,
 } from "./resolve-layers"
 import { staysVisible } from "./stays-visible"
 import type { OrderedOverlay } from "./surface-order"
-import type { ValidateOverlayLayers } from "./validate-overlay"
 
-const guardrails: readonly Guardrail[] = [
-  staysVisible("critical"),
-  staysVisible("required"),
-]
+const guardrails: readonly Guardrail[] = [staysVisible]
 
 /** Records each node's parent as its address shows it, the first one wins. */
 function addParents(parents: Map<string, string>, address: string): void {
@@ -90,7 +86,7 @@ export function readFlags(
  */
 export function resolveOrdered(
   ordered: readonly OrderedOverlay[],
-  baseIds: BaseIds | ValidateOverlayLayers["baseIds"],
+  baseIds: ResolveLayersOptions["baseIds"],
   flags: ReadFlags | undefined
 ) {
   // Ops apply by overlay, then index, so this ranks them in that order.
@@ -140,12 +136,13 @@ export function resolveOrdered(
         } else {
           const violation = blocked.get(rank({ check, overlay }))
           if (violation) {
-            const { guardrail, node } = violation
+            const { guardrail, flag, node } = violation
             skipped.push({
               check,
               overlay,
               reason: "guardrail",
               guardrail,
+              flag,
               node,
             })
             continue

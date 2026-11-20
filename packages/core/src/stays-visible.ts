@@ -69,6 +69,10 @@ function hidingOps(
   let id: string | undefined = node
   while (id !== undefined && !seen.has(id)) {
     seen.add(id)
+    // A node that holds it in the base hides it whatever moved it in here.
+    if (base.includes(id)) {
+      path.length = 0
+    }
     const own = input.properties.get(id)
     const { container, via } = containerOf(id, input)
     const collapse =
@@ -90,12 +94,9 @@ function hidingOps(
         check?.op === name &&
         !(check.op === "collapse" && check.into === "none")
       ) {
-        const inBase =
-          base.includes(id) &&
-          (name !== "collapse" || input.parents.get(id) === container)
-        return inBase
-          ? [op]
-          : [op, ...path, ...(name === "collapse" && via ? [via] : [])]
+        const movedIn =
+          name === "collapse" && via && input.parents.get(id) !== container
+        return [op, ...path, ...(movedIn ? [via] : [])]
       }
     }
     if (via) {
@@ -107,13 +108,17 @@ function hidingOps(
 }
 
 /**
- * Nodes flagged `flag` stay visible and reachable: no op may hide, collapse,
- * demote or remove them, directly or through a node that holds them.
+ * Nodes flagged `critical` or `required` stay visible and reachable: no op
+ * may hide, collapse, demote or remove them, directly or through a node that
+ * holds them. A node with both flags is reported as `critical`.
  */
-export function staysVisible(flag: "critical" | "required"): Guardrail {
-  return (input) =>
-    [...input.flags].flatMap(([node, flags]) => {
-      const ops = flags[flag] === true ? hidingOps(node, input) : undefined
-      return ops ? [{ guardrail: flag, node, ops }] : []
-    })
-}
+export const staysVisible: Guardrail = (input) =>
+  [...input.flags].flatMap(([node, flags]) => {
+    const flag = flags.critical
+      ? "critical"
+      : flags.required
+        ? "required"
+        : undefined
+    const ops = flag && hidingOps(node, input)
+    return flag && ops ? [{ guardrail: "stays-visible", flag, node, ops }] : []
+  })

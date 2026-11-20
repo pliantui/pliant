@@ -110,8 +110,14 @@ export type SkippedOp =
       readonly check: Extract<OpCheck, { status: "valid" }>
       readonly overlay: LoadedOverlay
       readonly reason: "guardrail"
-      /** The flag of `node` that the op would break. */
-      readonly guardrail: "critical" | "required"
+      /**
+       * The rule the op would break, named after what it enforces:
+       * `stays-visible` keeps nodes flagged `critical` or `required` visible
+       * and reachable.
+       */
+      readonly guardrail: "stays-visible"
+      /** The flag of `node` that the rule protects. */
+      readonly flag: "critical" | "required"
       /** The identity of the flagged node the op would hide. */
       readonly node: string
     }
@@ -201,7 +207,7 @@ export interface ResolveLayersOptions {
    * that holds it once every op applies, breaks the guardrail, and so does a
    * `move … into` or `wrap` that puts it in such a node. Each time, the op
    * among those involved that applied last, the one from the highest layer,
-   * is skipped with reason `guardrail`, and the rest resolve again without
+   * is skipped with reason `guardrail` and guardrail `stays-visible`, and the rest resolve again without
    * it. An op that changes nothing, because the node would be hidden without
    * it, is not skipped.
    *

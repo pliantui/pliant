@@ -37,6 +37,8 @@ Every answer is validated on the server, then validated again in the browser bef
 
 If you resolve overlays with `@pliantui/core` directly, pass the page's flags by address to `resolveLayers` and `validateOverlay`. A node or form field flagged `critical` or `required` can't be hidden, collapsed, demoted or removed, directly or through a node that holds it. When the layers together would hide one, the operation from the highest layer involved is skipped and reported, and `validateOverlay` rejects it.
 
+Give each flag by its full address, such as `page/slots/checkout-actions/slots/pay-now`, so Pliant knows which nodes hold it. A node that an overlay names only by its id, such as the destination of a `move … into`, isn't traced to the nodes that hold it, so hiding one of those isn't caught.
+
 ## Team and org defaults aren't locks
 
 A team or org overlay sets a default. Each user's personal overlay can override any property it sets, and Pliant has no way to stop that.
