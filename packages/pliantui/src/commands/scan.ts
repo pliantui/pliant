@@ -100,7 +100,7 @@ async function scanApp(
       project,
       path.join(outputDirectory, `manifests.generated.${extension}`)
     )
-    scanned = scanSurfaces(sourceFiles, { manifests, ui })
+    scanned = scanSurfaces(sourceFiles, { manifests, ui, root: cwd })
   } catch (error) {
     reading?.fail()
     throw error
@@ -115,9 +115,9 @@ async function scanApp(
     : undefined
   const upToDate = saved === rendered
   const failed = report.errors.length > 0 || (check && !upToDate)
-  const written = !check && report.errors.length === 0
+  const written = !check && report.errors.length === 0 && !upToDate
 
-  if (written && !upToDate) {
+  if (written) {
     await mkdir(outputDirectory, { recursive: true })
     await writeFile(inventoryFile, rendered)
   }

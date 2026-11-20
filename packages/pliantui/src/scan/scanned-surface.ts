@@ -36,6 +36,10 @@ export interface ScannedSurface {
   readonly nodes: Map<string, ScannedNode>
   /** Whether part of the surface couldn't be read. */
   incomplete: boolean
+  /** Whether its `PliantRoot` is in an App Router layout. */
+  fromLayout: boolean
+  /** The files of the components the surface renders. */
+  readonly files: Set<string>
 }
 
 export interface ScanReport {
@@ -85,7 +89,7 @@ export function addNode(
     report.errors.push(
       createDiagnostic(
         at,
-        `${node.id} is rendered in both ${describeParent(existing.parent)} and ${describeParent(node.parent)} on ${surface.surface}. Node ids must be unique on a surface.`
+        `${node.id} is rendered in both ${describeParent(existing.parent)} and ${describeParent(node.parent)} on ${surface.surface}. Node ids must be unique on a surface.${surface.fromLayout ? ` ${surface.surface} is rendered by a layout, so it spans every page under that layout.` : ""}`
       )
     )
     return

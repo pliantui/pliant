@@ -1,26 +1,25 @@
 import path from "node:path"
 import { Node, type SourceFile } from "ts-morph"
 
-import { componentOf, isFunction, type Route } from "./scope"
+import { functionIn, isFunction, type Route } from "./scope"
 
-const routeFile = /^(page|layout)\.[cm]?[jt]sx?$/
+const routeFile = /^(page|default|layout)\.[cm]?[jt]sx?$/
 
-function routeFileIn(
+function routeFilesIn(
   files: ReadonlyMap<string, SourceFile>,
   directory: string,
-  name: "page" | "layout"
+  names: readonly string[]
 ) {
-  for (const [file, sourceFile] of files) {
-    const base = path.basename(file)
-    if (
-      path.dirname(file) === directory &&
-      routeFile.test(base) &&
-      base.startsWith(`${name}.`)
-    ) {
-      return sourceFile
-    }
-  }
-  return undefined
+  return [...files]
+    .filter(([file]) => {
+      const base = path.basename(file)
+      return (
+        path.dirname(file) === directory &&
+        routeFile.test(base) &&
+        names.some((name) => base.startsWith(`${name}.`))
+      )
+    })
+    .map(([, sourceFile]) => sourceFile)
 }
 
 function defaultComponent(sourceFile: SourceFile) {
@@ -29,73 +28,82 @@ function defaultComponent(sourceFile: SourceFile) {
     return declaration
   }
   return Node.isExportAssignment(declaration)
-    ? componentOf(declaration.getExpression())
+    ? functionIn(declaration.getExpression())
     : undefined
-}
-
-// Parallel routes (`@slot`) render as props other than `children`, private
-// folders (`_name`) aren't routes, and intercepting routes (`(.)name`)
-// replace another route's page.
-function isChildSegment(name: string) {
-  return (
-    !name.startsWith("@") && !name.startsWith("_") && !name.startsWith("(.")
-  )
 }
 
 /**
  * Whether a file is an App Router layout: `layout.tsx`, or another script
- * extension, inside an `app` folder.
+ * extension, in the `app` or `src/app` folder of the project at `root`.
  */
-export function isAppLayout(file: string) {
+export function isAppLayout(file: string, root: string) {
+  const [first, second] = path.relative(root, file).split(path.sep)
   return (
-    routeFile.test(path.basename(file)) &&
-    path.basename(file).startsWith("layout.") &&
-    path.dirname(file).split(path.sep).includes("app")
+    /^layout\.[cm]?[jt]sx?$/.test(path.basename(file)) &&
+    (first === "app" || (first === "src" && second === "app"))
   )
 }
 
 /**
- * The routes a layout renders as its `children`: the page of its own
- * segment, and those of nested segments, each through the layouts between.
- * Route groups and dynamic segments are segments like any other.
+ * The routes an App Router layout renders, by the prop it renders them as:
+ * `children` for the page of its own segment and those of nested segments,
+ * each through the layouts between, and one prop per parallel route, like
+ * `modal` for an `@modal` folder. Route groups and dynamic segments are
+ * segments like any other. Private folders (`_name`) aren't routes, and
+ * intercepting routes (`(.)name`) replace another route's page.
  */
 export function appRoutes(
   layout: string,
   files: ReadonlyMap<string, SourceFile>
-): { routes: Route[]; unreadable: SourceFile[] } {
+): { props: Map<string, Route[]>; unreadable: SourceFile[] } {
   const unreadable: SourceFile[] = []
-  const route = (sourceFile: SourceFile, children: Route[]): Route[] => {
+  const segmentsIn = (directory: string) => {
+    const segments = new Set<string>()
+    for (const file of files.keys()) {
+      const [segment, ...rest] = path.relative(directory, file).split(path.sep)
+      if (segment && segment !== ".." && rest.length > 0) {
+        segments.add(segment)
+      }
+    }
+    return [...segments].sort()
+  }
+  const route = (
+    sourceFile: SourceFile,
+    props: Map<string, Route[]>
+  ): Route[] => {
     const fn = defaultComponent(sourceFile)
     if (!fn) {
       unreadable.push(sourceFile)
       return []
     }
-    return [{ fn, children }]
+    return [{ fn, props }]
   }
   const routesIn = (directory: string): Route[] => {
-    const page = routeFileIn(files, directory, "page")
-    const routes = page ? route(page, []) : []
-    const segments = new Set<string>()
-    for (const file of files.keys()) {
-      const relative = path.relative(directory, file).split(path.sep)
-      const [segment] = relative
-      if (relative.length > 1 && segment && segment !== "..") {
-        segments.add(segment)
-      }
-    }
-    for (const segment of [...segments].sort()) {
-      if (!isChildSegment(segment)) {
+    const routes = routeFilesIn(files, directory, ["page", "default"]).flatMap(
+      (page) => route(page, new Map())
+    )
+    for (const segment of segmentsIn(directory)) {
+      if (/^[@_]|^\(\./.test(segment)) {
         continue
       }
       const nested = path.join(directory, segment)
-      const nestedLayout = routeFileIn(files, nested, "layout")
+      const [nestedLayout] = routeFilesIn(files, nested, ["layout"])
       routes.push(
         ...(nestedLayout
-          ? route(nestedLayout, routesIn(nested))
+          ? route(nestedLayout, propsOf(nested))
           : routesIn(nested))
       )
     }
     return routes
   }
-  return { routes: routesIn(path.dirname(layout)), unreadable }
+  const propsOf = (directory: string) => {
+    const props = new Map([["children", routesIn(directory)]])
+    for (const segment of segmentsIn(directory)) {
+      if (segment.startsWith("@")) {
+        props.set(segment.slice(1), routesIn(path.join(directory, segment)))
+      }
+    }
+    return props
+  }
+  return { props: propsOf(path.dirname(layout)), unreadable }
 }

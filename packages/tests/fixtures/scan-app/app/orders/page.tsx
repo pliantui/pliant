@@ -1,5 +1,6 @@
 import { PliantRoot } from "@pliantui/react"
 
+import { FramedPanel } from "@/components/framed-panel"
 import { ItemList } from "@/components/item-list"
 import { KpiCard } from "@/components/kpi-card"
 import { PliantRegion } from "@/components/pliant/pliant-region"
@@ -26,6 +27,7 @@ export default function OrdersPage() {
           details: <OrderDetails />,
         }}
       />
+      <FramedPanel slots={{ first: <p>First</p>, second: <p>Second</p> }} />
       <ItemList
         items={["late"]}
         renderItem={() => (

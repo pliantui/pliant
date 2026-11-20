@@ -83,6 +83,8 @@ describe("pliantui scan", () => {
     const inventory = await readInventory(cwd)
     expect(Object.keys(inventory)).toEqual([
       "/orders",
+      // Its PliantRoot comes from a namespace import.
+      "help",
       "reports",
       "settings",
       "shop",
@@ -92,12 +94,17 @@ describe("pliantui scan", () => {
       ids: [
         "address",
         "alerts",
+        "banner",
         "billing",
         "details",
+        "first",
+        "framed",
         "invoice",
         "item-list",
         "items",
         "late",
+        "message",
+        // Declared through the app's own hook, useOrdersTable.
         "orders-table",
         "orders-table/columns/actions",
         "orders-table/columns/cents",
@@ -106,6 +113,7 @@ describe("pliantui scan", () => {
         "page",
         "refunds",
         "revenue",
+        "second",
         "shipping",
         "status",
         "summary",
@@ -130,6 +138,12 @@ describe("pliantui scan", () => {
       // Rendered by a render prop, where the component calls it.
       alerts: "items",
       late: "alerts",
+      // Declared with a namespace import, Pliant.usePliantRegion.
+      framed: null,
+      banner: "framed",
+      message: "banner",
+      first: "framed",
+      second: "framed",
       // Rendered through a component that passes its children on.
       "orders-table": null,
     })
@@ -143,6 +157,9 @@ describe("pliantui scan", () => {
       "item-list": ["items"],
       items: ["alerts"],
       alerts: ["late"],
+      // The banner renders before the slots.
+      framed: ["banner", "first", "second"],
+      banner: ["message"],
     })
     expect(Object.keys(orders?.ids ?? {}).sort()).toEqual(orders?.baseIds.ids)
     expect(orders?.ids["page"]?.kind).toBe("pliant:region")
@@ -158,6 +175,12 @@ describe("pliantui scan", () => {
 
     expect(shop?.baseIds.source).toBe("inventory")
     expect(shop?.baseParents).toEqual({
+      // The parallel route the layout renders as its modal prop.
+      "sign-in": null,
+      form: "sign-in",
+      // A page whose default export is wrapped in a function call.
+      account: null,
+      orders: "account",
       "shop-header": null,
       cart: "shop-header",
       // The page of the layout's own segment.
@@ -172,6 +195,111 @@ describe("pliantui scan", () => {
       details: "product",
       gallery: "details",
       photos: "gallery",
+    })
+  })
+
+  it("treats only the app folder's layouts as App Router layouts", async () => {
+    const outer = await createFixtureDirectory("scan-nested")
+    // The project sits in a folder named app, which isn't its app folder.
+    const { output } = await scanJson(path.join(outer, "app/project"))
+
+    expect(output.inventory["shell"]?.baseIds).toEqual({
+      ids: [],
+      source: "mounted",
+    })
+    expect(output.warnings.map((warning) => warning.file)).toEqual([
+      "components/shell/layout.tsx",
+      "views/home.tsx",
+    ])
+  })
+
+  it("marks a layout's surface as not read in full when a route can't be read", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await writeFile(
+      path.join(cwd, "app/(shop)/account/page.tsx"),
+      [
+        "export default makePage()",
+        "",
+        "function makePage() {",
+        "  return function AccountPage() {",
+        "    return <p>Account</p>",
+        "  }",
+        "}",
+        "",
+      ].join("\n")
+    )
+    const { output } = await scanJson(cwd)
+
+    expect(output.inventory["shop"]?.baseIds.source).toBe("mounted")
+    expect(output.warnings).toContainEqual({
+      file: "app/(shop)/account/page.tsx",
+      line: 1,
+      message:
+        "The default export of this route can't be read as a component, so its nodes are in no inventory.",
+    })
+  })
+
+  it("marks the surfaces that may render what it can't reach", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await writeFile(
+      path.join(cwd, "components/unused-panel.tsx"),
+      [
+        'import { PliantRegion } from "@/components/pliant/pliant-region"',
+        "",
+        "export function UnusedPanel() {",
+        '  return <PliantRegion id="unused" slots={{ first: <p>First</p> }} />',
+        "}",
+        "",
+      ].join("\n")
+    )
+    const { output } = await scanJson(cwd)
+
+    expect(output.warnings).toContainEqual({
+      file: "components/unused-panel.tsx",
+      line: 4,
+      message:
+        "<PliantRegion> isn't rendered under a PliantRoot the scan can follow, so it's in no inventory.",
+    })
+    // No surface renders that file, so any of them might.
+    expect(
+      Object.values(output.inventory).map(({ baseIds }) => baseIds.source)
+    ).toEqual(["mounted", "mounted", "mounted", "mounted", "mounted"])
+  })
+
+  it("marks only the surface that renders the file of what it can't reach", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await edit(
+      cwd,
+      "app/help/page.tsx",
+      "export default function HelpPage() {",
+      'const unused = <PliantRegion id="unused" slots={{ a: <p>A</p> }} />\n\nexport default function HelpPage() {'
+    )
+    const { output } = await scanJson(cwd)
+
+    expect(output.inventory["help"]?.baseIds.source).toBe("mounted")
+    expect(output.inventory["/orders"]?.baseIds.source).toBe("inventory")
+    expect(output.inventory["shop"]?.baseIds.source).toBe("inventory")
+  })
+
+  it("lists in baseOrder only what baseParents lists, with the same parents", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    const { output } = await scanJson(cwd)
+
+    for (const { baseParents, baseOrder } of Object.values(output.inventory)) {
+      for (const [parent, children] of Object.entries(baseOrder)) {
+        expect(Object.keys(baseParents)).toContain(parent)
+        for (const child of children) {
+          expect(baseParents[child]).toBe(parent)
+        }
+      }
+    }
+    // nested sits in a slot of a region whose id can't be read, so the slot
+    // has no known parent and holds nothing in baseOrder.
+    const reports = output.inventory["reports"]
+    expect(reports?.baseParents["nested"]).toBe("first")
+    expect(reports?.baseOrder).toEqual({
+      nested: ["deep"],
+      overview: ["summary"],
     })
   })
 
@@ -218,12 +346,22 @@ describe("pliantui scan", () => {
 
     expect(exitCode).toBe(0)
     expect(output.inventory["reports"]?.baseIds).toEqual({
-      ids: ["body", "first", "overview", "reports-table", "summary"],
+      ids: [
+        "body",
+        "deep",
+        "first",
+        "nested",
+        "overview",
+        "reports-table",
+        "summary",
+      ],
       source: "mounted",
     })
     // The regions whose ids can't be read have no known parent for their
     // slots.
     expect(output.inventory["reports"]?.baseParents).toEqual({
+      nested: "first",
+      deep: "nested",
       overview: null,
       summary: "overview",
       "reports-table": null,
@@ -237,13 +375,9 @@ describe("pliantui scan", () => {
       'app/orders/columns.tsx:22 The column "2fa" of orders-table is left out: overlays can only address column ids that start with a letter and contain only letters, digits, - and _.',
       "app/reports/page.tsx:38 A slot of overview can't be read: the computed key [`${prefix}-total`].",
       "app/reports/page.tsx:39 A slot of overview can't be read: the spread ...extra.",
-      "app/reports/page.tsx:43 The id of a region can't be read: regionId().",
-      "app/reports/page.tsx:45 The id of a region can't be read: chart.",
+      "app/reports/page.tsx:44 The id of a region can't be read: regionId().",
+      "app/reports/page.tsx:50 The id of a region can't be read: chart.",
       "app/reports/page.tsx:19 A column of reports-table can't be read: the columns fields.map((field) => ({ accessorKey:....",
-      "components/unused-panel.tsx:4 <PliantRegion> isn't rendered under a PliantRoot the scan can follow, so it's in no inventory.",
-      // A parallel route renders as its own prop of the layout, not as its
-      // children.
-      "app/(shop)/@modal/page.tsx:4 <PliantRegion> isn't rendered under a PliantRoot the scan can follow, so it's in no inventory.",
     ])
   })
 
@@ -302,6 +436,24 @@ describe("pliantui scan", () => {
     expect(after["address"]).toEqual(before["address"])
     expect(after["page"]?.hash).not.toBe(after["address"]?.hash)
     expect(after["orders-table"]?.hash).not.toBe(after["page"]?.hash)
+  })
+
+  it("says when a layout's surface spans the pages that reuse an id", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await edit(cwd, "app/(shop)/page.tsx", 'id="shop-home"', 'id="gallery"')
+    const { output, exitCode } = await scanJson(cwd)
+
+    expect(exitCode).toBe(1)
+    expect(output.errors.map((error) => error.message)).toContain(
+      "gallery is rendered in both the top of the surface and details on shop. Node ids must be unique on a surface. shop is rendered by a layout, so it spans every page under that layout."
+    )
+  })
+
+  it("says with --json whether it wrote the file", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+
+    expect((await scanJson(cwd)).output.written).toBe(true)
+    expect((await scanJson(cwd)).output.written).toBe(false)
   })
 
   describe("--check", () => {

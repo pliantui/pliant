@@ -69,9 +69,14 @@ export function buildInventory(
       }
     }
     // Nodes are recorded as the scan reaches them, which is render order.
+    // Like `baseParents`, it names only nodes whose parent is known.
     const children = new Map<string, string[]>()
     for (const node of surface.nodes.values()) {
-      if (typeof node.parent === "string" && !node.id.includes("/")) {
+      if (
+        typeof node.parent === "string" &&
+        !node.id.includes("/") &&
+        surface.nodes.get(node.parent)?.parent !== undefined
+      ) {
         children.set(node.parent, [
           ...(children.get(node.parent) ?? []),
           node.id,

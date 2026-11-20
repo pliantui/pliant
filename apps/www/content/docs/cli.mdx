@@ -166,14 +166,16 @@ Options:
 
 ### What it reads
 
-The command reads the files your `tsconfig.json` or `jsconfig.json` includes, skipping tests, stories, type declarations and folders whose names start with a dot, like `.next`. It finds each `PliantRoot` from `@pliantui/react`, reads its `surface`, and follows what it renders, through your own components, across files:
+The command reads the files your `tsconfig.json` or `jsconfig.json` includes, skipping tests, stories, type declarations and folders whose names start with a dot, like `.next`. It finds each `PliantRoot` from `@pliantui/react`, reads its `surface`, and follows what it renders, through your own components, across files. Pliant's exports are found through named, renamed and namespace imports (`import * as Pliant from "@pliantui/react"`), and through your own re-exports.
 
 - a call to `usePliantRegion` or `useRegionSlots` is a region. The keys of its slots object are its slots, in order, and each slot holds what it renders. `PliantRegion` calls `usePliantRegion` with its `id` and `slots` props, so `<PliantRegion id="key-metrics" slots={{ revenue: <KpiCard /> }} />` is the region `key-metrics` holding the slot `revenue`. A region rendered as the slot of the same id is that slot.
 - a call to `usePliantTable` from `@pliantui/react/table` is a table. Its columns are read as TanStack names them: `id`, else `accessorKey` with dots as underscores, else a string `header`. Arrays of column defs and `columnHelper.columns`, `accessor`, `display` and `group` are read, also inside a `useMemo`. A column is listed by its address, like `orders-table/columns/customer`.
+- a call to one of your own hooks, like a `useOrdersTable` that returns `usePliantTable(…)`, is followed into that hook.
 - a region or table holds everything its component renders, and a slot holds everything rendered in it.
 - a render prop, like `renderItem={(item) => …}`, is followed to where the component calls it.
+- a component that renders other nodes before a region's slots, like a banner above them, lists them first in `baseOrder`. The slots take their place where the component first uses the region `usePliantRegion` returns.
 
-A `PliantRoot` in an App Router layout (`app/**/layout.tsx`) that renders `{children}` holds the pages under that layout: the page of its own segment, and the pages of nested segments, each inside the nested layouts between. Route groups like `(shop)` and dynamic segments like `[id]` are followed like any other segment. Parallel routes (`@modal`), private folders (`_components`) and intercepting routes aren't, since they don't render as the layout's `children`.
+A `PliantRoot` in an App Router layout (`app/**/layout.tsx`) that renders `{children}` holds the pages under that layout: the page of its own segment, and the pages of nested segments, each inside the nested layouts between. Route groups like `(shop)` and dynamic segments like `[id]` are followed like any other segment. A parallel route folder, like `@modal`, holds what the layout renders as the prop of the same name, `{modal}`. A page's default export can be wrapped in a call, like `export default withAuth(function Page() { … })`. Private folders (`_components`) and intercepting routes aren't followed, since they don't render as the layout's props. Only `layout` files in the `app` or `src/app` folder of the project count.
 
 Ids can be written inline, kept in a `const` or imported, or passed down as props, as `PliantRegion` passes its own. Content rendered conditionally, like `{open && <PliantRegion … />}` or either side of a ternary, is listed too: the inventory is every node that can exist, not the ones on screen now.
 
@@ -199,8 +201,13 @@ export const inventory = {
         "key-metrics",
         "orders",
         "orders-table",
+        "orders-table/columns/createdAt",
         "orders-table/columns/customer",
         "orders-table/columns/id",
+        "orders-table/columns/notes",
+        "orders-table/columns/region",
+        "orders-table/columns/status",
+        "orders-table/columns/value",
         "overdue",
         "revenue",
       ],
@@ -222,7 +229,7 @@ export const inventory = {
         kind: "pliant:slot",
         hash: "a220a621c23f938c",
       },
-      // …
+      // … one entry per id
     },
   },
 } as const
@@ -254,7 +261,8 @@ When the command can't read something as written, it says so, with the file and 
 - a spread in a slots object that isn't a plain object in a `const`, like `...extra`
 - columns built at runtime, like `fields.map(...)`
 - a `PliantRoot` whose `surface` can't be read
-- a region or table that no `PliantRoot` renders, as far as the command can follow
+- a region or table that no `PliantRoot` renders, as far as the command can follow. Every surface that renders its file is marked as not read in full, or every surface when none does, since it may be rendered through code the command can't follow.
+- a route whose default export can't be read as a component
 - content passed as `children` or as a render prop that the command can't see, like a `PliantRoot` in a provider component outside a layout, whose `children` come from wherever it's used
 
 When part of a surface can't be read, the inventory can't claim to be complete, so the surface's `baseIds` use `source: "mounted"` instead of `"inventory"`. Core's `baseIds` know only those two sources. With `"mounted"`, an op into a node that isn't listed is `dormant`: it waits until that node shows up, rather than being dropped as `missing-container`, since the node may be one the command couldn't read. The summary marks the surface as **not read in full**. Fix what the warnings point to and run the command again to get `"inventory"` back.

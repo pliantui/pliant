@@ -40,7 +40,12 @@ export default function ReportsPage({
           summary: <p>Summary</p>,
         }}
       />
-      <PliantRegion id={regionId()} slots={{ first: <p>First</p> }} />
+      <PliantRegion
+        id={regionId()}
+        slots={{
+          first: <PliantRegion id="nested" slots={{ deep: <p>Deep</p> }} />,
+        }}
+      />
       {charts.map((chart) => (
         <PliantRegion key={chart} id={chart} slots={{ body: <p>{chart}</p> }} />
       ))}

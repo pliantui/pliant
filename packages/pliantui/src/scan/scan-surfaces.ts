@@ -37,6 +37,7 @@ import {
 import {
   componentName,
   componentOf,
+  functionIn,
   isFunction,
   propOf,
   readObjectLiteral,
@@ -56,13 +57,18 @@ interface Walk {
   readonly following: Set<Node>
   readonly visited: Set<Node>
   readonly kindOf: (fn: ComponentFunction) => NodeKind | undefined
+  /**
+   * Slots declared but not yet walked, by the variable holding the region,
+   * so they take their place where the component renders the region.
+   */
+  readonly pendingSlots: Map<Node, () => void>
 }
 
 type Hook = "region" | "table"
 
 function hookOf(call: CallExpression): Hook | undefined {
   const callee = call.getExpression()
-  if (!Node.isIdentifier(callee)) {
+  if (!Node.isIdentifier(callee) && !Node.isPropertyAccessExpression(callee)) {
     return undefined
   }
   if (
@@ -76,13 +82,40 @@ function hookOf(call: CallExpression): Hook | undefined {
     : undefined
 }
 
-function hookCalls(fn: ComponentFunction) {
+interface HookCall {
+  readonly call: CallExpression
+  readonly hook: Hook
+  /** The function that calls the hook: a component, or the app's own hook. */
+  readonly caller: ComponentFunction
+}
+
+/**
+ * The region and table hooks a component calls, directly or through the
+ * app's own hooks, like a `useOrdersTable` that returns `usePliantTable`.
+ */
+function hookCalls(
+  fn: ComponentFunction,
+  seen = new Set<ComponentFunction>()
+): HookCall[] {
+  seen.add(fn)
   return fn
     .getDescendantsOfKind(SyntaxKind.CallExpression)
     .filter((call) => call.getFirstAncestor(isFunction) === fn)
-    .flatMap((call) => {
+    .flatMap((call): HookCall[] => {
       const hook = hookOf(call)
-      return hook ? [{ call, hook }] : []
+      if (hook) {
+        return [{ call, hook, caller: fn }]
+      }
+      const callee = call.getExpression()
+      const custom =
+        /^use[A-Z]/.test(
+          Node.isPropertyAccessExpression(callee)
+            ? callee.getName()
+            : callee.getText()
+        ) && Node.isIdentifier(callee)
+          ? functionIn(callee)
+          : undefined
+      return custom && !seen.has(custom) ? hookCalls(custom, seen) : []
     })
 }
 
@@ -142,6 +175,10 @@ function checkId(
  */
 function walkNode(node: Node, scope: Scope, parent: Parent, walk: Walk) {
   if (isClaimed(walk, scope, node) || Node.isVariableDeclaration(node)) {
+    return
+  }
+  if (Node.isIdentifier(node)) {
+    renderPendingSlots(node, walk)
     return
   }
   if (Node.isJsxElement(node) || Node.isJsxSelfClosingElement(node)) {
@@ -288,8 +325,8 @@ function walkRoutes(
       continue
     }
     const props = new Map<string, PropValue>()
-    if (route.children.length > 0) {
-      props.set("children", { nodes: [], scope, routes: route.children })
+    for (const [name, nested] of route.props) {
+      props.set(name, { nodes: [], scope, routes: nested })
     }
     walkComponent(
       route.fn,
@@ -306,8 +343,21 @@ function walkRoutes(
   }
 }
 
+function renderPendingSlots(node: Node, walk: Walk) {
+  if (walk.pendingSlots.size === 0) {
+    return
+  }
+  const declaration = getDeclarations(node)[0]
+  const render = declaration && walk.pendingSlots.get(declaration)
+  if (declaration && render) {
+    walk.pendingSlots.delete(declaration)
+    render()
+  }
+}
+
 /** Walks the value a rendered prop or variable holds. */
 function follow(node: Node, scope: Scope, parent: Parent, walk: Walk) {
+  renderPendingSlots(node, walk)
   const prop = propOf(node, scope)
   if (prop !== undefined) {
     if (prop === "*") {
@@ -448,18 +498,37 @@ function walkComponent(
   parent: Parent,
   walk: Walk
 ) {
+  walk.surface.files.add(fn.getSourceFile().getFilePath())
   // A region or table holds everything its component renders.
   let holder = parent
-  for (const { call, hook } of hookCalls(fn)) {
+  const pending: Node[] = []
+  for (const { call, hook, caller } of hookCalls(fn)) {
     walk.visited.add(call)
-    holder =
-      hook === "region"
-        ? declareRegion(call, scope, parent, walk)
-        : declareTable(call, scope, parent, walk)
+    walk.surface.files.add(caller.getSourceFile().getFilePath())
+    // The app's own hook can't read the component's props.
+    const callScope: Scope =
+      caller === fn
+        ? scope
+        : { ...scope, fn: caller, props: new Map(), unknownProps: true }
+    if (hook === "table") {
+      holder = declareTable(call, callScope, parent, walk)
+      continue
+    }
+    const region = declareRegion(call, callScope, parent, walk)
+    holder = region.id
+    const variable = call.getParentIfKind(SyntaxKind.VariableDeclaration)
+    const key = variable && caller === fn ? variable : call
+    walk.pendingSlots.set(key, region.renderSlots)
+    pending.push(key)
   }
   const body = fn.getBody()
   if (body) {
     walkNode(body, scope, holder, walk)
+  }
+  // Slots the component never visibly renders still belong to the region.
+  for (const key of pending) {
+    walk.pendingSlots.get(key)?.()
+    walk.pendingSlots.delete(key)
   }
 }
 
@@ -479,7 +548,7 @@ function declareRegion(
   scope: Scope,
   parent: Parent,
   walk: Walk
-): Parent {
+): { id: Parent; renderSlots: () => void } {
   const [idArgument, slotsArgument] = call.getArguments()
   let id: string | undefined
   const read = idArgument && readString(idArgument, scope)
@@ -513,14 +582,27 @@ function declareRegion(
       slots && "node" in slots ? slots.node : call,
       `The slots of ${name} can't be read${slots ? `: ${slots.problem}` : ""}.`
     )
-    return id
+    return { id, renderSlots: () => undefined }
   }
   claim(walk, slots.scope, slots.value)
   const object = readObject(slots.value)
   for (const { node, reason } of object?.problems ?? []) {
     warn(walk, node, `A slot of ${name} can't be read: ${reason}.`)
   }
-  for (const [key, value] of object?.entries ?? []) {
+  const renderSlots = () => {
+    renderSlotsOf(object?.entries ?? new Map(), id, name, slots.scope, walk)
+  }
+  return { id, renderSlots }
+}
+
+function renderSlotsOf(
+  entries: ReadonlyMap<string, Node>,
+  id: Parent,
+  name: string,
+  scope: Scope,
+  walk: Walk
+) {
+  for (const [key, value] of entries) {
     if (!checkId(walk, value, key, "slot", name)) {
       continue
     }
@@ -535,9 +617,8 @@ function declareRegion(
       value,
       walk.report
     )
-    walkRendered(value, slots.scope, key, walk)
+    walkRendered(value, scope, key, walk)
   }
-  return id
 }
 
 function declareTable(
@@ -658,6 +739,8 @@ interface ScanOptions {
   readonly manifests: ReadonlyMap<string, Manifest>
   /** The ui folder the manifests were generated from. */
   readonly ui: string
+  /** The project's root, where `app` or `src/app` is. */
+  readonly root: string
 }
 
 /**
@@ -667,7 +750,7 @@ interface ScanOptions {
  */
 export function scanSurfaces(
   sourceFiles: readonly SourceFile[],
-  { manifests, ui }: ScanOptions
+  { manifests, ui, root }: ScanOptions
 ) {
   const surfaces = new Map<string, ScannedSurface>()
   const report: ScanReport = { errors: [], warnings: [] }
@@ -699,21 +782,7 @@ export function scanSurfaces(
         unknownProps: true,
         rendering: new Set(fn ? [fn] : []),
       }
-      if (isAppLayout(sourceFile.getFilePath())) {
-        const { routes, unreadable } = appRoutes(
-          sourceFile.getFilePath(),
-          files
-        )
-        props.set("children", { nodes: [], scope, routes })
-        for (const route of unreadable) {
-          report.warnings.push(
-            createDiagnostic(
-              route,
-              "The default export of this route can't be read as a component, so its nodes are in no inventory."
-            )
-          )
-        }
-      }
+      const fromLayout = isAppLayout(sourceFile.getFilePath(), root)
       const attribute = (
         Node.isJsxElement(element) ? element.getOpeningElement() : element
       ).getAttribute("surface")
@@ -746,7 +815,11 @@ export function scanSurfaces(
         surface: read.value,
         nodes: new Map(),
         incomplete: false,
+        fromLayout: false,
+        files: new Set(),
       }
+      surface.fromLayout ||= fromLayout
+      surface.files.add(sourceFile.getFilePath())
       surfaces.set(read.value, surface)
       const walk: Walk = {
         surface,
@@ -755,6 +828,20 @@ export function scanSurfaces(
         following: new Set(),
         visited,
         kindOf,
+        pendingSlots: new Map(),
+      }
+      if (fromLayout) {
+        const routes = appRoutes(sourceFile.getFilePath(), files)
+        for (const [name, nested] of routes.props) {
+          props.set(name, { nodes: [], scope, routes: nested })
+        }
+        for (const route of routes.unreadable) {
+          warn(
+            walk,
+            route,
+            "The default export of this route can't be read as a component, so its nodes are in no inventory."
+          )
+        }
       }
       if (Node.isJsxElement(element)) {
         for (const child of element.getJsxChildren()) {
@@ -764,7 +851,7 @@ export function scanSurfaces(
     }
   }
 
-  reportUnreached(sourceFiles, visited, report)
+  reportUnreached(sourceFiles, visited, report, [...surfaces.values()])
   return {
     surfaces: [...surfaces.values()],
     report: {
@@ -776,12 +863,15 @@ export function scanSurfaces(
 
 /**
  * Regions and tables no `PliantRoot` reaches, as far as the scan can
- * follow, belong to no surface's inventory.
+ * follow, belong to no surface's inventory. A surface that renders their
+ * file may still render them, so it isn't read in full; when no surface
+ * does, any may, through code the scan can't follow.
  */
 function reportUnreached(
   sourceFiles: readonly SourceFile[],
   visited: ReadonlySet<Node>,
-  report: ScanReport
+  report: ScanReport,
+  surfaces: readonly ScannedSurface[]
 ) {
   const declares = new Map<ComponentFunction, boolean>()
   const declaresNodes = (fn: ComponentFunction) => {
@@ -794,6 +884,11 @@ function reportUnreached(
     return result
   }
   const unreached = (node: Node, what: string) => {
+    const file = node.getSourceFile().getFilePath()
+    const rendering = surfaces.filter((surface) => surface.files.has(file))
+    for (const surface of rendering.length > 0 ? rendering : surfaces) {
+      surface.incomplete = true
+    }
     report.warnings.push(
       createDiagnostic(
         node,

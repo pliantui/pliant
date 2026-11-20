@@ -17,19 +17,20 @@ export type ComponentFunction =
   FunctionDeclaration | ArrowFunction | FunctionExpression
 
 /**
- * A route component an App Router layout renders as its `children`, with
- * the routes it renders as its own `children` when it's a layout.
+ * A route component an App Router layout renders: a page, or a nested
+ * layout with the routes it renders in turn, by prop: `children`, and one
+ * prop per parallel route.
  */
 export interface Route {
   readonly fn: ComponentFunction
-  readonly children: readonly Route[]
+  readonly props: ReadonlyMap<string, readonly Route[]>
 }
 
 /** A prop as written where the component is rendered. */
 export interface PropValue {
   readonly nodes: readonly Node[]
   readonly scope: Scope
-  /** The routes a layout's `children` stand for. */
+  /** The routes a layout's `children` or parallel route prop stands for. */
   readonly routes?: readonly Route[] | undefined
 }
 
@@ -156,14 +157,29 @@ export function readObjectLiteral(
 }
 
 /**
- * The function of the component a JSX tag renders, when the app declares
- * it: a function, or one passed to a call such as `memo` or `forwardRef`.
+ * The function a value holds: a function, one passed to a call such as
+ * `memo`, `forwardRef` or `withAuth`, or one the app declares under a name
+ * the value refers to.
  */
-export function componentOf(tag: Node): ComponentFunction | undefined {
-  if (Node.isIdentifier(tag) && /^[a-z]/.test(tag.getText())) {
+export function functionIn(value: Node): ComponentFunction | undefined {
+  let current = unwrapExpression(value)
+  while (Node.isCallExpression(current)) {
+    const [first] = current.getArguments()
+    if (!first) {
+      return undefined
+    }
+    current = unwrapExpression(first)
+  }
+  if (isFunction(current)) {
+    return current
+  }
+  if (
+    !Node.isIdentifier(current) &&
+    !Node.isPropertyAccessExpression(current)
+  ) {
     return undefined
   }
-  const declaration = getDeclarations(tag)[0]
+  const declaration = getDeclarations(current)[0]
   const sourceFile = declaration?.getSourceFile()
   if (
     !declaration ||
@@ -176,16 +192,19 @@ export function componentOf(tag: Node): ComponentFunction | undefined {
   if (Node.isFunctionDeclaration(declaration)) {
     return declaration
   }
-  if (!Node.isVariableDeclaration(declaration)) {
-    return undefined
-  }
-  let value: Node | undefined = declaration.getInitializer()
-  while (value && Node.isCallExpression(unwrapExpression(value))) {
-    const call = unwrapExpression(value)
-    value = Node.isCallExpression(call) ? call.getArguments()[0] : undefined
-  }
-  const fn = value && unwrapExpression(value)
-  return fn && isFunction(fn) ? fn : undefined
+  const initializer = Node.isVariableDeclaration(declaration)
+    ? declaration.getInitializer()
+    : undefined
+  return initializer && !Node.isIdentifier(unwrapExpression(initializer))
+    ? functionIn(initializer)
+    : undefined
+}
+
+/** The function of the component a JSX tag renders, when the app declares it. */
+export function componentOf(tag: Node): ComponentFunction | undefined {
+  return Node.isIdentifier(tag) && /^[a-z]/.test(tag.getText())
+    ? undefined
+    : functionIn(tag)
 }
 
 /**
