@@ -1,6 +1,6 @@
 import * as z from "zod"
 
-import { itemAddressSchema, nodeAddressSchema } from "../address"
+import { itemAddressSchema, nodeAddressSchema, rejectPerRow } from "../address"
 import {
   itemIdSchema,
   kebabIdSchema,
@@ -23,12 +23,14 @@ const movableSlotSchema = itemAddressSchema("slots", { template: false })
  * so a template slot is rejected. Whether a bare id names a node the user
  * added is checked when the overlay is resolved, not by this schema.
  */
-const removableSchema = z.union([kebabIdSchema, movableSlotSchema], {
-  error: (issue) =>
-    typeof issue.input === "string"
-      ? "Must be a slot address or the id of a node the user added"
-      : undefined,
-})
+const removableSchema = rejectPerRow(
+  z.union([kebabIdSchema, movableSlotSchema], {
+    error: (issue) =>
+      typeof issue.input === "string"
+        ? "Must be a slot address or the id of a node the user added"
+        : undefined,
+  })
+)
 
 const placementSchema = z.union([
   z.strictObject({ before: itemIdSchema }),
