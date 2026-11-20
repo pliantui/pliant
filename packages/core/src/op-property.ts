@@ -18,7 +18,8 @@ type UserItemKind = (typeof userItemKinds)[number]
  * after a dot: `collapse.<item>`, `defaults.<prop>`, `filter.<field>`,
  * `format.<field>`, `props.<prop>`, and `<kind>.<id>` for each user item kind
  * (`derived`, `aggregate`, `highlight`, `sortOption`, `filterControl`,
- * `preset`).
+ * `preset`). No built-in op writes a property that starts with `ext.`: the
+ * contract reserves `ext.<namespace>.<name>` for namespaced ops.
  */
 export type OpPropertyKey =
   | "chart"

@@ -206,7 +206,16 @@
           }
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$": {}
+      },
+      "propertyNames": {
+        "maxLength": 64,
+        "not": {
+          "pattern": "^pliant:"
+        }
+      }
     }
   },
   "required": [
