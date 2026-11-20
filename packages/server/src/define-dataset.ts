@@ -39,17 +39,18 @@ type RowKeyOption<TFields extends Fields, TKey extends string> =
   "id" extends KeyField<TFields>
     ? {
         /**
-         * The field, or fields in order, that identify each row: `id`,
-         * `string`, `integer`, `email` or `url` fields. Defaults to the
-         * field named `id`. A row key field doesn't have to be sortable.
+         * The field, or up to 10 fields in order, that identify each row:
+         * `id`, `string`, `integer`, `email` or `url` fields. Defaults to
+         * the field named `id`. A row key field doesn't have to be
+         * sortable.
          */
         readonly rowKey?: TKey | readonly [TKey, ...TKey[]] | undefined
       }
     : {
         /**
-         * The field, or fields in order, that identify each row: `id`,
-         * `string`, `integer`, `email` or `url` fields. A row key field
-         * doesn't have to be sortable.
+         * The field, or up to 10 fields in order, that identify each row:
+         * `id`, `string`, `integer`, `email` or `url` fields. A row key
+         * field doesn't have to be sortable.
          */
         readonly rowKey: TKey | readonly [TKey, ...TKey[]]
       }
@@ -58,13 +59,17 @@ type TimeZoneOption<TFields extends Fields> = [
   Extract<TFields[keyof TFields]["type"], "date" | "datetime">,
 ] extends [never]
   ? {
-      /** The IANA time zone dates and datetimes are read in. Defaults to `UTC`. */
+      /**
+       * The region-based IANA time zone dates and datetimes are read in, or
+       * `UTC`, kept as written. Defaults to `UTC`.
+       */
       readonly timeZone?: string | undefined
     }
   : {
       /**
-       * The IANA time zone dates and datetimes are read in, such as
-       * `Asia/Tokyo`. Required with a date or datetime field.
+       * The region-based IANA time zone dates and datetimes are read in,
+       * such as `Asia/Tokyo`, or `UTC`, kept as written. Required with a
+       * date or datetime field.
        */
       readonly timeZone: string
     }
@@ -115,7 +120,7 @@ export interface Dataset<
 > {
   readonly id: string
   readonly describe?: string
-  /** The IANA name of the dataset's time zone, as written, with its case fixed. */
+  /** The IANA name of the dataset's time zone, exactly as written. */
   readonly timeZone: string
   readonly rowKey: readonly [TKey, ...TKey[]]
   readonly fields: { readonly [K in keyof TFields]: ResolvedField<TFields[K]> }
@@ -156,37 +161,36 @@ const datasetKeys = new Set(["id", "describe", "timeZone", "fields", "rowKey"])
 // Objects, then fields, then each field, then its format and values.
 const depth = 4
 
-// One more than the most enum values, so a longer list is still reported.
+// One more than any list's limit, so a longer list is still reported.
 const maxItems = 101
 
 const maxProblems = 20
 
+const maxRowKey = 10
+
+// Offsets and the zones that only stand for one: Etc/*, GMT and its
+// variants, the other names of UTC, and EST, MST and HST, which never
+// change. UTC itself is accepted.
+const offsetZone =
+  /^(?:[+-]|etc\/|gmt|(?:uct|zulu|universal|greenwich|est|mst|hst)$)/i
+
 /**
- * An IANA time zone name as the developer wrote it, with its case fixed
- * (`utc` is `UTC`), or `undefined` for a name `Intl` doesn't know or a
- * fixed offset, such as `+05:30` or `Etc/GMT-5`. The name isn't replaced by
- * the one `Intl` resolves it to, which depends on the runtime's time zone
- * data: some resolve `Asia/Kolkata` to its older name `Asia/Calcutta`.
+ * Whether `Intl` accepts a time zone that is a region-based IANA name, or
+ * UTC. The name is kept as written, not replaced by the one `Intl` resolves
+ * it to, which depends on the runtime's time zone data: some resolve
+ * `Asia/Kolkata` to its older name `Asia/Calcutta`.
  */
-function timeZoneName(timeZone: unknown) {
-  if (
-    typeof timeZone !== "string" ||
-    /^(?:[+-]|etc\/gmt[+-])/i.test(timeZone)
-  ) {
-    return undefined
+function isTimeZoneName(timeZone: unknown): timeZone is string {
+  if (typeof timeZone !== "string" || offsetZone.test(timeZone)) {
+    return false
   }
   try {
     const resolved = new Intl.DateTimeFormat("en", {
       timeZone,
     }).resolvedOptions().timeZone
-    if (/^[+-]/.test(resolved)) {
-      return undefined
-    }
-    return resolved.toLowerCase() === timeZone.toLowerCase()
-      ? resolved
-      : timeZone
+    return !/^[+-]/.test(resolved)
   } catch {
-    return undefined
+    return false
   }
 }
 
@@ -200,8 +204,9 @@ function checkRowKey(
   report: (message: string) => void
 ) {
   const keys = Array.isArray(rowKey) ? rowKey : [rowKey]
-  if (keys.length === 0) {
-    report("rowKey must name at least one field")
+  if (keys.length === 0 || keys.length > maxRowKey) {
+    report(`rowKey must name 1 to ${String(maxRowKey)} fields`)
+    return
   }
   if (new Set(keys).size !== keys.length) {
     report("rowKey must not name a field twice")
@@ -269,9 +274,9 @@ function check(definition: unknown) {
   if (describe !== undefined && !isText(describe, 500)) {
     report("describe must be non-empty text of up to 500 characters")
   }
-  if (timeZone !== undefined && timeZoneName(timeZone) === undefined) {
+  if (timeZone !== undefined && !isTimeZoneName(timeZone)) {
     report(
-      `timeZone ${quote(timeZone)} must be an IANA time zone name, such as "Asia/Tokyo"`
+      `timeZone ${quote(timeZone)} must be a region-based IANA time zone name, such as "Asia/Tokyo", or "UTC"`
     )
   }
   checkFields(definition, report)
@@ -304,8 +309,8 @@ function withoutUndefined(field: Readonly<Record<string, unknown>>) {
  * default by type and can be overridden per field: every field is sortable,
  * filterable and readable by aggregate functions except `text` fields,
  * which are filterable by search only; `string`, `boolean`, `date` and
- * `enum` fields are groupable. The time zone is kept as written, with its
- * case fixed (`utc` is `UTC`).
+ * `enum` fields are groupable. The time zone must be a region-based IANA
+ * name, such as `Asia/Tokyo`, or `UTC`, and is kept exactly as written.
  *
  * Throws a `TypeError` listing every problem: a bad dataset or field id, an
  * unknown type, unit, currency, time zone or option, text that is empty or
@@ -345,7 +350,7 @@ export function defineDataset<
   return freeze({
     id,
     ...(describe === undefined ? {} : { describe }),
-    timeZone: timeZoneName(timeZone ?? "UTC"),
+    timeZone: timeZone ?? "UTC",
     rowKey:
       rowKey === undefined ? ["id"] : Array.isArray(rowKey) ? rowKey : [rowKey],
     fields: resolved,

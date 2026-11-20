@@ -2,9 +2,11 @@
  * Copies a value's own enumerable string-keyed properties, and those of the
  * objects and arrays in it down to `depth` levels, reading each property
  * once. Arrays are copied up to their first `maxItems` items, so a huge
- * array isn't copied before it is rejected. Checking and keeping the copy means a getter can't return one value
- * when checked and another when kept, and an inherited property is never
- * read. Functions, and anything below `depth`, are kept as they are.
+ * array isn't copied before it is rejected; every list's limit must be
+ * below `maxItems` for a longer list to be reported. Checking and keeping
+ * the copy means a getter can't return one value when checked and another
+ * when kept, and an inherited property is never read. Functions, and
+ * anything below `depth`, are kept as they are.
  */
 export function snapshot(
   value: unknown,

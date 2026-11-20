@@ -155,6 +155,33 @@ describe("defineDataset", () => {
     expect(lines.rowKey).toEqual(["orderId", "line"])
   })
 
+  it("checks every entry of a long row key", () => {
+    const fields = Object.fromEntries(
+      Array.from({ length: 200 }, (_, index) => [
+        `k${String(index)}`,
+        { type: "string" } as const,
+      ])
+    )
+    const keys = Object.keys(fields)
+    expect(problemsOf({ id: "orders", fields, rowKey: keys })).toContain(
+      "rowKey must name 1 to 10 fields"
+    )
+    expect(
+      problemsOf({
+        id: "orders",
+        fields,
+        rowKey: [...keys.slice(0, 101), "missing"],
+      })
+    ).toContain("rowKey must name 1 to 10 fields")
+    expect(
+      defineDataset({
+        id: "orders",
+        fields,
+        rowKey: ["k0", ...keys.slice(1, 10)],
+      }).rowKey
+    ).toHaveLength(10)
+  })
+
   it("accepts a row key that isn't sortable", () => {
     const dataset = defineDataset({
       id: "orders",
@@ -180,31 +207,42 @@ describe("defineDataset", () => {
       expect(undated.timeZone).toBe("UTC")
     })
 
-    it("keeps the name as written, whatever the runtime resolves it to", () => {
-      expect(zoneOf("Asia/Kolkata")).toBe("Asia/Kolkata")
-      expect(zoneOf("Europe/Kyiv")).toBe("Europe/Kyiv")
-      expect(zoneOf("Etc/UTC")).toBe("Etc/UTC")
+    it("keeps the name exactly as written", () => {
+      for (const timeZone of [
+        "Asia/Kolkata",
+        "Asia/Calcutta",
+        "Europe/Kyiv",
+        "europe/paris",
+        "UTC",
+        "utc",
+      ]) {
+        expect(zoneOf(timeZone)).toBe(timeZone)
+      }
     })
 
-    it("fixes the name's case", () => {
-      expect(zoneOf("europe/paris")).toBe("Europe/Paris")
-      expect(zoneOf("utc")).toBe("UTC")
-    })
-
-    it("rejects fixed offsets and unknown zones", () => {
+    it("rejects offsets, zones that stand for one, and unknown zones", () => {
       for (const timeZone of [
         "+05:30",
         "-08:00",
         "UTC+1",
         "Etc/GMT+5",
         "etc/gmt-14",
+        "Etc/UTC",
+        "Etc/GMT0",
+        "GMT",
+        "GMT0",
+        "GMT+0",
+        "gmt-0",
+        "Zulu",
+        "Greenwich",
+        "EST",
         "Mars/Olympus",
         "",
       ]) {
         expect(
           problemsOf({ ...withField({ type: "date" }), timeZone })
         ).toContain(
-          `timeZone ${JSON.stringify(timeZone)} must be an IANA time zone name`
+          `timeZone ${JSON.stringify(timeZone)} must be a region-based IANA time zone name, such as "Asia/Tokyo", or "UTC"`
         )
       }
     })
@@ -647,7 +685,7 @@ describe("defineDataset", () => {
       [
         "an empty row key",
         { ...valid, rowKey: [] },
-        "rowKey must name at least one field",
+        "rowKey must name 1 to 10 fields",
       ],
       [
         "a row key naming a field twice",
@@ -682,7 +720,7 @@ describe("defineDataset", () => {
       [
         "a time zone that isn't text",
         { ...valid, timeZone: 5 },
-        "timeZone 5 must be an IANA time zone name",
+        "timeZone 5 must be a region-based IANA time zone name",
       ],
     ])("for %s", (_, definition, message) => {
       expect(problemsOf(definition)).toContain(message)
