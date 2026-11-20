@@ -879,17 +879,22 @@ describe("usePliantTable with state rebuilt with dates", () => {
 
   it("stops syncing state that differs on every render", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
-    let tick = 0
+    // Flips on every commit, and stays put across the extra renders and
+    // effects StrictMode adds.
+    let flipped = false
     function Table() {
       const [, rerender] = useState(0)
-      tick++
+      const desc = !flipped
+      useLayoutEffect(() => {
+        flipped = desc
+      })
       const table = useTable(
         usePliantTable(
           {
             features,
             data,
             columns,
-            state: { sorting: [{ id: "value", desc: tick % 2 === 0 }] },
+            state: { sorting: [{ id: "value", desc }] },
             onSortingChange: () => {
               rerender((count) => count + 1)
             },
