@@ -1,6 +1,14 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs"
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { afterEach, beforeEach, expect, it } from "vitest"
 
 import { buildSchemas, contractSchemaDirectory } from "./build-schema"
@@ -47,10 +55,20 @@ it("finds the contract's schemas", () => {
 })
 
 it("writes every contract $id to the file its URL names", () => {
-  buildSchemas(outputDirectory)
-  for (const id of contractIds()) {
+  const built = buildSchemas(outputDirectory)
+  const ids = contractIds()
+  expect(built.toSorted()).toEqual(ids.toSorted())
+  for (const id of ids) {
     const file = join(outputDirectory, new URL(id).pathname)
     const schema: unknown = JSON.parse(readFileSync(file, "utf8"))
     expect(schema, id).toMatchObject({ $id: id })
   }
+})
+
+it("removes schemas from an earlier build", () => {
+  const stale = join(outputDirectory, "schema/removed.json")
+  mkdirSync(dirname(stale), { recursive: true })
+  writeFileSync(stale, "{}")
+  buildSchemas(outputDirectory)
+  expect(existsSync(stale)).toBe(false)
 })

@@ -1,4 +1,10 @@
-import { copyFileSync, mkdirSync, readdirSync, readFileSync } from "node:fs"
+import {
+  copyFileSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+} from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -25,6 +31,7 @@ function readId(file: string) {
 }
 
 export function buildSchemas(outputDirectory: string) {
+  rmSync(join(outputDirectory, "schema"), { recursive: true, force: true })
   const ids: string[] = []
   for (const name of readdirSync(contractSchemaDirectory).sort()) {
     if (!name.endsWith(".json")) {
