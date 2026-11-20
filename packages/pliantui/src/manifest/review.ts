@@ -87,6 +87,7 @@ export async function reviewComponents(
       for (const component of reviewed.filter(isUndecided)) {
         await adjustComponent(component)
       }
+      await adjustCapabilities(reviewed)
     }
     await confirmPending(reviewed)
   } catch (error) {
@@ -142,6 +143,31 @@ async function adjustComponent(component: InferredComponent) {
         : entry.value.class === "state"
           ? "state"
           : "hidden"
+  }
+}
+
+async function adjustCapabilities(components: InferredComponent[]) {
+  const choices = (enabled: (component: InferredComponent) => boolean) =>
+    components.map((component, index) => ({
+      title: component.name,
+      value: index,
+      selected: enabled(component),
+    }))
+  const label = await askIndexes({
+    type: "multiselect",
+    message: "Which components can users rename?",
+    instructions: false,
+    choices: choices((component) => component.label),
+  })
+  const hideable = await askIndexes({
+    type: "multiselect",
+    message: "Which components can users hide?",
+    instructions: false,
+    choices: choices((component) => component.hideable),
+  })
+  for (const [index, component] of components.entries()) {
+    component.label = label.includes(index)
+    component.hideable = hideable.includes(index)
   }
 }
 

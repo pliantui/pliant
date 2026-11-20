@@ -32,7 +32,7 @@ function manifest(
   capabilities: Record<string, unknown>
 ) {
   return {
-    kind,
+    kind: `app:${kind}`,
     version: 1,
     description,
     capabilities: { ...capabilities, label: true, hideable: true },
@@ -131,6 +131,14 @@ describe("pliantui manifest", () => {
       [
         "ToggleGroup  components/ui/toggle-group.tsx",
         '  variant  from context, default "default"',
+      ].join("\n")
+    )
+    expect(stdout).toContain(
+      [
+        "ToggleGroupItem  components/ui/toggle-group.tsx",
+        '  variant  from cva, default "default"',
+        "    user                 default, outline",
+        "    a value set on ToggleGroup wins over this one.",
       ].join("\n")
     )
     expect(stdout).toContain(
@@ -292,6 +300,9 @@ describe("pliantui manifest", () => {
           tone: { values: ["calm", "success"], semantic: ["success"] },
         },
       }),
+      SplitButton: manifest("split-button", "Split button", {
+        props: { size: { values: ["sm", "md"] } },
+      }),
       Tag: manifest("tag", "Tag", {
         props: { shape: { values: ["square", "pill"] } },
       }),
@@ -309,6 +320,7 @@ describe("pliantui manifest", () => {
       "  look  values not readable",
       "  intent  values not readable",
       ["  level  from cva", "    needs confirmation   1, 2"].join("\n"),
+      "components/ui/split-button.tsx:18 SplitButton's size gets different defaults from different variant definitions (md, sm), so no default is set.",
       ["Stack  components/ui/dynamic.tsx", "  variants not readable"].join(
         "\n"
       ),

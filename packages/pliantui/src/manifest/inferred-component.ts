@@ -12,6 +12,8 @@ interface InferredProp {
   name: string
   source: PropSource
   boolean: boolean
+  /** Components whose context value wins over this prop when it's set. */
+  overriddenBy: string[]
   values: InferredValue[]
   default?: string
 }
@@ -42,6 +44,11 @@ export interface InferredComponent {
   variantsReadable: boolean
   /** Props whose values can't be read, so they're left out. */
   unreadableProps: string[]
+  /** True when the component calls a cva or tv definition. */
+  usesVariants: boolean
+  /** Whether users may rename and hide it. */
+  label: boolean
+  hideable: boolean
   props: InferredProp[]
   defaults: InferredDefault[]
 }

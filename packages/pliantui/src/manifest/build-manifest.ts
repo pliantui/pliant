@@ -17,7 +17,7 @@ interface BuiltManifest {
   incomplete: { name: string; needs: "values" | "min and max" }[]
 }
 
-function toKind(name: string) {
+function toKebabCase(name: string) {
   return name
     .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
     .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
@@ -43,7 +43,10 @@ function toManifestDefault(item: InferredDefault): ManifestDefault | undefined {
   }
 }
 
-export function buildManifest(component: InferredComponent): BuiltManifest {
+export function buildManifest(
+  component: InferredComponent,
+  namespace: string
+): BuiltManifest {
   const props: Record<string, ManifestProp> = {}
   for (const prop of component.props) {
     const shown = prop.values.filter(
@@ -85,14 +88,14 @@ export function buildManifest(component: InferredComponent): BuiltManifest {
   const rejected: BuiltManifest["rejected"] = []
   for (;;) {
     const result = manifestSchema.safeParse({
-      kind: toKind(component.name),
+      kind: `${namespace}:${toKebabCase(component.name)}`,
       version: 1,
       description: component.description,
       capabilities: {
         ...(Object.keys(props).length > 0 ? { props } : {}),
         ...(Object.keys(defaults).length > 0 ? { defaults } : {}),
-        label: true,
-        hideable: true,
+        ...(component.label ? { label: true } : {}),
+        ...(component.hideable ? { hideable: true } : {}),
       },
     })
     if (result.success) {

@@ -3,7 +3,7 @@ import type { CallExpression, Node, SourceFile } from "ts-morph"
 import { classifyValues } from "./classify"
 import { findComponents, type Component } from "./component"
 import { describeComponent } from "./describe-component"
-import type { Diagnostic } from "./diagnostic"
+import { createDiagnostic, type Diagnostic } from "./diagnostic"
 import { followProps } from "./follow-props"
 import type { InferredComponent } from "./inferred-component"
 import { readDefaults } from "./read-defaults"
@@ -38,10 +38,33 @@ export function inferComponents(
     }
   }
 
+  const providers = new Map<Node, string[]>()
+  for (const component of components) {
+    for (const { context } of component.provides) {
+      const names = providers.get(context) ?? []
+      if (!names.includes(component.name)) {
+        providers.set(context, [...names, component.name])
+      }
+    }
+  }
+
   return components.flatMap((component) => {
     readUnionProps(component)
     const defaults = readDefaults(component, diagnostics)
+    for (const [name, conflict] of component.defaultConflicts) {
+      const prop = component.props.get(name)
+      if (prop) {
+        prop.default = undefined
+      }
+      diagnostics.push(
+        createDiagnostic(
+          component.declaration,
+          `${component.name}'s ${name} gets different defaults from different variant definitions (${[...conflict].join(", ")}), so no default is set.`
+        )
+      )
+    }
     if (
+      !component.usesVariants &&
       component.props.size === 0 &&
       component.unreadable.size === 0 &&
       component.variantsReadable &&
@@ -55,6 +78,9 @@ export function inferComponents(
         file: component.declaration.getSourceFile().getFilePath(),
         description: describeComponent(component),
         variantsReadable: component.variantsReadable,
+        usesVariants: component.usesVariants,
+        label: true,
+        hideable: true,
         unreadableProps: [...component.unreadable].filter(
           (prop) => !component.props.has(prop)
         ),
@@ -67,6 +93,9 @@ export function inferComponents(
             name,
             source: prop.source,
             boolean: prop.boolean,
+            overriddenBy: (prop.contexts ?? []).flatMap(
+              (context) => providers.get(context) ?? []
+            ),
             values: prop.values.map((value, index) => ({
               value,
               class: classes[index] ?? "confirm",

@@ -31,6 +31,8 @@ interface FoundProp {
   values: string[]
   boolean: boolean
   default?: string | undefined
+  /** Contexts whose value wins over this prop when it's set. */
+  contexts?: Node[] | undefined
 }
 
 export interface Component {
@@ -42,6 +44,9 @@ export interface Component {
   props: Map<string, FoundProp>
   unreadable: Set<string>
   variantsReadable: boolean
+  usesVariants: boolean
+  /** Props that got different defaults from different definitions. */
+  defaultConflicts: Map<string, Set<string>>
   passes: { target: Component; targetProp: string; binding: Binding }[]
   spreads: {
     target: Component
@@ -106,6 +111,8 @@ export function findComponents(
           props: new Map(),
           unreadable: new Set(),
           variantsReadable: true,
+          usesVariants: false,
+          defaultConflicts: new Map(),
           passes: [],
           spreads: [],
           provides: [],
@@ -277,6 +284,21 @@ export function addProp(component: Component, name: string, prop: FoundProp) {
   if (!existing) {
     component.props.set(name, prop)
     return true
+  }
+  if (
+    existing.default !== undefined &&
+    prop.default !== undefined &&
+    existing.default !== prop.default
+  ) {
+    const conflict = component.defaultConflicts.get(name) ?? new Set()
+    conflict.add(existing.default).add(prop.default)
+    component.defaultConflicts.set(name, conflict)
+  }
+  const contexts = (prop.contexts ?? []).filter(
+    (context) => !existing.contexts?.includes(context)
+  )
+  if (contexts.length > 0) {
+    existing.contexts = [...(existing.contexts ?? []), ...contexts]
   }
   const added = prop.values.filter((value) => !existing.values.includes(value))
   existing.values.push(...added)

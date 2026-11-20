@@ -94,6 +94,7 @@ export function readVariantCalls(
       diagnostics,
       definitions
     )
+    component.usesVariants = true
     if (!definition.readable) {
       component.variantsReadable = false
       continue
@@ -192,6 +193,7 @@ export function readVariantCalls(
       if (!variant) {
         continue
       }
+      const contextKeys = getContextKeys(value)
       if (binding) {
         addProp(component, binding.prop, {
           source: definition.library,
@@ -202,9 +204,10 @@ export function readVariantCalls(
             variant.values,
             definition.defaults.get(key)
           ),
+          contexts: contextKeys.map(({ context }) => context),
         })
       }
-      for (const { context, key: contextKey } of getContextKeys(value)) {
+      for (const { context, key: contextKey } of contextKeys) {
         const byKey =
           consumers.get(context) ?? new Map<string, ContextConsumer[]>()
         consumers.set(context, byKey)

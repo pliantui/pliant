@@ -51,6 +51,13 @@ export function formatSummary(
     lines.push(
       `${highlighter.info(component.name)}  ${highlighter.muted(path.relative(cwd, component.file))}`
     )
+    const off = [
+      ...(component.label ? [] : ["renamed"]),
+      ...(component.hideable ? [] : ["hidden"]),
+    ]
+    if (off.length > 0) {
+      lines.push(`  ${highlighter.muted(`can't be ${off.join(" or ")}`)}`)
+    }
     if (!component.variantsReadable) {
       lines.push(`  ${highlighter.warn("variants not readable")}`)
     }
@@ -67,6 +74,13 @@ export function formatSummary(
         if (values.length > 0) {
           lines.push(`    ${formatClass(valueClass)} ${values.join(", ")}`)
         }
+      }
+      if (prop.overriddenBy.length > 0) {
+        lines.push(
+          highlighter.muted(
+            `    a value set on ${prop.overriddenBy.join(" or ")} wins over this one.`
+          )
+        )
       }
       const physical = prop.values
         .map((value) => value.value)

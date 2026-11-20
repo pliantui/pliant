@@ -1,0 +1,140 @@
+---
+title: CLI
+description: Use the pliantui CLI to describe the components you already have.
+---
+
+## manifest
+
+Use the `manifest` command to generate a manifest for each component in your ui folder. A manifest says what users may change about a component: which values of its props they can pick, whether they can rename or hide it, and which default states they can set.
+
+```bash
+npx pliantui manifest
+```
+
+The command reads your components' `cva` and `tailwind-variants` (`tv()`) definitions as source code. It never runs your code. It shows what it found, lets you accept or change it, and then writes the manifests.
+
+```txt
+Usage: pliantui manifest [options]
+
+generate manifests for the components you already have
+
+Options:
+  -y, --yes                    skip the review and use the inferred classes.
+                               (default: false)
+  -c, --cwd <cwd>              the working directory. defaults to the current
+                               directory.
+  -n, --namespace <namespace>  the namespace for component kinds. defaults to
+                               the saved one, or app.
+  -h, --help                   display help for command
+```
+
+### Where it looks
+
+The ui folder comes from the `ui` alias in `components.json`, resolved through the `paths` in your `tsconfig.json` or `jsconfig.json`. Every `.ts`, `.tsx`, `.js` and `.jsx` file in it is read, including subfolders. Tests, stories and type declarations are skipped.
+
+### What it reads
+
+The command finds calls to `cva` from `class-variance-authority` or `cva`, and to `tv` from `tailwind-variants`. That includes a `tv` you made with `createTV()` and export from your own modules.
+
+The config can be written inline or kept in a `const`. It can also be imported from another file, spread from other objects, or wrapped in `as const` or `satisfies`. A call declared inside a component works too. `defaultVariants`, `compoundVariants`, and `tv()`'s `slots` and `extend` are read as well.
+
+A prop goes into a component's manifest only when the value the user passes reaches the definition unchanged:
+
+- directly: `buttonVariants({ variant, size })`
+- through a fallback: `variant ?? "default"`
+- through a props spread: `badgeVariants({ ...props })`. Keys written after the spread are fixed by the component and aren't exposed.
+- through another component that has a manifest: `<Button size={size} />` or `<PaginationLink {...props} />`
+- through a context provider, like a toggle group passing `variant` to its items. The summary notes that a value set on the group wins over the item's own.
+
+Values the component works out itself, like `variant: isActive ? "outline" : "ghost"`, are not exposed.
+
+A literal default on a destructured prop, like `size = "icon"`, wins over `defaultVariants`.
+
+Props typed as string unions in the component's own types, like a sheet's `side?: "top" | "right" | "bottom" | "left"`, are listed too, as needing confirmation.
+
+### How values are classified
+
+Every value gets one class:
+
+| Class              | Meaning                                  | Assigned to                                                                                                                |
+| ------------------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| user               | Users can pick it                        | Plain visual values, like `outline`, `ghost` or `lg`                                                                       |
+| semantic           | Shown, but users can't pick it           | Values whose name contains destructive, danger, error, warning, caution, success or info; every value of a `severity` prop |
+| state              | Not shown, because the component sets it | Props like `loading`, `disabled` or `isActive`; a `status` prop with UPPERCASE values                                      |
+| needs confirmation | Left out until you confirm it            | Colour names like `red`, `none`, `link`, number keys, `true`/`false` variants and string-union props                       |
+| hidden             | Left out because you chose so            | Set in the review                                                                                                          |
+
+### Default states
+
+A `default*` prop that pairs with a controlled prop in the component's props type, like `defaultOpen` with `open` or `defaultValue` with `value`, can become a default state that users set for themselves. This includes props from Radix and other libraries; React's own form attributes don't count.
+
+Each one needs confirmation. A boolean, a date or a union of literals can be used as it is. A number needs a range, and a string needs the list of values users may choose from. You give these in the review.
+
+### The review
+
+After the summary, the command asks:
+
+1. **Accept these classes?** Answer no to choose, per component, which values users can set and which they see but can't set, and which components users can rename or hide.
+2. **These need your confirmation. Which can users set?** Anything you don't select stays out.
+3. For each default state you kept, the values or range it needs, and whether users' own changes to it are saved automatically.
+
+Your answers are saved, so later runs only ask about values they haven't seen before. Pass `--yes` to skip the review. Everything that needs confirmation is then left out, and the command says how many items were left out.
+
+The review needs an interactive terminal. In CI or other scripts, pass `--yes`.
+
+### Output
+
+The command writes two files to the `pliant` folder inside your `lib` alias:
+
+- `manifests.generated.ts`, or `.js` if `components.json` sets `tsx: false`. It exports `manifests`, keyed by the exported component name. Don't edit it by hand; run the command again instead.
+- `manifest-decisions.json`, your review answers. Commit it.
+
+Every component that calls a `cva` or `tv` definition gets a manifest. By default users can rename and hide it, even when none of its values were confirmed. A component with no definition, like a sheet whose `side` is a typed union, gets a manifest once you confirm one of its props or default states.
+
+Each manifest's `kind` is `namespace:component-name`, like `app:button`. Bare kinds are reserved for Pliant's built-in components. The namespace defaults to `app`. Pass `--namespace acme` to use your own. It must be kebab-case and can't be `pliant`. The namespace is saved, so later runs keep the same kinds.
+
+The decisions file looks like this:
+
+```json
+{
+  "namespace": "app",
+  "components": {
+    "Button": {
+      "props": {
+        "variant": {
+          "default": "user",
+          "destructive": "semantic",
+          "link": "hidden"
+        }
+      },
+      "capabilities": { "hideable": false }
+    },
+    "Tabs": {
+      "defaults": {
+        "defaultValue": {
+          "class": "user",
+          "values": ["overview", "activity"],
+          "persist": true
+        }
+      }
+    }
+  }
+}
+```
+
+You can edit it by hand and run `npx pliantui manifest --yes` to apply it.
+
+### What's reported, not guessed
+
+When the command can't read something as written, it says so and leaves it out instead of guessing:
+
+- a variant with a computed key, like `[accent]: "..."`
+- values built at runtime, like `Object.fromEntries(...)`
+- a config returned by a function: the component is marked **variants not readable** and gets a manifest that only allows renaming and hiding
+- a `cva` or `tv` call that can't be traced back to its library
+- `defaultVariants`, `compoundVariants` or `slots` nested inside `variants` by mistake
+- a compound variant that refers to a variant or value that doesn't exist
+- a prop that gets different defaults from two definitions: no default is set
+- a default state whose type can't be stored, like `string[]`
+
+Each report gives the file and line.

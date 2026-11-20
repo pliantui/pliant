@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises"
 import * as z from "zod"
 
 import type { InferredComponent } from "./inferred-component"
+import { namespaceSchema } from "./namespace"
 
 const defaultDecisionSchema = z.strictObject({
   class: z.enum(["user", "hidden"]),
@@ -22,13 +23,20 @@ const componentDecisionsSchema = z.strictObject({
     )
     .optional(),
   defaults: z.record(z.string(), defaultDecisionSchema).optional(),
+  capabilities: z
+    .strictObject({
+      label: z.boolean().optional(),
+      hideable: z.boolean().optional(),
+    })
+    .optional(),
 })
 
 const decisionsSchema = z.strictObject({
+  namespace: namespaceSchema.optional(),
   components: z.record(z.string(), componentDecisionsSchema),
 })
 
-type Decisions = z.infer<typeof decisionsSchema>
+export type Decisions = z.infer<typeof decisionsSchema>
 
 export async function readDecisions(file: string): Promise<Decisions> {
   if (!existsSync(file)) {
@@ -60,8 +68,11 @@ export function applyDecisions(
 ): InferredComponent[] {
   return components.map((component) => {
     const decided = decisions.components[component.name]
+    const capabilities = decided?.capabilities
     return {
       ...component,
+      label: capabilities?.label ?? component.label,
+      hideable: capabilities?.hideable ?? component.hideable,
       props: component.props.map((prop) => ({
         ...prop,
         values: prop.values.map((value) => {
@@ -83,12 +94,17 @@ export function applyDecisions(
   })
 }
 
-/** Records every value and default of the reviewed components. */
+/**
+ * Records the namespace and every value, default and capability of the
+ * reviewed components.
+ */
 export function recordDecisions(
   previous: Decisions,
-  components: InferredComponent[]
+  components: InferredComponent[],
+  namespace: string
 ): Decisions {
   const result: Decisions = {
+    namespace,
     components: { ...previous.components },
   }
   for (const component of components) {
@@ -118,9 +134,14 @@ export function recordDecisions(
         ...(item.persist ? { persist: true } : {}),
       }
     }
+    const capabilities = {
+      ...(component.label ? {} : { label: false }),
+      ...(component.hideable ? {} : { hideable: false }),
+    }
     result.components[component.name] = {
       ...(Object.keys(props).length > 0 ? { props } : {}),
       ...(Object.keys(defaults).length > 0 ? { defaults } : {}),
+      ...(Object.keys(capabilities).length > 0 ? { capabilities } : {}),
     }
   }
   return decisionsSchema.parse(result)

@@ -16,6 +16,7 @@ import {
 import type { Diagnostic } from "../manifest/diagnostic"
 import { formatSummary } from "../manifest/format-summary"
 import { inferComponents } from "../manifest/infer-components"
+import { defaultNamespace, namespaceSchema } from "../manifest/namespace"
 import { renderManifests } from "../manifest/render-manifests"
 import { hasUndecided, reviewComponents } from "../manifest/review"
 import { findSourceFiles } from "../utils/find-source-files"
@@ -28,6 +29,7 @@ import { pluralize } from "../utils/pluralize"
 const manifestOptionsSchema = z.object({
   cwd: z.string(),
   yes: z.boolean(),
+  namespace: namespaceSchema.optional(),
 })
 
 export const manifest = new Command()
@@ -38,6 +40,10 @@ export const manifest = new Command()
     "-c, --cwd <cwd>",
     "the working directory. defaults to the current directory.",
     process.cwd()
+  )
+  .option(
+    "-n, --namespace <namespace>",
+    `the namespace for component kinds. defaults to the saved one, or ${defaultNamespace}.`
   )
   .action(async (opts: Record<string, unknown>) => {
     let result: "written" | "cancelled"
@@ -95,6 +101,12 @@ async function generateManifests(
   )
   const decisions = await readDecisions(decisionsFile)
   let components = applyDecisions(inferred, decisions)
+  const namespace = options.namespace ?? decisions.namespace ?? defaultNamespace
+  if (decisions.namespace && decisions.namespace !== namespace) {
+    logger.warn(
+      `The namespace changes from ${decisions.namespace} to ${namespace}, so every kind changes.`
+    )
+  }
 
   if (components.length === 0) {
     logger.warn(
@@ -132,14 +144,28 @@ async function generateManifests(
     await mkdir(outputDirectory, { recursive: true })
     await writeFile(
       decisionsFile,
-      `${JSON.stringify(recordDecisions(decisions, components), null, 2)}\n`
+      `${JSON.stringify(recordDecisions(decisions, components, namespace), null, 2)}\n`
     )
     savedDecisions = true
   }
 
+  // The namespace is saved so kinds stay the same on later runs.
+  let savedNamespace = false
+  if (!savedDecisions && decisions.namespace !== namespace) {
+    await mkdir(outputDirectory, { recursive: true })
+    await writeFile(
+      decisionsFile,
+      `${JSON.stringify({ namespace, components: decisions.components }, null, 2)}\n`
+    )
+    savedNamespace = true
+  }
+
   const manifests: Record<string, Manifest> = {}
   for (const component of components) {
-    const { manifest, error, rejected, incomplete } = buildManifest(component)
+    const { manifest, error, rejected, incomplete } = buildManifest(
+      component,
+      namespace
+    )
     if (!manifest) {
       logger.warn(`${component.name} was left out: ${error ?? ""}.`)
       continue
@@ -154,7 +180,7 @@ async function generateManifests(
       )
       continue
     }
-    if (props || defaults || !component.variantsReadable) {
+    if (props || defaults || component.usesVariants) {
       manifests[component.name] = manifest
     }
     for (const { name, reason } of rejected) {
@@ -179,6 +205,11 @@ async function generateManifests(
   )
   if (savedDecisions) {
     logger.success(`✔ Saved your decisions to ${relative(decisionsFile)}.`)
+  }
+  if (savedNamespace) {
+    logger.success(
+      `✔ Saved the namespace ${namespace} to ${relative(decisionsFile)}.`
+    )
   }
 
   const pendingValues = components.flatMap((component) =>

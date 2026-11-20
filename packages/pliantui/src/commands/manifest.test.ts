@@ -113,7 +113,12 @@ async function readManifests(lib = "lib") {
   )
   const module = (await import(
     `data:text/javascript,${encodeURIComponent(source)}`
-  )) as { manifests: Record<string, { capabilities: Record<string, unknown> }> }
+  )) as {
+    manifests: Record<
+      string,
+      { kind: string; capabilities: Record<string, unknown> }
+    >
+  }
   return module.manifests
 }
 
@@ -148,7 +153,12 @@ describe("pliantui manifest review", () => {
       defaultSize: { type: "number", min: 10, max: 90 },
       defaultValue: { values: ["overview", "activity"] },
     })
+    expect(manifests["Button"]).toMatchObject({
+      kind: "app:button",
+      capabilities: { label: true, hideable: true },
+    })
     expect(await readDecisionsFile()).toEqual({
+      namespace: "app",
       components: {
         Button: {
           props: {
@@ -186,14 +196,21 @@ describe("pliantui manifest review", () => {
   })
 
   it("lets the developer change the inferred classes", async () => {
-    prompts.inject([false, [0, 2], [], []])
+    prompts.inject([false, [0, 2], [], [0], [1], []])
     await run()
 
     const manifests = await readManifests()
-    expect(manifests["Button"]?.capabilities["props"]).toEqual({
-      variant: { values: ["default", "link"], default: "default" },
+    expect(manifests["Button"]?.capabilities).toEqual({
+      props: { variant: { values: ["default", "link"], default: "default" } },
+      label: true,
     })
     expect(manifests["Panel"]).toBeUndefined()
+    expect(await readDecisionsFile()).toMatchObject({
+      components: {
+        Button: { capabilities: { hideable: false } },
+        Panel: { capabilities: { label: false } },
+      },
+    })
   })
 
   it("writes nothing when the review is cancelled", async () => {
@@ -222,10 +239,33 @@ describe("pliantui manifest review", () => {
     expect(output).toContain(
       "1 value and 3 default-state props need confirmation and were left out. Run pliantui manifest without --yes to review them."
     )
-    await expect(
-      readFile(path.join(cwd, "lib/pliant/manifest-decisions.json"))
-    ).rejects.toThrow()
+    expect(await readDecisionsFile()).toEqual({
+      namespace: "app",
+      components: {},
+    })
   })
+
+  it("namespaces kinds and keeps the namespace on later runs", async () => {
+    await run("--yes", "--namespace", "acme")
+    expect((await readManifests())["Button"]?.kind).toBe("acme:button")
+
+    await run("--yes")
+    expect((await readManifests())["Button"]?.kind).toBe("acme:button")
+    expect(await readDecisionsFile()).toMatchObject({ namespace: "acme" })
+  })
+
+  it.each(["pliant", "Acme", "acme_ui"])(
+    "rejects the namespace %s",
+    async (namespace) => {
+      await expect(run("--yes", "--namespace", namespace)).rejects.toEqual(
+        new ExitError(1)
+      )
+      expect(output.join("\n")).toContain("namespace")
+      await expect(
+        readFile(path.join(cwd, "lib/pliant/manifests.generated.ts"))
+      ).rejects.toThrow()
+    }
+  )
 
   it("asks for --yes when there is no terminal to review in", async () => {
     setTerminal(false)
