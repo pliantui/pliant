@@ -23,8 +23,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Core and react are split into shards, defined in their
-        # stryker.config.mjs, to keep each job short.
+        # Core and react are split into the shards their stryker.config.mjs
+        # exports, to keep each job short. The summary job fails if one has
+        # no report.
         include:
           - package: contract
           - package: core
@@ -41,6 +42,8 @@ jobs:
             shard: lock-in
           - package: react
             shard: table
+          - package: react
+            shard: rest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -77,4 +80,6 @@ jobs:
         with:
           pattern: mutation-report-*
           path: ${{ runner.temp }}/reports
-      - run: node .github/mutation-summary.js "$RUNNER_TEMP/reports" >> "$GITHUB_STEP_SUMMARY"
+      - run: node .github/mutation-summary.js "$RUNNER_TEMP/reports" "$MUTATION_RESULT" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          MUTATION_RESULT: ${{ needs.mutation.result }}

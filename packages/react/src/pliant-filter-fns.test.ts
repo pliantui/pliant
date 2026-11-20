@@ -166,7 +166,7 @@ describe("dates", () => {
     expect(new Date(2026, 2, 1).getTimezoneOffset()).toBe(300)
   })
 
-  it("ends a day at midnight and reads only whole dates as days", () => {
+  it("leaves out the instant before midnight and dates with trailing text", () => {
     const beforeMidnight = new Date(new Date(2026, 2, 1).getTime() - 1)
     expect(
       matchesFilter(beforeMidnight, { operator: "eq", value: "2026-03-01" })

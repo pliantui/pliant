@@ -1,9 +1,23 @@
 // Only the logic that runs outside rendering: the store, its queues and
-// merges, the storage adapters and the table state helpers. Components and
-// hooks are thin wiring over these and are covered by the rendering tests.
-// CI runs each shard in its own job, picked with MUTATION_SHARD; locally,
-// leave it unset to mutate every file.
-const shards = {
+// merges, the storage adapters and the table state helpers. Hooks,
+// components and the DOM helpers are thin wiring over these, covered by the
+// rendering tests.
+const all = [
+  "src/**/*.ts",
+  "!src/**/*.test.ts",
+  "!src/**/*.d.ts",
+  "!src/index.ts",
+  "!src/ask.ts",
+  "!src/table.ts",
+  "!src/use-*.ts",
+  "!src/compose-props.ts",
+  "!src/pliant-table-features.ts",
+  "!src/point-mode-boxes.ts",
+  "!src/point-mode-layers.ts",
+  "!src/reveal-target.ts",
+]
+
+const named = {
   store: [
     "src/layer-store.ts",
     "src/local-adapter.ts",
@@ -33,17 +47,25 @@ const shards = {
     "src/table-filters.ts",
   ],
 }
-const shard = process.env.MUTATION_SHARD || undefined
 
-function mutateOf(name) {
-  if (name === undefined) {
-    return Object.values(shards).flat()
-  }
-  const files = shards[name]
-  if (!files) {
-    throw new Error(`Unknown MUTATION_SHARD "${name}"`)
-  }
-  return files
+/**
+ * CI runs each shard in its own job, picked with MUTATION_SHARD, to keep each
+ * job short. `rest` holds every file the others don't. Locally, leave
+ * MUTATION_SHARD unset to mutate every file.
+ */
+export const shards = {
+  ...named,
+  rest: [
+    ...all,
+    ...Object.values(named)
+      .flat()
+      .map((file) => `!${file}`),
+  ],
+}
+
+const shard = process.env.MUTATION_SHARD || undefined
+if (shard !== undefined && !(shard in shards)) {
+  throw new Error(`Unknown MUTATION_SHARD "${shard}"`)
 }
 
 export default {
@@ -54,7 +76,7 @@ export default {
   testRunner: "vitest",
   checkers: ["typescript"],
   tsconfigFile: "tsconfig.json",
-  mutate: mutateOf(shard),
+  mutate: shard === undefined ? all : shards[shard],
   reporters: ["clear-text", "progress", "html", "json"],
   htmlReporter: { fileName: "reports/mutation/index.html" },
   jsonReporter: { fileName: "reports/mutation/mutation.json" },

@@ -12,8 +12,9 @@ import { loadOverlay, type LoadedOverlay } from "./load-overlay"
 import { resolveLayers, type ResolvedLayers } from "./resolve-layers"
 
 // Stryker reruns every test that covers a mutant, for thousands of mutants,
-// so under mutation testing the generated cases are far fewer.
-const mutating = "__stryker__" in globalThis
+// so under mutation testing (PLIANT_MUTATION, set by stryker.config.mjs) the
+// generated cases are far fewer.
+const mutating = process.env["PLIANT_MUTATION"] === "1"
 const seeds = (count: number) => (mutating ? count / 10 : count)
 
 const table = "orders-table"

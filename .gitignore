@@ -5,8 +5,8 @@ node_modules
 
 # testing
 coverage
-reports
-.stryker-tmp
+packages/*/reports
+packages/*/.stryker-tmp
 packages/tests/temp
 
 # build

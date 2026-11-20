@@ -46,7 +46,7 @@
     },
     "test:mutation": {
       "dependsOn": ["^build"],
-      "passThroughEnv": ["MUTATION_SHARD"],
+      "passThroughEnv": ["MUTATION_SHARD", "PLIANT_MUTATION"],
       "cache": false,
       "outputs": []
     }

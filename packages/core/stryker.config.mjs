@@ -1,12 +1,23 @@
-// A full run takes too long for one CI job, so CI splits the files into
-// shards and runs one per job, picked with MUTATION_SHARD. Locally, leave it
-// unset to mutate every file.
-const shards = {
-  // The column order search, split in two by line range. A mutant that
-  // spans both ranges, such as emptying the whole function, runs only when
-  // every file is mutated.
-  search: ["src/diff-column-placement.ts:1-406"],
-  repair: ["src/diff-column-placement.ts:407-661"],
+import { readFileSync } from "node:fs"
+
+// Tells the tests they run under mutation testing, where some of them run
+// fewer generated cases. Stryker's test runners inherit the variable.
+process.env.PLIANT_MUTATION = "1"
+
+const all = ["src/**/*.ts", "!src/**/*.test.ts", "!src/index.ts"]
+
+// The column order search is split in two at its middle line. A mutant that
+// spans the split, such as emptying the whole function, runs only when every
+// file is mutated.
+const search = "src/diff-column-placement.ts"
+const lines = readFileSync(new URL(search, import.meta.url), "utf8")
+  .trimEnd()
+  .split("\n").length
+const middle = Math.ceil(lines / 2)
+
+const named = {
+  search: [`${search}:1-${String(middle)}`],
+  repair: [`${search}:${String(middle + 1)}-${String(lines)}`],
   layers: [
     "src/compile-table-state.ts",
     "src/diff-table-state.ts",
@@ -20,28 +31,27 @@ const shards = {
     "src/table-columns.ts",
   ],
 }
-const all = ["src/**/*.ts", "!src/**/*.test.ts", "!src/index.ts"]
-const shard = process.env.MUTATION_SHARD || undefined
 
-function mutateOf(name) {
-  if (name === undefined) {
-    return all
-  }
-  if (name === "rest") {
-    return [
-      ...all,
-      ...new Set(
-        Object.values(shards)
-          .flat()
-          .map((file) => `!${file.split(":")[0]}`)
-      ),
-    ]
-  }
-  const files = shards[name]
-  if (!files) {
-    throw new Error(`Unknown MUTATION_SHARD "${name}"`)
-  }
-  return files
+/**
+ * A full run takes too long for one CI job, so CI runs each shard in its own
+ * job, picked with MUTATION_SHARD. `rest` holds every file the others don't.
+ * Locally, leave MUTATION_SHARD unset to mutate every file.
+ */
+export const shards = {
+  ...named,
+  rest: [
+    ...all,
+    ...new Set(
+      Object.values(named)
+        .flat()
+        .map((file) => `!${file.split(":")[0]}`)
+    ),
+  ],
+}
+
+const shard = process.env.MUTATION_SHARD || undefined
+if (shard !== undefined && !(shard in shards)) {
+  throw new Error(`Unknown MUTATION_SHARD "${shard}"`)
 }
 
 export default {
@@ -52,7 +62,7 @@ export default {
   testRunner: "vitest",
   checkers: ["typescript"],
   tsconfigFile: "tsconfig.json",
-  mutate: mutateOf(shard),
+  mutate: shard === undefined ? all : shards[shard],
   reporters: ["clear-text", "progress", "html", "json"],
   htmlReporter: { fileName: "reports/mutation/index.html" },
   jsonReporter: { fileName: "reports/mutation/mutation.json" },
