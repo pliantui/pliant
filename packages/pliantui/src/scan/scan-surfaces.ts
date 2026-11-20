@@ -535,10 +535,15 @@ function walkComponent(
   walk: Walk
 ) {
   walk.surface.files.add(fn.getSourceFile().getFilePath())
-  // A region or table holds everything its component renders.
+  // A lone region or table holds everything its component renders. With
+  // several, the rest belongs where the component sits, since a region
+  // renders no element of its own, and each region takes its place where
+  // the component renders it.
+  const calls = hookCalls(fn)
+  const several = calls.length > 1
   let holder = parent
   const pending = new Set<Node>()
-  for (const { call, hook, caller, site, path } of hookCalls(fn)) {
+  for (const { call, hook, caller, site, path } of calls) {
     walk.visited.add(call)
     walk.surface.files.add(caller.getSourceFile().getFilePath())
     // The app's own hook can't read the component's props, and its
@@ -554,11 +559,12 @@ function walkComponent(
             hook: true,
           }
     if (hook === "table") {
-      holder = declareTable(call, callScope, parent, walk)
+      const table = declareTable(call, callScope, parent, walk)
+      holder = several ? parent : table
       continue
     }
-    const region = declareRegion(call, callScope, parent, walk)
-    holder = region.id
+    const region = declareRegion(call, callScope, parent, walk, several)
+    holder = several ? parent : region.id
     // The variable that holds the region in the component, such as
     // `const region = useFramed()`.
     const key = site.getParentIfKind(SyntaxKind.VariableDeclaration) ?? site
@@ -606,7 +612,9 @@ function declareRegion(
   call: CallExpression,
   scope: Scope,
   parent: Parent,
-  walk: Walk
+  walk: Walk,
+  /** Whether the region is recorded where its slots render, not now. */
+  deferred = false
 ): { id: Parent; renderSlots: () => void } {
   const [idArgument, slotsArgument] = call.getArguments()
   let id: string | undefined
@@ -619,18 +627,26 @@ function declareRegion(
     )
   } else if (checkId(walk, idArgument, read.value, "region")) {
     id = read.value
-    addNode(
-      walk.surface,
-      {
-        id,
-        // A region rendered as the slot of the same id is that slot.
-        parent: parent === id ? undefined : parent,
-        own: { kind: builtInKinds.region },
-        content: undefined,
-      },
-      call,
-      walk.report
-    )
+  }
+  const regionId = id
+  const addRegion = () => {
+    if (regionId !== undefined) {
+      addNode(
+        walk.surface,
+        {
+          id: regionId,
+          // A region rendered as the slot of the same id is that slot.
+          parent: parent === regionId ? undefined : parent,
+          own: { kind: builtInKinds.region },
+          content: undefined,
+        },
+        call,
+        walk.report
+      )
+    }
+  }
+  if (!deferred) {
+    addRegion()
   }
 
   const name = id ?? "a region"
@@ -641,7 +657,7 @@ function declareRegion(
       slots && "node" in slots ? slots.node : call,
       `The slots of ${name} can't be read${slots ? `: ${slots.problem}` : ""}.`
     )
-    return { id, renderSlots: () => undefined }
+    return { id, renderSlots: deferred ? addRegion : () => undefined }
   }
   claim(walk, slots.scope, slots.value)
   const object = readObject(slots.value)
@@ -649,6 +665,9 @@ function declareRegion(
     warn(walk, node, `A slot of ${name} can't be read: ${reason}.`)
   }
   const renderSlots = () => {
+    if (deferred) {
+      addRegion()
+    }
     renderSlotsOf(object?.entries ?? new Map(), id, name, slots.scope, walk)
   }
   return { id, renderSlots }

@@ -126,6 +126,16 @@ export function usageOf(
     access = parent
     parent = access.getParent()
   }
+  // `const { entries } = region` reads from the variable `region` holds.
+  const initializer = current.getInitializer()
+  let root = initializer && unwrapExpression(initializer)
+  while (Node.isPropertyAccessExpression(root)) {
+    root = unwrapExpression(root.getExpression())
+  }
+  const from = Node.isIdentifier(root) ? usageOf(root) : undefined
+  if (from) {
+    return { variable: from.variable, path: [...from.path, ...path] }
+  }
   return { variable: current, path }
 }
 

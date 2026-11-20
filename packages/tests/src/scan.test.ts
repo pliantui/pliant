@@ -280,10 +280,70 @@ describe("pliantui scan", () => {
     const help = output.inventory["help"]
 
     expect(help?.baseIds.source).toBe("inventory")
-    // useTwoRegions returns { a, b }: both regions keep their slots, and
-    // b's slots render after the banner, where both.b is used.
+    // useTwoRegions returns { a, b }: both regions keep their slots. A
+    // region renders no element of its own, so the banner the component
+    // renders between both.a and both.b sits in the slot that holds the
+    // component, between the two regions.
     expect(help?.baseOrder["two-a"]).toEqual(["a1"])
-    expect(help?.baseOrder["two-b"]).toEqual(["two-banner", "b1"])
+    expect(help?.baseOrder["two-b"]).toEqual(["b1"])
+    expect(help?.baseOrder["pair"]).toEqual(["two-a", "two-banner", "two-b"])
+  })
+
+  it("places regions destructured from one hook where each renders", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await edit(
+      cwd,
+      "components/two-panel.tsx",
+      "const both = useTwoRegions()",
+      "const { a, b } = useTwoRegions()"
+    )
+    await edit(cwd, "components/two-panel.tsx", "both.a.entries", "a.entries")
+    await edit(cwd, "components/two-panel.tsx", "both.b.entries", "b.entries")
+    const { output } = await scanJson(cwd)
+    const help = output.inventory["help"]
+
+    expect(help?.baseIds.source).toBe("inventory")
+    expect(help?.baseOrder["pair"]).toEqual(["two-a", "two-banner", "two-b"])
+  })
+
+  it("warns about regions a hook returns in an array", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await edit(
+      cwd,
+      "hooks/use-two-regions.tsx",
+      "return { a, b }",
+      "return [a, b] as const"
+    )
+    await edit(
+      cwd,
+      "components/two-panel.tsx",
+      "const both = useTwoRegions()",
+      "const [first, second] = useTwoRegions()"
+    )
+    await edit(
+      cwd,
+      "components/two-panel.tsx",
+      "both.a.entries",
+      "first.entries"
+    )
+    await edit(
+      cwd,
+      "components/two-panel.tsx",
+      "both.b.entries",
+      "second.entries"
+    )
+    const { output } = await scanJson(cwd)
+    const help = output.inventory["help"]
+
+    expect(help?.baseIds.source).toBe("mounted")
+    expect(help?.baseParents["a1"]).toBe("two-a")
+    expect(help?.baseParents["b1"]).toBe("two-b")
+    expect(output.warnings).toContainEqual({
+      file: "components/two-panel.tsx",
+      line: 5,
+      message:
+        "Where TwoPanel renders the slots of two-a and two-b can't be told, so their order among its other nodes isn't known.",
+    })
   })
 
   it("places the slots of a destructured region where they render", async () => {
@@ -291,14 +351,37 @@ describe("pliantui scan", () => {
     const { output } = await scanJson(cwd)
     const help = output.inventory["help"]
 
-    // `const { entries } = usePliantRegion(…)`, and the same through
-    // `hooks.useHookedRegion()`.
+    // `const { entries } = usePliantRegion(…)`.
     expect(help?.baseOrder["destructured"]).toEqual([
       "d1",
       "d2",
       "destructured-footer",
     ])
-    expect(help?.baseOrder["hooked"]).toEqual(["one", "two", "hooked-footer"])
+  })
+
+  it("places the slots of a region destructured from its variable", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await edit(
+      cwd,
+      "components/destructured-panel.tsx",
+      "const { entries } = usePliantRegion(",
+      "const region = usePliantRegion("
+    )
+    await edit(
+      cwd,
+      "components/destructured-panel.tsx",
+      "  return (",
+      "  const { entries } = region\n  return ("
+    )
+    const { output } = await scanJson(cwd)
+    const help = output.inventory["help"]
+
+    expect(help?.baseIds.source).toBe("inventory")
+    expect(help?.baseOrder["destructured"]).toEqual([
+      "d1",
+      "d2",
+      "destructured-footer",
+    ])
   })
 
   it("warns when it can't tell where a region's slots render", async () => {

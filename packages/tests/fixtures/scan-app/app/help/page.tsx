@@ -10,7 +10,7 @@ export default function HelpPage() {
     <P.PliantRoot surface="help">
       <PliantRegion id="faq" slots={{ shipping: <p>Shipping</p> }} />
       <HookedPanel />
-      <TwoPanel />
+      <PliantRegion id="panels" slots={{ pair: <TwoPanel /> }} />
       <DestructuredPanel />
     </P.PliantRoot>
   )
