@@ -4,6 +4,7 @@ import type { OpCheck } from "./check-op"
 import type { LoadedOverlay } from "./load-overlay"
 import type { OpPropertyKey } from "./op-property"
 import type { ResolvedPlacement } from "./placement"
+import { readBaseOrder } from "./read-base-order"
 import { readBaseParents } from "./read-base-parents"
 import { readFlags } from "./read-flags"
 import { readBaseIds } from "./resolution"
@@ -240,9 +241,10 @@ export interface ResolveLayersOptions {
    * apart. A demoted or collapsed action has left the group's bar for its
    * overflow: an action in the bar is above every action in the overflow,
    * and the overflow is ordered the same way. Every action starts in the
-   * bar. The group's order before any op comes from `baseParents`; an
-   * action it doesn't list, such as an item, is taken to start where it is
-   * safest: a primary action first, a destructive one last. A node or item
+   * bar. The group's order before any op comes from `baseOrder`. Where it
+   * doesn't list a group, or an action in it, such as an item, the action
+   * is taken to start where it is safest: a primary action first, a
+   * destructive one last, other actions between them by id. A node or item
    * can't share its parent with another `primary` one.
    *
    * Ops apply one at a time in resolution order. Each op that breaks a
@@ -280,9 +282,8 @@ export interface ResolveLayersOptions {
    * page; addresses in overlays don't change it. An item's node always
    * comes from its address.
    *
-   * List each node's children in the order they render: the
-   * `stays-clear` guardrail (see `flags`) reads the order of a primary
-   * action's group from it.
+   * Its key order is ignored; give the order children render in as
+   * `baseOrder`.
    *
    * A node it leaves out, such as one not mounted yet, takes the parent its
    * flag's address shows. A node it leaves out that no flag names has no
@@ -291,6 +292,17 @@ export interface ResolveLayersOptions {
    * and no two `primary` nodes in one parent.
    */
   readonly baseParents?: Readonly<Record<string, string | null>> | undefined
+  /**
+   * Each node's children in the order they render, by node id, such as
+   * `{ "checkout-actions": ["save", "cancel", "delete"] }`. The
+   * `stays-clear` guardrail (see `flags`) reads a group's order from it
+   * before any op applies. It may leave out nodes and children.
+   *
+   * It must list each child once and only in its parent: the one
+   * `baseParents` gives when given, else the one the child's flag address
+   * shows, if any. With `baseParents`, every node it names must be in it.
+   */
+  readonly baseOrder?: Readonly<Record<string, readonly string[]>> | undefined
 }
 
 /** The result of `resolveLayers`. */
@@ -352,11 +364,21 @@ export interface ResolvedLayers {
  * addresses to valid flags, two of its addresses put one node in different
  * parents, two `primary` nodes or items have one parent, or `baseParents`
  * isn't a plain object that maps node ids to node ids or `null`, puts a
- * node in another parent than a flag's address shows, or has a cycle.
+ * node in another parent than a flag's address shows, or has a cycle, or
+ * `baseOrder` isn't a plain object that maps node ids to arrays of node
+ * ids, lists a child twice or in another parent, or names a node
+ * `baseParents` doesn't.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],
-  { surface, baseIds, teamOrder = [], flags, baseParents }: ResolveLayersOptions
+  {
+    surface,
+    baseIds,
+    teamOrder = [],
+    flags,
+    baseParents,
+    baseOrder,
+  }: ResolveLayersOptions
 ): ResolvedLayers {
   const read = readBaseIds(baseIds)
   const known: BaseIds | undefined = read && {
@@ -365,12 +387,14 @@ export function resolveLayers(
   }
   const ordered = surfaceOrder(overlays, surface, teamOrder)
   const flagged = readFlags(flags)
+  const tree = readBaseParents(baseParents, flagged)
   return {
     ...resolveOrdered(
       ordered,
       known,
       flagged,
-      readBaseParents(baseParents, flagged)
+      tree,
+      readBaseOrder(baseOrder, tree, flagged)
     ),
     overlays: ordered.map(({ overlay }) => overlay),
     baseIds: known,

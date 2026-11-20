@@ -40,21 +40,23 @@ type Step =
   | { readonly op: ResolvedOp; readonly scope: string }
 
 /**
- * Each node's parent in the base: `baseParents` when given, then what the
- * flags' addresses show, then, without `baseParents`, what the ops'
- * addresses show, the first one wins. An item's parent always comes from
- * its address.
+ * Each node's parent in the base: `baseParents` when given, else what the
+ * flags' addresses show, then what the ops' addresses show, the first one
+ * wins. An item's parent always comes from its address.
  */
 function baseParentsOf(
   ops: readonly ResolvedOp[],
   flags: ReadFlags,
   baseParents: ReadonlyMap<string, string | null> | undefined
 ): Map<string, string> {
-  const parents = new Map(flags.parents)
+  const parents = new Map(baseParents ? [] : flags.parents)
   for (const [id, parent] of baseParents ?? []) {
     if (parent !== null) {
       parents.set(id, parent)
     }
+  }
+  for (const id of flags.flags.keys()) {
+    addressParents(id).forEach(([item, node]) => parents.set(item, node))
   }
   for (const { check } of ops) {
     const { op } = check
@@ -74,8 +76,8 @@ function baseParentsOf(
 
 /**
  * Applies the ordered overlays' valid ops one at a time, in resolution
- * order. With flags, after each op that can hide or move something, it checks the
- * guardrails on the state so far, and skips the op if it breaks one: every
+ * order. With flags, after each op that can hide or move something, it
+ * checks the guardrails on the state so far, and skips the op if it breaks one: every
  * op before it was kept, so the op that completes a violation is the one
  * from the highest layer involved. An op is judged against the ops before
  * it only, so a lower op is skipped even when a higher op would have undone
@@ -95,7 +97,8 @@ export function resolveOrdered(
   ordered: readonly OrderedOverlay[],
   baseIds: ResolveLayersOptions["baseIds"],
   flags: ReadFlags | undefined,
-  baseParents?: ReadonlyMap<string, string | null>
+  baseParents?: ReadonlyMap<string, string | null>,
+  baseOrder?: ReadonlyMap<string, readonly string[]>
 ) {
   const steps: Step[] = []
   for (const { overlay, reason } of ordered) {
@@ -153,7 +156,7 @@ export function resolveOrdered(
                 baseIds: known,
                 flags: flags.flags,
                 parents,
-                tree: baseParents ?? new Map(),
+                order: baseOrder ?? new Map(),
               })
             )
             .sort((a, b) => compareOrdered(a.node, b.node))

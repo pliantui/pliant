@@ -5,13 +5,13 @@ import type { ResolvedOp } from "./resolve-layers"
 import { resolveRegion } from "./resolve-region"
 
 /**
- * The children of `group` before any op, in order: the nodes the tree lists
- * there, in its order, then the others by identity. Core can't know where
- * an action the tree doesn't list sits, such as an item, so it takes the
+ * The children of `group` before any op, in order: those the caller's
+ * `baseOrder` lists, in its order, and the others by identity. Core can't
+ * know where an unlisted action sits, such as an item, so it takes the
  * safest place: a primary action first, a destructive one last.
  */
-function baseOrder(group: string, { flags, parents, tree }: GuardrailInput) {
-  const listed = [...tree.keys()].filter((id) => tree.get(id) === group)
+function startOrder(group: string, { flags, parents, order }: GuardrailInput) {
+  const listed = order.get(group) ?? []
   const side = (id: string) =>
     flags.get(id)?.primary ? -1 : flags.get(id)?.destructive ? 1 : 0
   const others = [...parents.keys()]
@@ -41,7 +41,7 @@ function closeness(order: string[], destructive: string, primary: string) {
  * node that holds the primary one once every op has applied: ops never
  * leave it closer to the primary one than the base does. From far to
  * close, it is apart, right after it, or above it. In the order the group
- * renders, as `resolveRegion` gives it from `baseOrder`, a destructive
+ * renders, as `resolveRegion` gives it from `startOrder`, a destructive
  * action is above the primary one when it comes first, and right after it
  * when no shown action sits between them; hidden actions keep their place
  * but don't keep them apart. A demoted or collapsed action has left the
@@ -64,7 +64,7 @@ export const staysClear: Guardrail = (input) => {
     }
     const { entries } = resolveRegion(layers, {
       id: group,
-      slots: baseOrder(group, input),
+      slots: startOrder(group, input),
     })
     const collapse = (id: string) => {
       const property = input.properties
@@ -83,7 +83,7 @@ export const staysClear: Guardrail = (input) => {
         : 0
     }
     const base = input.parents.get(primary)
-    const before = base === undefined ? [] : baseOrder(base, input)
+    const before = base === undefined ? [] : startOrder(base, input)
     return destructive.flatMap((action): Violation[] => {
       const ids = entries.map(({ id }) => id)
       const shown = entries.flatMap(({ id, visible }) =>

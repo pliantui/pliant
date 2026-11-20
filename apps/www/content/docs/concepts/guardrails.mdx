@@ -50,7 +50,7 @@ A node or item can't share its parent with another `primary` one: `resolveLayers
 
 Operations apply one at a time, from the lowest layer up. Each one that would break a rule, given the operations before it, is skipped and reported with the rule's name, `stays-visible` or `stays-clear`, so when layers combine to break one, the operation from the highest layer involved is the one skipped. A lower layer's operation is judged only by the operations before it, so it's skipped even if a higher layer would undo it. `validateOverlay` rejects an overlay that has such an operation.
 
-To know which nodes hold a flagged one, and in what order, pass the page's node tree as `baseParents`: each node id mapped to the id of the node that holds it, or `null` at the top of the page. List each node's children in the order they render.
+To know which nodes hold a flagged one, pass the page's node tree as `baseParents`: each node id mapped to the id of the node that holds it, or `null` at the top of the page. Its key order is ignored. To give the order children render in, pass `baseOrder`: each node id mapped to its children's ids, in order.
 
 ```ts
 const baseParents = {
@@ -60,11 +60,17 @@ const baseParents = {
   cancel: "checkout-actions",
   delete: "checkout-actions",
 }
+
+const baseOrder = {
+  "checkout-actions": ["save", "cancel", "delete"],
+}
 ```
 
 A node the tree leaves out, such as one that isn't mounted yet, takes the parent its flag's address shows. A node that the tree leaves out and no flag names has no parent, and the addresses of operations don't supply one. The tree must agree with those addresses and have no cycle. When you pass it, addresses in overlays don't change it. Without it, parents come from the addresses in your flags and in the overlays, so give each flag by its full address, such as `page/slots/checkout-actions/slots/pay-now`. A node that an overlay names only by its id is then not traced to the nodes that hold it: for example, the destination of a `move … into`, or an item in a `collapse`.
 
-The tree can't list items, such as `orders-toolbar/actions/export`, and it may leave out nodes. Core can't know where such an action sits before any operation, so it takes the safest place: a primary action first, a destructive one last, and other actions between them by id.
+`baseOrder` lists each child once, in the parent that `baseParents` gives it, or, without `baseParents`, the parent its flag's address shows. With `baseParents`, every node it names must be in the tree. `resolveLayers` and `validateOverlay` throw a `TypeError` otherwise.
+
+`baseOrder` can't list items, such as `orders-toolbar/actions/export`, and it may leave out a group or some of its children. Core can't know where such an action sits before any operation, so it takes the safest place: a primary action first, a destructive one last, and other actions between them by id. The listed children keep their order in between.
 
 ## Team and org defaults aren't locks
 

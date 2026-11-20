@@ -23,8 +23,8 @@ export interface GuardrailInput {
   readonly flags: ReadonlyMap<string, Flags>
   /** Each known node's or item's parent in the base, by identity. */
   readonly parents: ReadonlyMap<string, string>
-  /** The caller's node tree, in the order it lists the nodes; may be empty. */
-  readonly tree: ReadonlyMap<string, string | null>
+  /** Each node's children in render order, where the caller gives them. */
+  readonly order: ReadonlyMap<string, readonly string[]>
 }
 
 /**

@@ -51,7 +51,6 @@ const flags: Record<string, Flags> = {
   "page/slots/actions/slots/delete": { destructive: true },
 }
 
-// The group renders save, cancel, archive, delete.
 const baseParents = {
   page: null,
   actions: "page",
@@ -62,11 +61,19 @@ const baseParents = {
   side: "page",
 }
 
+const baseOrder = { actions: ["save", "cancel", "archive", "delete"] }
+
 function resolve(
   overlays: LoadedOverlay[],
   options: Partial<ResolveLayersOptions> = {}
 ): ResolvedLayers {
-  return resolveLayers(overlays, { surface, flags, baseParents, ...options })
+  return resolveLayers(overlays, {
+    surface,
+    flags,
+    baseParents,
+    baseOrder,
+    ...options,
+  })
 }
 
 function guarded({ skipped }: ResolvedLayers) {
@@ -207,6 +214,7 @@ describe("destructive actions", () => {
       [overlay("team", [team]), overlay("personal", [personal])],
       {
         baseParents: { ...baseParents, delete: "side" },
+        baseOrder: { actions: ["save", "cancel", "archive"] },
         flags: {
           "page/slots/actions/slots/save": { primary: true },
           "page/slots/side/slots/delete": { destructive: true },
@@ -230,6 +238,7 @@ describe("destructive actions", () => {
     const above = pin("delete", "start")
     const result = resolve([overlay("personal", [next, above])], {
       baseParents: adjacent,
+      baseOrder: { actions: ["save", "delete"] },
     })
     expect(guarded(result).map(({ op }) => op)).toEqual([above])
   })
@@ -242,11 +251,24 @@ describe("destructive actions", () => {
           move("delete", { before: "save" }),
         ]),
       ],
-      { baseParents: undefined }
+      { baseParents: undefined, baseOrder: undefined }
     )
     expect(guarded(result).map(({ op }) => op)).toEqual([
       move("delete", { before: "save" }),
     ])
+  })
+
+  it("ignores the key order of baseParents", () => {
+    // Unlisted, cancel and archive sort by id between the two.
+    const op = move("delete", { before: "archive" })
+    const reversed = Object.fromEntries(Object.entries(baseParents).reverse())
+    for (const tree of [baseParents, reversed]) {
+      const result = resolve([overlay("personal", [op])], {
+        baseParents: tree,
+        baseOrder: undefined,
+      })
+      expect(guarded(result).map(({ node }) => node)).toEqual(["delete"])
+    }
   })
 
   describe("held as items", () => {
@@ -267,6 +289,7 @@ describe("destructive actions", () => {
       const result = resolve([overlay("personal", [demote("save")])], {
         flags: toolbar,
         baseParents: undefined,
+        baseOrder: undefined,
       })
       expect(guarded(result)).toMatchObject([
         { op: demote("save"), node: "toolbar/actions/delete" },
@@ -276,7 +299,7 @@ describe("destructive actions", () => {
     it("applies a demote and a promote of the destructive action", () => {
       const result = resolve(
         [overlay("personal", [demote("delete"), promote("delete")])],
-        { flags: toolbar, baseParents: undefined }
+        { flags: toolbar, baseParents: undefined, baseOrder: undefined }
       )
       expect(guarded(result)).toEqual([])
     })
@@ -287,7 +310,7 @@ describe("destructive actions", () => {
           overlay("team", [demote("delete"), demote("save")]),
           overlay("personal", [promote("delete")]),
         ],
-        { flags: toolbar, baseParents: undefined }
+        { flags: toolbar, baseParents: undefined, baseOrder: undefined }
       )
       expect(guarded(result)).toMatchObject([
         {
@@ -306,7 +329,7 @@ describe("destructive actions", () => {
         [pin("delete", "start")],
         "01JBQ3V8Z7XKQ2M4N5P6ZZZZZZ"
       ),
-      { layers: { overlays: [], surface, flags, baseParents } }
+      { layers: { overlays: [], surface, flags, baseParents, baseOrder } }
     )
     expect(result.error?.issues).toMatchObject([
       {
@@ -389,6 +412,7 @@ describe("on random op stacks", () => {
     delete: "actions",
     side: "page",
   }
+  const order = { actions: ["save", "cancel", "export", "archive", "delete"] }
   const layers: Layer[] = ["org", "team", "personal", "session"]
 
   function randomOp(next: () => number) {
@@ -412,9 +436,7 @@ describe("on random op stacks", () => {
   function breaksRule(result: ResolvedLayers) {
     const entries = resolveRegion(result, {
       id: "actions",
-      slots: Object.keys(tree).filter(
-        (id) => tree[id as keyof typeof tree] === "actions"
-      ),
+      slots: order.actions,
     }).entries
     const save = entries.find(({ id }) => id === "save")
     const action = entries.find(({ id }) => id === "delete")
@@ -463,6 +485,7 @@ describe("on random op stacks", () => {
       const options = {
         flags: { ...flags, "actions/slots/archive": { critical: true } },
         baseParents: tree,
+        baseOrder: order,
       }
       const result = resolve(overlays, options)
       expect(breaksRule(result)).toBe(false)
@@ -475,6 +498,7 @@ describe("on random op stacks", () => {
         flags: Object.fromEntries(
           shuffled(Object.entries(options.flags), next)
         ),
+        baseParents: Object.fromEntries(shuffled(Object.entries(tree), next)),
       })
       expect(guarded(reordered)).toEqual(guarded(result))
       expect(reordered.placements).toEqual(result.placements)
@@ -482,5 +506,63 @@ describe("on random op stacks", () => {
     }
     // The rule must have had something to stop.
     expect(skips).toBeGreaterThan(100)
+  })
+})
+
+describe("baseOrder", () => {
+  it.each([
+    [["save"], "baseOrder must be a plain object of children by node id"],
+    [{ actions: "save" }, 'baseOrder["actions"] must be an array of node ids'],
+    [
+      { actions: ["Save"] },
+      'baseOrder["actions"] must be an array of node ids',
+    ],
+    [{ actions: ["save", "save"] }, "baseOrder lists save more than once"],
+    [
+      { actions: ["save"], side: ["save"] },
+      "baseOrder lists save more than once",
+    ],
+    [
+      { actions: ["ghost"] },
+      "baseOrder names ghost, which isn't in the node tree",
+    ],
+    [
+      { side: ["save"] },
+      "baseOrder lists save in side, but its parent is actions",
+    ],
+  ])("throws a TypeError for %j", (order, message) => {
+    expect(() =>
+      resolveLayers([], {
+        surface,
+        flags,
+        baseParents,
+        baseOrder: order as never,
+      })
+    ).toThrow(new TypeError(message))
+  })
+
+  it("checks a child's parent against its flag without a node tree", () => {
+    expect(() =>
+      resolveLayers([], {
+        surface,
+        flags,
+        baseOrder: { side: ["delete"] },
+      })
+    ).toThrow(
+      new TypeError("baseOrder lists delete in side, but its parent is actions")
+    )
+  })
+
+  it("throws from validateOverlay whatever the input", () => {
+    expect(() =>
+      validateOverlay(null, {
+        layers: {
+          overlays: [],
+          surface,
+          flags,
+          baseOrder: { actions: ["save", "save"] },
+        },
+      })
+    ).toThrow(new TypeError("layers.baseOrder lists save more than once"))
   })
 })
