@@ -21,3 +21,20 @@ test("serves the registry index", async ({ request }) => {
   const response = await request.get("/r/registry.json")
   expect(response.status()).toBe(200)
 })
+
+const schemaIds = [
+  "https://pliantui.dev/schema/manifest.json",
+  "https://pliantui.dev/schema/op.json",
+  "https://pliantui.dev/schema/overlay.json",
+  "https://pliantui.dev/schema/saved-view.json",
+  "https://pliantui.dev/schema/stored-overlay.json",
+]
+
+for (const id of schemaIds) {
+  test(`serves the JSON Schema ${id} at its $id`, async ({ request }) => {
+    const response = await request.get(new URL(id).pathname)
+    expect(response.status()).toBe(200)
+    expect(response.headers()["content-type"]).toContain("application/json")
+    expect(await response.json()).toMatchObject({ $id: id })
+  })
+}
