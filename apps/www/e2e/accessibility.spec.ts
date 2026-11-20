@@ -3,6 +3,8 @@ import type { Page } from "@playwright/test"
 
 import { expect, test } from "./fixtures"
 
+const surface = "/examples/orders"
+
 async function violations(page: Page) {
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
@@ -16,19 +18,43 @@ async function violations(page: Page) {
 }
 
 async function loadOrders(page: Page) {
-  await page.goto("/examples/orders")
+  await page.goto(surface)
   await expect(
     page.locator('[data-pliant-id="key-metrics"]')
   ).not.toHaveAttribute("data-pliant-pending")
   await expect(page.getByRole("table", { name: "All orders" })).toBeVisible()
 }
 
+async function openPanel(page: Page) {
+  await loadOrders(page)
+  await page.getByRole("button", { name: "Ask" }).click()
+  const panel = page.getByRole("complementary", { name: "Ask" })
+  await expect(panel.getByRole("textbox", { name: "Ask" })).toBeFocused()
+  return panel
+}
+
+async function askForPreview(page: Page) {
+  const panel = await openPanel(page)
+  const textbox = panel.getByRole("textbox", { name: "Ask" })
+  await textbox.fill("put the overdue card first")
+  await textbox.press("Enter")
+  await expect(panel.getByRole("status")).toContainText(
+    "Moved the Overdue card to the first position."
+  )
+  await expect(panel.getByRole("button", { name: "Lock in" })).toBeVisible()
+  return panel
+}
+
 for (const colorScheme of ["light", "dark"] as const) {
   test.describe(`in ${colorScheme} mode`, () => {
     test.use({ colorScheme })
 
-    test("the home page has no accessibility violations", async ({ page }) => {
+    test.beforeEach(async ({ page }) => {
       await page.goto("/")
+      await expect(page.locator("html")).toHaveCSS("color-scheme", colorScheme)
+    })
+
+    test("the home page has no accessibility violations", async ({ page }) => {
       await expect(
         page.getByRole("heading", { level: 1, name: "Pliant" })
       ).toBeVisible()
@@ -50,14 +76,37 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(await violations(page)).toEqual([])
     })
 
-    test("the orders example has no accessibility violations with the ask panel open", async ({
+    test("the ask panel has no accessibility violations", async ({ page }) => {
+      await openPanel(page)
+      expect(await violations(page)).toEqual([])
+    })
+
+    test("an answer preview has no accessibility violations", async ({
       page,
     }) => {
-      await loadOrders(page)
-      await page.getByRole("button", { name: "Ask" }).click()
-      const panel = page.getByRole("complementary", { name: "Ask" })
-      await expect(panel.getByRole("textbox", { name: "Ask" })).toBeFocused()
+      await askForPreview(page)
       expect(await violations(page)).toEqual([])
+    })
+
+    test("point mode has no accessibility violations", async ({ page }) => {
+      await loadOrders(page)
+      await page.getByRole("button", { name: "Point" }).click()
+      await expect(
+        page.getByRole("dialog", { name: "Point mode" })
+      ).toBeVisible()
+      expect(await violations(page)).toEqual([])
+    })
+
+    test.describe("on a small screen", () => {
+      test.use({ viewport: { width: 390, height: 844 } })
+
+      test("the docked ask panel has no accessibility violations", async ({
+        page,
+      }) => {
+        const panel = await askForPreview(page)
+        await expect(panel.getByRole("status")).toBeInViewport({ ratio: 1 })
+        expect(await violations(page)).toEqual([])
+      })
     })
   })
 }

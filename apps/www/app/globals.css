@@ -8,6 +8,7 @@
  * outline-ring/50) is left out; Fumadocs' base already sets borders and body
  * colors.
  */
+
 /*
  * Fumadocs' light muted text (45% lightness) drops below the 4.5:1 contrast
  * ratio on its own light backgrounds, so it is darkened here.
