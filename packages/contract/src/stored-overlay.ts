@@ -16,7 +16,12 @@ const storedOverlayObjectSchema = z
         "The adapter increases it on every save. For a team or org overlay it is the version that basis.layers records, and clients compare versions to tell that a layer changed.",
     }),
     updatedAt: timestampSchema,
+    deletedAt: timestampSchema.optional(),
   })
+  .refine(
+    (record) => (record.deletedAt ?? record.updatedAt) === record.updatedAt,
+    { path: ["deletedAt"], message: "Must equal updatedAt" }
+  )
   .meta({
     title: "Pliant stored overlay",
     description:

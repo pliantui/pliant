@@ -33,6 +33,25 @@ describe("storedOverlaySchema", () => {
     )
   })
 
+  it("keeps a tombstone's overlay and deletedAt", () => {
+    const tombstones = fixture.valid
+      .map((record) => storedOverlaySchema.parse(record))
+      .filter((record) => record.deletedAt !== undefined)
+    expect(tombstones).not.toHaveLength(0)
+    for (const tombstone of tombstones) {
+      expect(tombstone.deletedAt).toBe(tombstone.updatedAt)
+      expect(overlaySchema.safeParse(tombstone.overlay).success).toBe(true)
+    }
+  })
+
+  it("accepts a record without deletedAt", () => {
+    for (const record of fixture.valid) {
+      const live = { ...storedOverlaySchema.parse(record) }
+      delete live.deletedAt
+      expect(storedOverlaySchema.parse(live)).not.toHaveProperty("deletedAt")
+    }
+  })
+
   it("accepts every overlay that overlaySchema accepts", () => {
     for (const overlay of readFixture("overlay").valid) {
       expect(overlaySchema.safeParse(overlay).success).toBe(true)
