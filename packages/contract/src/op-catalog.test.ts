@@ -49,14 +49,10 @@ describe("opCatalog", () => {
     )
   })
 
-  it("lists one capability and one appliesTo per shape when they differ", () => {
+  it("lists one capability and one appliesTo per shape", () => {
     for (const { capability, appliesTo, args } of Object.values(opCatalog)) {
-      if (Array.isArray(capability)) {
-        expect(capability).toHaveLength(args.length)
-      }
-      if (Array.isArray(appliesTo)) {
-        expect(appliesTo).toHaveLength(args.length)
-      }
+      expect(capability).toHaveLength(args.length)
+      expect(appliesTo).toHaveLength(args.length)
     }
     expect([...new Set(refinedShapes["setDefault"]?.flat())].sort()).toEqual(
       argsOf(opSchemas.setDefault).flat().sort()
@@ -68,7 +64,7 @@ describe("opCatalog", () => {
     })
   })
 
-  it("picks a list-form op's shape as the first args list with all its keys", () => {
+  it("picks an op's shape as the first args list with all its keys", () => {
     const shapeOf = (args: readonly (readonly string[])[], op: object) => {
       const keys = Object.keys(op).filter(
         (key) => key !== "op" && key !== "target"
@@ -76,10 +72,7 @@ describe("opCatalog", () => {
       return args.findIndex((list) => keys.every((key) => list.includes(key)))
     }
     const fixtures = readOpFixtures()
-    for (const [name, { capability, args }] of Object.entries(opCatalog)) {
-      if (!Array.isArray(capability)) {
-        continue
-      }
+    for (const [name, { args }] of Object.entries(opCatalog)) {
       for (const [index, list] of args.entries()) {
         expect(list.length).toBeGreaterThanOrEqual(args[index - 1]?.length ?? 0)
       }

@@ -2,7 +2,9 @@
   "contract": 1,
   "ops": {
     "setProp": {
-      "capability": "props",
+      "capability": [
+        "props"
+      ],
       "layers": [
         "org",
         "team",
@@ -17,7 +19,9 @@
       ]
     },
     "rename": {
-      "capability": "label",
+      "capability": [
+        "label"
+      ],
       "layers": [
         "org",
         "team",
@@ -31,7 +35,9 @@
       ]
     },
     "hide": {
-      "capability": "hideable",
+      "capability": [
+        "hideable"
+      ],
       "layers": [
         "org",
         "team",
@@ -43,7 +49,9 @@
       ]
     },
     "show": {
-      "capability": "hideable",
+      "capability": [
+        "hideable"
+      ],
       "layers": [
         "org",
         "team",
@@ -55,7 +63,9 @@
       ]
     },
     "move": {
-      "capability": "slots",
+      "capability": [
+        "slots"
+      ],
       "layers": [
         "org",
         "team",
@@ -69,7 +79,10 @@
       ]
     },
     "collapse": {
-      "capability": "slots",
+      "capability": [
+        "slots",
+        "slots"
+      ],
       "layers": [
         "org",
         "team",
@@ -79,17 +92,19 @@
       "args": [
         [
           "items",
-          "into",
-          "label"
+          "into"
         ],
         [
           "items",
-          "into"
+          "into",
+          "label"
         ]
       ]
     },
     "pin": {
-      "capability": "slots",
+      "capability": [
+        "slots"
+      ],
       "layers": [
         "org",
         "team",
@@ -103,7 +118,10 @@
       ]
     },
     "setLayout": {
-      "capability": "layout",
+      "capability": [
+        "layout",
+        "layout"
+      ],
       "layers": [
         "org",
         "team",
@@ -125,7 +143,9 @@
       ]
     },
     "span": {
-      "capability": "layout",
+      "capability": [
+        "layout"
+      ],
       "layers": [
         "org",
         "team",
@@ -140,7 +160,9 @@
       ]
     },
     "insert": {
-      "capability": "insertable",
+      "capability": [
+        "insertable"
+      ],
       "layers": [
         "org",
         "team",
@@ -155,7 +177,10 @@
       ]
     },
     "wrap": {
-      "capability": "insertable",
+      "capability": [
+        "insertable",
+        "insertable"
+      ],
       "layers": [
         "org",
         "team",
@@ -179,7 +204,9 @@
       ]
     },
     "remove": {
-      "capability": "insertable",
+      "capability": [
+        "insertable"
+      ],
       "layers": [
         "org",
         "team",
@@ -212,7 +239,10 @@
       ]
     },
     "setPresentation": {
-      "capability": "presentation",
+      "capability": [
+        "presentation",
+        "presentation"
+      ],
       "layers": [
         "org",
         "team",
@@ -230,7 +260,9 @@
       ]
     },
     "setSize": {
-      "capability": "presentation",
+      "capability": [
+        "presentation"
+      ],
       "layers": [
         "org",
         "team",
@@ -244,7 +276,9 @@
       ]
     },
     "setLanding": {
-      "capability": "nav",
+      "capability": [
+        "nav"
+      ],
       "layers": [
         "org",
         "team",
@@ -256,7 +290,9 @@
       ]
     },
     "promote": {
-      "capability": "actions",
+      "capability": [
+        "actions"
+      ],
       "layers": [
         "org",
         "team",
@@ -268,7 +304,9 @@
       ]
     },
     "demote": {
-      "capability": "actions",
+      "capability": [
+        "actions"
+      ],
       "layers": [
         "org",
         "team",
@@ -280,7 +318,9 @@
       ]
     },
     "bindShortcut": {
-      "capability": "actions",
+      "capability": [
+        "actions"
+      ],
       "layers": [
         "org",
         "team",
@@ -294,7 +334,9 @@
       ]
     },
     "setSort": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -308,7 +350,9 @@
       ]
     },
     "setFilter": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -322,7 +366,9 @@
       ]
     },
     "clearFilter": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -336,7 +382,9 @@
       ]
     },
     "setPage": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "session"
       ],
@@ -348,7 +396,9 @@
       ]
     },
     "setGroupBy": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -362,7 +412,9 @@
       ]
     },
     "addDerived": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -379,7 +431,9 @@
       ]
     },
     "addAggregate": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -395,7 +449,9 @@
       ]
     },
     "formatField": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -410,7 +466,9 @@
       ]
     },
     "addHighlight": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -426,7 +484,9 @@
       ]
     },
     "addSortOption": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -442,7 +502,9 @@
       ]
     },
     "addFilterControl": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -459,7 +521,9 @@
       ]
     },
     "addPreset": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -476,7 +540,9 @@
       ]
     },
     "setViewKind": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -490,7 +556,9 @@
       ]
     },
     "configureChart": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -509,7 +577,9 @@
       ]
     },
     "configureStat": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -525,7 +595,9 @@
       ]
     },
     "removeUserItem": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -539,7 +611,9 @@
       ]
     },
     "setColumnWidth": {
-      "capability": "data",
+      "capability": [
+        "data"
+      ],
       "layers": [
         "org",
         "team",
@@ -553,7 +627,9 @@
       ]
     },
     "setDensity": {
-      "capability": null,
+      "capability": [
+        null
+      ],
       "layers": [
         "org",
         "team",
@@ -567,7 +643,9 @@
       ]
     },
     "setTextScale": {
-      "capability": null,
+      "capability": [
+        null
+      ],
       "layers": [
         "org",
         "team",
@@ -581,7 +659,9 @@
       ]
     },
     "setMotion": {
-      "capability": null,
+      "capability": [
+        null
+      ],
       "layers": [
         "org",
         "team",

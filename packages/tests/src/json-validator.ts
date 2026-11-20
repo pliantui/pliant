@@ -66,7 +66,9 @@ function catalogEntry(value: unknown): CatalogEntry {
     !isObject(value) ||
     !isStrings(value["layers"]) ||
     !Array.isArray(value["args"]) ||
-    !value["args"].every(isStrings)
+    !value["args"].every(isStrings) ||
+    !Array.isArray(value["capability"]) ||
+    value["capability"].length !== value["args"].length
   ) {
     throw new TypeError("catalog.json has a malformed entry")
   }

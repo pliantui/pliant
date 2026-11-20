@@ -8,7 +8,7 @@ Pliant is in early development. See https://github.com/pliantui/pliant.
 
 `schema/` holds JSON Schemas for overlays, ops, saved views, stored overlays and manifests, the op catalog as data in `catalog.json`, and the function catalog in `functions.json`. Patterns are ECMA-262 regular expressions: `\d` matches only ASCII digits and `$` matches only at the end of the string (Python's `re` differs on both). `format: date-time` (RFC 3339) must be checked. String lengths count Unicode code points, as `maxLength` does.
 
-`catalog.json` is `{ "contract": 1, "ops": { [name]: { capability, layers, args } } }`. `args` holds one list of top-level argument keys per shape, without `op` and `target`. `capability` names the capability that the manifest of the node the op applies to must have; `null` means none is needed. Usually it is one string, and then the order of the `args` lists doesn't matter. When an op's shapes need different capabilities, `capability` is a list and `capability[i]` applies to the shape `args[i]`. For such an op the order of the `args` lists always matters: they go from narrowest to widest, and an op's shape is the first list that contains every argument key the op has. `setDefault` is the only such op: without `prop` its shape is `["value"]` and the field's parent node must have `form`; with `prop` its shape is `["prop", "value"]` and the target must have `defaults`. `layers` and the keys inside each `args` list are unordered. New ops and fields may be added within contract 1, so ignore keys you don't know.
+`catalog.json` is `{ "contract": 1, "ops": { [name]: { capability, layers, args } } }`. `args` holds one list of top-level argument keys per shape, without `op` and `target`, ordered from narrowest to widest. `capability` is a list with one entry per `args` list: `capability[i]` names the capability that the manifest of the node the op applies to must have for the shape `args[i]`, and `null` means none is needed. Most ops have a single shape and a single-entry list. An op takes the `capability` entry of the first `args` list that contains every argument key it has. `setDefault` is the only op whose shapes need different capabilities: without `prop` it takes `["value"]`, and the field's parent node must have `form`; with `prop` it takes `["prop", "value"]`, and the target must have `defaults`. `layers` and the keys inside each `args` list are unordered. New ops and fields may be added within contract 1, so ignore keys you don't know.
 
 Before anything else, reject an overlay, saved view, stored overlay or manifest if any object in it, at any depth, has a key named `__proto__`, `constructor` or `prototype`. JSON parsers can produce these keys, and some runtimes treat them specially.
 
@@ -36,7 +36,7 @@ When loading a saved overlay, apply only valid ops, flag unknown and newer ones,
 
 `validateOverlay` in `@pliantui/core` makes the checks above and doesn't read manifests. The following rules need manifests, so whatever applies ops with the manifests at hand must check them:
 
-- The node the op applies to has the op's `capability` (for `setDefault`, the node given for each shape under `catalog.json`).
+- The node the op applies to has the `capability` entry for the op's shape, as `catalog.json` describes.
 - A `setDefault` with `prop` names a prop declared in the target's `defaults`, and its `value` fits that declaration:
   - for `values`, it is one of them, so a string when the values are strings and a number when they are numbers;
   - for `type: "boolean"`, it is a boolean;

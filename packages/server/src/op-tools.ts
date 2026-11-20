@@ -35,13 +35,13 @@ const explainSchema = z
 const scalarSchema = z.union([z.string().max(200), z.number(), z.boolean()])
 
 function hasCapability(context: AskContext, op: OpName) {
-  const { capability } = opCatalog[op]
-  // A capability that depends on the op's shape needs the shape, which an op
-  // name doesn't give.
-  return (
-    capability === null ||
-    (typeof capability === "string" && isEnabled(context, capability))
-  )
+  const [capability, ...others] = new Set(opCatalog[op].capability)
+  // Capabilities that differ by shape need the op's shape, which a name
+  // doesn't give.
+  if (capability === undefined || others.length > 0) {
+    return false
+  }
+  return capability === null || isEnabled(context, capability)
 }
 
 function isEnabled(context: AskContext, capability: Capability) {
