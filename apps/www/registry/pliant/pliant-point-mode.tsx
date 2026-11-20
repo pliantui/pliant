@@ -97,7 +97,7 @@ function PliantPointMode({
                 key={box.id}
                 type="button"
                 data-pliant-point-target={box.id}
-                className="motion-safe:animate-in motion-safe:fade-in-0 absolute cursor-pointer rounded-lg bg-primary/5 shadow-lg ring-2 shadow-primary/25 ring-primary/60 outline-none hover:bg-primary/10 hover:shadow-primary/40 hover:ring-primary focus-visible:bg-primary/10 focus-visible:ring-4 focus-visible:shadow-primary/40 focus-visible:ring-primary motion-safe:transition-[background-color,box-shadow]"
+                className="absolute cursor-pointer rounded-lg bg-primary/5 shadow-lg ring-2 shadow-primary/25 ring-primary/60 outline-none hover:bg-primary/10 hover:shadow-primary/40 hover:ring-primary focus-visible:bg-primary/10 focus-visible:ring-4 focus-visible:shadow-primary/40 focus-visible:ring-primary motion-safe:animate-in motion-safe:transition-[background-color,box-shadow] motion-safe:fade-in-0"
                 style={{
                   top: box.top,
                   left: box.left,
