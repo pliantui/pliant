@@ -457,12 +457,6 @@ importers:
 
   packages/tests:
     dependencies:
-      '@pliantui/react':
-        specifier: workspace:*
-        version: link:../react
-      '@pliantui/server':
-        specifier: workspace:*
-        version: link:../server
       pliantui:
         specifier: workspace:*
         version: link:../pliantui
@@ -473,6 +467,12 @@ importers:
       '@pliantui/core':
         specifier: workspace:*
         version: link:../core
+      '@pliantui/react':
+        specifier: workspace:*
+        version: link:../react
+      '@pliantui/server':
+        specifier: workspace:*
+        version: link:../server
       '@types/node':
         specifier: ~22.12.0
         version: 22.12.0

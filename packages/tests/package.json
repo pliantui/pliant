@@ -12,13 +12,13 @@
     "build:fixture": "next build next-fixture"
   },
   "dependencies": {
-    "@pliantui/react": "workspace:*",
-    "@pliantui/server": "workspace:*",
     "pliantui": "workspace:*"
   },
   "devDependencies": {
     "@pliantui/contract": "workspace:*",
     "@pliantui/core": "workspace:*",
+    "@pliantui/react": "workspace:*",
+    "@pliantui/server": "workspace:*",
     "@types/node": "~22.12.0",
     "@types/react": "^19.3.0",
     "ai": "^7.0.173",
