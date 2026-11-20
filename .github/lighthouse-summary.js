@@ -1,15 +1,19 @@
 import { existsSync, readFileSync } from "node:fs"
 
-// Prints the representative run of each audited URL as a Markdown table. Prints nothing when Lighthouse wrote no manifest.
+// Prints the representative run of each audited URL as a Markdown table. Says so when Lighthouse wrote no manifest.
 // Usage: node .github/lighthouse-summary.js <reports folder>
 const [folder] = process.argv.slice(2)
 if (!folder) throw new Error("Pass the reports folder.")
 
 const manifestPath = `${folder}/manifest.json`
-if (!existsSync(manifestPath)) process.exit(0)
+if (!existsSync(manifestPath)) {
+  console.log("No Lighthouse reports were written.")
+  process.exit(0)
+}
 
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"))
-const percent = (score) => Math.round(score * 100)
+const percent = (score) =>
+  score === null || score === undefined ? "n/a" : Math.round(score * 100)
 
 const rows = manifest
   .filter((run) => run.isRepresentativeRun)
