@@ -132,7 +132,7 @@ function fromRecording({
   if (standIn === true && !warned.has(key)) {
     warned.add(key)
     console.warn(
-      `[pliant] Replaying a stand-in recording from ${source ?? "an unknown source"} (${key}). It is not production evidence.`
+      `[pliant] Replaying a recorded response from ${source ?? "an unknown source"} (${key}), recorded outside the production API path.`
     )
   }
   const timestamp = result.response?.timestamp
