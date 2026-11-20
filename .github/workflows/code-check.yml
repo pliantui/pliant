@@ -98,11 +98,10 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
-      - run: pnpm build:packages
-      - run: pnpm exec opennextjs-cloudflare build
+      # The build command a deployment runs, as documented in CONTRIBUTING.
+      - name: Build the worker
         working-directory: apps/www
-      - run: pnpm exec opennextjs-cloudflare populateCache local
-        working-directory: apps/www
+        run: pnpm -w exec turbo run build --filter=www^... && pnpm exec opennextjs-cloudflare build && pnpm exec opennextjs-cloudflare populateCache local
       - name: Check the upload size
         working-directory: apps/www
         run: |
@@ -117,23 +116,31 @@ jobs:
             echo "::error::The worker upload is $total KiB, over the $WORKER_BUDGET_KIB KiB budget"
             exit 1
           fi
-      # Serves the built worker locally in workerd and requests a few routes.
+      # Serves the built worker locally in workerd, requests a few routes and
+      # replays a recorded ask.
       - name: Smoke-test the worker
         working-directory: apps/www
         run: |
-          setsid pnpm exec wrangler dev --port 8787 > "$RUNNER_TEMP/wrangler-dev.log" 2>&1 &
+          setsid pnpm exec wrangler dev --port 8787 --var PLIANT_ASK_ENABLED:1 > "$RUNNER_TEMP/wrangler-dev.log" 2>&1 &
           server=$!
-          trap 'kill -- "-$server" 2>/dev/null || true' EXIT
+          trap 'kill -- "-$server" 2>/dev/null || true; cat "$RUNNER_TEMP/wrangler-dev.log"' EXIT
           for _ in $(seq 60); do
-            curl -fs -o /dev/null http://localhost:8787/ && break
+            curl -fs --max-time 30 -o /dev/null http://localhost:8787/ && break
             sleep 2
           done
           for path in / /docs /api/search; do
-            curl -fsS -o /dev/null "http://localhost:8787$path" || {
-              cat "$RUNNER_TEMP/wrangler-dev.log"
-              exit 1
-            }
+            curl -fsS --max-time 30 -o /dev/null "http://localhost:8787$path"
           done
+          curl -fsS --max-time 30 -D - -o /dev/null http://localhost:8787/schema/overlay.json |
+            grep -qi '^access-control-allow-origin: \*'
+          node -e '
+            const demo = require("./scripts/demo-asks.json")
+            const { target, context } = demo.targets.find((t) => t.target === "key-metrics")
+            const prompt = "put the overdue card first"
+            process.stdout.write(JSON.stringify({ surface: demo.surface, target, prompt, context }))
+          ' > "$RUNNER_TEMP/ask.json"
+          curl -fsS --max-time 30 -H "content-type: application/json" --data "@$RUNNER_TEMP/ask.json" http://localhost:8787/api/pliant |
+            jq -e '.status == "ok" and .explain == ["Moved the Overdue card to the first position."]'
 
   actionlint:
     runs-on: ubuntu-latest
