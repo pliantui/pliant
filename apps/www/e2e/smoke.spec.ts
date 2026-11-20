@@ -21,3 +21,11 @@ test("serves the registry index", async ({ request }) => {
   const response = await request.get("/r/registry.json")
   expect(response.status()).toBe(200)
 })
+
+test("serves the contract's JSON Schemas at their $id", async ({ request }) => {
+  const id = "https://pliantui.dev/schema/overlay.json"
+  const response = await request.get(new URL(id).pathname)
+  expect(response.status()).toBe(200)
+  expect(response.headers()["content-type"]).toContain("application/json")
+  expect(await response.json()).toMatchObject({ $id: id })
+})
