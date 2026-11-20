@@ -11,6 +11,11 @@ import { diffTableState, type DiffTableStateOptions } from "./diff-table-state"
 import { loadOverlay, type LoadedOverlay } from "./load-overlay"
 import { resolveLayers, type ResolvedLayers } from "./resolve-layers"
 
+// Stryker reruns every test that covers a mutant, for thousands of mutants,
+// so under mutation testing the generated cases are far fewer.
+const mutating = "__stryker__" in globalThis
+const seeds = (count: number) => (mutating ? count / 10 : count)
+
 const table = "orders-table"
 const columns = [
   "id",
@@ -599,7 +604,7 @@ function canonical(state: CompiledTableState, unmapped: readonly string[]) {
 
 describe("diffTableState round trip", () => {
   it("compiles every diff of a chain back into its target", () => {
-    for (let seed = 1; seed <= 1000; seed++) {
+    for (let seed = 1; seed <= seeds(1000); seed++) {
       const g = generator(seed)
       const base = baseOf(g)
       const t = history({ base }, teamOps(g))
@@ -705,7 +710,7 @@ describe("diffTableState moves", () => {
     let over = 0
     let free = 0
     let freeMore = 0
-    for (let seed = 1; seed <= 500; seed++) {
+    for (let seed = 1; seed <= seeds(500); seed++) {
       const g = generator(seed)
       const t = history({ base: { columnOrder: g.shuffle(columns) } })
       for (let drag = 0; drag < 20; drag++) {
@@ -781,7 +786,7 @@ describe("diffTableState on wide tables", () => {
   // than the table, as the greedy one did (9 s to reverse 60 columns).
   // Stryker's mutation testing instruments every branch, which slows the
   // search several times over, so the bound is looser there.
-  const frame = "__stryker__" in globalThis ? 500 : 50
+  const frame = mutating ? 500 : 50
 
   const chained = (ids: readonly string[]) =>
     ids.slice(1).map((id, index) => ({
@@ -845,7 +850,7 @@ describe("diffTableState on wide tables", () => {
             side === "before" ? { before: ids[index] } : { after: ids[index] },
         }))
       )
-      const step = n > 30 ? 9 : n === 30 ? 2 : 1
+      const step = (n > 30 ? 9 : n === 30 ? 2 : 1) * (mutating ? 3 : 1)
       for (let from = 0; from < n; from += step) {
         for (let at = 0; at < n; at += step) {
           const dragged = t.order[from] ?? ""
@@ -867,7 +872,7 @@ describe("diffTableState on wide tables", () => {
     let drags = 0
     let moves = 0
     let many = 0
-    for (let seed = 1; seed <= 60; seed++) {
+    for (let seed = 1; seed <= seeds(60); seed++) {
       const g = generator(seed * 31 + n)
       const team = g
         .some(ids)
