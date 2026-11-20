@@ -53,4 +53,6 @@ apps/www/public/schema
 # playwright
 apps/www/playwright-report
 apps/www/test-results
+
+# lighthouse
 .lighthouseci

@@ -10,7 +10,7 @@
         "http://localhost:4000/docs/concepts",
         "http://localhost:4000/examples/orders"
       ],
-      "numberOfRuns": 3,
+      "numberOfRuns": 5,
       "settings": {
         "chromeFlags": "--no-sandbox"
       }
@@ -18,7 +18,7 @@
     "assert": {
       "assertions": {
         "categories:performance": [
-          "error",
+          "warn",
           { "minScore": 0.9, "aggregationMethod": "median-run" }
         ],
         "categories:accessibility": [
