@@ -1,4 +1,4 @@
-import { functionCatalog, type FunctionName } from "@pliantui/contract"
+import { functionSignatures, type FunctionName } from "@pliantui/contract"
 
 import { isFunctionName } from "./check-function-call"
 import { compareCodePoints, isSurrogate } from "./compare-code-points"
@@ -162,7 +162,7 @@ export function rowFunctionOf(name: string) {
   return (
     run && {
       run,
-      propagates: functionCatalog.functions[name].nulls === "propagate",
+      propagates: functionSignatures[name].nulls === "propagate",
     }
   )
 }
