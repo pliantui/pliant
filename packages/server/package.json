@@ -69,7 +69,6 @@
       "ignore": [
         "ai",
         "zod",
-        "node:crypto",
         "node:fs/promises",
         "node:path"
       ]

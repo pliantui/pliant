@@ -12,7 +12,6 @@ import {
   it,
   vi,
 } from "vitest"
-import * as z from "zod"
 
 import {
   recordingMiddleware,
@@ -166,8 +165,32 @@ describe("recordingMiddleware", () => {
           mode: "replay",
           recordings: [{ key: "a-key", result: { content: "Recorded" } }],
         })
-      ).toThrow(z.ZodError)
+      ).toThrow("recordings[0] is not a valid recording")
     })
+
+    it("rejects two recordings with the same key", async () => {
+      const recording = await recorded()
+
+      expect(() =>
+        recordingMiddleware({
+          mode: "replay",
+          recordings: [recording, recording],
+        })
+      ).toThrow(/^Two recordings have the key [0-9a-f]{64}$/)
+    })
+
+    it.each([
+      { mode: "record", recordings: [] },
+      { mode: "replay", directory: "recordings", recordings: [] },
+    ])(
+      "rejects recordings outside replay or next to a directory: %o",
+      (options) => {
+        expect(() =>
+          // A JavaScript caller, which the types don't stop.
+          recordingMiddleware(options as unknown as RecordingOptions)
+        ).toThrow(TypeError)
+      }
+    )
 
     it("takes a directory or recordings, not both", () => {
       // @ts-expect-error A replay source is a directory or recordings.
