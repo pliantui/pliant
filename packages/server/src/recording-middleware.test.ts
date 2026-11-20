@@ -3,9 +3,21 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { generateText, wrapLanguageModel } from "ai"
 import { MockLanguageModelV4 } from "ai/test"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  afterEach,
+  assertType,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest"
+import * as z from "zod"
 
-import { recordingMiddleware } from "./recording-middleware"
+import {
+  recordingMiddleware,
+  type RecordingOptions,
+} from "./recording-middleware"
 
 type Generate = Awaited<ReturnType<MockLanguageModelV4["doGenerate"]>>
 
@@ -93,5 +105,77 @@ describe("recordingMiddleware", () => {
         new MockLanguageModelV4({ modelId: "other-model", doGenerate: [] })
       )
     ).rejects.toThrow("No recorded answer for this ask")
+  })
+
+  describe("replaying from recordings in memory", () => {
+    async function recorded() {
+      await run("record", new MockLanguageModelV4({ doGenerate: answer }))
+      const [file = ""] = await readdir(directory)
+      const recording: unknown = JSON.parse(
+        await readFile(join(directory, file), "utf8")
+      )
+      return recording
+    }
+
+    function replay(
+      recordings: readonly unknown[],
+      model: MockLanguageModelV4,
+      prompt = "Hello"
+    ) {
+      return generateText({
+        model: wrapLanguageModel({
+          model,
+          middleware: recordingMiddleware({ mode: "replay", recordings }),
+        }),
+        instructions: "Be brief.",
+        prompt,
+      })
+    }
+
+    it("replays the recording for the ask without calling the model", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => undefined)
+      const recording = await recorded()
+      const replayer = new MockLanguageModelV4({ doGenerate: [] })
+
+      const { text } = await replay([recording], replayer)
+
+      expect(text).toBe("Recorded")
+      expect(replayer.doGenerateCalls).toHaveLength(0)
+    })
+
+    it("throws MissingRecordingError for an ask with no recording", async () => {
+      const recording = await recorded()
+
+      await expect(
+        replay(
+          [recording],
+          new MockLanguageModelV4({ doGenerate: [] }),
+          "Something else"
+        )
+      ).rejects.toMatchObject({
+        name: "MissingRecordingError",
+        message: expect.stringContaining(
+          "No recorded answer for this ask"
+        ) as string,
+      })
+    })
+
+    it("rejects a recording that doesn't match the recording format", () => {
+      expect(() =>
+        recordingMiddleware({
+          mode: "replay",
+          recordings: [{ key: "a-key", result: { content: "Recorded" } }],
+        })
+      ).toThrow(z.ZodError)
+    })
+
+    it("takes a directory or recordings, not both", () => {
+      // @ts-expect-error A replay source is a directory or recordings.
+      assertType<RecordingOptions>({
+        mode: "replay",
+        directory,
+        recordings: [],
+      })
+    })
   })
 })
