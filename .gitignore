@@ -40,8 +40,9 @@ CLAUDE.local.md
 .fleet
 .vscode
 
-# registry build output
+# registry and schema build output
 apps/www/public/r
+apps/www/public/schema
 
 # playwright
 apps/www/playwright-report

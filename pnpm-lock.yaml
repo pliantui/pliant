@@ -74,6 +74,9 @@ importers:
       '@ai-sdk/anthropic':
         specifier: ^4.0.105
         version: 4.0.105(zod@4.6.7)
+      '@pliantui/contract':
+        specifier: workspace:*
+        version: link:../../packages/contract
       '@pliantui/core':
         specifier: workspace:*
         version: link:../../packages/core
