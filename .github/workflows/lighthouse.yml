@@ -23,12 +23,6 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm -w exec turbo run build --filter=www
-      - name: TEMP age gate probe
-        run: |
-          if pnpm --config.minimum-release-age=100000000 dlx @lhci/cli@0.16.1 --version; then
-            echo "age gate not applied"
-            exit 1
-          fi
       - run: pnpm --config.minimum-release-age=2880 dlx @lhci/cli@0.16.1 autorun
       - run: node .github/lighthouse-summary.js .lighthouseci/reports >> "$GITHUB_STEP_SUMMARY"
         if: ${{ !cancelled() }}
