@@ -126,6 +126,7 @@ test("hides a column", async ({ page }) => {
   await page.getByRole("button", { name: "Columns" }).click()
   await page.getByRole("menuitemcheckbox", { name: "Notes" }).click()
   await page.keyboard.press("Escape")
+  await expect(page.getByRole("menu")).toBeHidden()
 
   await expect(page.getByRole("columnheader", { name: "Notes" })).toHaveCount(0)
   await expect(page.getByRole("columnheader")).toHaveCount(6)
