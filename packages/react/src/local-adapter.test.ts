@@ -283,6 +283,59 @@ describe("localAdapter", () => {
     expect(localStorage.length).toBe(0)
   })
 
+  it("loads the @app overlays with the overlays of every surface", () => {
+    const adapter = local()
+    adapter.save("@app", overlay(p3, 120, "@app"), { ifMatch: null })
+    adapter.save("/orders", overlay(p1, 100), { ifMatch: null })
+
+    expect(adapter.load("/orders").map(({ overlay }) => overlay.id)).toEqual(
+      expect.arrayContaining([p1, p3])
+    )
+    expect(adapter.load("/invoices").map(({ overlay }) => overlay.id)).toEqual([
+      p3,
+    ])
+  })
+
+  it("leaves removed @app overlays out of a surface's load", () => {
+    const adapter = local()
+    const saved = adapter.save("@app", overlay(p3, 120, "@app"), {
+      ifMatch: null,
+    })
+    adapter.save("/orders", overlay(p1, 100), { ifMatch: null })
+    adapter.remove("@app", p3, { ifMatch: saved.etag })
+
+    expect(adapter.load("/orders").map(({ overlay }) => overlay.id)).toEqual([
+      p1,
+    ])
+    expect(adapter.load("@app")).toEqual([])
+  })
+
+  it("loads each @app overlay once when the surface is @app", () => {
+    const adapter = local()
+    adapter.save("@app", overlay(p3, 120, "@app"), { ifMatch: null })
+
+    expect(adapter.load("@app").map(({ overlay }) => overlay.id)).toEqual([p3])
+  })
+
+  it("skips @app entries that aren't valid records", () => {
+    localStorage.setItem(keyOf(p3, "@app"), "{}")
+
+    expect(local().load("/orders")).toEqual([])
+  })
+
+  it("tells other tabs when the @app overlays change", () => {
+    const onChange = vi.fn()
+    const unsubscribe = local().subscribe("/orders", onChange)
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: keyOf(p3, "@app"),
+        storageArea: localStorage,
+      })
+    )
+    expect(onChange).toHaveBeenCalledTimes(1)
+    unsubscribe()
+  })
+
   it("tells other tabs when a surface's overlays change", () => {
     const onChange = vi.fn()
     const unsubscribe = local().subscribe("/orders", onChange)
