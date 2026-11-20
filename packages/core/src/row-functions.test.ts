@@ -48,7 +48,7 @@ function call(
   if (!result.success) {
     throw result.error
   }
-  return result.data(row)
+  return result.data.accessor(row)
 }
 
 // A small seeded generator, so property checks are reproducible.
@@ -341,6 +341,8 @@ describe("row functions", () => {
         "￿",
         "\u{10000}",
         "\u{1F600}",
+        "\uD800",
+        "\uDC00",
         "",
       ]
       const word = () =>

@@ -1,7 +1,7 @@
 import { functionCatalog, type FunctionName } from "@pliantui/contract"
 
 import { isFunctionName } from "./check-function-call"
-import { compareCodePoints } from "./compare-code-points"
+import { compareCodePoints, isSurrogate } from "./compare-code-points"
 import { dateFunctions } from "./date-functions"
 import type { Value } from "./read-value"
 import type { RowFunction } from "./row-function"
@@ -62,9 +62,6 @@ function round(x: number, digits: number) {
 function codePoints(text: string) {
   return Array.from(text)
 }
-
-const isSurrogate = (unit: number, low: number) =>
-  unit >= low && unit < low + 0x400
 
 /** Whether the index falls between the two halves of a surrogate pair. */
 function splitsPair(text: string, index: number) {

@@ -3,6 +3,7 @@ import type { Expression } from "@pliantui/contract"
 import {
   createObservedChecker,
   type ExpressionCheckerOptions,
+  type ExpressionType,
 } from "./check-expression"
 import type { Inferred } from "./expression-types"
 import { finite, inRange, readField, readTime, type Value } from "./read-value"
@@ -66,6 +67,19 @@ export interface RowEvaluatorOptions<TRow extends object = object> extends Omit<
 }
 
 /**
+ * An expression ready to read from rows: its accessor, and the type and unit
+ * of its value as `createExpressionChecker` gives them, so a caller can
+ * format the values and tell a date's text from other text.
+ *
+ * @experimental
+ */
+export interface RowExpression<
+  TRow extends object = object,
+> extends ExpressionType {
+  readonly accessor: RowAccessor<TRow>
+}
+
+/**
  * Options for one expression.
  *
  * @experimental
@@ -73,21 +87,22 @@ export interface RowEvaluatorOptions<TRow extends object = object> extends Omit<
 export interface RowAccessorOptions {
   /**
    * The time zone `today` reads the current date in for this expression.
-   * Defaults to the dataset's.
+   * Defaults to the dataset's. A time zone the runtime doesn't know fails
+   * the expression.
    */
   readonly todayTimeZone?: string | undefined
 }
 
 /**
- * Checks a row expression and returns its accessor, or the issues that keep
- * it from being evaluated.
+ * Checks a row expression and returns its accessor with its type, or the
+ * issues that keep it from being evaluated.
  *
  * @experimental
  */
 export type RowEvaluator<TRow extends object = object> = (
   expression: Expression,
   options?: RowAccessorOptions
-) => Result<RowAccessor<TRow>>
+) => Result<RowExpression<TRow>>
 
 type Run = (scope: Scope) => Value
 
@@ -327,12 +342,11 @@ export function createRowEvaluator<TRow extends object = object>(
   }
 
   return (expression, { todayTimeZone } = {}) => {
+    const timeZone = todayTimeZone ?? options.timeZone
     try {
-      zoneOf(todayTimeZone)
+      zoneOf(timeZone)
     } catch {
-      return failure([
-        { path: [], message: `Unknown time zone ${String(todayTimeZone)}` },
-      ])
+      return failure([{ path: [], message: `Unknown time zone "${timeZone}"` }])
     }
     const checked = check(expression, "row")
     if (!checked.success) {
@@ -346,16 +360,19 @@ export function createRowEvaluator<TRow extends object = object>(
     const now = options.now ?? Date.now
     return {
       success: true,
-      data: (row) => {
-        clock.now = now()
-        const scope: Scope = {
-          read: (id) => getValue(row, id),
-          values: new Map(),
-        }
-        for (const [id, item] of order) {
-          scope.values.set(id, item.run(scope))
-        }
-        return output(root.run(scope), checked.data.type)
+      data: {
+        ...checked.data,
+        accessor: (row) => {
+          clock.now = now()
+          const scope: Scope = {
+            read: (id) => getValue(row, id),
+            values: new Map(),
+          }
+          for (const [id, item] of order) {
+            scope.values.set(id, item.run(scope))
+          }
+          return output(root.run(scope), checked.data.type)
+        },
       },
     }
   }

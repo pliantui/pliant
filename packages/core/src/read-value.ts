@@ -57,9 +57,10 @@ export function readTime(
 ): number | null {
   const instant = timeOf(value)
   if (instant !== undefined) {
-    return Number.isNaN(instant)
-      ? null
-      : inRange(type === "date" ? Math.floor(instant / dayMs) : instant, type)
+    return inRange(
+      type === "date" ? Math.floor(instant / dayMs) : instant,
+      type
+    )
   }
   const [, date, time = "T00:00:00", fraction = "", z, sign, hours, minutes] =
     (typeof value === "string" ? isoPattern.exec(value) : null) ?? []

@@ -117,7 +117,7 @@ interface Item {
 }
 
 /** Receives the inferred type of each node the checker reads. */
-export type ObserveNode = (node: Expression, type: Inferred) => void
+type ObserveNode = (node: Expression, type: Inferred) => void
 
 interface Context {
   readonly options: ExpressionCheckerOptions

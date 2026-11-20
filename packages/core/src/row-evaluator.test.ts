@@ -40,7 +40,7 @@ function evaluate(
   if (!result.success) {
     throw result.error
   }
-  return result.data(row)
+  return result.data.accessor(row)
 }
 
 function messages(
@@ -103,6 +103,19 @@ describe("createRowEvaluator", () => {
           shipped: new Date("2024-01-01T23:30:00.250Z"),
         })
       ).toBe("2024-01-01T23:30:00.250Z")
+    })
+
+    it("reads a Date outside the years 0000 to 9999 as null", () => {
+      const after = new Date("+010000-01-01T00:00:00Z")
+      const before = new Date("-000001-06-01T00:00:00Z")
+      expect(evaluate(field("placed"), { placed: after })).toBeNull()
+      expect(evaluate(field("shipped"), { shipped: after })).toBeNull()
+      expect(evaluate(field("shipped"), { shipped: before })).toBeNull()
+      expect(
+        evaluate(field("shipped"), {
+          shipped: new Date("9999-12-31T23:59:59.999Z"),
+        })
+      ).toBe("9999-12-31T23:59:59.999Z")
     })
 
     it("reads a Date in a date field as its UTC calendar date", () => {
@@ -180,7 +193,7 @@ describe("createRowEvaluator", () => {
         timeZone: "UTC",
         getValue,
       })(fn("mul", field("price"), field("qty")))
-      expect(result.data?.({ data: { price: 2.5, qty: 4 } })).toBe(10)
+      expect(result.data?.accessor({ data: { price: 2.5, qty: 4 } })).toBe(10)
     })
 
     it("reads a bigint, a decimal object or a numeric string as null", () => {
@@ -367,6 +380,27 @@ describe("createRowEvaluator", () => {
     })
   })
 
+  describe("type", () => {
+    it("gives the type and unit of the expression's value", () => {
+      const evaluator = evaluatorFor()
+      const typeOf = (expression: Expression) => {
+        const result = evaluator(expression)
+        return result.success
+          ? { type: result.data.type, unit: result.data.unit }
+          : undefined
+      }
+      expect(typeOf(fn("mul", field("price"), field("qty")))).toEqual({
+        type: "number",
+        unit: "USD",
+      })
+      expect(typeOf(field("placed"))).toEqual({ type: "date" })
+      expect(typeOf(fn("addDays", field("shipped"), value(1)))).toEqual({
+        type: "datetime",
+      })
+      expect(typeOf(field("name"))).toEqual({ type: "string" })
+    })
+  })
+
   describe("issues", () => {
     it("reports what the checker reports", () => {
       expect(messages(fn("add", field("name"), value(1)))).toEqual([
@@ -443,11 +477,11 @@ describe("createRowEvaluator", () => {
     it("reads the clock for every row", () => {
       let time = Date.parse("2024-03-10T12:00:00Z")
       const result = evaluatorFor({ now: () => time })(fn("today"))
-      expect(result.data?.({})).toBe("2024-03-10")
+      expect(result.data?.accessor({})).toBe("2024-03-10")
       time += 12 * 3_600_000
-      expect(result.data?.({})).toBe("2024-03-11")
+      expect(result.data?.accessor({})).toBe("2024-03-11")
       time -= 12 * 3_600_000
-      expect(result.data?.({})).toBe("2024-03-10")
+      expect(result.data?.accessor({})).toBe("2024-03-10")
     })
 
     it("converts the clock to a date once for rows read at the same time", () => {
@@ -458,7 +492,7 @@ describe("createRowEvaluator", () => {
       )
       try {
         for (let index = 0; index < 1000; index++) {
-          expect(result.data?.({})).toBe(24)
+          expect(result.data?.accessor({})).toBe(24)
         }
         expect(formatToParts.mock.calls.length).toBeLessThanOrEqual(1)
       } finally {
@@ -477,7 +511,7 @@ describe("createRowEvaluator", () => {
       const result = evaluatorFor({ now })(fn("today"), {
         todayTimeZone: "America/New_York",
       })
-      expect(result.data?.({})).toBe("2024-03-10")
+      expect(result.data?.accessor({})).toBe("2024-03-10")
     })
 
     it("reads the current date in the zone given for each derived field", () => {
@@ -493,7 +527,7 @@ describe("createRowEvaluator", () => {
         ref("datasetToday"),
         value("days")
       )
-      expect(evaluator(days).data?.({})).toBe(1)
+      expect(evaluator(days).data?.accessor({})).toBe(1)
     })
 
     it("throws for an unknown time zone", () => {
@@ -510,7 +544,11 @@ describe("createRowEvaluator", () => {
         todayTimeZone: "Mars/Olympus",
       })
       expect(result.error?.issues).toEqual([
-        { code: "custom", path: [], message: "Unknown time zone Mars/Olympus" },
+        {
+          code: "custom",
+          path: [],
+          message: 'Unknown time zone "Mars/Olympus"',
+        },
       ])
     })
   })
