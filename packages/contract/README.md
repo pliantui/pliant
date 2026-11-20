@@ -69,4 +69,4 @@ The `in` function takes at most 15 values, because a function takes at most 16 a
 flags: { "/settings": { "settings-actions/slots/save": { primary: true } } }
 ```
 
-`primary` marks the surface's primary action. It is set by address, never derived from position, because a user's reorder would change it. A surface should have at most one `primary` action. `flagsSchema` validates one address at a time, so it can't check this. The config loader will enforce it; until then nothing does (#66).
+`primary` marks the primary action of its action group: a `PliantActions` node, a form or a dialog. Each group has at most one, so a page with several forms or dialogs can have several. It is set by address, never derived from position, because a user's reorder would change it. `flagsSchema` validates one address at a time, so it doesn't check that a group has only one.
