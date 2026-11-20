@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen } from "@testing-library/react"
+import { act, cleanup, render, screen, within } from "@testing-library/react"
 import { renderToString } from "react-dom/server"
 import { afterEach, describe, expect, it } from "vitest"
 
@@ -42,14 +42,15 @@ describe("usePliantNodeProps", () => {
   })
 
   it("is pending on the server", () => {
-    expect(
-      renderToString(
-        <PliantRoot surface="/orders">
-          <Node />
-        </PliantRoot>
-      )
-    ).toBe(
-      '<div role="region" data-pliant-id="orders-table" data-pliant-pending=""></div>'
+    const container = document.createElement("div")
+    container.innerHTML = renderToString(
+      <PliantRoot surface="/orders">
+        <Node />
+      </PliantRoot>
     )
+
+    const node = within(container).getByRole("region")
+    expect(node.getAttribute("data-pliant-id")).toBe("orders-table")
+    expect(node.getAttribute("data-pliant-pending")).toBe("")
   })
 })
