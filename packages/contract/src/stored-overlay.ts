@@ -3,6 +3,7 @@ import * as z from "zod"
 import { overlayObjectSchema } from "./overlay"
 import { withoutReservedKeys } from "./reserved-keys"
 import { textSchema } from "./text"
+import { timestampSchema } from "./timestamp"
 
 const storedOverlayObjectSchema = z
   .looseObject({
@@ -14,7 +15,7 @@ const storedOverlayObjectSchema = z
       description:
         "The adapter increases it on every save. For a team or org overlay it is the version that basis.layers records, and clients compare versions to tell that a layer changed.",
     }),
-    updatedAt: z.iso.datetime({ offset: true }),
+    updatedAt: timestampSchema,
   })
   .meta({
     title: "Pliant stored overlay",
