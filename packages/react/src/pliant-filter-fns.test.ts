@@ -42,6 +42,11 @@ describe("matchesFilter", () => {
     expect(matchesFilter(true, { operator: "gt", value: false })).toBe(false)
   })
 
+  it("excludes the value itself from lt and matches any value of in", () => {
+    expect(matchesFilter(5, { operator: "lt", value: 5 })).toBe(false)
+    expect(matchesFilter("b", { operator: "in", value: ["a", "b"] })).toBe(true)
+  })
+
   it("includes both ends of a range", () => {
     const between: FilterValue = { operator: "between", value: [10, 20] }
     expect(matchesFilter(10, between)).toBe(true)
@@ -159,6 +164,19 @@ describe("range inputs", () => {
 describe("dates", () => {
   it("runs in a zone behind UTC", () => {
     expect(new Date(2026, 2, 1).getTimezoneOffset()).toBe(300)
+  })
+
+  it("ends a day at midnight and reads only whole dates as days", () => {
+    const beforeMidnight = new Date(new Date(2026, 2, 1).getTime() - 1)
+    expect(
+      matchesFilter(beforeMidnight, { operator: "eq", value: "2026-03-01" })
+    ).toBe(false)
+    expect(
+      matchesFilter(new Date(2026, 2, 1, 12), {
+        operator: "eq",
+        value: "2026-03-01 or so",
+      })
+    ).toBe(false)
   })
 
   it("reads a date without a time as a day in the viewer's zone", () => {
