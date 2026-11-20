@@ -1,10 +1,12 @@
 import { existsSync } from "node:fs"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { createRequire } from "node:module"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
+import { execa } from "execa"
 import { afterAll, describe, expect, it } from "vitest"
 
-import { loadOverlay, resolveLayers } from "@pliantui/core"
+import { loadOverlay, resolveLayers, validateOverlay } from "@pliantui/core"
 
 import {
   createFixtureDirectory,
@@ -13,6 +15,10 @@ import {
 } from "./helpers"
 
 afterAll(removeFixtureDirectories)
+
+const typescriptCli = createRequire(import.meta.url).resolve(
+  "typescript/bin/tsc"
+)
 
 interface SurfaceInventory {
   baseIds: { ids: string[]; source: "inventory" | "mounted" }
@@ -56,8 +62,8 @@ async function edit(
   await writeFile(target, source.replace(search, replacement))
 }
 
-function overlay(surface: string, ops: unknown[]) {
-  const result = loadOverlay({
+function overlayInput(surface: string, ops: unknown[]) {
+  return {
     v: 1,
     id: "01JBQ3V8Z7XKQ2M4N5P6R7S800",
     surface,
@@ -67,7 +73,11 @@ function overlay(surface: string, ops: unknown[]) {
     source: "manual",
     createdBy: "user_123",
     createdAt: "2026-11-01T09:30:00.000Z",
-  })
+  }
+}
+
+function overlay(surface: string, ops: unknown[]) {
+  const result = loadOverlay(overlayInput(surface, ops))
   if (!result.success) {
     throw result.error
   }
@@ -457,6 +467,63 @@ describe("pliantui scan", () => {
     expect(resolve("reports", "overview/slots/summary", "sidebar")).toEqual([
       "dormant",
     ])
+    // Core checks baseIds, baseParents and baseOrder against each other.
+    for (const [surface, entry] of Object.entries(inventory)) {
+      expect(() => resolveLayers([], { surface, ...entry })).not.toThrow()
+      expect(
+        validateOverlay(overlayInput(surface, [{ op: "hide", target: "x" }]), {
+          layers: { overlays: [], surface, ...entry },
+        }).success
+      ).toBe(true)
+    }
+  })
+
+  it("type-checks as core's options", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await runCli(cwd, ["scan"])
+    await writeFile(
+      path.join(cwd, "lib/pliant/use-inventory.ts"),
+      [
+        'import { resolveLayers, validateOverlay } from "@pliantui/core"',
+        "",
+        'import { inventory } from "./inventory.generated"',
+        "",
+        'const { baseIds, baseParents, baseOrder } = inventory["/orders"]',
+        "",
+        "export const resolved = resolveLayers([], {",
+        '  surface: "/orders",',
+        "  baseIds,",
+        "  baseParents,",
+        "  baseOrder,",
+        "})",
+        "",
+        "export const validated = validateOverlay(null, {",
+        '  layers: { overlays: [], surface: "shop", ...inventory.shop },',
+        "})",
+        "",
+      ].join("\n")
+    )
+    const result = await execa(
+      "node",
+      [
+        typescriptCli,
+        "--noEmit",
+        "--strict",
+        "--skipLibCheck",
+        "--module",
+        "esnext",
+        "--moduleResolution",
+        "bundler",
+        "--target",
+        "es2022",
+        "--ignoreConfig",
+        path.join(cwd, "lib/pliant/use-inventory.ts"),
+      ],
+      { reject: false }
+    )
+
+    expect(result.stdout).toBe("")
+    expect(result.exitCode).toBe(0)
   })
 
   it("reports what it can't read instead of guessing", async () => {

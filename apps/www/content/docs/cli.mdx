@@ -235,22 +235,23 @@ export const inventory = {
 } as const
 ```
 
-`baseIds` and `baseParents` have the shape core's `resolveLayers` and `validateOverlay` take, so you can pass a surface's entry as it is:
+`baseIds`, `baseParents` and `baseOrder` have the shape core's `resolveLayers` and `validateOverlay` take, so you can pass a surface's entry as it is:
 
 ```ts
 import { resolveLayers } from "@pliantui/core"
 
 import { inventory } from "@/lib/pliant/inventory.generated"
 
-const { baseIds, baseParents } = inventory["/examples/orders"]
+const { baseIds, baseParents, baseOrder } = inventory["/examples/orders"]
 const resolved = resolveLayers(overlays, {
   surface: "/examples/orders",
   baseIds,
   baseParents,
+  baseOrder,
 })
 ```
 
-With the inventory, an op into a node that isn't listed is reported as `missing-container`, since that node doesn't exist anywhere on the surface. `baseParents` tells core which node holds which, so a node flagged `critical` also stays visible when an op would hide a node that holds it.
+With the inventory, an op into a node that isn't listed is reported as `missing-container`, since that node doesn't exist anywhere on the surface. `baseParents` tells core which node holds which, so a node flagged `critical` also stays visible when an op would hide a node that holds it. `baseOrder` gives each group's order before any op, so a `destructive` action starts out where it renders relative to the `primary` one.
 
 ### What's reported, not guessed
 
