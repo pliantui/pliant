@@ -25,12 +25,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Core is split into shards, defined in its stryker.config.mjs, to keep
-        # each job short.
+        # Core and react are split into shards, defined in their
+        # stryker.config.mjs, to keep each job short.
         include:
           - package: contract
-          - package: core
-            shard: resolution
           - package: core
             shard: diff
           - package: core
@@ -38,6 +36,9 @@ jobs:
           - package: core
             shard: rest
           - package: react
+            shard: store
+          - package: react
+            shard: table
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

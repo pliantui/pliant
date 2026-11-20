@@ -2,7 +2,6 @@
 // shards and runs one per job, picked with MUTATION_SHARD. Locally, leave it
 // unset to mutate every file.
 const shards = {
-  resolution: ["src/resolution.ts"],
   diff: [
     "src/diff-column-placement.ts",
     "src/diff-table-state.ts",
@@ -10,6 +9,7 @@ const shards = {
     "src/table-columns.ts",
   ],
   layers: [
+    "src/resolution.ts",
     "src/resolve-layers.ts",
     "src/resolve-region.ts",
     "src/order-items.ts",
@@ -58,7 +58,7 @@ export default {
   incremental: true,
   incrementalFile: "reports/stryker-incremental.json",
   // `break` sits just below the current score, so the weekly run fails if
-  // the score drops. A single shard's score isn't the package's, so CI
-  // checks the merged score instead.
-  thresholds: { high: 80, low: 60, break: shard === undefined ? 0 : null },
+  // the score drops. A shard's score isn't the package's, so CI checks the
+  // merged score instead.
+  thresholds: { high: 80, low: 60, break: shard === undefined ? 79 : null },
 }
