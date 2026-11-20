@@ -470,6 +470,59 @@ describe("createLayerStore", () => {
     })
   })
 
+  describe("loads after saves", () => {
+    function countingStorage(notify: boolean) {
+      const { storage } = memoryStorage()
+      const listeners = new Set<() => void>()
+      const load = vi.fn<StorageAdapter["load"]>((surface) =>
+        storage.load(surface)
+      )
+      const adapter: StorageAdapter = {
+        ...storage,
+        load,
+        save: (...args) => {
+          const record = storage.save(...args)
+          if (notify) {
+            listeners.forEach((listener) => {
+              listener()
+            })
+          }
+          return Promise.resolve(record)
+        },
+        subscribe: (_surface, listener) => {
+          listeners.add(listener)
+          return () => listeners.delete(listener)
+        },
+      }
+      const store = createLayerStore({ surface, storage: adapter })
+      store.connect()
+      return { store, load }
+    }
+
+    it("doesn't load again after a plain save", async () => {
+      const { store, load } = countingStorage(false)
+      expect(load).toHaveBeenCalledTimes(1)
+      store.actions.applyOps("personal", [width("total", 200)])
+      store.flush()
+      await vi.advanceTimersByTimeAsync(10)
+
+      expect(load).toHaveBeenCalledTimes(1)
+    })
+
+    it("loads once per save when the adapter notifies on its own saves", async () => {
+      const { store, load } = countingStorage(true)
+      store.actions.applyOps("personal", [width("total", 200)])
+      store.flush()
+      await vi.advanceTimersByTimeAsync(10)
+      expect(load).toHaveBeenCalledTimes(2)
+
+      store.actions.applyOps("personal", [width("status", 120)])
+      store.flush()
+      await vi.advanceTimersByTimeAsync(10)
+      expect(load).toHaveBeenCalledTimes(3)
+    })
+  })
+
   describe("session layer", () => {
     it("replaces the session overlay that wrote the same properties", () => {
       const { store } = setup()

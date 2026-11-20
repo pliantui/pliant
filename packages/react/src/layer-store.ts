@@ -255,6 +255,9 @@ export function createLayerStore({
   // being saved, though it may have been removed elsewhere since: one more
   // load tells.
   function confirm(id: string, sentAt: number) {
+    if (stored.has(id)) {
+      return
+    }
     stored.add(id)
     if (loadCount !== sentAt) {
       fetchLayers(true)

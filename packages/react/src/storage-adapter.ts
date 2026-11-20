@@ -26,10 +26,11 @@ export interface StoredLayers {
  * each save of that record increases it; an overlay removed and stored
  * again starts at 1.
  *
- * `PliantRoot` saves each personal version once, with `ifMatch: null`, and
- * calls only `load`, `save` and `subscribe`. When a save stores a version
- * but fails with an error other than a conflict, and the version is removed
- * elsewhere before the retry, the retry stores it again.
+ * `PliantRoot` stores each personal version as one record, with
+ * `ifMatch: null`, and calls only `load`, `save` and `subscribe`. When a
+ * save stores a version but fails with an error other than a conflict, and
+ * the version is removed elsewhere before this tab loads it again or
+ * retries, the retry stores it again.
  *
  * Saves also run on `pagehide`, while the page unloads, so an adapter that
  * sends them over the network must use `fetch` with `keepalive: true` or

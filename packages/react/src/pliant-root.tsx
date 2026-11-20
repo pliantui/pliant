@@ -94,8 +94,9 @@ function PliantSurfaceRoot({
  * though its answer was lost: the version counts as saved, and the stored
  * overlay replaces this tab's copy. Any other conflict is reported and
  * saved again on the next flush, like any failed save. When a save stores
- * a version but fails with another error, and the version is removed
- * elsewhere before the retry, the retry stores it again.
+ * a version but fails with an error other than a conflict, and the version
+ * is removed elsewhere before this tab loads it again or retries, the retry
+ * stores it again.
  *
  * When the adapter implements `subscribe`, changes stored from another tab
  * or device show as they arrive: the surface loads again without going
