@@ -82,15 +82,13 @@ jobs:
 
   worker:
     runs-on: ubuntu-latest
-    name: worker size
+    name: worker
     timeout-minutes: 15
     env:
-      # Cloudflare Workers allow 64 MiB uncompressed, the only size limit they
-      # enforce. The budget sits far below it, so bundle growth gets noticed.
+      # Cloudflare Workers allow 64 MiB uncompressed, the only limit on the
+      # worker bundle. The budget sits far below it, so growth gets noticed.
+      # The dry run and the smoke test need no Cloudflare account.
       WORKER_BUDGET_KIB: "10240"
-      # Stops wrangler from handing deploys over to `opennextjs-cloudflare
-      # deploy`. The dry run and the startup check need no Cloudflare account.
-      OPEN_NEXT_DEPLOY: "true"
       WRANGLER_SEND_METRICS: "false"
     defaults:
       run:
@@ -108,7 +106,7 @@ jobs:
       - name: Check the upload size
         working-directory: apps/www
         run: |
-          pnpm exec wrangler deploy --dry-run --outfile "$RUNNER_TEMP/worker.bundle" | tee "$RUNNER_TEMP/dry-run.log"
+          pnpm exec wrangler deploy --dry-run --outdir "$RUNNER_TEMP/worker" | tee "$RUNNER_TEMP/dry-run.log"
           total=$(sed -n 's/^Total Upload: \([0-9.]*\) KiB.*/\1/p' "$RUNNER_TEMP/dry-run.log")
           if [ -z "$total" ]; then
             echo "::error::wrangler printed no upload size"
@@ -119,9 +117,23 @@ jobs:
             echo "::error::The worker upload is $total KiB, over the $WORKER_BUDGET_KIB KiB budget"
             exit 1
           fi
-      # Fails if the worker throws while starting up.
-      - run: pnpm exec wrangler check startup --worker "$RUNNER_TEMP/worker.bundle" --outfile "$RUNNER_TEMP/worker-startup.cpuprofile"
+      # Serves the built worker locally in workerd and requests a few routes.
+      - name: Smoke-test the worker
         working-directory: apps/www
+        run: |
+          setsid pnpm exec wrangler dev --port 8787 > "$RUNNER_TEMP/wrangler-dev.log" 2>&1 &
+          server=$!
+          trap 'kill -- "-$server" 2>/dev/null || true' EXIT
+          for _ in $(seq 60); do
+            curl -fs -o /dev/null http://localhost:8787/ && break
+            sleep 2
+          done
+          for path in / /docs /api/search; do
+            curl -fsS -o /dev/null "http://localhost:8787$path" || {
+              cat "$RUNNER_TEMP/wrangler-dev.log"
+              exit 1
+            }
+          done
 
   actionlint:
     runs-on: ubuntu-latest

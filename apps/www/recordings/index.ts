@@ -12,23 +12,16 @@ import recording8 from "./bfd7898483f09c6e674edc9c10e53c389e5036f7390a9e8bc61d3e
 import recording9 from "./c13735b4bc5be455e2f92cea7df2f11ed3e8fa21f9555245a16c1286f0a4edec.json"
 import recording10 from "./de1be99dce52ee4a23476b7c614f4aab9880faeb22d3c5bcff7298d82d7e2ed7.json"
 
-export const recordings = {
-  "0c2d6ef09bd4b4b10f7b8ae77db0f306aeec0272301da1693454d5ac13466f71":
-    recording0,
-  "26d9575abdc2493f5b33dd8c5b182515203e0fc72ef4feb5ffe2c4c6135b8b06":
-    recording1,
-  "4031bc16c73bb8b7c0a15893c769ce5be4908bf0dd3d53a8e4b81957929691a0":
-    recording2,
-  "6fb52b1e8a4aa5634e21b3c077045f5591c41ed31819b6f7a2f9b491f072e6ad":
-    recording3,
-  "80fd8fa5b976a718f6594fe7c09c34fb24ff4c9d72d34cb4714b215f20897111":
-    recording4,
-  "9118362f0ca4d79eac14baee02e23f6dd09205dccc29f84561c6fb7438407752":
-    recording5,
-  "981d4375b4556eef70980643e28bfdad630e1e74cd963efd29773c52efb95639":
-    recording6,
-  ad59af8aeb14da474ed8caa80bd42c34c4429265a066badcdf09704dc2a886b9: recording7,
-  bfd7898483f09c6e674edc9c10e53c389e5036f7390a9e8bc61d3e67491e7018: recording8,
-  c13735b4bc5be455e2f92cea7df2f11ed3e8fa21f9555245a16c1286f0a4edec: recording9,
-  de1be99dce52ee4a23476b7c614f4aab9880faeb22d3c5bcff7298d82d7e2ed7: recording10,
-}
+export const recordings = [
+  recording0,
+  recording1,
+  recording2,
+  recording3,
+  recording4,
+  recording5,
+  recording6,
+  recording7,
+  recording8,
+  recording9,
+  recording10,
+]
