@@ -8,18 +8,69 @@ import { opCatalog } from "./op-catalog"
 
 const fixtures = readOpFixtures()
 
-function allowedValues(node: unknown): unknown[] {
-  if (Array.isArray(node)) {
-    return node.flatMap(allowedValues)
-  }
+const physical = /left|right/i
+
+function get(node: unknown, ...keys: string[]): unknown {
+  return keys.reduce<unknown>(
+    (value, key) =>
+      typeof value === "object" && value !== null
+        ? Reflect.get(value, key)
+        : undefined,
+    node
+  )
+}
+
+function list(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : []
+}
+
+function* schemaObjects(node: unknown): Generator<object> {
   if (typeof node !== "object" || node === null) {
-    return []
+    return
   }
-  return Object.entries(node).flatMap(([key, value]: [string, unknown]) => {
-    if (key === "enum" && Array.isArray(value)) {
-      return value as unknown[]
+  if (!Array.isArray(node)) {
+    yield node
+  }
+  for (const value of Object.values(node)) {
+    yield* schemaObjects(value)
+  }
+}
+
+// Shortcut keys such as arrowleft are physical keys by design, so the one
+// pattern that may mention left or right is bindShortcut's keys.
+function shortcutKeys(nodes: object[]) {
+  return get(
+    nodes.find(
+      (node) => get(node, "properties", "op", "const") === "bindShortcut"
+    ),
+    "properties",
+    "keys"
+  )
+}
+
+function physicalDirections(schema: unknown) {
+  const nodes = [...schemaObjects(schema)]
+  const exempt = shortcutKeys(nodes)
+  return nodes.flatMap((node) => {
+    const properties = get(node, "properties")
+    const pattern = get(node, "pattern")
+    const found = [
+      get(node, "const"),
+      ...list(get(node, "enum")),
+      ...(typeof properties === "object" && properties !== null
+        ? Object.keys(properties)
+        : []),
+    ].filter(
+      (value) => typeof value === "string" && /^(?:left|right)$/i.test(value)
+    )
+    if (
+      typeof pattern === "string" &&
+      physical.test(pattern) &&
+      node !== exempt
+    ) {
+      found.push(pattern)
     }
-    return key === "const" ? [value] : allowedValues(value)
+    return found
   })
 }
 
@@ -43,14 +94,14 @@ describe("opSchema", () => {
   })
 
   // Directions are logical (start and end) so overlays work in right-to-left
-  // apps. Shortcut keys such as arrowleft are physical keys, but they are
-  // matched by a pattern, not listed as allowed values.
+  // apps. Allowed values, property names and patterns can't name left or
+  // right, except the shortcut key pattern.
   it("allows no physical left or right direction in any op", () => {
-    const values = allowedValues(z.toJSONSchema(opSchema, { io: "input" }))
-    expect(values).toContain("start")
-    expect(
-      values.filter((value) => value === "left" || value === "right")
-    ).toEqual([])
+    const schema = z.toJSONSchema(opSchema, { io: "input" })
+    expect(get(shortcutKeys([...schemaObjects(schema)]), "pattern")).toMatch(
+      physical
+    )
+    expect(physicalDirections(schema)).toEqual([])
   })
 
   it("rejects a deeply nested expression without throwing", () => {

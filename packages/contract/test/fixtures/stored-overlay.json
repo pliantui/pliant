@@ -107,7 +107,7 @@
           {
             "op": "pinColumns",
             "target": "@page",
-            "side": "left"
+            "side": "start"
           }
         ],
         "basis": {

@@ -27,7 +27,7 @@ describe("overlaySchema", () => {
     expect(overlays.flatMap((overlay) => overlay.ops)).toContainEqual({
       op: "pinColumns",
       target: "@page",
-      side: "left",
+      side: "start",
     })
     expect(overlays).toContainEqual(
       expect.objectContaining({ future: { kept: true } })
