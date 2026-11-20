@@ -3,20 +3,26 @@ import type { Guardrail } from "./guardrail"
 import { addressParents } from "./node-identity"
 import { scopeKeyOf } from "./overlay-scope"
 import type { ReadFlags } from "./read-flags"
-import { applyOp, createResolution, settleResolution } from "./resolution"
+import {
+  applyOp,
+  createResolution,
+  readBaseIds,
+  settleResolution,
+} from "./resolution"
 import type {
   ResolvedOp,
   ResolveLayersOptions,
   SkippedOp,
   UnappliedOp,
 } from "./resolve-layers"
+import { staysClear } from "./stays-clear"
 import { staysVisible } from "./stays-visible"
 import type { OrderedOverlay } from "./surface-order"
 
-const guardrails: readonly Guardrail[] = [staysVisible]
+const guardrails: readonly Guardrail[] = [staysVisible, staysClear]
 
-// The ops that can take a node out of sight, plus pin, promote and insert
-// as a safety margin.
+// The ops that can take a node out of sight or move one, plus insert as a
+// safety margin.
 const canHide = new Set([
   "hide",
   "collapse",
@@ -34,23 +40,21 @@ type Step =
   | { readonly op: ResolvedOp; readonly scope: string }
 
 /**
- * Each node's parent in the base: `baseParents` when given, else what the
- * flags' addresses show, then what the ops' addresses show, the first one
- * wins. An item's parent always comes from its address.
+ * Each node's parent in the base: `baseParents` when given, then what the
+ * flags' addresses show, then, without `baseParents`, what the ops'
+ * addresses show, the first one wins. An item's parent always comes from
+ * its address.
  */
 function baseParentsOf(
   ops: readonly ResolvedOp[],
   flags: ReadFlags,
   baseParents: ReadonlyMap<string, string | null> | undefined
 ): Map<string, string> {
-  const parents = new Map(baseParents ? [] : flags.parents)
+  const parents = new Map(flags.parents)
   for (const [id, parent] of baseParents ?? []) {
     if (parent !== null) {
       parents.set(id, parent)
     }
-  }
-  for (const id of flags.flags.keys()) {
-    addressParents(id).forEach(([item, node]) => parents.set(item, node))
   }
   for (const { check } of ops) {
     const { op } = check
@@ -70,19 +74,22 @@ function baseParentsOf(
 
 /**
  * Applies the ordered overlays' valid ops one at a time, in resolution
- * order. With flags, after each op that can hide something, it checks the
+ * order. With flags, after each op that can hide or move something, it checks the
  * guardrails on the state so far, and skips the op if it breaks one: every
  * op before it was kept, so the op that completes a violation is the one
  * from the highest layer involved. An op is judged against the ops before
  * it only, so a lower op is skipped even when a higher op would have undone
  * what it did.
  *
- * Each op that can hide something settles the state once, and each skipped
- * op applies the ops kept before it again, so time grows with the number of
- * those ops times the number of ops, and with the number of flags times the
- * depth of the tree. Ops that can't hide anything, such as sorts and
- * widths, add no checks. For scale, 20 flags at depth 6 over 2,000 ops take
- * about 230 ms; 500 flags at depth 30 take about 7 s.
+ * Each op that can hide or move something settles the state once, and each
+ * skipped op applies the ops kept before it again, so time grows with the
+ * number of those ops times the number of ops, and with the number of flags
+ * times the depth of the tree. With a primary action, each check also
+ * orders its group, which grows with the placement ops so far. Ops that
+ * can't hide or move anything, such as sorts and widths, add no checks.
+ * For scale, 20 flags at depth 6 over 2,000 ops take about 230 ms, or
+ * about 1 s with a primary action in the group they reorder; 500 flags at
+ * depth 30 take about 7 s.
  */
 export function resolveOrdered(
   ordered: readonly OrderedOverlay[],
@@ -120,6 +127,8 @@ export function resolveOrdered(
       flags,
       baseParents
     )
+  const overlays = ordered.map(({ overlay }) => overlay)
+  const known = readBaseIds(baseIds)
   const kept: { op: ResolvedOp; scope: string }[] = []
   const skipped: SkippedOp[] = []
   const unapplied = new Map<ResolvedOp, UnappliedOp>()
@@ -140,8 +149,11 @@ export function resolveOrdered(
             .flatMap((guardrail) =>
               guardrail({
                 ...settleResolution(state),
+                overlays,
+                baseIds: known,
                 flags: flags.flags,
                 parents,
+                tree: baseParents ?? new Map(),
               })
             )
             .sort((a, b) => compareOrdered(a.node, b.node))

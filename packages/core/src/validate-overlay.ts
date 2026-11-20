@@ -167,7 +167,7 @@ function layerIssues(
       issues.set(entry.check.index, {
         code: "custom",
         path: ["ops", entry.check.index],
-        message: `The item ${entry.node} is ${entry.flag}, so it must stay visible`,
+        message: `The item ${entry.node} is ${entry.flag}, so it ${entry.guardrail === "stays-clear" ? "can't sit next to or above its group's primary action" : "must stay visible"}`,
       })
     }
   }
