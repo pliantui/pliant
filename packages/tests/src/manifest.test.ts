@@ -333,6 +333,13 @@ describe("pliantui manifest", () => {
       NestedBox: manifest("nested-box", "Nested box", {}),
       Swapped: manifest("swapped", "Swapped", {}),
       Mutated: manifest("mutated", "Mutated", {}),
+      Tracked: manifest("tracked", "Tracked", {
+        props: { size: { values: ["sm", "lg"] } },
+      }),
+      Drawer: manifest("drawer", "Drawer", {}),
+      Step10Of12: manifest("step-10-of-12", "Step 10 of 12", {
+        props: { gap: { values: ["sm", "lg"] } },
+      }),
       Dot: manifest("dot", "Dot", {
         props: { size: { values: ["sm", "lg"] } },
       }),
@@ -398,7 +405,8 @@ describe("pliantui manifest", () => {
     expect(stdout).not.toContain("default tone of toneVariants")
     for (const line of [
       "components/ui/star.tsx:20 legacyStyles() here can't be traced to class-variance-authority or tailwind-variants, so its variants aren't read.",
-      "components/ui/indirect.tsx:71 The argument to toneVariants can't be read statically, so Mutated's props that reach it are left out.",
+      "components/ui/indirect.tsx:71 options is changed after it's created, so it can't be read statically, and Mutated's props that reach toneVariants are left out.",
+      "components/ui/mutated-config.tsx:12 drawerConfig is changed after it's created, so it can't be read statically, and the variants of drawerVariants are left out.",
       [
         "Swapped  components/ui/indirect.tsx",
         "Toggle3D  components/ui/indirect.tsx",

@@ -13,4 +13,8 @@ function HTML5Video({ gap }: { gap?: "sm" | "lg" }) {
   return <video className={gridVariants({ gap })} />
 }
 
-export { Grid2x2, HTML5Video }
+function Step10Of12({ gap }: { gap?: "sm" | "lg" }) {
+  return <ol className={gridVariants({ gap })} />
+}
+
+export { Grid2x2, HTML5Video, Step10Of12 }

@@ -260,6 +260,7 @@ describe("pliantui manifest review", () => {
     ],
     ["Acme", "Must be kebab-case and start with a letter, for example acme"],
     ["acme_ui", "Must be kebab-case and start with a letter, for example acme"],
+    ["a".repeat(33), "Must be 32 characters or fewer"],
   ])("rejects the namespace %s", async (namespace, message) => {
     await expect(run("--yes", "--namespace", namespace)).rejects.toEqual(
       new ExitError(1)

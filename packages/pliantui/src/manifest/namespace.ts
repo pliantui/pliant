@@ -6,7 +6,7 @@ export const defaultNamespace = "app"
 // Pliant's built-in components.
 export const namespaceSchema = z
   .string()
-  .max(32)
+  .max(32, "Must be 32 characters or fewer")
   .regex(
     /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/,
     "Must be kebab-case and start with a letter, for example acme"

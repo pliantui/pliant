@@ -71,4 +71,21 @@ function Mutated({ tone }: { tone?: "plain" | "muted" }) {
   return <span className={toneVariants(options)} />
 }
 
-export { Fallback, Indirect, Mutated, Opaque, Resized, Swapped, Toggle3D }
+function Tracked({ size }: { size?: "sm" | "lg" }) {
+  const seen: Record<string, boolean> = {}
+  seen[String(size)] = true
+  return (
+    <span data-seen={Object.keys(seen)} className={indVariants({ size })} />
+  )
+}
+
+export {
+  Fallback,
+  Indirect,
+  Mutated,
+  Opaque,
+  Resized,
+  Swapped,
+  Toggle3D,
+  Tracked,
+}

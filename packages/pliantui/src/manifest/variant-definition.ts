@@ -9,6 +9,7 @@ import { createDiagnostic, type Diagnostic } from "./diagnostic"
 import {
   describeExpression,
   getDeclarations,
+  getMutatedName,
   readLiteral,
   readObject,
   resolveExpression,
@@ -100,11 +101,18 @@ function getCalleeName(callee: Node) {
     : callee.getText()
 }
 
-/**
- * Finds which library a called function comes from, following re-exports
- * and aliases through the app's own modules, such as a `tv` made with
- * `createTV` in `lib/utils`.
- */
+function unreadableMessage(
+  node: Node,
+  unreadable: string,
+  consequence: string
+) {
+  const mutated = getMutatedName(node)
+  return mutated
+    ? `${mutated} is changed after it's created, so it can't be read statically, and ${consequence}.`
+    : `${unreadable}: ${describeExpression(node)} isn't an object literal.`
+}
+
+/** The callee's symbol and every symbol its import or re-export chain leads to. */
 function getCalleeSymbols(callee: Node): TsMorphSymbol[] {
   const nameNode = Node.isPropertyAccessExpression(callee)
     ? callee.getNameNode()
@@ -253,7 +261,11 @@ export function readVariantDefinition(
     definition.readable = false
     report(
       configArgument,
-      `The variants of ${definition.name} can't be read statically: ${describeExpression(configArgument)} isn't an object literal.`
+      unreadableMessage(
+        configArgument,
+        `The variants of ${definition.name} can't be read statically`,
+        `the variants of ${definition.name} are left out`
+      )
     )
     return definition
   }
@@ -340,7 +352,11 @@ function readVariants(
     definition.readable = false
     report(
       node,
-      `The variants of ${definition.name} can't be read statically: ${describeExpression(node)} isn't an object literal.`
+      unreadableMessage(
+        node,
+        `The variants of ${definition.name} can't be read statically`,
+        `the variants of ${definition.name} are left out`
+      )
     )
     return
   }
@@ -367,7 +383,11 @@ function readVariants(
       definition.unreadable.add(name)
       report(
         valueNode,
-        `The ${name} variant of ${definition.name} can't be read statically: ${describeExpression(valueNode)} isn't an object literal.`
+        unreadableMessage(
+          valueNode,
+          `The ${name} variant of ${definition.name} can't be read statically`,
+          `the ${name} variant of ${definition.name} is left out`
+        )
       )
       continue
     }

@@ -22,7 +22,7 @@ Options:
   -y, --yes                    skip the review and use the inferred classes.
                                (default: false)
   -c, --cwd <cwd>              the working directory. defaults to the current
-                               directory. (default: current directory)
+                               directory. (default: "/home/you/my-app")
   -n, --namespace <namespace>  the namespace for component kinds. defaults to
                                the saved one, or app.
   -h, --help                   display help for command
@@ -30,7 +30,7 @@ Options:
 
 ### Where it looks
 
-The ui folder comes from the `ui` alias in `components.json`, resolved through the `paths` in your `tsconfig.json` or `jsconfig.json`. Every `.ts`, `.tsx`, `.js` and `.jsx` file in it is read, including subfolders. Tests, stories and type declarations are skipped.
+The ui folder comes from the `ui` alias in `components.json`, resolved through the `paths` in your `tsconfig.json` or `jsconfig.json`. Every `.ts`, `.tsx`, `.js` and `.jsx` file in it is read, including subfolders. Tests, stories and type declarations are skipped. In a TypeScript project, `.js` and `.jsx` files are read only when `allowJs` is set in `tsconfig.json`.
 
 ### What it reads
 
@@ -46,7 +46,7 @@ A prop goes into a component's manifest only when the value the user passes reac
 - through another component that has a manifest: `<Button size={size} />` or `<PaginationLink {...props} />`
 - through a context provider, like a toggle group passing `variant` to its items. The summary notes that a value set on the group wins over the item's own.
 
-Values the component works out itself, like `variant: isActive ? "outline" : "ghost"`, are not exposed, not even when the prop is typed as a string union. Neither is a prop the component assigns to, like `size = "sm"` or `({ size } = other)` inside the function, nor an options object it changes after creating it.
+Values the component works out itself, like `variant: isActive ? "outline" : "ghost"`, are not exposed, not even when the prop is typed as a string union. Neither is a prop the component assigns to, like `size = "sm"` or `({ size } = other)` inside the function. An options object the command can see being changed after it's created, by a property assignment, `delete` or `Object.assign`, isn't followed either. Static reading can't catch every change, so the review is where you correct anything it inferred wrongly.
 
 A literal default on a destructured prop, like `size = "icon"`, wins over `defaultVariants`.
 

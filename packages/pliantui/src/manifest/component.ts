@@ -224,11 +224,46 @@ function isReassigned(component: Component, element: Node) {
   const isElement = (node: Node) =>
     (Node.isIdentifier(node) || Node.isShorthandPropertyAssignment(node)) &&
     getDeclarations(node, { followAliases: false })[0] === element
-  // Destructuring assignments, like ({ tone } = other), assign to every
-  // name inside the pattern.
-  const refersToElement = (node: Node) => {
+  // Destructuring assignments, like ({ tone } = other), assign to the
+  // targets inside the pattern. Using the prop in an index on the left, like
+  // seen[size] = true, doesn't assign to it.
+  const refersToElement = (node: Node): boolean => {
     const target = unwrapExpression(node)
-    return isElement(target) || target.getDescendants().some(isElement)
+    if (isElement(target)) {
+      return true
+    }
+    if (Node.isObjectLiteralExpression(target)) {
+      return target.getProperties().some((property) => {
+        if (Node.isShorthandPropertyAssignment(property)) {
+          return isElement(property)
+        }
+        if (Node.isPropertyAssignment(property)) {
+          const initializer = property.getInitializer()
+          return initializer !== undefined && refersToElement(initializer)
+        }
+        return (
+          Node.isSpreadAssignment(property) &&
+          refersToElement(property.getExpression())
+        )
+      })
+    }
+    if (Node.isArrayLiteralExpression(target)) {
+      return target
+        .getElements()
+        .some((element) =>
+          refersToElement(
+            Node.isSpreadElement(element) ? element.getExpression() : element
+          )
+        )
+    }
+    // A default in a pattern, like { tone = "plain" }.
+    if (
+      Node.isBinaryExpression(target) &&
+      target.getOperatorToken().getKind() === SyntaxKind.EqualsToken
+    ) {
+      return refersToElement(target.getLeft())
+    }
+    return false
   }
   return component.fn.getDescendants().some((node) => {
     if (Node.isBinaryExpression(node)) {

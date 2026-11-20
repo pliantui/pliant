@@ -13,6 +13,7 @@ import {
 import { createDiagnostic, type Diagnostic } from "./diagnostic"
 import {
   getDeclarations,
+  getMutatedName,
   readLiteral,
   readPropertyKey,
   resolveExpression,
@@ -147,10 +148,13 @@ export function readVariantCalls(
     }
     const object = unwrapExpression(resolveExpression(argument))
     if (!Node.isObjectLiteralExpression(object)) {
+      const mutated = getMutatedName(argument)
       diagnostics.push(
         createDiagnostic(
           argument,
-          `The argument to ${definition.name} can't be read statically, so ${component.name}'s props that reach it are left out.`
+          mutated === undefined
+            ? `The argument to ${definition.name} can't be read statically, so ${component.name}'s props that reach it are left out.`
+            : `${mutated} is changed after it's created, so it can't be read statically, and ${component.name}'s props that reach ${definition.name} are left out.`
         )
       )
       for (const name of [

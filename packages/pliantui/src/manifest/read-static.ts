@@ -131,6 +131,21 @@ function isMutated(declaration: Node) {
   return result
 }
 
+/**
+ * The name of the const a value comes from when that const is changed after
+ * it's created, so the value can't be read.
+ */
+export function getMutatedName(node: Node): string | undefined {
+  const value = resolveExpression(node)
+  if (!Node.isIdentifier(value) && !Node.isShorthandPropertyAssignment(value)) {
+    return undefined
+  }
+  const declaration = getDeclarations(value)[0]
+  return Node.isVariableDeclaration(declaration) && isMutated(declaration)
+    ? declaration.getName()
+    : undefined
+}
+
 export function readPropertyKey(name: Node): string | undefined {
   if (Node.isIdentifier(name) || Node.isPrivateIdentifier(name)) {
     return name.getText()
