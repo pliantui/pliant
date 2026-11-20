@@ -1,3 +1,11 @@
 {
-  "pages": ["index", "installation", "concepts", "cli", "storage", "ask-panel", "roadmap"]
+  "pages": [
+    "index",
+    "installation",
+    "concepts",
+    "cli",
+    "storage",
+    "ask-panel",
+    "roadmap"
+  ]
 }
