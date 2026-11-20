@@ -5,7 +5,22 @@ import { expect, test } from "./fixtures"
 
 const surface = "/examples/orders"
 
-async function violations(page: Page) {
+type ColorScheme = "light" | "dark"
+
+async function violations(page: Page, colorScheme: ColorScheme) {
+  await expect(page.locator("html")).toHaveCSS("color-scheme", colorScheme)
+  // Scan once the entrance animations have ended: colors mid-fade fail contrast.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter(
+          (animation) =>
+            animation.effect?.getComputedTiming().iterations !== Infinity
+        )
+        .map((animation) => animation.finished.catch(() => undefined))
+    )
+  )
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze()
@@ -49,16 +64,12 @@ for (const colorScheme of ["light", "dark"] as const) {
   test.describe(`in ${colorScheme} mode`, () => {
     test.use({ colorScheme })
 
-    test.beforeEach(async ({ page }) => {
-      await page.goto("/")
-      await expect(page.locator("html")).toHaveCSS("color-scheme", colorScheme)
-    })
-
     test("the home page has no accessibility violations", async ({ page }) => {
+      await page.goto("/")
       await expect(
         page.getByRole("heading", { level: 1, name: "Pliant" })
       ).toBeVisible()
-      expect(await violations(page)).toEqual([])
+      expect(await violations(page, colorScheme)).toEqual([])
     })
 
     test("a docs page has no accessibility violations", async ({ page }) => {
@@ -66,26 +77,26 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(
         page.getByRole("heading", { level: 1, name: "Introduction" })
       ).toBeVisible()
-      expect(await violations(page)).toEqual([])
+      expect(await violations(page, colorScheme)).toEqual([])
     })
 
     test("the orders example has no accessibility violations", async ({
       page,
     }) => {
       await loadOrders(page)
-      expect(await violations(page)).toEqual([])
+      expect(await violations(page, colorScheme)).toEqual([])
     })
 
     test("the ask panel has no accessibility violations", async ({ page }) => {
       await openPanel(page)
-      expect(await violations(page)).toEqual([])
+      expect(await violations(page, colorScheme)).toEqual([])
     })
 
     test("an answer preview has no accessibility violations", async ({
       page,
     }) => {
       await askForPreview(page)
-      expect(await violations(page)).toEqual([])
+      expect(await violations(page, colorScheme)).toEqual([])
     })
 
     test("point mode has no accessibility violations", async ({ page }) => {
@@ -94,7 +105,12 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(
         page.getByRole("dialog", { name: "Point mode" })
       ).toBeVisible()
-      expect(await violations(page)).toEqual([])
+      await expect(
+        page
+          .locator('[data-slot="pliant-point-mode"]')
+          .getByRole("button", { name: "Key metrics" })
+      ).toBeFocused()
+      expect(await violations(page, colorScheme)).toEqual([])
     })
 
     test.describe("on a small screen", () => {
@@ -105,7 +121,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       }) => {
         const panel = await askForPreview(page)
         await expect(panel.getByRole("status")).toBeInViewport({ ratio: 1 })
-        expect(await violations(page)).toEqual([])
+        expect(await violations(page, colorScheme)).toEqual([])
       })
     })
   })
