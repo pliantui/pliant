@@ -56,6 +56,15 @@
       "ignore": [
         "zod"
       ]
+    },
+    {
+      "name": "opCatalog only",
+      "path": "dist/index.js",
+      "import": "{ opCatalog }",
+      "limit": "6.6 kB",
+      "ignore": [
+        "zod"
+      ]
     }
   ],
   "peerDependencies": {

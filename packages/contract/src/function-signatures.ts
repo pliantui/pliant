@@ -491,7 +491,10 @@ const signatures = {
 
 export type FunctionName = keyof typeof signatures
 
-/** The kind, arguments, return type and unit of every built-in function. */
+/**
+ * The kind, arguments, return type, unit, null handling and mergeable
+ * summaries of every built-in function, without their descriptions.
+ */
 export const functionSignatures: Readonly<
   Record<FunctionName, FunctionSignature>
 > = signatures
