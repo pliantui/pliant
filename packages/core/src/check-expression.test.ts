@@ -404,6 +404,14 @@ describe("checkExpression", () => {
       ])
     })
 
+    it("accepts a constant at either end of its range", () => {
+      expect(row(fn("round", field("score"), value(0))).success).toBe(true)
+      expect(row(fn("round", field("score"), value(10))).success).toBe(true)
+      expect(
+        aggregate(fn("percentile", field("score"), value(1))).success
+      ).toBe(true)
+    })
+
     it("checks the strings an argument can take", () => {
       expect(
         row(fn("dateDiff", field("placed"), field("shipped"), value("days")))

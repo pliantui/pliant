@@ -136,6 +136,14 @@ describe("formatError", () => {
     expect(formatError(error, { maxIssues: 1 })).toBe("a\nand 1 more issue")
   })
 
+  it("keeps text of exactly the maximum length whole", () => {
+    expect(
+      formatError(new z.ZodError([issue([], "x".repeat(10))]), {
+        maxLength: 10,
+      })
+    ).toBe("x".repeat(10))
+  })
+
   it("caps the length without splitting a surrogate pair", () => {
     expect(
       formatError(new z.ZodError([issue([], "x".repeat(100))]), {

@@ -4,7 +4,7 @@ import { validateOverlay, type ValidatedOverlay } from "@pliantui/core"
 
 import { createSaveQueue } from "./save-queue"
 
-function version(id: string): ValidatedOverlay {
+function version(id: string, width = 240): ValidatedOverlay {
   const result = validateOverlay(
     {
       v: 1,
@@ -15,7 +15,7 @@ function version(id: string): ValidatedOverlay {
         {
           op: "setColumnWidth",
           target: "orders-table/columns/total",
-          width: 240,
+          width,
         },
       ],
       basis: { contract: 1, core: "0.0.0", manifests: {} },
@@ -149,5 +149,57 @@ describe("createSaveQueue", () => {
     queue.flush()
 
     expect(written).toEqual([first.id, first.id])
+  })
+
+  it("reports a failure again after a save in between succeeded", async () => {
+    let fail = true
+    const { queue, report } = setup(() =>
+      fail ? Promise.reject(new Error("offline")) : Promise.resolve()
+    )
+
+    queue.save(first)
+    await vi.waitFor(() => {
+      expect(report).toHaveBeenCalledTimes(1)
+    })
+    fail = false
+    queue.flush()
+    await Promise.resolve()
+    fail = true
+    queue.save(first)
+
+    await vi.waitFor(() => {
+      expect(report).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it("keeps a newer change when an earlier save of it fails later", async () => {
+    let rejectEarlier: (error: Error) => void = () => undefined
+    let online = false
+    const written: unknown[] = []
+    const queue = createSaveQueue({
+      write: (overlay) => {
+        written.push(overlay.ops[0])
+        if (written.length === 1) {
+          return new Promise<void>((_, reject) => {
+            rejectEarlier = reject
+          })
+        }
+        if (!online) {
+          throw new Error("offline")
+        }
+        return undefined
+      },
+      report: () => undefined,
+      now: Date.now,
+    })
+
+    queue.save(version(first.id, 200))
+    queue.save(version(first.id, 300))
+    rejectEarlier(new Error("offline"))
+    await Promise.resolve()
+    online = true
+    queue.flush()
+
+    expect(written.at(-1)).toMatchObject({ width: 300 })
   })
 })

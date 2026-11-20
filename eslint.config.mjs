@@ -11,6 +11,8 @@ export default defineConfig(
     "**/.next/**",
     "**/.source/**",
     "**/.turbo/**",
+    "packages/*/reports/**",
+    "packages/*/.stryker-tmp/**",
     "**/.open-next/**",
     "**/.wrangler/**",
     "packages/tests/fixtures/**",

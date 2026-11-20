@@ -79,4 +79,29 @@ describe("overlayOpSchema", () => {
       false
     )
   })
+
+  it.each([
+    "orders-table/columns/value",
+    "order-card[]/actions/refund",
+    "@page",
+    "@my-app-2",
+    `a${"/b".repeat(127)}c`,
+  ])("accepts the target %s", (target) => {
+    expect(overlayOpSchema.safeParse({ op: "hide", target }).success).toBe(true)
+  })
+
+  it.each([
+    "Orders-table",
+    "orders table",
+    "/orders-table",
+    "@App",
+    "@app-",
+    "@app--x",
+    "@-app",
+    `a${"/b".repeat(128)}`,
+  ])("rejects the target %s", (target) => {
+    expect(overlayOpSchema.safeParse({ op: "hide", target }).success).toBe(
+      false
+    )
+  })
 })
