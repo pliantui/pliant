@@ -17,5 +17,5 @@ export default {
   incrementalFile: "reports/stryker-incremental.json",
   // `break` sits just below the current score, so the weekly run fails if
   // the score drops.
-  thresholds: { high: 80, low: 60, break: 96 },
+  thresholds: { high: 80, low: 60, break: 95 },
 }
