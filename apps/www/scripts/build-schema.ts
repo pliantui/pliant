@@ -8,9 +8,8 @@ import {
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-// Copies the contract's JSON Schemas into `public/` at the path their `$id`
-// names, so `https://pliantui.dev/schema/overlay.json` is a static file:
-// `pnpm --filter www schema:build`.
+// The schemas are static files under `public/`, so they need no route handler
+// and are served as plain assets wherever the site runs.
 
 const origin = "https://pliantui.dev"
 
@@ -43,8 +42,16 @@ export function buildSchemas(outputDirectory: string) {
       continue
     }
     const url = new URL(id)
-    if (url.origin !== origin || url.search || url.hash) {
-      throw new Error(`${name} has a $id outside ${origin}: ${id}`)
+    if (
+      url.origin !== origin ||
+      !url.pathname.startsWith("/schema/") ||
+      url.search ||
+      url.hash
+    ) {
+      throw new Error(`${name} has a $id outside ${origin}/schema/: ${id}`)
+    }
+    if (ids.includes(id)) {
+      throw new Error(`${name} repeats the $id ${id}`)
     }
     const target = join(outputDirectory, url.pathname)
     mkdirSync(dirname(target), { recursive: true })

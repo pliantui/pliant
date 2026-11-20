@@ -58,6 +58,9 @@ it("writes every contract $id to the file its URL names", () => {
   const built = buildSchemas(outputDirectory)
   const ids = contractIds()
   expect(built.toSorted()).toEqual(ids.toSorted())
+  expect(readdirSync(join(outputDirectory, "schema")).toSorted()).toEqual(
+    ids.map((id) => new URL(id).pathname.replace("/schema/", "")).toSorted()
+  )
   for (const id of ids) {
     const file = join(outputDirectory, new URL(id).pathname)
     const schema: unknown = JSON.parse(readFileSync(file, "utf8"))
