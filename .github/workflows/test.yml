@@ -112,16 +112,19 @@ jobs:
 
   next:
     runs-on: ubuntu-latest
-    name: pnpm build (next 16.0.0)
+    name: pnpm build (next ${{ matrix.next }})
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        next: ["16.0.11", "16.1.0", "16.2.0", "16.3.0", "16.4.0"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm build:packages
-      # 16.0.0 is the first Next.js 16 release.
-      - run: pnpm --filter www add --save-dev --save-exact next@16.0.0
+      - run: pnpm --filter www add --save-dev --save-exact next@${{ matrix.next }}
       - run: pnpm --filter www exec vitest run
       - run: pnpm --filter www build
 
