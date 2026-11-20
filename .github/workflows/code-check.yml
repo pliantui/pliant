@@ -47,6 +47,17 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm typecheck
 
+  knip:
+    runs-on: ubuntu-latest
+    name: pnpm knip
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm knip
+
   build:
     runs-on: ubuntu-latest
     name: pnpm build
@@ -84,7 +95,6 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: apps/www
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -92,8 +102,11 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm build:packages
       - run: pnpm exec opennextjs-cloudflare build
+        working-directory: apps/www
       - run: pnpm exec opennextjs-cloudflare populateCache local
+        working-directory: apps/www
       - name: Check the upload size
+        working-directory: apps/www
         run: |
           pnpm exec wrangler deploy --dry-run --outfile "$RUNNER_TEMP/worker.bundle" | tee "$RUNNER_TEMP/dry-run.log"
           total=$(sed -n 's/^Total Upload: \([0-9.]*\) KiB.*/\1/p' "$RUNNER_TEMP/dry-run.log")
@@ -108,6 +121,7 @@ jobs:
           fi
       # Fails if the worker throws while starting up.
       - run: pnpm exec wrangler check startup --worker "$RUNNER_TEMP/worker.bundle" --outfile "$RUNNER_TEMP/worker-startup.cpuprofile"
+        working-directory: apps/www
 
   actionlint:
     runs-on: ubuntu-latest

@@ -106,7 +106,7 @@ pnpm test
 pnpm build
 ```
 
-`pnpm check` runs lint, typecheck, format and workspace checks. `pnpm check:packages` builds the packages and validates them with [publint](https://publint.dev), [Are the Types Wrong?](https://arethetypeswrong.github.io) and [size-limit](https://github.com/ai/size-limit).
+`pnpm check` runs lint, typecheck, format, [knip](https://knip.dev) (unused files, exports and dependencies) and workspace checks. `pnpm check:packages` builds the packages and validates them with [publint](https://publint.dev), [Are the Types Wrong?](https://arethetypeswrong.github.io) and [size-limit](https://github.com/ai/size-limit).
 
 ## Commit convention
 
