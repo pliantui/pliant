@@ -79,7 +79,7 @@ A save can store a version while the app sees only a network error. If another d
 - A tombstone can't be revived. A save under its id is a conflict even when it expects the tombstone's etag, because an id is never reused for new content.
 - An adapter keeps each tombstone for as long as the app might retry a save, and for at least 30 days. After that it may purge it. Once a tombstone is purged, a retry of a save from before the removal can bring the overlay back, so a removal is protected only from retries made within the retention period.
 
-The adapter methods and the `conflict` result of a conditional save belong to `@pliantui/react`, not to the contract.
+The adapter methods and `StorageConflictError`, which a conditional save throws on a conflict, belong to `@pliantui/react`, not to the contract.
 
 ## Function catalog
 

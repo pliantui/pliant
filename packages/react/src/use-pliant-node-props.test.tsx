@@ -2,6 +2,7 @@ import { act, cleanup, render, screen, within } from "@testing-library/react"
 import { renderToString } from "react-dom/server"
 import { afterEach, describe, expect, it } from "vitest"
 
+import { memoryStorage } from "../test/storage"
 import { PliantRoot } from "./pliant-root"
 import type { StorageAdapter, StoredLayers } from "./storage-adapter"
 import { usePliantNodeProps } from "./use-pliant-node-props"
@@ -18,11 +19,11 @@ describe("usePliantNodeProps", () => {
   it("marks the node pending until the layers load", async () => {
     let resolve: (value: StoredLayers) => void = () => undefined
     const storage: StorageAdapter = {
+      ...memoryStorage().storage,
       load: () =>
         new Promise((done) => {
           resolve = done
         }),
-      save: () => undefined,
     }
     render(
       <PliantRoot surface="/orders" storage={storage}>

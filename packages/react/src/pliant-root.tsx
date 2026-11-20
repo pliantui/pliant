@@ -19,8 +19,11 @@ export interface PliantRootProps {
   /** Team ids, highest precedence first, as in core's `resolveLayers`. */
   readonly teamOrder?: readonly string[] | undefined
   /**
-   * Called when saving a personal version fails. The version stays pending
-   * and is saved again on the next flush. Defaults to `console.error`.
+   * Called when saving a personal version fails, and when loading the
+   * layers again after a change elsewhere fails, which keeps the layers
+   * shown. A failed version stays pending and is saved again on the next
+   * flush. A conflict Pliant resolves isn't reported (see `PliantRoot`).
+   * Defaults to `console.error`.
    */
   readonly onError?: ((error: unknown) => void) | undefined
   /**
@@ -82,8 +85,23 @@ function PliantSurfaceRoot({
  * resolves no overlays and a synchronous adapter applies before the first
  * client paint. `usePliantStatus` tells when the layers are ready.
  *
- * Each tab loads the layers once: changes made in another tab show after a
- * reload.
+ * Each personal version gets a new id and is stored as a new record, with
+ * `ifMatch: null`. Versions made in other tabs and devices have their own
+ * ids, and personal overlays resolve in `createdAt` order, so the later
+ * change wins on a property both write, and changes to different
+ * properties both apply. When the adapter answers with a conflict whose
+ * `current` record has the version's id, an earlier attempt stored it
+ * though its answer was lost: the version counts as saved, and the stored
+ * overlay replaces this tab's copy. Any other conflict is reported and
+ * saved again on the next flush, like any failed save. When a save stores
+ * a version but fails with an error other than a conflict, and the version
+ * is removed elsewhere before this tab loads it again or retries, the retry
+ * stores it again.
+ *
+ * When the adapter implements `subscribe`, changes stored from another tab
+ * or device show as they arrive: the surface loads again without going
+ * back to `loading`. Personal versions this tab hasn't saved yet stay.
+ * `localAdapter` does this for every root and tab of the same browser.
  *
  * @experimental
  */

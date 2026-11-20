@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { opSchema, type Op } from "@pliantui/contract"
 import { resolveRegion } from "@pliantui/core"
 
+import { memoryStorage } from "../test/storage"
 import { createLayerStore } from "./layer-store"
 import { differingProperties, viewOf } from "./resolved-view"
 
@@ -48,16 +49,8 @@ function answer(ops: Op[]) {
 }
 
 async function setup() {
-  const saved: unknown[] = []
-  const store = createLayerStore({
-    surface,
-    storage: {
-      load: () => ({}),
-      save: (_surface, overlay) => {
-        saved.push(overlay)
-      },
-    },
-  })
+  const { storage, saved } = memoryStorage()
+  const store = createLayerStore({ surface, storage })
   store.connect()
   store.registerNodes(nodes)
   await Promise.resolve()
@@ -233,19 +226,16 @@ describe("lockIn", () => {
       })
     const store = createLayerStore({
       surface,
-      storage: {
-        load: () => ({
-          personal: [
-            stored("01KAB0000000000000000000P1", [insert("dashboard", "a")], 1),
-            stored(
-              "01KAB0000000000000000000P2",
-              [{ op: "remove", target: "ins1" }],
-              2
-            ),
-          ],
-        }),
-        save: () => undefined,
-      },
+      storage: memoryStorage({
+        personal: [
+          stored("01KAB0000000000000000000P1", [insert("dashboard", "a")], 1),
+          stored(
+            "01KAB0000000000000000000P2",
+            [{ op: "remove", target: "ins1" }],
+            2
+          ),
+        ],
+      }).storage,
     })
     store.connect()
     store.registerNodes(["dashboard", "sidebar", "a", "c"])
