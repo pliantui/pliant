@@ -84,16 +84,20 @@ describe("recordingMiddleware", () => {
     expect(recording).not.toHaveProperty("result.providerMetadata")
   })
 
-  it("replays by model and prompt, and warns once about stand-ins", async () => {
+  it("warns once when replaying a stand-in recording", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
     await run("record", new MockLanguageModelV4({ doGenerate: answer }))
+    const [file = ""] = await readdir(directory)
+    const key = file.replace(/\.json$/, "")
     const replayer = new MockLanguageModelV4({ doGenerate: [] })
 
     expect((await run("replay", replayer)).text).toBe("Recorded")
     expect((await run("replay", replayer)).text).toBe("Recorded")
     expect(replayer.doGenerateCalls).toHaveLength(0)
     expect(warn).toHaveBeenCalledTimes(1)
-    expect(warn.mock.calls[0]?.[0]).toContain("stand-in")
+    expect(warn.mock.calls[0]?.[0]).toBe(
+      `[pliant] Replaying a recorded response from a stand-in (${key}), recorded outside the production API path.`
+    )
 
     await expect(run("replay", replayer, "Something else")).rejects.toThrow(
       "No recorded answer for this ask"

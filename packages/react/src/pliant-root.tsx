@@ -92,11 +92,12 @@ function PliantSurfaceRoot({
  * properties both apply. When the adapter answers with a conflict whose
  * `current` record has the version's id, an earlier attempt stored it
  * though its answer was lost: the version counts as saved, and the stored
- * overlay replaces this tab's copy. Any other conflict is reported and
- * saved again on the next flush, like any failed save. When a save stores
- * a version but fails with an error other than a conflict, and the version
- * is removed elsewhere before this tab loads it again or retries, the retry
- * stores it again.
+ * overlay replaces this tab's copy. When that record is a tombstone, the
+ * version was removed elsewhere after an earlier attempt stored it, so it
+ * counts as removed and is dropped. A retry made after the adapter purged
+ * the tombstone stores the version again. Any other conflict is reported
+ * and saved again on the next flush, like any failed save. A record with
+ * `deletedAt` is never applied.
  *
  * When the adapter implements `subscribe`, changes stored from another tab
  * or device show as they arrive: the surface loads again without going

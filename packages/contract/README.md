@@ -59,12 +59,26 @@ A manifest's `capabilities` may hold namespaced keys, such as `"crm:starrable"`,
 
 ## Stored overlays
 
-A storage adapter stores and returns each overlay as a record that `stored-overlay.json` and `storedOverlaySchema` describe: `{ overlay, etag, version, updatedAt }`.
+A storage adapter stores and returns each overlay as a record that `stored-overlay.json` and `storedOverlaySchema` describe: `{ overlay, etag, version, updatedAt, deletedAt? }`.
 
 - `overlay` is checked as a saved overlay: the record is valid even when some ops are unknown, newer or invalid, and the adapter keeps every op and unknown field unchanged.
 - `etag` is an opaque string of 1 to 256 characters. Every successful save gives the overlay an etag it has never had before. Clients only compare etags for equality.
 - `version` is an integer from 1. The adapter increases it on every save. For a team or org overlay it is the version that `basis.layers` records, and clients compare versions to tell that a layer changed.
 - `updatedAt` is an RFC 3339 date-time with an offset, like `createdAt`.
+- `deletedAt` is optional and has the same format. A record that has it is a tombstone.
+
+Records stored without `deletedAt` stay valid and are live.
+
+### Tombstones
+
+A save can store a version while the app sees only a network error. If another device removes that overlay before the app retries, a retry that creates the record again would bring it back, and the removal would be lost. Tombstones prevent this.
+
+- Removing an overlay writes a tombstone instead of deleting the record. The tombstone keeps the same overlay id and the overlay it removed, so history and audit can show what was removed. It gets a fresh etag and `version` + 1, and `updatedAt` and `deletedAt` are both the removal time. `storedOverlaySchema` rejects a record whose `deletedAt` isn't the same instant as its `updatedAt`.
+- A tombstone is never applied. Loading a surface returns live records only; reading history returns tombstones too.
+- A create-only save (one that expects no current record) whose id has a tombstone is a conflict, and the conflict returns the tombstone as the current record. The client then treats that version as removed, never as saved, so a retry can't bring it back.
+- A tombstone can't be revived. While it exists, a save under its id is a conflict even when it expects the tombstone's etag: the id is never reused for new content.
+- An adapter keeps each tombstone for as long as the app might retry a save, and for at least 30 days. After that it may purge it. Once the tombstone is purged, the id is free again, and a retry of a save from before the removal can store the overlay again. A removal is protected only from retries made within the retention period.
+- A removed overlay's content stays in its tombstone until the tombstone is purged. An app that must erase content at once, such as when a user asks for their data to be erased, can purge the tombstone right away and accept that a late retry could store the overlay again.
 
 The adapter methods and `StorageConflictError`, which a conditional save throws on a conflict, belong to `@pliantui/react`, not to the contract.
 
@@ -79,6 +93,8 @@ The adapter methods and `StorageConflictError`, which a conditional save throws 
 - `unit` is the unit of a number result: `none`, `percent`, `{ "like": "<argument>" }`, or the `product` and `quotient` rules in `rules`. It decides a derived value's unit; decimals and date styles are inherited as `addDerived` describes.
 - `nulls` is `propagate` (a null argument makes the result null), `skip` (null values are left out, and window functions give their rows null) or `custom` (as `describe` says).
 - `mergeable` lists the summary an aggregate merges from, or is `null`. `count` and `sum` add, `min` and `max` keep the extreme, and `mean` and `m2` merge with `count` by Chan's parallel algorithm. Whether a value covers all rows or only loaded ones also depends on the mode and the server adapter.
+
+`functionSignatures` holds each function's `kind`, `args`, `returns`, `unit`, `nulls` and `mergeable`, the same values as in `functionCatalog`, without `describe`. Code that type-checks or evaluates expressions can import it instead of `functionCatalog` to leave the descriptions and rules out of its bundle.
 
 A SQL translation must give the same results as `rules` and `describe` say, even where the dialect's own functions differ. Where the database raises an error on floating-point overflow instead of returning an infinity, the translation must guard against it or not compile the function.
 
