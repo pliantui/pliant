@@ -288,6 +288,7 @@ test("keeps a sort and hidden column for good", async ({
   await page.getByRole("button", { name: "Columns" }).click()
   await page.getByRole("menuitemcheckbox", { name: "Notes" }).click()
   await page.keyboard.press("Escape")
+  await expect(page.getByRole("menu")).toBeHidden()
   await expect(header(page, "Notes")).toHaveCount(0)
 
   await page.reload()

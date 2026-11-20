@@ -214,7 +214,7 @@ function PliantAskPanel({
         <aside
           {...panel.getPanelProps()}
           aria-labelledby={`${id}-title`}
-          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[60dvh] animate-in flex-col overflow-y-auto border-t bg-background shadow-lg slide-in-from-bottom sm:inset-y-0 sm:right-0 sm:left-auto sm:max-h-none sm:w-full sm:max-w-sm sm:border-t-0 sm:border-l sm:slide-in-from-right"
+          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[60dvh] flex-col overflow-y-auto border-t bg-background shadow-lg motion-safe:animate-in motion-safe:slide-in-from-bottom sm:inset-y-0 sm:right-0 sm:left-auto sm:max-h-none sm:w-full sm:max-w-sm sm:border-t-0 sm:border-l sm:motion-safe:slide-in-from-right"
         >
           <div className="flex items-start justify-between gap-2 p-4 pb-0">
             <div className="flex flex-col gap-1.5">
