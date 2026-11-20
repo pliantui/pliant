@@ -21,3 +21,15 @@ test("serves the registry index", async ({ request }) => {
   const response = await request.get("/r/registry.json")
   expect(response.status()).toBe(200)
 })
+
+test("renders the core concepts pages", async ({ page, errors }) => {
+  await page.goto("/docs/concepts")
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Core concepts" })
+  ).toBeVisible()
+  await page.goto("/docs/concepts/expressions")
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Expressions" })
+  ).toBeVisible()
+  expect(errors).toEqual([])
+})

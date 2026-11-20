@@ -1,0 +1,94 @@
+---
+title: Operations
+description: The closed catalog of operations an overlay is made of, and how Pliant checks each one.
+---
+
+Every change in an overlay is an operation, or op: a small JSON object with the op's name, the address it targets, and its arguments.
+
+```json
+{ "op": "pin", "target": "orders-table/columns/customer", "where": "start" }
+```
+
+## A closed catalog
+
+There are 39 ops, and that set is closed. An overlay can't contain code, CSS or markup, only ops from the catalog, each with arguments of a fixed shape. Labels are plain text, filter values are data, and calculations are [expressions](/docs/concepts/expressions) built from a fixed list of functions. This is what makes an overlay safe to store, share and accept from an AI model: the worst it can do is rearrange what you built.
+
+Each op is unlocked by a **capability**. A component declares its capabilities in its manifest: a region has `slots` and `layout`, and a table has `data`. An op that changes an item, such as a column, needs the capability on the item's parent.
+
+| Capability     | Ops                                                                                                                                                                                                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `props`        | `setProp`                                                                                                                                                                                                                                                           |
+| `label`        | `rename`                                                                                                                                                                                                                                                            |
+| `hideable`     | `hide`, `show`                                                                                                                                                                                                                                                      |
+| `slots`        | `move`, `pin`, `collapse`                                                                                                                                                                                                                                           |
+| `layout`       | `setLayout`, `span`                                                                                                                                                                                                                                                 |
+| `insertable`   | `insert`, `wrap`, `remove`                                                                                                                                                                                                                                          |
+| `form`         | `setDefault` on a form field                                                                                                                                                                                                                                        |
+| `defaults`     | `setDefault` with a `prop`                                                                                                                                                                                                                                          |
+| `presentation` | `setPresentation`, `setSize`                                                                                                                                                                                                                                        |
+| `nav`          | `setLanding`                                                                                                                                                                                                                                                        |
+| `actions`      | `promote`, `demote`, `bindShortcut`                                                                                                                                                                                                                                 |
+| `data`         | `setSort`, `setFilter`, `clearFilter`, `setPage`, `setGroupBy`, `setColumnWidth`, `addDerived`, `addAggregate`, `formatField`, `addHighlight`, `addSortOption`, `addFilterControl`, `addPreset`, `setViewKind`, `configureChart`, `configureStat`, `removeUserItem` |
+| none           | `setDensity` on `@surface`; `setTextScale` and `setMotion` on `@app`                                                                                                                                                                                                |
+
+The catalog is part of `@pliantui/contract`, as `opCatalog` and as `schema/catalog.json`. Each entry lists the op's capability, the layers it's allowed in, and its argument keys. Every op is allowed in every layer except `setPage`, which is `session` only, so a page number is never saved.
+
+The ask route uses capabilities to decide which ops to offer the model for a target. Loading a saved overlay doesn't check them.
+
+## What applies today
+
+Every op validates and resolves. The components that ship today render these:
+
+- **Tables** (`usePliantTable`): `setSort`, `setFilter`, `clearFilter`, `setGroupBy`, `setPage` and `setColumnWidth`, plus `hide`, `show`, `move` and `pin` on columns.
+- **Regions** (`PliantRegion`): `hide`, `show`, `move`, `pin`, `collapse`, `setLayout`, `span`, `wrap` and `remove`. A node added with `insert` renders as a placeholder.
+
+The other ops are part of the format, so overlays that contain them load, save and resolve, but no component renders their effect yet.
+
+## How an op is checked
+
+Pliant checks every op on its own and gives it one of four statuses:
+
+| Status    | Meaning                                                                                        | When loading a saved overlay                                          |
+| --------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `valid`   | It matches its schema, is allowed in the overlay's layer, and targets `@app` only on `@app`.   | Applied.                                                              |
+| `newer`   | It would be valid without some new top-level arguments, so a newer version of Pliant wrote it. | Skipped and kept.                                                     |
+| `unknown` | Its name isn't in the catalog.                                                                 | Skipped and kept. A namespaced name (`acme:star`) is skipped quietly. |
+| `invalid` | Anything else.                                                                                 | Skipped and kept.                                                     |
+
+A saved overlay is never thrown away because of one op. Pliant applies its valid ops, skips the rest, and keeps every op unchanged when the overlay is saved again, so an overlay from a newer version survives a round trip through an older one.
+
+Answers from the ask route are stricter: an answer is accepted only if every op in it is valid. Otherwise the route sends the errors back to the model once, and answers with an error if the second answer fails too.
+
+Op names are camelCase. Names with a namespace, such as `acme:star`, are reserved for extensions, and the `pliant:` namespace is reserved for Pliant itself.
+
+## Targets
+
+Most ops target a node or an item by its [address](/docs/concepts#addresses). Ops on an item, such as `hide` on a column or `setColumnWidth`, target the item. Ops on a whole node, such as `setSort` or `setLayout`, target the node:
+
+```json
+{
+  "op": "setLayout",
+  "target": "key-metrics",
+  "mode": "grid",
+  "columns": 3,
+  "at": "lg"
+}
+```
+
+`move` places an item relative to another one, so the move keeps working when you add items to the base:
+
+```json
+{
+  "op": "move",
+  "target": "key-metrics/slots/overdue",
+  "to": { "before": "revenue" }
+}
+```
+
+Two targets are reserved: `@surface` for preferences that apply to the whole surface, and `@app` for preferences that apply everywhere. An op targets `@app` exactly when its overlay's surface is `@app`.
+
+## Limits
+
+The catalog sets fixed limits, so no overlay can grow without bound: 500 ops per overlay, 8 sort fields, 4 group-by fields, 100 values in an `in` filter, 4 layout columns, 80-character labels, 64-character ids, and 256-character addresses and surfaces. Pixel widths are the one place an op carries a size: `setColumnWidth` takes 16 to 2000 pixels, clamped to the column's own `minSize` and `maxSize`.
+
+The JSON Schema for a single op is published at [`https://pliantui.dev/schema/op.json`](https://pliantui.dev/schema/op.json).

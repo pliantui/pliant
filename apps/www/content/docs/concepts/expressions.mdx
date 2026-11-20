@@ -1,0 +1,163 @@
+---
+title: Expressions
+description: Calculations as JSON trees over a fixed list of typed functions.
+---
+
+Some ops carry a calculation: a derived column, an aggregate, or the condition for a highlight. Pliant writes these as expressions: small JSON trees over a fixed catalog of functions. There's no formula language and no parser, so an expression can't do anything the catalog doesn't define.
+
+<Callout>
+  Pliant validates and type-checks expressions today, with `checkExpression`
+  from `@pliantui/core`. The table component doesn't compute derived columns,
+  aggregates or highlights yet, so the ops that carry them don't change what
+  renders.
+</Callout>
+
+## Nodes
+
+An expression is one of four kinds of node:
+
+| Node                        | Meaning                                         |
+| --------------------------- | ----------------------------------------------- |
+| `{ "field": "price" }`      | A field of the row.                             |
+| `{ "value": 0.2 }`          | A literal: a string, number, boolean or `null`. |
+| `{ "ref": "margin" }`       | Another derived column or aggregate, by its id. |
+| `{ "fn": "…", "args": [] }` | A function call.                                |
+
+This expression is a margin, as a fraction of the price:
+
+```json
+{
+  "fn": "div",
+  "args": [
+    { "fn": "sub", "args": [{ "field": "price" }, { "field": "cost" }] },
+    { "field": "price" }
+  ]
+}
+```
+
+And this op adds it to a table as a derived column:
+
+```json
+{
+  "op": "addDerived",
+  "target": "orders-table",
+  "id": "margin",
+  "label": "Margin",
+  "expr": {
+    "fn": "div",
+    "args": [
+      { "fn": "sub", "args": [{ "field": "price" }, { "field": "cost" }] },
+      { "field": "price" }
+    ]
+  }
+}
+```
+
+An expression has at most 8 levels of nesting, 16 arguments per function and 128 nodes in all. Field ids can't contain dots, so `customer.region` is rejected.
+
+## Where expressions are used
+
+- `addDerived` adds a column computed from each row. Its expression is a **row** expression.
+- `addAggregate` adds a value computed over a group of rows, such as a total. Its expression is an **aggregate** expression: it reads fields only inside aggregate functions such as `sum`.
+- `addHighlight` gives rows a tone (`emphasis`, `success`, `warning` or `danger`) when a row expression is true.
+
+```json
+{
+  "op": "addHighlight",
+  "target": "orders-table",
+  "id": "overdue",
+  "when": {
+    "fn": "lt",
+    "args": [{ "field": "dueDate" }, { "fn": "today", "args": [] }]
+  },
+  "tone": "danger"
+}
+```
+
+```json
+{
+  "op": "addAggregate",
+  "target": "orders-table",
+  "id": "average-value",
+  "label": "Average order",
+  "expr": {
+    "fn": "div",
+    "args": [
+      { "fn": "sum", "args": [{ "field": "value" }] },
+      { "fn": "count", "args": [] }
+    ]
+  }
+}
+```
+
+Filters aren't expressions. A filter is a field, an operator and a value; see [filters](#filters) below.
+
+## Types and units
+
+Every function declares the types of its arguments and of its result: `number`, `integer`, `string`, `boolean`, `date` or `datetime`. An integer is accepted wherever a number is. `checkExpression` checks an expression against your dataset's fields and returns its type, or an error that names the problem.
+
+Numbers can carry a unit, which comes only from a field: a currency, `percent`, or a unit you declare on the field. Literals have no unit, and a value without a unit fits any unit. Units follow arithmetic:
+
+- `add(price, cost)` is in the price's currency. Adding two different currencies fails type checking.
+- In a product, a factor without a unit takes the other's unit, and a percent of a price is a price.
+- Dividing by the same unit gives a number without a unit, so the margin above is a plain fraction. Dividing by a number without a unit keeps the dividend's unit.
+
+## Nulls
+
+Every function declares how it treats `null`:
+
+- **Most row functions propagate it**: if an argument is `null`, the result is `null`. `add(price, null)` is `null`.
+- **Aggregate and window functions skip it**: `null` values are left out, so `mean` averages the values that are there. `sum` of no values is `0`; `mean`, `min` and `max` of no values are `null`.
+- **A few functions handle it themselves**:
+  - `if` picks `else` when its condition is `null`.
+  - `and` is `false` when any argument is `false`, even if others are `null`; `or` is `true` when any argument is `true`. Otherwise either one is `null` when an argument is.
+  - `coalesce` returns its first argument that isn't `null`.
+  - `isNull` is `true` or `false`, never `null`.
+  - `in` is `null` when its first argument is, and a `null` in its list never matches.
+  - `concat` treats `null` as an empty string and is never `null`.
+
+A value that isn't a finite number (`NaN` or infinity), read or computed, is `null`. `div` by zero is `null`, as is `percentChange` from zero.
+
+## Functions
+
+There are 62 built-in functions, in three kinds. **Row** functions read one row. **Aggregate** functions read every row of a group. **Window** functions give each row a value computed over its partition: the row's group when the table is grouped, otherwise every row after filters.
+
+| Group      | Functions                                                                                                                                                                    |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Arithmetic | `add`, `sub`, `mul`, `div`, `abs`, `round`, `floor`, `ceil`, `min2`, `max2`, `clamp`, `percentChange`                                                                        |
+| Logic      | `if`, `and`, `or`, `not`, `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `between`, `in`, `isNull`, `coalesce`                                                                       |
+| Text       | `concat`, `lower`, `upper`, `length`, `contains`, `startsWith`, `left`, `right`                                                                                              |
+| Date       | `dateDiff`, `datePart`, `dateTrunc`, `addDays`, `today`, `age`                                                                                                               |
+| Aggregate  | `count`, `countIf`, `sum`, `sumIf`, `mean`, `min`, `max`, `variance`, `stddev`, `variancePop`, `stddevPop`, `median`, `percentile`, `mode`, `distinctCount`, `first`, `last` |
+| Window     | `rank`, `denseRank`, `runningSum`, `share`, `zScore`                                                                                                                         |
+
+The arguments of an aggregate or window function are row expressions, so they can't contain other aggregates. Row functions can combine aggregates, as in `div(sum(a), sum(b))`.
+
+A few rules apply across the catalog:
+
+- Functions compare strings by Unicode code point, case included. Lengths and positions count code points.
+- `today` is the current date in the viewer's time zone for `personal` and `session` overlays, and in the dataset's time zone for `org` and `team` overlays.
+- A string literal fits a `date` as `YYYY-MM-DD`, and a `datetime` as an ISO 8601 date-time with seconds and an offset.
+
+The full catalog, with each function's arguments, result type, unit, null handling and exact semantics, is `functionCatalog` in `@pliantui/contract`, and `schema/functions.json` in the same package.
+
+## Filters
+
+A filter is a field, an operator and a value:
+
+```json
+{
+  "op": "setFilter",
+  "target": "orders-table",
+  "filter": { "field": "value", "operator": "between", "value": [100, 500] }
+}
+```
+
+The operators are `eq`, `neq`, `in`, `contains`, `startsWith`, `gt`, `gte`, `lt`, `lte`, `between`, `isNull` and `custom`. An `in` list holds 1 to 100 values, `between` takes two and includes both ends, and `isNull` takes none. `custom` hands the value to a filter function you wrote for the column.
+
+Tables apply filters with these rules:
+
+- A missing value (`null` or `undefined`) passes only `isNull`. `neq` and every comparison leave it out, as in SQL.
+- `eq`, `neq` and `in` compare text case-sensitively. `contains` and `startsWith` ignore case, as most search boxes do.
+- Numbers compare with numbers and numeric text. Values that can't be compared, such as a word and a number, are never equal.
+- A date without a time, such as `2026-03-01`, covers that whole day in the viewer's time zone.
