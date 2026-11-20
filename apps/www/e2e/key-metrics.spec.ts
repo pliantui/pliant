@@ -7,7 +7,13 @@ const surface = "/examples/orders"
 async function seed(page: Page, ops: unknown[]) {
   await page.addInitScript(
     ({ key, overlay }) => {
-      localStorage.setItem(key, JSON.stringify({ v: 1, personal: [overlay] }))
+      const record = {
+        overlay,
+        etag: "1",
+        version: 1,
+        updatedAt: "2026-11-19T00:00:00.000Z",
+      }
+      localStorage.setItem(key, JSON.stringify({ v: 1, personal: [record] }))
     },
     {
       key: `pliant:${surface}`,
