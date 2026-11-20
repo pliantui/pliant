@@ -216,7 +216,7 @@ describe("pliantui manifest review", () => {
   it("writes nothing when the review is cancelled", async () => {
     prompts.inject([new Error("cancelled")])
 
-    await expect(run()).rejects.toEqual(new ExitError(1))
+    await expect(run()).rejects.toEqual(new ExitError(0))
     expect(output).toContain("Review cancelled. Nothing was written.")
     expect(output.join("\n")).not.toContain("Something went wrong")
     await expect(
@@ -239,10 +239,9 @@ describe("pliantui manifest review", () => {
     expect(output).toContain(
       "1 value and 3 default-state props need confirmation and were left out. Run pliantui manifest without --yes to review them."
     )
-    expect(await readDecisionsFile()).toEqual({
-      namespace: "app",
-      components: {},
-    })
+    await expect(
+      readFile(path.join(cwd, "lib/pliant/manifest-decisions.json"))
+    ).rejects.toThrow()
   })
 
   it("namespaces kinds and keeps the namespace on later runs", async () => {
@@ -254,18 +253,22 @@ describe("pliantui manifest review", () => {
     expect(await readDecisionsFile()).toMatchObject({ namespace: "acme" })
   })
 
-  it.each(["pliant", "Acme", "acme_ui"])(
-    "rejects the namespace %s",
-    async (namespace) => {
-      await expect(run("--yes", "--namespace", namespace)).rejects.toEqual(
-        new ExitError(1)
-      )
-      expect(output.join("\n")).toContain("namespace")
-      await expect(
-        readFile(path.join(cwd, "lib/pliant/manifests.generated.ts"))
-      ).rejects.toThrow()
-    }
-  )
+  it.each([
+    [
+      "pliant",
+      "The pliant namespace is reserved for Pliant's built-in components",
+    ],
+    ["Acme", "Must be kebab-case and start with a letter, for example acme"],
+    ["acme_ui", "Must be kebab-case and start with a letter, for example acme"],
+  ])("rejects the namespace %s", async (namespace, message) => {
+    await expect(run("--yes", "--namespace", namespace)).rejects.toEqual(
+      new ExitError(1)
+    )
+    expect(output).toContain(`- namespace: ${message}`)
+    await expect(
+      readFile(path.join(cwd, "lib/pliant/manifests.generated.ts"))
+    ).rejects.toThrow()
+  })
 
   it("asks for --yes when there is no terminal to review in", async () => {
     setTerminal(false)
@@ -296,5 +299,51 @@ describe("pliantui manifest review", () => {
     await run("--yes")
 
     expect(Object.keys(await readManifests())).toEqual(["Button"])
+  })
+
+  it("writes JavaScript for a project without TypeScript", async () => {
+    await rm(path.join(cwd, "tsconfig.json"))
+    await rm(path.join(cwd, "components/ui/button.tsx"))
+    await writeFile(
+      path.join(cwd, "jsconfig.json"),
+      JSON.stringify({
+        compilerOptions: { jsx: "react-jsx", paths: { "@/*": ["./*"] } },
+      })
+    )
+    await writeFile(
+      path.join(cwd, "components.json"),
+      JSON.stringify({
+        tsx: false,
+        aliases: { components: "@/components", utils: "@/lib/utils" },
+      })
+    )
+    await writeFile(
+      path.join(cwd, "components/ui/button.jsx"),
+      `
+import { cva } from "class-variance-authority"
+
+const buttonVariants = cva("inline-flex", {
+  variants: { size: { sm: "h-8", lg: "h-10" } },
+})
+
+export function Button({ size }) {
+  return <button className={buttonVariants({ size })} />
+}
+`
+    )
+
+    await run("--yes")
+
+    const source = await readFile(
+      path.join(cwd, "lib/pliant/manifests.generated.js"),
+      "utf8"
+    )
+    const module = (await import(
+      `data:text/javascript,${encodeURIComponent(source)}`
+    )) as { manifests: Record<string, { kind: string }> }
+    expect(module.manifests["Button"]?.kind).toBe("app:button")
+    await expect(
+      readFile(path.join(cwd, "lib/pliant/manifests.generated.ts"))
+    ).rejects.toThrow()
   })
 })

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs"
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
@@ -294,6 +295,32 @@ describe("pliantui manifest", () => {
         props: { padding: { values: ["sm", "lg"] } },
       }),
       Stack: manifest("stack", "Stack", {}),
+      Eyebrow: manifest("eyebrow", "Eyebrow", {}),
+      Caption: manifest("caption", "Caption", {}),
+      Kbd: manifest("kbd", "Kbd", {
+        props: { size: { values: ["sm", "md"] } },
+      }),
+      Mark: manifest("mark", "Mark", {
+        props: { tint: { values: ["plain"] } },
+      }),
+      Ribbon: manifest("ribbon", "Ribbon", {
+        props: { corner: { values: ["top", "bottom"] } },
+      }),
+      RestBox: manifest("rest-box", "Rest box", {
+        props: { padding: { values: ["sm", "lg"] } },
+      }),
+      SpreadBox: manifest("spread-box", "Spread box", {
+        props: { padding: { values: ["sm", "lg"] } },
+      }),
+      Indirect: manifest("indirect", "Indirect", {
+        props: { size: { values: ["sm", "lg"] } },
+      }),
+      Fallback: manifest("fallback", "Fallback", {
+        props: { size: { values: ["sm", "lg"], default: "lg" } },
+      }),
+      Opaque: manifest("opaque", "Opaque", {}),
+      Resized: manifest("resized", "Resized", {}),
+      Toggle3D: manifest("toggle3d", "Toggle 3D", {}),
       StatusPill: manifest("status-pill", "Status pill", {
         props: {
           severity: { values: ["low", "high"], semantic: ["low", "high"] },
@@ -316,6 +343,20 @@ describe("pliantui manifest", () => {
       "components/ui/tag.tsx:12 The look variant of tagVariants can't be read statically: the computed key [accent].",
       "components/ui/tag.tsx:18 defaultVariants is nested inside the variants of tagVariants, where cva and tv treat it as a variant, so it has no effect. Move it next to variants.",
       "components/ui/eyebrow.tsx:5 cva() here can't be traced to class-variance-authority or tailwind-variants, so its variants aren't read.",
+      "components/ui/namespaced.tsx:19 Legacy.cva() here can't be traced to class-variance-authority or tailwind-variants, so its variants aren't read.",
+      "components/ui/indirect.tsx:21 The argument to indVariants can't be read statically, so Opaque's props that reach it are left out.",
+      [
+        "Opaque  components/ui/indirect.tsx",
+        "  size  values not readable",
+      ].join("\n"),
+      ["Caption  components/ui/namespaced.tsx", "  variants not readable"].join(
+        "\n"
+      ),
+      [
+        "Resized  components/ui/indirect.tsx",
+        "Toggle3D  components/ui/indirect.tsx",
+        "Note  components/ui/inline.tsx",
+      ].join("\n"),
       ["Tag  components/ui/tag.tsx", "  shape  from cva"].join("\n"),
       "  look  values not readable",
       "  intent  values not readable",
@@ -331,6 +372,11 @@ describe("pliantui manifest", () => {
       expect(stdout).toContain(line)
     }
     expect(stdout).not.toContain("emphasis  from")
+    expect(stdout).not.toContain("defaultVariants of indVariants")
+    expect(stdout).not.toContain("default size of indVariants")
+    expect(
+      existsSync(path.join(cwd, "components/ui/side-effect-ran.txt"))
+    ).toBe(false)
     expect(stdout).not.toContain("from union")
   })
 

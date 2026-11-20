@@ -45,6 +45,8 @@ export interface Component {
   unreadable: Set<string>
   variantsReadable: boolean
   usesVariants: boolean
+  /** Props and variants whose value the component works out itself. */
+  computed: Set<string>
   /** Props that got different defaults from different definitions. */
   defaultConflicts: Map<string, Set<string>>
   passes: { target: Component; targetProp: string; binding: Binding }[]
@@ -112,6 +114,7 @@ export function findComponents(
           unreadable: new Set(),
           variantsReadable: true,
           usesVariants: false,
+          computed: new Set(),
           defaultConflicts: new Map(),
           passes: [],
           spreads: [],
@@ -178,7 +181,11 @@ function readBindings(component: Component) {
       }
       const nameNode = element.getNameNode()
       const prop = readPropertyKey(element.getPropertyNameNode() ?? nameNode)
-      if (prop !== undefined && Node.isIdentifier(nameNode)) {
+      if (
+        prop !== undefined &&
+        Node.isIdentifier(nameNode) &&
+        !isReassigned(component, element)
+      ) {
         component.bindings.set(element, {
           prop,
           initializer: element.getInitializer(),
@@ -207,6 +214,70 @@ function readBindings(component: Component) {
       addPattern(pattern)
     }
   }
+}
+
+// A binding the component assigns to no longer holds what the user passed.
+function isReassigned(component: Component, element: Node) {
+  const refersToElement = (node: Node) => {
+    const target = unwrapExpression(node)
+    return (
+      Node.isIdentifier(target) &&
+      getDeclarations(target, { followAliases: false })[0] === element
+    )
+  }
+  return component.fn.getDescendants().some((node) => {
+    if (Node.isBinaryExpression(node)) {
+      const kind = node.getOperatorToken().getKind()
+      return (
+        kind >= SyntaxKind.FirstAssignment &&
+        kind <= SyntaxKind.LastAssignment &&
+        refersToElement(node.getLeft())
+      )
+    }
+    if (
+      Node.isPrefixUnaryExpression(node) ||
+      Node.isPostfixUnaryExpression(node)
+    ) {
+      const operator = node.getOperatorToken()
+      return (
+        (operator === SyntaxKind.PlusPlusToken ||
+          operator === SyntaxKind.MinusMinusToken) &&
+        refersToElement(node.getOperand())
+      )
+    }
+    return false
+  })
+}
+
+/**
+ * Whether a prop is still in a props object: not destructured out of it
+ * before a rest spread, and in its type when the type is known.
+ */
+export function isInPropsObject(node: Node, name: string) {
+  const expression = unwrapExpression(node)
+  const declaration = Node.isIdentifier(expression)
+    ? getDeclarations(expression, { followAliases: false })[0]
+    : undefined
+  if (Node.isBindingElement(declaration)) {
+    const pattern = declaration.getParent()
+    const siblings = Node.isObjectBindingPattern(pattern)
+      ? pattern.getElements()
+      : []
+    const destructured = siblings.some(
+      (sibling) =>
+        sibling !== declaration &&
+        readPropertyKey(
+          sibling.getPropertyNameNode() ?? sibling.getNameNode()
+        ) === name
+    )
+    if (destructured) {
+      return false
+    }
+  }
+  const type = expression.getType()
+  return (
+    type.isAny() || type.isUnknown() || type.getProperty(name) !== undefined
+  )
 }
 
 export function isPropsObject(component: Component, node: Node) {

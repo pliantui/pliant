@@ -16,6 +16,7 @@ import {
 import type { Diagnostic } from "../manifest/diagnostic"
 import { formatSummary } from "../manifest/format-summary"
 import { inferComponents } from "../manifest/infer-components"
+import type { InferredComponent } from "../manifest/inferred-component"
 import { defaultNamespace, namespaceSchema } from "../manifest/namespace"
 import { renderManifests } from "../manifest/render-manifests"
 import { hasUndecided, reviewComponents } from "../manifest/review"
@@ -25,6 +26,7 @@ import { handleError } from "../utils/handle-error"
 import { highlighter } from "../utils/highlighter"
 import { logger } from "../utils/logger"
 import { pluralize } from "../utils/pluralize"
+import { spinner } from "../utils/spinner"
 
 const manifestOptionsSchema = z.object({
   cwd: z.string(),
@@ -57,8 +59,8 @@ export const manifest = new Command()
       handleError(error)
     }
     if (result === "cancelled") {
-      logger.warn("Review cancelled. Nothing was written.")
-      process.exit(1)
+      logger.info("Review cancelled. Nothing was written.")
+      process.exit(0)
     }
   })
 
@@ -85,13 +87,23 @@ async function generateManifests(
   }
 
   const files = await findSourceFiles(ui)
-  const project = new Project({
-    tsConfigFilePath: config.tsConfigFilePath,
-    skipAddingFilesFromTsConfig: true,
-  })
-  const sourceFiles = files.map((file) => project.addSourceFileAtPath(file))
+  const reading = spinner(
+    `Reading ${pluralize(files.length, "file")} in ${highlighter.info(relative(ui))}.`
+  ).start()
   const diagnostics: Diagnostic[] = []
-  const inferred = inferComponents(sourceFiles, diagnostics)
+  let inferred: InferredComponent[]
+  try {
+    const project = new Project({
+      tsConfigFilePath: config.tsConfigFilePath,
+      skipAddingFilesFromTsConfig: true,
+    })
+    const sourceFiles = files.map((file) => project.addSourceFileAtPath(file))
+    inferred = inferComponents(sourceFiles, diagnostics)
+  } catch (error) {
+    reading.fail()
+    throw error
+  }
+  reading.succeed()
 
   const outputDirectory = path.join(lib, "pliant")
   const decisionsFile = path.join(outputDirectory, "manifest-decisions.json")
@@ -149,9 +161,14 @@ async function generateManifests(
     savedDecisions = true
   }
 
-  // The namespace is saved so kinds stay the same on later runs.
+  // The namespace is saved so kinds stay the same on later runs. The
+  // default needs no file of its own.
   let savedNamespace = false
-  if (!savedDecisions && decisions.namespace !== namespace) {
+  if (
+    !savedDecisions &&
+    decisions.namespace !== namespace &&
+    (namespace !== defaultNamespace || existsSync(decisionsFile))
+  ) {
     await mkdir(outputDirectory, { recursive: true })
     await writeFile(
       decisionsFile,

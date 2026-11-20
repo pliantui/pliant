@@ -6,6 +6,7 @@ import {
   getBinding,
   getDefault,
   isCallTo,
+  isInPropsObject,
   isPropsObject,
   type Component,
 } from "./component"
@@ -14,6 +15,7 @@ import {
   getDeclarations,
   readLiteral,
   readPropertyKey,
+  resolveExpression,
   unwrapExpression,
 } from "./read-static"
 import {
@@ -74,6 +76,8 @@ export function readVariantCalls(
     if (!variantCall) {
       const untraced = getUntracedVariantCall(call.getExpression())
       if (untraced) {
+        component.usesVariants = true
+        component.variantsReadable = false
         const diagnostic = createDiagnostic(
           untraced,
           `${untraced.getExpression().getText()}() here can't be traced to class-variance-authority or tailwind-variants, so its variants aren't read.`
@@ -106,17 +110,22 @@ export function readVariantCalls(
 
     // Spreading the props passes every variant through, except keys written
     // after the spread. Literal keys written before it are the defaults.
+    // Props destructured out of the spread object, or missing from its type,
+    // don't reach the call.
     const addAll = (
+      spread: Node,
       overridden = new Set<string>(),
       presets = new Map<string, string>()
     ) => {
+      const isPassed = (name: string) =>
+        !overridden.has(name) && isInPropsObject(spread, name)
       for (const name of definition.unreadable) {
-        if (!overridden.has(name)) {
+        if (isPassed(name)) {
           component.unreadable.add(name)
         }
       }
       for (const [name, variant] of definition.variants) {
-        if (overridden.has(name)) {
+        if (!isPassed(name)) {
           continue
         }
         const preset = presets.get(name)
@@ -133,11 +142,23 @@ export function readVariantCalls(
       }
     }
     if (isPropsObject(component, argument)) {
-      addAll()
+      addAll(argument)
       continue
     }
-    const object = unwrapExpression(argument)
+    const object = unwrapExpression(resolveExpression(argument))
     if (!Node.isObjectLiteralExpression(object)) {
+      diagnostics.push(
+        createDiagnostic(
+          argument,
+          `The argument to ${definition.name} can't be read statically, so ${component.name}'s props that reach it are left out.`
+        )
+      )
+      for (const name of [
+        ...definition.variants.keys(),
+        ...definition.unreadable,
+      ]) {
+        component.unreadable.add(name)
+      }
       continue
     }
     const properties = object.getProperties()
@@ -165,7 +186,7 @@ export function readVariantCalls(
               presets.set(key, String(literal))
             }
           }
-          addAll(overridden, presets)
+          addAll(property.getExpression(), overridden, presets)
         }
         continue
       }
@@ -183,6 +204,19 @@ export function readVariantCalls(
         continue
       }
       const binding = getBinding(component, value)
+      if (!binding) {
+        // A value the component works out itself isn't exposed, not even
+        // through a string-union type on the props.
+        component.computed.add(key)
+        for (const identifier of value.getDescendantsOfKind(
+          SyntaxKind.Identifier
+        )) {
+          const found = getBinding(component, identifier)
+          if (found) {
+            component.computed.add(found.prop)
+          }
+        }
+      }
       if (definition.unreadable.has(key)) {
         if (binding) {
           component.unreadable.add(binding.prop)

@@ -91,7 +91,8 @@ export function readUnionProps(component: Component) {
     if (
       !values ||
       component.props.has(name) ||
-      component.unreadable.has(name)
+      component.unreadable.has(name) ||
+      component.computed.has(name)
     ) {
       continue
     }

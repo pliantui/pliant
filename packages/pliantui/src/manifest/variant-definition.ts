@@ -1,4 +1,4 @@
-import { Node, type CallExpression } from "ts-morph"
+import { Node, SyntaxKind, type CallExpression } from "ts-morph"
 
 import { createDiagnostic, type Diagnostic } from "./diagnostic"
 import {
@@ -59,14 +59,40 @@ const factoryMakers: Record<string, { name: string; factory: Factory }> = {
   },
 }
 
+/** The module and original name an import or re-export refers to. */
 function getImportedName(declaration: Node) {
-  if (!Node.isImportSpecifier(declaration)) {
-    return undefined
+  if (Node.isImportSpecifier(declaration)) {
+    const { propertyName, name } = declaration.compilerNode
+    return {
+      module: declaration.getImportDeclaration().getModuleSpecifierValue(),
+      name: (propertyName ?? name).text,
+    }
   }
-  return {
-    module: declaration.getImportDeclaration().getModuleSpecifierValue(),
-    name: declaration.getName(),
+  if (Node.isExportSpecifier(declaration)) {
+    const module = declaration.getExportDeclaration().getModuleSpecifierValue()
+    const { propertyName, name } = declaration.compilerNode
+    return module === undefined
+      ? undefined
+      : { module, name: (propertyName ?? name).text }
   }
+  return undefined
+}
+
+function getNamespaceModule(node: Node) {
+  for (const declaration of getDeclarations(node, { followAliases: false })) {
+    if (Node.isNamespaceImport(declaration)) {
+      return declaration
+        .getFirstAncestorByKind(SyntaxKind.ImportDeclaration)
+        ?.getModuleSpecifierValue()
+    }
+  }
+  return undefined
+}
+
+function getCalleeName(callee: Node) {
+  return Node.isPropertyAccessExpression(callee)
+    ? callee.getName()
+    : callee.getText()
 }
 
 /**
@@ -76,6 +102,11 @@ function getImportedName(declaration: Node) {
  */
 function getFactory(call: CallExpression): Factory | undefined {
   const callee = call.getExpression()
+  if (Node.isPropertyAccessExpression(callee)) {
+    const module = getNamespaceModule(callee.getExpression())
+    const factory = module === undefined ? undefined : factories[module]
+    return factory?.name === callee.getName() ? factory : undefined
+  }
   if (!Node.isIdentifier(callee)) {
     return undefined
   }
@@ -131,7 +162,7 @@ export function getUntracedVariantCall(
   if (!Node.isCallExpression(value) || getFactory(value)) {
     return undefined
   }
-  const name = value.getExpression().getText()
+  const name = getCalleeName(value.getExpression())
   return name === "cva" || name === "tv" ? value : undefined
 }
 
@@ -217,6 +248,14 @@ export function readVariantDefinition(
       )
     } else {
       for (const [name, valueNode] of defaults.entries) {
+        const resolved = unwrapExpression(resolveExpression(valueNode))
+        // null or undefined means the variant has no default.
+        if (
+          resolved.getKind() === SyntaxKind.NullKeyword ||
+          resolved.getText() === "undefined"
+        ) {
+          continue
+        }
         const value = readLiteral(valueNode)
         if (value === undefined) {
           report(

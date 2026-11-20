@@ -7,6 +7,8 @@ import type {
   InferredValue,
 } from "./inferred-component"
 
+const multiselectHint = "Space to select. A to toggle all. Enter to submit."
+
 class ReviewCancelledError extends Error {}
 
 async function ask(question: Omit<PromptObject<"answer">, "name">) {
@@ -113,6 +115,7 @@ async function adjustComponent(component: InferredComponent) {
     type: "multiselect",
     message: `${component.name}: which values can users set?`,
     instructions: false,
+    hint: multiselectHint,
     choices: entries.map((entry, index) => ({
       title: entry.label,
       value: index,
@@ -129,6 +132,7 @@ async function adjustComponent(component: InferredComponent) {
           type: "multiselect",
           message: `${component.name}: which of the others should users see but not set?`,
           instructions: false,
+          hint: multiselectHint,
           choices: rest.map((entry) => ({
             title: entry.label,
             value: entry.index,
@@ -157,12 +161,14 @@ async function adjustCapabilities(components: InferredComponent[]) {
     type: "multiselect",
     message: "Which components can users rename?",
     instructions: false,
+    hint: multiselectHint,
     choices: choices((component) => component.label),
   })
   const hideable = await askIndexes({
     type: "multiselect",
     message: "Which components can users hide?",
     instructions: false,
+    hint: multiselectHint,
     choices: choices((component) => component.hideable),
   })
   for (const [index, component] of components.entries()) {
@@ -200,6 +206,7 @@ async function confirmPending(components: InferredComponent[]) {
     type: "multiselect",
     message: "These need your confirmation. Which can users set?",
     instructions: false,
+    hint: multiselectHint,
     choices: pending.map((entry, index) => ({
       title: entry.label,
       value: index,
@@ -256,6 +263,7 @@ async function confirmPending(components: InferredComponent[]) {
     type: "multiselect",
     message: "Which of these should save users' own changes automatically?",
     instructions: false,
+    hint: multiselectHint,
     choices: kept.map((entry, index) => ({ title: entry.label, value: index })),
   })
   for (const [index, entry] of kept.entries()) {
