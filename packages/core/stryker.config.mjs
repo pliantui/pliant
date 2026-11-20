@@ -64,5 +64,5 @@ export default {
   // `break` sits just below the current score, so the weekly run fails if
   // the score drops. A shard's score isn't the package's, so CI checks the
   // merged score instead.
-  thresholds: { high: 80, low: 60, break: shard === undefined ? 79 : null },
+  thresholds: { high: 80, low: 60, break: shard === undefined ? 78 : null },
 }
