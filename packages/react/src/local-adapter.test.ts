@@ -68,10 +68,27 @@ describe("localAdapter", () => {
       "personal overlays that aren't a list",
       JSON.stringify({ v: 1, personal: {} }),
     ],
+    [
+      "a document from an older version",
+      JSON.stringify({
+        v: 0,
+        personal: [overlay("01KAB0000000000000000000P1", 200)],
+      }),
+    ],
   ])("loads %s as no overlays", (_name, value) => {
     localStorage.setItem(key, value)
 
     expect(localAdapter().load("/orders")).toEqual({ personal: [] })
+  })
+
+  it("saves over JSON that doesn't parse", () => {
+    localStorage.setItem(key, "{")
+    const adapter = localAdapter()
+    void adapter.save("/orders", overlay("01KAB0000000000000000000P1", 200))
+
+    expect(adapter.load("/orders")).toEqual({
+      personal: [overlay("01KAB0000000000000000000P1", 200)],
+    })
   })
 
   it("never overwrites data written by a newer version", () => {

@@ -1,5 +1,5 @@
 import { filterFn_inNumberRange } from "@tanstack/react-table"
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 
 import type { FilterValue } from "@pliantui/core"
 
@@ -157,14 +157,6 @@ describe("range inputs", () => {
 })
 
 describe("dates", () => {
-  beforeAll(() => {
-    vi.stubEnv("TZ", "America/New_York")
-  })
-
-  afterAll(() => {
-    vi.unstubAllEnvs()
-  })
-
   it("runs in a zone behind UTC", () => {
     expect(new Date(2026, 2, 1).getTimezoneOffset()).toBe(300)
   })

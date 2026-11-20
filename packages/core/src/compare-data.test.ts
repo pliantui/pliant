@@ -58,6 +58,11 @@ describe("compareData", () => {
     })
   })
 
+  it("sorts NaN before every other number", () => {
+    expect(compareData(Number.NaN, -Infinity)).toBeLessThan(0)
+    expect(compareData({ n: 1 }, { n: Number.NaN })).toBeGreaterThan(0)
+  })
+
   it("compares BigInt without throwing", () => {
     expect(compareData({ n: 1n }, { n: 1n })).toBe(0)
     expect(compareData({ n: 1n }, { n: 2n })).toBeLessThan(0)

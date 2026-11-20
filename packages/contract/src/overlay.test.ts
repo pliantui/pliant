@@ -3,7 +3,7 @@ import * as z from "zod"
 
 import { readFixture } from "../test/fixtures"
 import { expectCrossFieldIssue } from "../test/fixtures/cross-field"
-import { overlaySchema } from "./overlay"
+import { overlayOpSchema, overlaySchema } from "./overlay"
 
 const fixture = readFixture("overlay")
 
@@ -51,5 +51,37 @@ describe("overlaySchema", () => {
     expect(overlaySchema.safeParse({ ...withoutExplain, ops }).success).toBe(
       false
     )
+  })
+})
+
+describe("overlayOpSchema", () => {
+  it.each([
+    { op: "hide", target: "orders-table/columns/value" },
+    { op: "setLabel", target: "order-card[]/actions/refund" },
+    { op: "pinColumns", target: "@page" },
+    { op: "futureOp2", target: "@my-app-2" },
+    { op: "a".repeat(64), target: `a${"/b".repeat(127)}c` },
+  ])("accepts %j", (op) => {
+    expect(overlayOpSchema.safeParse(op).success).toBe(true)
+  })
+
+  it.each([
+    { op: "Hide", target: "orders-table" },
+    { op: "1hide", target: "orders-table" },
+    { op: "hide!", target: "orders-table" },
+    { op: "!hide", target: "orders-table" },
+    { op: "", target: "orders-table" },
+    { op: "a".repeat(65), target: "orders-table" },
+    { op: "hide", target: "Orders-table" },
+    { op: "hide", target: "orders table" },
+    { op: "hide", target: "/orders-table" },
+    { op: "hide", target: "@App" },
+    { op: "hide", target: "@app-" },
+    { op: "hide", target: "@app--x" },
+    { op: "hide", target: "@-app" },
+    { op: "hide", target: `a${"/b".repeat(128)}` },
+    { op: "hide" },
+  ])("rejects %j", (op) => {
+    expect(overlayOpSchema.safeParse(op).success).toBe(false)
   })
 })

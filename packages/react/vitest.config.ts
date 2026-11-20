@@ -10,6 +10,12 @@ const { version } = JSON.parse(
   )
 ) as { version: string }
 
+// The date filter tests need a zone behind UTC. Set for the whole process,
+// because a zone set inside a worker thread, as Stryker runs the tests,
+// doesn't apply to it.
+// eslint-disable-next-line turbo/no-undeclared-env-vars -- set, not read
+process.env.TZ = "America/New_York"
+
 export default defineConfig({
   define: { __PLIANT_CORE_VERSION__: JSON.stringify(version) },
   test: {
