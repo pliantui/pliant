@@ -179,7 +179,11 @@ export const mdxComponents = {
   FileTree,
   Folder,
   File,
-  Kbd,
+  // shadcn's Kbd sets muted text on a muted fill, which is too faint for
+  // body copy.
+  Kbd: ({ className, ...props }: React.ComponentProps<typeof Kbd>) => (
+    <Kbd className={cn("text-foreground", className)} {...props} />
+  ),
   Link,
   LinkedCard: ({ className, ...props }: React.ComponentProps<typeof Link>) => (
     <Link

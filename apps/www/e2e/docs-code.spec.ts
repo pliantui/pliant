@@ -23,7 +23,7 @@ test("shows install commands for the reader's package manager", async ({
   ).toHaveAttribute("aria-selected", "true")
 
   const block = page
-    .locator("figure")
+    .getByRole("figure")
     .filter({ has: page.getByText("yarn dlx pliantui init") })
     .first()
   await block.getByRole("button", { name: "Copy" }).click()
@@ -38,4 +38,27 @@ test("shows install commands for the reader's package manager", async ({
   )
   await expect(page.getByText("yarn dlx pliantui init").first()).toBeVisible()
   expect(errors).toEqual([])
+})
+
+test("remembers whether the reader installs with the CLI or by hand", async ({
+  page,
+}) => {
+  await page.goto("/docs/cli")
+  const manual = page.getByRole("tab", { name: "Manual" })
+
+  await manual.click()
+  await expect(page.getByText("Install the React package")).toBeVisible()
+
+  await page.reload()
+  await expect(manual).toHaveAttribute("aria-selected", "true")
+  await expect(page.getByText("Install the React package")).toBeVisible()
+})
+
+test("folds a folder in a file tree", async ({ page }) => {
+  await page.goto("/docs/cli")
+  const folder = page.getByRole("button", { name: "pliant", exact: true })
+
+  await expect(page.getByText("pliant-region.tsx")).toBeVisible()
+  await folder.click()
+  await expect(page.getByText("pliant-region.tsx")).toBeHidden()
 })
