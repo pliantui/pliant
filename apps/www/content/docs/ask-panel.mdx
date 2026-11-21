@@ -1,0 +1,139 @@
+---
+title: Ask panel
+description: Let users describe a change in words and preview it before saving.
+---
+
+The ask panel is optional. Pliant works without AI.
+
+Users pick a part of the page, describe a change such as "hide the overdue card", and see the result on the page as a preview. Nothing is saved until the user saves it, with the panel's **Lock in** button.
+
+In the panel, users press <Kbd>Enter</Kbd> to send an ask and <Kbd>Shift</Kbd> <Kbd>Enter</Kbd> for a new line.
+
+## Add the server route
+
+```bash
+pnpm add @pliantui/server ai @ai-sdk/anthropic
+```
+
+Add your API key to `.env.local`:
+
+```bash title=".env.local"
+ANTHROPIC_API_KEY=your-api-key
+```
+
+```ts title="app/api/pliant/route.ts"
+import { anthropic } from "@ai-sdk/anthropic"
+
+import { createPliantHandler } from "@pliantui/server"
+
+import { auth } from "@/lib/auth" // replace with your auth
+
+export const POST = createPliantHandler({
+  model: anthropic("claude-haiku-5-5"),
+  getUser: async (request) => (await auth(request))?.userId ?? null,
+})
+```
+
+The route turns an ask into a validated overlay and sends it back. It never changes your data.
+
+- `model` takes an [AI SDK](https://ai-sdk.dev) language model instance, such as `anthropic("claude-haiku-5-5")`. A model id string isn't accepted.
+- `getUser` returns the signed-in user's id, or `null` to answer with a 401.
+
+Other options:
+
+| Option         | Default      | What it does                                                |
+| -------------- | ------------ | ----------------------------------------------------------- |
+| `maxToolCalls` | 8            | Most tool calls the model may make in one answer.           |
+| `timeout`      | 15000        | Milliseconds allowed for each model call.                   |
+| `onError`      | none         | Called with errors the response hides, so you can log them. |
+| `now`          | system clock | The clock used for each overlay's `createdAt`.              |
+| `generateId`   | ULIDs        | Generates overlay ids, which must be ULIDs.                 |
+
+<Callout variant="warning">
+  The route doesn't rate-limit asks. Keep it behind your sign-in, and add rate
+  limiting before you expose it.
+</Callout>
+
+## Add the panel
+
+```bash
+pnpm dlx shadcn@latest add https://pliantui-www.pliantui-dev.workers.dev/r/pliant-ask-panel.json
+```
+
+Give it the route's URL and the regions users can ask about:
+
+```tsx title="components/ask-button.tsx"
+"use client"
+
+import {
+  PliantAskPanel,
+  type PliantAskTarget,
+} from "@/components/pliant/pliant-ask-panel"
+
+const targets = [
+  {
+    id: "key-metrics",
+    label: "Key metrics",
+    context: {
+      manifest: {
+        kind: "region",
+        version: 1,
+        description: "A row of key metric cards",
+        capabilities: { slots: true, hideable: true, layout: true },
+      },
+      collection: {
+        name: "slots",
+        items: [
+          { id: "revenue", label: "Revenue" },
+          { id: "orders", label: "Orders" },
+          { id: "overdue", label: "Overdue" },
+        ],
+      },
+    },
+  },
+] satisfies PliantAskTarget[]
+
+export function AskButton() {
+  return <PliantAskPanel endpoint="/api/pliant" targets={targets} />
+}
+```
+
+`context` tells the model what the region holds: its kind, what can change, and its items. It never includes your rows. A target can also have `suggestions`, a list of example asks shown as chips that fill in the prompt.
+
+<Callout>
+  You write each target's `context` by hand. Pliant doesn't derive it from the
+  region. See the [roadmap](/docs/roadmap).
+</Callout>
+
+Render it inside `PliantRoot`, next to the region:
+
+```tsx title="app/orders/page.tsx"
+import { PliantRoot } from "@pliantui/react"
+import { localAdapter } from "@pliantui/react/local"
+
+import { AskButton } from "@/components/ask-button"
+
+export default function OrdersPage() {
+  return (
+    <main>
+      <PliantRoot surface="/orders" storage={localAdapter}>
+        <header className="flex items-center justify-between">
+          <h1>Orders</h1>
+          <AskButton />
+        </header>
+        {/* your regions and tables */}
+      </PliantRoot>
+    </main>
+  )
+}
+```
+
+The panel opens from an "Ask" button. From the `sm` breakpoint up it docks to the right edge of the screen; on small screens it's a sheet at the bottom. It covers what's under it, so add room while it's open, on the `<main>` in `app/orders/page.tsx` (or your layout):
+
+```tsx
+<main className="max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh] sm:has-[[data-slot=pliant-ask-panel]]:pr-96">
+  …
+</main>
+```
+
+To let users point at the part of the page they want to change instead of picking it from a list, add `pliant-point-mode` with the same shadcn command.

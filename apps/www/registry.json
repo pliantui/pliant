@@ -101,14 +101,14 @@
       "name": "pliant-data-table",
       "type": "registry:component",
       "title": "Pliant Data Table",
-      "description": "A data table for usePliantTable with sortable headers, grouped rows that expand, aggregate totals, derived columns, highlighted rows, a column menu and pagination.",
+      "description": "A data table for usePliantTable with sortable headers, grouped rows that expand, aggregate totals, derived columns, highlighted rows, a column menu and pagination with a choice of rows per page.",
       "dependencies": [
         "@pliantui/react",
         "@tanstack/react-table",
         "cn",
         "lucide-react"
       ],
-      "registryDependencies": ["button", "dropdown-menu", "table"],
+      "registryDependencies": ["button", "dropdown-menu", "select", "table"],
       "files": [
         {
           "path": "registry/pliant/pliant-data-table.tsx",
@@ -139,6 +139,39 @@
           "path": "registry/pliant/pliant-data-table-format.ts",
           "type": "registry:lib",
           "target": "@components/pliant/pliant-data-table-format.ts"
+        }
+      ]
+    },
+    {
+      "name": "pliant-data-table-toolbar",
+      "type": "registry:component",
+      "title": "Pliant Data Table Toolbar",
+      "description": "A toolbar for pliant-data-table with a search box, faceted filters with row counts, sort options, presets, the columns menu and a Reset button, which also shows the filters, sort options and presets that ops add.",
+      "dependencies": [
+        "@pliantui/contract",
+        "@pliantui/react",
+        "@tanstack/react-table",
+        "cn",
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "badge",
+        "button",
+        "dropdown-menu",
+        "input",
+        "separator",
+        "https://pliantui.dev/r/pliant-data-table.json"
+      ],
+      "files": [
+        {
+          "path": "registry/pliant/pliant-data-table-toolbar.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-data-table-toolbar.tsx"
+        },
+        {
+          "path": "registry/pliant/pliant-data-table-faceted-filter.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-data-table-faceted-filter.tsx"
         }
       ]
     }

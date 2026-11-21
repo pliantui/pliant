@@ -57,6 +57,16 @@ test("lists and serves the data table registry item", async ({ request }) => {
   ])
 })
 
+test("serves the data table toolbar registry item", async ({ request }) => {
+  const response = await request.get("/r/pliant-data-table-toolbar.json")
+  expect(response.status()).toBe(200)
+  const item = registryItem.parse(await response.json())
+  expect(item.files.map((file) => file.path).sort()).toEqual([
+    "registry/pliant/pliant-data-table-faceted-filter.tsx",
+    "registry/pliant/pliant-data-table-toolbar.tsx",
+  ])
+})
+
 const conceptPages = [
   { path: "/docs/concepts", title: "Core concepts" },
   { path: "/docs/concepts/layers", title: "Layers" },

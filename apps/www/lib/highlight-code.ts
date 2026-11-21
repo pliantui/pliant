@@ -8,6 +8,14 @@ const commands: [npm: string, pnpm: string, yarn: string, bun: string][] = [
   ["npm run ", "pnpm ", "yarn ", "bun run "],
 ]
 
+// The themes' comment colours fall below 4.5:1 contrast on the code
+// background, so comments get a darker grey in light mode and a lighter one in
+// dark mode.
+const commentColors: Record<string, string> = {
+  "#6E7781": "#57606A",
+  "#8B8B8B94": "#A3A3A3",
+}
+
 // Keeps each code block's source on its `code` element, so the copy button
 // copies exactly what the page shows. A one-line npm command also gets its
 // pnpm, yarn and bun forms, which the docs show as package-manager tabs.
@@ -25,6 +33,14 @@ export const transformers: ShikiTransformer[] = [
       node.properties["__pnpm__"] = raw.replace(npm, pnpm)
       node.properties["__yarn__"] = raw.replace(npm, yarn)
       node.properties["__bun__"] = raw.replace(npm, bun)
+    },
+    span(node) {
+      const style = node.properties.style
+      if (typeof style !== "string") return
+      node.properties.style = style.replace(
+        /#[0-9A-F]{6,8}/gi,
+        (color) => commentColors[color.toUpperCase()] ?? color
+      )
     },
   },
 ]
