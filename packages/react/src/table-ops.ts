@@ -1,6 +1,7 @@
 import type { Layer, Op } from "@pliantui/contract"
 import type { ResolvedLayers } from "@pliantui/core"
 
+import { identityOf } from "./node-identity"
 import type { PliantTableDataset } from "./table-aggregates"
 
 type WithLayer<T> = T extends unknown ? T & { readonly layer: Layer } : never
@@ -17,10 +18,7 @@ export function tableOpsOf<Name extends Op["op"]>(
   table: string,
   name: Name
 ): LayeredOp<Name>[] {
-  // A node's identity is its bare id: the part after its last `/slots/`.
-  const properties = resolved.properties.get(
-    table.split("/slots/").slice(-1).join()
-  )
+  const properties = resolved.properties.get(identityOf(table))
   return Array.from(properties?.values() ?? [], ({ winner }) => ({
     ...winner.check.op,
     layer: winner.overlay.layer,
