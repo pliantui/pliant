@@ -18,6 +18,17 @@ export interface TableColumn {
   readonly filterValue: StandardSchema | undefined
 }
 
+/** What Pliant reads from the column an aggregate adds. */
+export function aggregateTableColumn(id: string): TableColumn {
+  return {
+    id,
+    size: 150,
+    limits: {},
+    ownFilter: false,
+    filterValue: undefined,
+  }
+}
+
 function read(source: unknown, key: string): unknown {
   return typeof source === "object" && source !== null
     ? Reflect.get(source, key)

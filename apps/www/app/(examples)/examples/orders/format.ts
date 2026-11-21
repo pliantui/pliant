@@ -24,3 +24,12 @@ export function formatNumber(value: number) {
 export function formatDate(value: string) {
   return date.format(new Date(value))
 }
+
+export function formatAggregate(value: unknown, unit: string | undefined) {
+  if (typeof value === "number") {
+    return unit === "INR" ? formatCurrency(value) : formatNumber(value)
+  }
+  return typeof value === "string" || typeof value === "boolean"
+    ? String(value)
+    : "—"
+}
