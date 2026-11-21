@@ -400,6 +400,8 @@ describe("row functions", () => {
       ["containsI", ["Café", "É"], true],
       ["containsI", ["İstanbul", "i"], true],
       ["containsI", ["Straße", "SS"], false],
+      ["containsI", ["ΟΔΟΣ", "Σ"], false],
+      ["eqI", ["ΟΔΟΣ", "οδοσ"], false],
       ["startsWithI", ["Hello", "hE"], true],
       ["startsWithI", ["Hello", "el"], false],
       ["startsWithI", ["Hello", ""], true],
@@ -439,7 +441,7 @@ describe("row functions", () => {
       expect(call("eqI", [`${smile}A`, `${smile}a`])).toBe(true)
     })
 
-    it("ignores case as lower does (property)", () => {
+    it("matches code points after toLowerCase (property)", () => {
       const next = random(5)
       const alphabet = [
         "a",
@@ -460,19 +462,41 @@ describe("row functions", () => {
         "\uDC00",
         "\u{10400}",
         "\u{10428}",
+        "\uD801",
+        "\uDC28",
       ]
-      const word = () =>
+      const word = (longest: number) =>
         Array.from(
-          { length: Math.floor(next() * 5) },
+          { length: Math.floor(next() * (longest + 1)) },
           () => alphabet[Math.floor(next() * alphabet.length)]
         ).join("")
-      const lower = (text: string) => fn("lower", value(text))
-      for (let run = 0; run < 2000; run++) {
-        const a = word()
-        const b = word()
-        for (const name of ["eq", "contains", "startsWith"]) {
-          expect(call(`${name}I`, [a, b]), `${name}I(${a}, ${b})`).toBe(
-            call(name, [lower(a), lower(b)])
+      // Compares lists of code points, so a match can't split a surrogate
+      // pair.
+      const points = (text: string) => Array.from(text.toLowerCase())
+      const startsAt = (text: string[], search: string[], start: number) =>
+        search.every((point, index) => text[start + index] === point)
+      const expected = {
+        eqI: (a: string[], b: string[]) => a.join("") === b.join(""),
+        containsI: (a: string[], b: string[]) =>
+          Array.from({ length: a.length - b.length + 1 }, (_, start) =>
+            startsAt(a, b, start)
+          ).includes(true),
+        startsWithI: (a: string[], b: string[]) => startsAt(a, b, 0),
+      }
+      const evaluate = createRowEvaluator({ fields, timeZone: "UTC" })
+      const checks = Object.entries(expected).map(([name, oracle]) => {
+        const result = evaluate(fn(name, field("s"), field("t")))
+        if (!result.success) {
+          throw result.error
+        }
+        return { name, oracle, accessor: result.data.accessor }
+      })
+      for (let run = 0; run < 5000; run++) {
+        const a = word(4)
+        const b = word(2)
+        for (const { name, oracle, accessor } of checks) {
+          expect(accessor({ s: a, t: b }), `${name}(${a}, ${b})`).toBe(
+            oracle(points(a), points(b))
           )
         }
       }

@@ -136,7 +136,7 @@ The arguments of an aggregate or window function are row expressions, so they ca
 The catalog also defines rules that apply to every function:
 
 - Strings compare by Unicode code point, case included. Lengths and positions count code points.
-- `eqI`, `containsI` and `startsWithI` ignore case. They lowercase both strings as `lower` does, without locale-specific rules, then compare them as `eq`, `contains` and `startsWith` do. Lowercasing isn't full case folding: `containsI("Straße", "SS")` is `false`, and `eqI("İ", "i")` is `false` because `İ` lowercases to `i` followed by a combining dot.
+- `eqI`, `containsI` and `startsWithI` ignore case. They lowercase both strings as `lower` does, without locale-specific rules, then compare them as `eq`, `contains` and `startsWith` do. Lowercasing isn't full case folding: `containsI("Straße", "SS")` is `false`; `eqI("İ", "i")` is `false` because `İ` lowercases to `i` followed by a combining dot; and `containsI("ΟΔΟΣ", "Σ")` and `eqI("ΟΔΟΣ", "οδοσ")` are `false` because a final `Σ` lowercases to `ς`, not `σ`.
 - `today` is defined as the current date in the viewer's time zone for `personal` and `session` overlays, and in the dataset's time zone for `org` and `team` overlays.
 - A string literal fits a `date` as `YYYY-MM-DD`, and a `datetime` as an ISO 8601 date-time with seconds and an offset.
 
@@ -161,6 +161,6 @@ The operators are `eq`, `neq`, `in`, `contains`, `startsWith`, `gt`, `gte`, `lt`
 Tables apply filters with these rules:
 
 - A missing value (`null` or `undefined`) passes only `isNull`. `neq` and every comparison leave it out, as in SQL.
-- `eq`, `neq` and `in` compare text case-sensitively. `contains` and `startsWith` ignore case, as most search boxes do, lowercasing both sides as `lower` does, the same folding as `containsI` and `startsWithI`.
+- `eq`, `neq` and `in` compare text case-sensitively. `contains` and `startsWith` ignore case, as most search boxes do. They lowercase both sides as `containsI` and `startsWithI` do.
 - A number compares with a number or numeric text; two pieces of text compare as text. Values that can't be compared, such as a word and a number, are never equal.
 - A date without a time, such as `2026-03-01`, covers that whole day in the viewer's time zone.
