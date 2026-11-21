@@ -5,7 +5,7 @@ import {
   type Symbol as TsMorphSymbol,
 } from "ts-morph"
 
-import { createDiagnostic, type Diagnostic } from "./diagnostic"
+import { createDiagnostic, type Diagnostic } from "../utils/diagnostic"
 import {
   describeExpression,
   getDeclarations,
@@ -14,7 +14,7 @@ import {
   readObject,
   resolveExpression,
   unwrapExpression,
-} from "./read-static"
+} from "../utils/read-static"
 
 type VariantLibrary = "cva" | "tv"
 

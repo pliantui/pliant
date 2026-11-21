@@ -13,13 +13,13 @@ import {
   readDecisions,
   recordDecisions,
 } from "../manifest/decisions"
-import type { Diagnostic } from "../manifest/diagnostic"
 import { formatSummary } from "../manifest/format-summary"
 import { inferComponents } from "../manifest/infer-components"
 import type { InferredComponent } from "../manifest/inferred-component"
 import { defaultNamespace, namespaceSchema } from "../manifest/namespace"
 import { renderManifests } from "../manifest/render-manifests"
 import { hasUndecided, reviewComponents } from "../manifest/review"
+import type { Diagnostic } from "../utils/diagnostic"
 import { findSourceFiles } from "../utils/find-source-files"
 import { getConfig } from "../utils/get-config"
 import { handleError } from "../utils/handle-error"

@@ -1,7 +1,7 @@
 import type { Type } from "ts-morph"
 
+import { createDiagnostic, type Diagnostic } from "../utils/diagnostic"
 import { getPropsParameter, type Component } from "./component"
-import { createDiagnostic, type Diagnostic } from "./diagnostic"
 import type { DefaultType, InferredDefault } from "./inferred-component"
 
 function toDefaultType(type: Type): DefaultType | undefined {
