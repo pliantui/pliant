@@ -16,7 +16,7 @@ const componentsJsonSchema = z.object({
   }),
 })
 
-interface Config {
+export interface Config {
   tsx: boolean
   tsConfigFilePath: string
   resolvedPaths: {

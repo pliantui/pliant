@@ -25,6 +25,7 @@ import {
   unwrapExpression,
 } from "../utils/read-static"
 import { appDirectory, appRoutes, isAppLayout } from "./app-routes"
+import { jsxElementsOf, tagOf } from "./jsx-elements"
 import { isOpaqueTag } from "./opaque-tag"
 import { isPliantExport } from "./pliant-export"
 import { readColumns } from "./read-columns"
@@ -105,8 +106,8 @@ function hookOf(call: CallExpression): Hook | undefined {
     return undefined
   }
   if (
-    isPliantExport(callee, "@pliantui/react", "usePliantRegion") ||
-    isPliantExport(callee, "@pliantui/react", "useRegionSlots")
+    isPliantExport(callee, "@pliantui/react/region", "usePliantRegion") ||
+    isPliantExport(callee, "@pliantui/react/region", "useRegionSlots")
   ) {
     return "region"
   }
@@ -1108,19 +1109,6 @@ function unique(diagnostics: readonly Diagnostic[]) {
     seen.add(key)
     return isNew
   })
-}
-
-function jsxElementsOf(sourceFile: SourceFile) {
-  return [
-    ...sourceFile.getDescendantsOfKind(SyntaxKind.JsxElement),
-    ...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
-  ]
-}
-
-function tagOf(element: JsxElement | JsxSelfClosingElement) {
-  return (
-    Node.isJsxElement(element) ? element.getOpeningElement() : element
-  ).getTagNameNode()
 }
 
 interface ScanOptions {

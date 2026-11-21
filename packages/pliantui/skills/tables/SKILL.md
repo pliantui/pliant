@@ -105,7 +105,7 @@ export function InvoicesTable({ data }: { data: Invoice[] }) {
 
 ## What users can change, and how it is saved
 
-- Sorting, column visibility, column order, column sizes, column pinning and grouping are saved to the user's personal layer. They come back on the next visit, on this browser with the default storage.
+- Sorting, column visibility, column order, column sizes, column pinning and grouping are saved to the user's personal layer. They come back on the next visit, on this browser with `localAdapter`.
 - The registry components give users sorting (the header button) and showing or hiding columns (the columns menu). Order, sizes and pinning are applied from TanStack's own calls, such as `column.pin("start")` or `table.setColumnOrder([...])`, and from ops that arrive another way, such as the ask panel or `applyOps`. Add your own controls for them only if the user asked.
 - Pagination stays in the session layer, which lasts for one browser tab and is never saved. Filters stay there too, unless you pass `persistFilters: true`.
 - Until the layers have loaded (`usePliantStatus` is `loading`), the table shows your base state and rejects changes.

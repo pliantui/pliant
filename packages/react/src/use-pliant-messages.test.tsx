@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 import { cleanup, renderHook } from "@testing-library/react"
 import { afterEach, describe, expect, it } from "vitest"
 
+import { localAdapter } from "./local-adapter"
 import type { PliantMessages } from "./pliant-messages"
 import { PliantRoot } from "./pliant-root"
 import { usePliantMessages } from "./use-pliant-messages"
@@ -14,7 +15,7 @@ const defaults: Pick<PliantMessages, "pointModeOn" | "askPreviewFailed"> = {
 function rootWith(messages: Partial<PliantMessages> | undefined) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <PliantRoot surface="/orders" messages={messages}>
+      <PliantRoot surface="/orders" storage={localAdapter} messages={messages}>
         {children}
       </PliantRoot>
     )
@@ -85,8 +86,14 @@ describe("usePliantMessages", () => {
   it("uses the outer root's messages in a root without its own", () => {
     const { result } = renderHook(() => usePliantMessages(defaults), {
       wrapper: ({ children }) => (
-        <PliantRoot surface="/outer" messages={{ pointModeOn: "Activé" }}>
-          <PliantRoot surface="/inner">{children}</PliantRoot>
+        <PliantRoot
+          surface="/outer"
+          storage={localAdapter}
+          messages={{ pointModeOn: "Activé" }}
+        >
+          <PliantRoot surface="/inner" storage={localAdapter}>
+            {children}
+          </PliantRoot>
         </PliantRoot>
       ),
     })

@@ -2,7 +2,8 @@
 
 import * as React from "react"
 
-import { usePliantNodeProps, usePliantRegion } from "@pliantui/react"
+import { usePliantNodeProps } from "@pliantui/react"
+import { usePliantRegion } from "@pliantui/react/region"
 
 function PliantRegion({
   id,

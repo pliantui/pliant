@@ -29,6 +29,7 @@ Wrap the page's content in `PliantRoot`, add `PliantPrePaint` with the same `sur
 
 ```tsx
 import { PliantRoot } from "@pliantui/react"
+import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
 import { PliantRegion } from "@/components/pliant/pliant-region"
@@ -37,7 +38,7 @@ const surface = "/orders/[id]" // this page's route pattern
 
 export default function Page() {
   return (
-    <PliantRoot surface={surface}>
+    <PliantRoot surface={surface} storage={localAdapter}>
       <PliantPrePaint surface={surface} />
       <PliantRegion
         id="summary"
@@ -54,7 +55,7 @@ Rules that matter:
 - The page can stay a Server Component. Slot content can be Server Components too.
 - A region `id` is kebab-case, starts with a letter, and is unique on the page. Slot ids, the keys of `slots`, are kebab-case too. The key order is the base order.
 - Reuse the page's existing parts as slots: move each existing block into `slots`, keep its markup, and keep the region's spacing in `gap` classes. Don't use `space-*` or `divide-*` on a region, because slots sit in wrapper elements.
-- If you pass `storage` to `PliantRoot`, render `PliantRoot` inside a client component (a file that starts with `"use client"`) that creates the storage, and use that component from the page. Without `storage`, changes are kept in the browser.
+- `storage={localAdapter}` keeps changes in the browser. Pass `localAdapter` itself, not `localAdapter()`: a Server Component can pass it because it comes from a client module. For any other storage, such as `serverAdapter`, render `PliantRoot` inside a client component (a file that starts with `"use client"`) that creates the storage, and use that component from the page.
 
 ## 3. Add a table (optional)
 
@@ -142,7 +143,7 @@ This reads the `cva` and `tailwind-variants` definitions in the ui folder, witho
 ## 5. Verify
 
 1. Run the project's typecheck and `next build`. Fix the errors your change caused; don't touch unrelated ones.
-2. Check that each `PliantRoot` and its `PliantPrePaint` have the same `surface`, and that it is the route pattern.
+2. Run `npx pliantui doctor --json` and fix every check whose `status` is `fail`, using its `fix`. It checks that each `PliantRoot` has a `PliantPrePaint` with the same `surface`; check yourself that the surface is the route pattern.
 3. Start the dev server and load the route. The page's HTML should contain `data-slot="pliant-region"` for each region and `data-pliant-id` on each slot.
 4. Prove a change applies. Temporarily add a client component inside `PliantRoot` with a button that calls `usePliantStore().applyOps("personal", [{ op: "hide", target: "summary/slots/status" }])`, using your own region and slot ids. Import `usePliantStore` from `@pliantui/react`, and log the returned result: `success` is `false` with an `error` when the op is rejected, which otherwise fails silently. After the click the slot should disappear from the page. Remove the component afterwards.
 
@@ -153,7 +154,7 @@ This reads the `cva` and `tailwind-variants` definitions in the ui folder, witho
 - A region or slot id that is not kebab-case, starts with a digit, or is repeated on the page.
 - Two nodes with the same id on one page. Ids are unique across the surface.
 - Importing `PliantRegion` from `@pliantui/react`. It is a component added to the project: import it from `@/components/pliant/pliant-region`, or from wherever the `components` alias in `components.json` points.
-- Passing a `storage` object made in a Server Component to `PliantRoot`.
+- Passing `localAdapter()`, called, or a `storage` object made in a Server Component to `PliantRoot`. From a Server Component, pass `localAdapter` itself.
 - Running `pliantui init` in an agent shell without `--yes`: it exits with an error asking for an interactive terminal.
 - Using `space-y-*` on a region instead of `gap-*`.
 
@@ -163,4 +164,4 @@ This reads the `cva` and `tailwind-variants` definitions in the ui folder, witho
 - [Operations](https://pliantui.dev/docs/concepts/operations): what users can change and what renders.
 - [Layers](https://pliantui.dev/docs/concepts/layers): how org, team, personal and session changes stack.
 - [Guardrails](https://pliantui.dev/docs/concepts/guardrails): what users can't change.
-- [CLI](https://pliantui.dev/docs/cli): `init`, `manifest` and `skills`.
+- [CLI](https://pliantui.dev/docs/cli): `init`, `manifest`, `scan`, `doctor` and `skills`.

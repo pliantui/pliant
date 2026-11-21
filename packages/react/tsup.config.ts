@@ -8,9 +8,12 @@ const { version } = JSON.parse(
 export default defineConfig({
   entry: [
     "src/index.ts",
+    "src/region.ts",
     "src/table.ts",
-    "src/ask.ts",
+    "src/local.ts",
     "src/server-adapter.ts",
+    "src/ask.ts",
+    "src/point-mode.ts",
     "src/pre-paint.ts",
   ],
   format: ["esm"],

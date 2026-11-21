@@ -1,4 +1,4 @@
-import { usePliantRegion } from "@pliantui/react"
+import { usePliantRegion } from "@pliantui/react/region"
 
 export function useTwoRegions() {
   const a = usePliantRegion("two-a", { a1: <p>A1</p> })
