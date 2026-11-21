@@ -78,39 +78,181 @@ test.describe("on a wide screen", () => {
     expect(errors).toEqual([])
   })
 
-  test("the header takes you between home, docs and the example", async ({
+  test("the main nav takes you between home, docs and the examples", async ({
     page,
   }) => {
     await page.goto("/")
-    const header = page.getByRole("banner")
-    await expect(header.getByRole("button", { name: "Open menu" })).toBeHidden()
+    const nav = page.getByRole("navigation", { name: "Main" })
+    await expect(
+      page.getByRole("banner").getByRole("button", { name: "Menu" })
+    ).toBeHidden()
 
-    await header.getByRole("link", { name: "Docs" }).click()
+    await nav.getByRole("link", { name: "Docs" }).click()
     await expect(
       page.getByRole("heading", { level: 1, name: "Introduction" })
     ).toBeVisible()
-    await expect(header.getByRole("link", { name: "Docs" })).toHaveAttribute(
+    await expect(nav.getByRole("link", { name: "Docs" })).toHaveAttribute(
       "aria-current",
       "page"
     )
 
-    await header.getByRole("link", { name: "Examples" }).click()
+    await nav.getByRole("link", { name: "Examples" }).click()
     await expect(page).toHaveURL("/examples/orders")
     await expect(
-      page.getByRole("heading", { level: 1, name: "Orders" })
+      page.getByRole("heading", { level: 2, name: "Orders", exact: true })
     ).toBeVisible()
+    await expect(nav.getByRole("link", { name: "Examples" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    )
 
-    await header.getByRole("link", { name: "Pliant" }).click()
+    await nav.getByRole("link", { name: "Home" }).click()
     await expect(page).toHaveURL("/")
   })
 
-  test("the header on a docs page opens search", async ({ page }) => {
+  test("the get started button leads to the docs", async ({ page }) => {
+    await page.goto("/examples/tickets")
+    await page
+      .getByRole("banner")
+      .getByRole("link", { name: "Get started" })
+      .click()
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Introduction" })
+    ).toBeVisible()
+  })
+
+  test("the theme toggle switches between light and dark", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "light" })
     await page.goto("/docs")
+    const html = page.locator("html")
+    await expect(html).toHaveCSS("color-scheme", "light")
+
+    const toggle = page
+      .getByRole("banner")
+      .getByRole("button", { name: "Toggle theme" })
+    await toggle.click()
+    await expect(html).toHaveCSS("color-scheme", "dark")
+
+    await page.reload()
+    await expect(html).toHaveCSS("color-scheme", "dark")
+
+    await toggle.click()
+    await expect(html).toHaveCSS("color-scheme", "light")
+  })
+
+  test("the header search opens from its button and the keyboard", async ({
+    page,
+  }) => {
+    await page.goto("/docs")
+    const dialog = page.getByRole("dialog", { name: /^Search/ })
+
     await page
       .getByRole("banner")
       .getByRole("button", { name: /^Search/ })
       .click()
-    await expect(page.getByRole("dialog", { name: "Search" })).toBeVisible()
+    await expect(dialog).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(dialog).toBeHidden()
+
+    await page.keyboard.press("ControlOrMeta+k")
+    await expect(dialog).toBeVisible()
+    await page.keyboard.press("Escape")
+
+    await page.keyboard.press("/")
+    await expect(dialog).toBeVisible()
+  })
+
+  test("the docs sidebar lists every docs page and marks the current one", async ({
+    page,
+  }) => {
+    await page.goto("/docs/concepts/layers")
+    const sidebar = page.getByRole("navigation", { name: "Docs" })
+
+    for (const name of [
+      "Introduction",
+      "CLI",
+      "Core concepts",
+      "Layers",
+      "Operations",
+      "Guardrails",
+      "Expressions",
+    ]) {
+      await expect(
+        sidebar.getByRole("link", { name, exact: true })
+      ).toBeVisible()
+    }
+    await expect(sidebar.getByRole("link", { name: "Layers" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    )
+
+    await sidebar.getByRole("link", { name: "Guardrails" }).click()
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Guardrails" })
+    ).toBeVisible()
+  })
+
+  test("a docs page lists its sections and links to the pages around it", async ({
+    page,
+  }) => {
+    await page.goto("/docs/concepts/layers")
+    const toc = page.getByRole("navigation", { name: "On This Page" })
+    const firstSection = toc.getByRole("link").first()
+    const target = await firstSection.getAttribute("href")
+
+    await firstSection.click()
+    await expect(page).toHaveURL(new RegExp(`${target ?? ""}$`))
+
+    await page.getByRole("link", { name: "Next page" }).click()
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Operations" })
+    ).toBeVisible()
+    await page.getByRole("link", { name: "Previous page" }).click()
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Layers" })
+    ).toBeVisible()
+  })
+
+  test("copy page copies the page's source", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"])
+    await page.goto("/docs/concepts/layers")
+    await page.getByRole("button", { name: "Copy Page" }).click()
+
+    const copied = await page.evaluate(() => navigator.clipboard.readText())
+    expect(copied).toContain("title: Layers")
+  })
+
+  test("a code block copies its code", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"])
+    await page.goto("/docs/concepts/expressions")
+    const block = page
+      .locator("figure")
+      .filter({ hasText: '"fn": "div"' })
+      .first()
+    await block.getByRole("button", { name: "Copy" }).click()
+
+    const copied = await page.evaluate(() => navigator.clipboard.readText())
+    expect(copied).toContain('"fn": "div"')
+    await expect(block.getByRole("button", { name: "Copied" })).toBeVisible()
+  })
+
+  test("the examples nav moves between the examples", async ({ page }) => {
+    await page.goto("/examples/orders")
+    const nav = page.getByRole("navigation", { name: "Examples" })
+    await expect(nav.getByRole("link", { name: "Orders" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    )
+
+    await nav.getByRole("link", { name: "Tickets" }).click()
+    await expect(page).toHaveURL("/examples/tickets")
+    await expect(
+      page.getByRole("heading", { level: 2, name: "New ticket" })
+    ).toBeVisible()
+    await expect(nav.getByRole("link", { name: "Tickets" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    )
   })
 
   test("the footer links lead to pages that exist", async ({
@@ -120,6 +262,7 @@ test.describe("on a wide screen", () => {
     await page.goto("/")
     const footer = page.getByRole("contentinfo")
     const links = await footer
+      .getByRole("navigation", { name: "Footer" })
       .getByRole("link")
       .evaluateAll((links) =>
         links.map((link) => [link.textContent, link.getAttribute("href")])
@@ -140,17 +283,33 @@ test.describe("on a wide screen", () => {
     }
   })
 
-  test("the home buttons lead to the docs and the repository", async ({
+  test("the footer credits shadcn/ui and links its license", async ({
     page,
   }) => {
     await page.goto("/")
-    const hero = page.getByRole("main").locator("section").first()
+    const footer = page.getByRole("contentinfo")
 
-    await expect(hero.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+    await expect(
+      footer.getByRole("link", { name: "shadcn/ui" })
+    ).toHaveAttribute("href", "https://ui.shadcn.com")
+    await expect(
+      footer.getByRole("link", { name: "MIT license" })
+    ).toHaveAttribute(
       "href",
-      repository
+      `${repository}/blob/main/apps/www/LICENSE-shadcn.md`
     )
-    await hero.getByRole("link", { name: "Get started" }).click()
+  })
+
+  test("the home buttons lead to the docs and the examples", async ({
+    page,
+  }) => {
+    await page.goto("/")
+    const main = page.getByRole("main")
+
+    await main.getByRole("link", { name: "View Examples" }).click()
+    await expect(page).toHaveURL("/examples/orders")
+    await page.goto("/")
+    await main.getByRole("link", { name: "Get Started" }).click()
     await expect(
       page.getByRole("heading", { level: 1, name: "Introduction" })
     ).toBeVisible()
@@ -160,53 +319,68 @@ test.describe("on a wide screen", () => {
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 360, height: 740 } })
 
-  for (const path of ["/", "/docs", "/docs/concepts/layers"]) {
+  for (const path of [
+    "/",
+    "/docs",
+    "/docs/concepts/layers",
+    "/examples/orders",
+    "/examples/tickets",
+  ]) {
     test(`${path} has no horizontal scroll`, async ({ page }) => {
       await page.goto(path)
       await expect(
-        page.getByRole("banner").getByRole("button", { name: "Open menu" })
+        page.getByRole("banner").getByRole("button", { name: "Menu" })
       ).toBeVisible()
       expect(await hasHorizontalScroll(page)).toBe(false)
     })
   }
 
-  test("the menu has the same links as the header", async ({ page }) => {
+  test("the menu has the main nav and every docs page", async ({ page }) => {
     await page.goto("/")
-    await expect(
-      page.getByRole("banner").getByRole("link", { name: "Docs" })
-    ).toBeHidden()
-    await page.getByRole("button", { name: "Open menu" }).click()
+    await expect(page.getByRole("navigation", { name: "Main" })).toBeHidden()
+    await page.getByRole("button", { name: "Menu" }).click()
 
-    const menu = page.getByRole("dialog", { name: "Pliant" })
-    await expect(menu.getByRole("link", { name: "Docs" })).toBeVisible()
-    await expect(menu.getByRole("link", { name: "Examples" })).toBeVisible()
-    await expect(menu.getByRole("link", { name: /^GitHub/ })).toHaveAttribute(
-      "href",
-      repository
-    )
+    const menu = page.getByRole("dialog", { name: "Menu" })
+    for (const name of [
+      "Home",
+      "Docs",
+      "Examples",
+      "Introduction",
+      "CLI",
+      "Core concepts",
+      "Layers",
+      "Expressions",
+    ]) {
+      await expect(menu.getByRole("link", { name, exact: true })).toBeVisible()
+    }
 
-    await menu.getByRole("link", { name: "Examples" }).click()
-    await expect(page).toHaveURL("/examples/orders")
+    await menu.getByRole("link", { name: "Guardrails" }).click()
+    await expect(page).toHaveURL("/docs/concepts/guardrails")
     await expect(menu).toBeHidden()
   })
 
-  test("search stays reachable", async ({ page }) => {
-    await page.goto("/")
-    await page
-      .getByRole("banner")
-      .getByRole("button", { name: "Open Search" })
-      .click()
-    await expect(page.getByRole("dialog", { name: "Search" })).toBeVisible()
+  test("the header keeps the GitHub link and the theme toggle", async ({
+    page,
+  }) => {
+    await page.goto("/docs")
+    const header = page.getByRole("banner")
+
+    await expect(header.getByRole("link", { name: /^GitHub/ })).toHaveAttribute(
+      "href",
+      repository
+    )
+    await expect(
+      header.getByRole("button", { name: "Toggle theme" })
+    ).toBeVisible()
   })
 
-  test("the docs menu is reachable under the header", async ({ page }) => {
-    await page.goto("/docs")
-    await expect(
-      page.getByRole("banner").getByRole("button", { name: "Open menu" })
-    ).toBeVisible()
-    await expect(page.getByRole("button", { name: "Concepts" })).toBeHidden()
-    await page.locator("#nd-subnav").getByRole("button").last().click()
-    await expect(page.getByRole("button", { name: "Concepts" })).toBeVisible()
+  test("the examples nav stays reachable", async ({ page }) => {
+    await page.goto("/examples/orders")
+    await page
+      .getByRole("navigation", { name: "Examples" })
+      .getByRole("link", { name: "Tickets" })
+      .click()
+    await expect(page).toHaveURL("/examples/tickets")
   })
 })
 
@@ -239,13 +413,10 @@ test.describe("the 404 page", () => {
     ).toBeVisible()
   })
 
-  test("opens search", async ({ page }) => {
+  test("opens search from the keyboard", async ({ page }) => {
     await page.goto("/no-such-page")
-    await page
-      .getByRole("main")
-      .getByRole("button", { name: "Search the docs" })
-      .click()
-    await expect(page.getByRole("dialog", { name: "Search" })).toBeVisible()
+    await page.keyboard.press("/")
+    await expect(page.getByRole("dialog", { name: /^Search/ })).toBeVisible()
   })
 
   test("has no horizontal scroll on a phone", async ({ page }) => {

@@ -4,30 +4,43 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "cn"
 
-import { site } from "@/lib/site"
+import { Button } from "@/components/ui/button"
+import { isActivePath, type NavItem } from "@/lib/nav"
 
-export function MainNav({ className }: { className?: string }) {
+export function MainNav({
+  items,
+  className,
+  ...props
+}: React.ComponentProps<"nav"> & {
+  items: readonly NavItem[]
+}) {
   const pathname = usePathname()
 
   return (
-    <nav aria-label="Main" className={cn("flex items-center gap-1", className)}>
-      {site.nav.map((item) => {
-        const active =
-          pathname === item.href || pathname.startsWith(`${item.href}/`)
-        return (
+    <nav
+      aria-label="Main"
+      className={cn("items-center gap-0", className)}
+      {...props}
+    >
+      {items.map((item) => (
+        <Button
+          key={item.href}
+          variant="ghost"
+          asChild
+          size="sm"
+          className="px-2.5"
+        >
           <Link
-            key={item.href}
             href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50",
-              active ? "text-foreground" : "text-fd-muted-foreground"
-            )}
+            aria-current={
+              isActivePath(pathname, item.href) ? "page" : undefined
+            }
+            className="relative items-center"
           >
-            {item.title}
+            {item.label}
           </Link>
-        )
-      })}
+        </Button>
+      ))}
     </nav>
   )
 }

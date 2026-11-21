@@ -1,8 +1,13 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 
-import { SearchButton } from "@/components/search-button"
-import { buttonVariants } from "@/components/ui/button"
+import {
+  PageActions,
+  PageHeader,
+  PageHeaderDescription,
+  PageHeaderHeading,
+} from "@/components/page-header"
+import { Button } from "@/components/ui/button"
 
 export const metadata: Metadata = {
   title: "Page not found",
@@ -10,26 +15,22 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <main
-      id="main"
-      tabIndex={-1}
-      className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center gap-6 px-4 py-20 text-center outline-none"
-    >
-      <p className="text-sm font-medium text-fd-muted-foreground">404</p>
-      <h1 className="text-3xl font-semibold tracking-tight">Page not found</h1>
-      <p className="text-fd-muted-foreground">
-        This page doesn&apos;t exist or has moved. Search the docs, or head
-        back.
-      </p>
-      <SearchButton />
-      <div className="flex flex-wrap justify-center gap-3">
-        <Link href="/docs" className={buttonVariants()}>
-          Docs
-        </Link>
-        <Link href="/" className={buttonVariants({ variant: "outline" })}>
-          Home
-        </Link>
-      </div>
-    </main>
+    <PageHeader className="flex flex-1 flex-col justify-center">
+      <p className="text-sm font-medium text-muted-foreground">404</p>
+      <PageHeaderHeading>Page not found</PageHeaderHeading>
+      <PageHeaderDescription>
+        This page doesn&apos;t exist or has moved. Press{" "}
+        <kbd className="rounded border bg-muted px-1 font-sans text-sm">/</kbd>{" "}
+        to search the docs, or head back.
+      </PageHeaderDescription>
+      <PageActions>
+        <Button asChild className="h-[35px] rounded-4xl px-3">
+          <Link href="/docs">Docs</Link>
+        </Button>
+        <Button asChild variant="secondary" className="rounded-4xl px-3">
+          <Link href="/">Home</Link>
+        </Button>
+      </PageActions>
+    </PageHeader>
   )
 }

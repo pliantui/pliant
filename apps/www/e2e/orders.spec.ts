@@ -43,7 +43,7 @@ function isOrdered(
 
 test("renders without console errors", async ({ page, errors }) => {
   await expect(
-    page.getByRole("heading", { level: 1, name: "Orders" })
+    page.getByRole("heading", { level: 2, name: "Orders", exact: true })
   ).toBeVisible()
   await expect(page.getByRole("table", { name: "All orders" })).toBeVisible()
   expect(errors).toEqual([])

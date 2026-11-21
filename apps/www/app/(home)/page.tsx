@@ -1,62 +1,35 @@
 import Link from "next/link"
 
-import { GitHubIcon } from "@/components/github-icon"
-import { buttonVariants } from "@/components/ui/button"
+import {
+  PageActions,
+  PageHeader,
+  PageHeaderDescription,
+  PageHeaderHeading,
+} from "@/components/page-header"
+import { Button } from "@/components/ui/button"
 import { site } from "@/lib/site"
+
+export const dynamic = "force-static"
+export const revalidate = false
 
 export default function HomePage() {
   return (
-    <main id="main" tabIndex={-1} className="flex-1 outline-none">
-      <section className="mx-auto flex max-w-4xl flex-col items-center gap-6 px-4 py-20 text-center md:py-28">
-        <h1 className="text-4xl font-semibold tracking-tight text-balance md:text-6xl">
-          Build pliant interfaces: apps your users can reshape.
-        </h1>
-        <p className="max-w-2xl text-lg text-balance text-fd-muted-foreground">
-          Pliant adds per-user and per-team customization to your shadcn app,
-          within the rules you set.
-        </p>
-        <div className="flex flex-wrap justify-center gap-3">
-          <Link
-            href={site.links.getStarted}
-            className={buttonVariants({ size: "lg" })}
-          >
-            Get started
-          </Link>
-          <a
-            href={site.repository}
-            target="_blank"
-            rel="noreferrer"
-            className={buttonVariants({ variant: "outline", size: "lg" })}
-          >
-            <GitHubIcon />
-            GitHub
-          </a>
-        </div>
-      </section>
-      <section className="border-t">
-        <div className="mx-auto flex max-w-4xl flex-col items-center gap-6 px-4 py-16 text-center">
-          <h2 className="text-2xl font-semibold tracking-tight">
-            Try it on your own app
-          </h2>
-          <div className="flex flex-wrap justify-center gap-3">
-            <Link
-              href={site.links.getStarted}
-              className={buttonVariants({ variant: "outline" })}
-            >
-              Read the docs
-            </Link>
-            <a
-              href={site.repository}
-              target="_blank"
-              rel="noreferrer"
-              className={buttonVariants({ variant: "outline" })}
-            >
-              <GitHubIcon />
-              Star on GitHub
-            </a>
-          </div>
-        </div>
-      </section>
-    </main>
+    <PageHeader>
+      <PageHeaderHeading className="max-w-4xl">
+        Build pliant interfaces: apps your users can reshape.
+      </PageHeaderHeading>
+      <PageHeaderDescription>
+        Pliant adds per-user and per-team customization to your shadcn app,
+        within the rules you set.
+      </PageHeaderDescription>
+      <PageActions>
+        <Button asChild className="h-[35px] rounded-4xl px-3">
+          <Link href={site.links.getStarted}>Get Started</Link>
+        </Button>
+        <Button asChild variant="secondary" className="rounded-4xl px-3">
+          <Link href="/examples/orders">View Examples</Link>
+        </Button>
+      </PageActions>
+    </PageHeader>
   )
 }

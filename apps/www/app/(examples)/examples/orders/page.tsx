@@ -22,11 +22,7 @@ export default function OrdersPage() {
   const stats = getOrderStats(orders)
 
   return (
-    <main
-      id="main"
-      tabIndex={-1}
-      className="flex-1 bg-background text-foreground outline-none max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh] sm:has-[[data-slot=pliant-ask-panel]]:pr-96"
-    >
+    <div className="flex-1 bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 lg:px-6">
         <PliantRoot
           surface="/examples/orders"
@@ -36,7 +32,7 @@ export default function OrdersPage() {
           <PliantPrePaint surface="/examples/orders" />
           <header className="flex items-start justify-between gap-4">
             <div className="flex flex-col gap-1">
-              <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
+              <h2 className="text-2xl font-semibold tracking-tight">Orders</h2>
               <p className="text-sm text-muted-foreground">
                 Orders placed Jan–Oct 2026
               </p>
@@ -82,6 +78,6 @@ export default function OrdersPage() {
           <OrdersTable data={orders} />
         </PliantRoot>
       </div>
-    </main>
+    </div>
   )
 }
