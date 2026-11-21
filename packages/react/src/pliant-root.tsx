@@ -4,7 +4,7 @@ import { createLayerStore } from "./layer-store"
 import { localAdapter } from "./local-adapter"
 import { PliantContext } from "./pliant-context"
 import { PliantMessagesContext, type PliantMessages } from "./pliant-messages"
-import type { StorageAdapter } from "./storage-adapter"
+import type { StorageAdapter, StoredLayers } from "./storage-adapter"
 
 /** @experimental */
 export interface PliantRootProps {
@@ -49,6 +49,18 @@ export interface PliantRootProps {
    * text again.
    */
   readonly messages?: Partial<PliantMessages> | undefined
+  /**
+   * The surface's layers, loaded on the server while it renders, as
+   * `storage.load` returns them. The server render and hydration apply
+   * them, so the first paint shows the user's layout, and storage loads
+   * the layers again after mount without going back to `loading`. Like
+   * `storage`, it is read once, when the surface mounts.
+   *
+   * Loading them makes the route dynamic. Ops that need a container to be
+   * mounted, such as `insert`, `wrap` and `move` into another node, apply
+   * once it mounts.
+   */
+  readonly layers?: StoredLayers | undefined
   readonly children?: ReactNode
 }
 
@@ -58,6 +70,7 @@ function PliantSurfaceRoot({
   teamOrder = [],
   onError,
   lang,
+  layers,
   children,
 }: PliantRootProps) {
   const [store] = useState(() =>
@@ -67,6 +80,7 @@ function PliantSurfaceRoot({
       teamOrder,
       onError,
       lang,
+      layers,
     })
   )
   useLayoutEffect(() => {
@@ -97,8 +111,8 @@ function PliantSurfaceRoot({
  * Holds the layers of one surface: org and team overlays from `storage`,
  * personal overlays saved to it, and the session layer, kept per tab. It
  * reads storage only after mount, in a layout effect, so the server render
- * resolves no overlays and a synchronous adapter applies before the first
- * client paint. `usePliantStatus` tells when the layers are ready.
+ * resolves only the `layers` it was given, and a synchronous adapter applies
+ * before the first client paint. `usePliantStatus` tells when the layers are ready.
  *
  * Each personal version gets a new id and is stored as a new record, with
  * `ifMatch: null`. Versions made in other tabs and devices have their own
