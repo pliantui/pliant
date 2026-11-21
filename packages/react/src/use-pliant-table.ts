@@ -234,7 +234,8 @@ function baseOf(options: object): Partial<CompiledTableState> {
  * - Display order is what `first`, `last` and the window functions read:
  *   the table's sort, as the sorted row model compares rows, with ties and
  *   an unsorted table in ascending order of the row key (`getRowId`, else
- *   the field named `id`), compared by code point. A window function
+ *   the field named `id`): numerically when both keys are numbers, else by
+ *   code point with numbers first. A window function
  *   leaves out a sort by a column with window functions, since its values
  *   need the order. Rows that tie show in TanStack's order, which is the
  *   order of the data.

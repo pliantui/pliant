@@ -1,7 +1,7 @@
 import type { Expression } from "@pliantui/contract"
 
 import type { ExpressionType } from "./check-expression"
-import { compareCodePoints } from "./compare-code-points"
+import { compareRowKeys } from "./compare-row-keys"
 import {
   createContext,
   dependencyOrder,
@@ -31,11 +31,13 @@ export interface WindowEvaluatorOptions<
 > extends RowEvaluatorOptions<TRow> {
   /**
    * The row key, like TanStack Table's `getRowId`. By default, it's the
-   * row's field named `id`, as text. Without either, every key is
-   * `"undefined"`, so tied rows stay in the order they're given: a dataset
-   * needs a row key for display order to be defined.
+   * row's field named `id`. Keys compare numerically when both are numbers,
+   * otherwise by code point as text, with a number before text. Without
+   * either, every key is `undefined`, so tied rows stay in the order
+   * they're given: a dataset needs a row key for display order to be
+   * defined.
    */
-  readonly getRowId?: ((row: TRow) => string) | undefined
+  readonly getRowId?: ((row: TRow) => unknown) | undefined
 }
 
 /**
@@ -47,7 +49,7 @@ export interface WindowPartitionOptions<TRow extends object = object> {
   /**
    * The table's current sort, as a comparator that gives 0 for rows it
    * ties. Display order is this order, with ties, or every row when it's
-   * left out, in ascending order of the row key compared by code point.
+   * left out, in ascending order of the row key.
    */
   readonly compare?: ((a: TRow, b: TRow) => number) | undefined
 }
@@ -117,7 +119,7 @@ export function createWindowEvaluator<TRow extends object = object>(
 ): WindowEvaluator<TRow> {
   const context = createContext(options)
   const rowKey =
-    options.getRowId ?? ((row: TRow) => String(context.getValue(row, "id")))
+    options.getRowId ?? ((row: TRow) => context.getValue(row, "id"))
 
   return (expression, { todayTimeZone } = {}) => {
     const timeZone = todayTimeZone ?? options.timeZone
@@ -196,8 +198,7 @@ export function createWindowEvaluator<TRow extends object = object>(
               .map((row, index) => ({ row, index, key: rowKey(row) }))
               .sort(
                 (a, b) =>
-                  (compare?.(a.row, b.row) ?? 0) ||
-                  compareCodePoints(a.key, b.key)
+                  (compare?.(a.row, b.row) ?? 0) || compareRowKeys(a.key, b.key)
               )
               .map(({ index }) => index)
             return displayOrder

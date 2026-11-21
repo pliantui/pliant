@@ -30,7 +30,7 @@ import { usePliantTable } from "./use-pliant-table"
 const tableId = "orders-table"
 
 interface Order {
-  id: string
+  id: string | number
   customer: string
   status: string
   value?: number
@@ -532,10 +532,62 @@ describe("usePliantTable window columns", () => {
     }
     const t = setup({
       dataset,
-      getRowId: (row) => keys[row.id] ?? row.id,
+      getRowId: (row) => keys[row.id] ?? String(row.id),
     })
     t.apply(derived("running", "Running", call("runningSum", field("value"))))
     expect(valuesOf(t, "running")).toEqual([100, 60, 50, 20])
+  })
+
+  const keyed = (...ids: (string | number)[]): Order[] =>
+    ids.map((id, index) => ({
+      id,
+      customer: "Acme",
+      status: "open",
+      value: 10 ** index,
+    }))
+  const runningById = (t: Setup) =>
+    rows(t).map((row) => [row.original.id, row.getValue("running")])
+
+  it("compares number row keys numerically", () => {
+    const t = setup({ dataset, rows: keyed(2, 10, 9) })
+    t.apply(
+      derived("running", "Running", call("runningSum", field("value"))),
+      aggregate("first", "First", call("first", field("value"))),
+      aggregate("last", "Last", call("last", field("value")))
+    )
+    expect(runningById(t)).toEqual([
+      [2, 1],
+      [10, 111],
+      [9, 101],
+    ])
+    expect(t.table.getColumn("first")?.getAggregationValue()).toBe(1)
+    expect(t.table.getColumn("last")?.getAggregationValue()).toBe(10)
+    t.apply(sortBy("status", "asc"))
+    expect(t.table.getColumn("last")?.getAggregationValue()).toBe(10)
+  })
+
+  it("puts number row keys before text ones", () => {
+    const t = setup({ dataset, rows: keyed("1", 10, 2) })
+    t.apply(derived("running", "Running", call("runningSum", field("value"))))
+    expect(runningById(t)).toEqual([
+      ["1", 111],
+      [10, 110],
+      [2, 100],
+    ])
+  })
+
+  it("compares row keys from getRowId as text", () => {
+    const t = setup({
+      dataset,
+      rows: keyed(2, 10, 9),
+      getRowId: (row) => String(row.id),
+    })
+    t.apply(derived("running", "Running", call("runningSum", field("value"))))
+    expect(runningById(t)).toEqual([
+      [2, 11],
+      [10, 10],
+      [9, 111],
+    ])
   })
 
   it("reads the same display order as first and last", () => {

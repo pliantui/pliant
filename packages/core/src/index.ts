@@ -28,6 +28,7 @@ export {
   type TableStateDiff,
 } from "./diff-table-state"
 export { compareCodePoints } from "./compare-code-points"
+export { compareRowKeys } from "./compare-row-keys"
 export { formatError, type FormatErrorOptions } from "./format-error"
 export { loadOverlay, type LoadedOverlay } from "./load-overlay"
 export {
