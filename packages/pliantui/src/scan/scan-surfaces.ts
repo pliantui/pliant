@@ -71,6 +71,11 @@ interface Walk {
   readonly pendingSlots: Map<Node, PendingSlots[]>
   /** The project's folder, where its own code is. */
   readonly root: string
+  /**
+   * How many functions rendered once per row or item, like a `.map`
+   * callback or a column's `cell`, the walk is inside.
+   */
+  repeated: number
 }
 
 /** A region's slots, waiting for the place the component renders them. */
@@ -380,7 +385,9 @@ function walkCall(
     renderValue(callee.getExpression(), parent, walk)
     // An inline callback, or a named one like `rows.map(renderRow)`.
     const [callback] = call.getArguments()
+    walk.repeated++
     walkFunction(callback && follows(callback, walk), scope, parent, walk)
+    walk.repeated--
     return
   }
   // `useMemo(() => <Panel />, deps)` renders what its callback returns.
@@ -566,6 +573,8 @@ function follow(node: Node, scope: Scope, parent: Parent, walk: Walk) {
     }
     walkRoutes(value.routes ?? [], value.scope, parent, walk)
     for (const item of value.nodes) {
+      // A prop rendered in two places is walked in both.
+      walk.claimed.get(value.scope)?.delete(item)
       walkRendered(item, value.scope, parent, walk)
       // Rendered here, so not again where the element is.
       claim(walk, value.scope, item)
@@ -690,7 +699,8 @@ function walkElement(
         rendering: new Set([...scope.rendering, fn]),
       },
       parent,
-      walk
+      walk,
+      element
     )
   }
   // What the component didn't render itself, such as children it passes on
@@ -731,7 +741,9 @@ function walkComponent(
   fn: ComponentFunction,
   scope: Scope,
   parent: Parent,
-  walk: Walk
+  walk: Walk,
+  /** The element that renders the component, for reports. */
+  element?: Node
 ) {
   walk.surface.files.add(fn.getSourceFile().getFilePath())
   walk.surface.entered.add(fn)
@@ -740,6 +752,27 @@ function walkComponent(
   // the component sits, and each takes its place, parent and order, where
   // the component renders it.
   const calls = hookCalls(fn)
+  // A region or table rendered once per row or item would repeat its id.
+  if (walk.repeated > 0 && calls.length > 0) {
+    for (const { call, site } of calls) {
+      walk.visited.add(call)
+      walk.surface.consumed.add(call)
+      walk.surface.consumed.add(site.getExpression())
+    }
+    const at = element ?? calls[0]?.call ?? fn
+    const what = Node.isJsxElement(at)
+      ? `<${at.getOpeningElement().getTagNameNode().getText()}>`
+      : Node.isJsxSelfClosingElement(at)
+        ? `<${at.getTagNameNode().getText()}>`
+        : describeExpression(at)
+    warn(
+      walk,
+      at,
+      `${what} renders a region or table once per row or item, like in a \`.map\` callback or a table cell, so its id isn't unique and it's left out.`
+    )
+    walkReturns(fn, scope, parent, walk)
+    return
+  }
   const several = calls.length > 1
   let holder = parent
   const pending = new Set<Node>()
@@ -967,13 +1000,16 @@ function declareTable(
   } else {
     walk.surface.entered.add(columnsNode)
     walk.surface.entered.add(resolveExpression(columnsNode))
+    walk.surface.consumed.add(columnsNode)
     // The table renders what its column defs' functions return, like a
     // `cell` or `header`, in place of the table.
     for (const defs of new Set([columnsNode, resolveExpression(columnsNode)])) {
       for (const fn of defs.getDescendants().filter(isFunction)) {
         const outer = fn.getParentOrThrow().getFirstAncestor(isFunction)
         if (!outer || !defs.containsRange(outer.getPos(), outer.getEnd())) {
+          walk.repeated++
           walkFunction(fn, options.scope, id, walk)
+          walk.repeated--
         }
       }
     }
@@ -1157,6 +1193,7 @@ export function scanSurfaces(
         kindOf,
         pendingSlots: new Map(),
         root,
+        repeated: 0,
       }
       if (fromLayout) {
         const routes = appRoutes(sourceFile.getFilePath(), files)
@@ -1343,6 +1380,31 @@ function reportUnfollowed(
       )
     )
   }
+  // Whether a component the walk didn't render here may render a region or
+  // table: it declares one, or renders something the scan can't follow.
+  const unknown = new Map<ComponentFunction, boolean>()
+  const mayRenderUnknown = (fn: ComponentFunction): boolean => {
+    const cached = unknown.get(fn)
+    if (cached !== undefined) {
+      return cached
+    }
+    unknown.set(fn, false)
+    const result =
+      declaresNodes(fn) ||
+      fn.getDescendants().some((node) => {
+        if (
+          Node.isJsxOpeningElement(node) ||
+          Node.isJsxSelfClosingElement(node)
+        ) {
+          const tag = node.getTagNameNode()
+          const rendered = componentOf(tag)
+          return rendered ? mayRenderUnknown(rendered) : isOpaqueTag(tag, root)
+        }
+        return isReference(node) && holdsDeclaring(node, declaresNodes)
+      })
+    unknown.set(fn, result)
+    return result
+  }
   const check = (node: Node) => {
     if (surface.consumed.has(node)) {
       return
@@ -1353,7 +1415,7 @@ function reportUnfollowed(
     if (Node.isJsxElement(node) || Node.isJsxSelfClosingElement(node)) {
       const tag = tagOf(node)
       const fn = componentOf(tag)
-      if (fn ? !surface.entered.has(fn) : isOpaqueTag(tag, root)) {
+      if (fn ? mayRenderUnknown(fn) : isOpaqueTag(tag, root)) {
         flag(node, `<${tag.getText()}>`)
       }
       return

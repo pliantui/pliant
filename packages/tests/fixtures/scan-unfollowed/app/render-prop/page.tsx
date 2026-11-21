@@ -5,7 +5,7 @@ import { PliantRoot } from "@pliantui/react"
 import { renderBanner } from "@/components/helpers"
 
 function List({ render }: { render: () => React.ReactNode }) {
-  return <ul>{[1].map(() => render())}</ul>
+  return <ul>{render()}</ul>
 }
 
 export default function RenderPropPage() {

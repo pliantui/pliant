@@ -901,21 +901,53 @@ describe("pliantui scan", () => {
     expect(result.exitCode).toBe(0)
   })
 
+  it("leaves out a region a table renders in each row", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await edit(
+      cwd,
+      "app/orders/columns.tsx",
+      'columnHelper.display({ id: "actions", cell: () => <RowActions /> })',
+      '{ id: "actions", cell: () => <PliantRegion id="row-tools" slots={{ edit: <p>Edit</p> }} /> }'
+    )
+    await edit(
+      cwd,
+      "app/orders/columns.tsx",
+      "columns = columnHelper.columns([",
+      "columns = ["
+    )
+    await edit(cwd, "app/orders/columns.tsx", "\n])", "\n]")
+    await edit(
+      cwd,
+      "app/orders/columns.tsx",
+      'import { RowActions } from "@/components/row-actions"',
+      'import { PliantRegion } from "@/components/pliant/pliant-region"'
+    )
+    const { output } = await scanJson(cwd)
+    const orders = output.inventory["/orders"]
+
+    expect(orders?.baseIds.source).toBe("mounted")
+    expect(orders?.baseIds.ids).not.toContain("row-tools")
+    // The columns are read, so the reference to them isn't reported.
+    expect(
+      output.warnings.filter(({ message }) => message.startsWith("columns "))
+    ).toEqual([])
+    expect(
+      output.warnings
+        .filter(({ file }) => file === "app/orders/columns.tsx")
+        .map(({ message }) => message)
+    ).toEqual([
+      "<PliantRegion> renders a region or table once per row or item, like in a `.map` callback or a table cell, so its id isn't unique and it's left out.",
+      'The column "2fa" of orders-table is left out: overlays can only address column ids that start with a letter and contain only letters, digits, - and _.',
+    ])
+  })
+
   it("reports what it can't read instead of guessing", async () => {
     const cwd = await createFixtureDirectory("scan-app")
     const { output, exitCode } = await scanJson(cwd)
 
     expect(exitCode).toBe(0)
     expect(output.inventory["reports"]?.baseIds).toEqual({
-      ids: [
-        "body",
-        "deep",
-        "first",
-        "nested",
-        "overview",
-        "reports-table",
-        "summary",
-      ],
+      ids: ["deep", "first", "nested", "overview", "reports-table", "summary"],
       source: "mounted",
     })
     // The regions whose ids can't be read have no known parent for their
@@ -937,7 +969,8 @@ describe("pliantui scan", () => {
       "app/reports/page.tsx:38 A slot of overview can't be read: the computed key [`${prefix}-total`].",
       "app/reports/page.tsx:39 A slot of overview can't be read: the spread ...extra.",
       "app/reports/page.tsx:44 The id of a region can't be read: regionId().",
-      "app/reports/page.tsx:50 The id of a region can't be read: chart.",
+      // A region rendered once per item would repeat its id.
+      "app/reports/page.tsx:50 <PliantRegion> renders a region or table once per row or item, like in a `.map` callback or a table cell, so its id isn't unique and it's left out.",
       "app/reports/page.tsx:19 A column of reports-table can't be read: the columns fields.map((field) => ({ accessorKey:....",
     ])
   })
@@ -1051,6 +1084,58 @@ describe("pliantui scan", () => {
 })
 
 describe("pliantui scan, for what it can't follow", () => {
+  it.each([
+    {
+      name: "twice",
+      body: '<>{children}<PliantRegion id="frame" slots={{ body: children }} /></>',
+    },
+    {
+      name: "in either branch",
+      body: 'open ? <div>{children}</div> : <PliantRegion id="frame" slots={{ body: children }} />',
+    },
+  ])("reports children a component renders $name", async ({ body }) => {
+    const cwd = await createFixtureDirectory("scan-unfollowed")
+    await mkdir(path.join(cwd, "app/children-twice"))
+    await writeFile(
+      path.join(cwd, "app/children-twice/page.tsx"),
+      [
+        'import type * as React from "react"',
+        "",
+        'import { PliantRoot } from "@pliantui/react"',
+        "",
+        'import { Banner } from "@/components/banner"',
+        'import { PliantRegion } from "@/components/pliant/pliant-region"',
+        "",
+        "function Frame({",
+        "  open,",
+        "  children,",
+        "}: {",
+        "  open?: boolean",
+        "  children: React.ReactNode",
+        "}) {",
+        `  return ${body}`,
+        "}",
+        "",
+        "export default function ChildrenTwicePage() {",
+        "  return (",
+        '    <PliantRoot surface="children-twice">',
+        "      <Frame open>",
+        "        <Banner />",
+        "      </Frame>",
+        "    </PliantRoot>",
+        "  )",
+        "}",
+        "",
+      ].join("\n")
+    )
+    const { output, exitCode } = await scanJson(cwd)
+
+    expect(exitCode).toBe(1)
+    expect(output.errors.map((error) => error.message)).toContain(
+      "banner is rendered in both the top of the surface and body on children-twice. Node ids must be unique on a surface."
+    )
+  })
+
   it("treats a component from a package whose types aren't built as the package's", async () => {
     const cwd = await createFixtureDirectory("scan-unfollowed")
     await mkdir(path.join(cwd, "node_modules/unbuilt-ui"), { recursive: true })
@@ -1103,13 +1188,20 @@ describe("pliantui scan, for what it can't follow", () => {
       // `R.useMemo` under a default import.
       ["default-import-memo", ["banner", "message"]],
       ["direct", ["banner", "message"]],
+      // `renderHidden()` from another file, the one surface that renders it.
+      ["helper-rendered", ["hidden", "more"]],
       ["hoc", ["banner", "message"]],
       // `useMemo` from a named import.
       ["named-memo", ["banner", "message"]],
+      // An app component in a package's render prop that renders no region.
+      ["package-field", ["banner", "message"]],
       ["re-export", ["banner", "message"]],
       ["render-prop", ["banner", "message"]],
       // `renderLevel()` calls itself.
       ["self-render", ["banner", "message"]],
+      // An app component in a package's prop, here `fallback`, that renders
+      // no region.
+      ["suspense-fallback", ["banner", "message"]],
       ["use-callback", ["banner", "message"]],
     ])
     // Everything else is marked, each with what the scan couldn't follow.
@@ -1162,6 +1254,9 @@ describe("pliantui scan, for what it can't follow", () => {
       ],
       "factory-call": ["app/factory-call/page.tsx <Picked>"],
       "hook-component": ["app/hook-component/page.tsx <Picked>"],
+      // The region renderHidden makes, passed to a package's component, is
+      // unwalked here even though PliantRegion is walked for the banner.
+      "helper-in-package": ["components/hidden-region.tsx <PliantRegion>"],
       lazy: ['app/lazy/page.tsx import("@/components/helpers")'],
       // The module's default export is `memo(Banner)`.
       "lazy-memo": [

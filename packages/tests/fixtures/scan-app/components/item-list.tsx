@@ -12,7 +12,7 @@ export function ItemList({
   return (
     <PliantRegion
       id="item-list"
-      slots={{ items: <ul>{items.map((item) => renderItem(item))}</ul> }}
+      slots={{ items: <ul>{renderItem(items[0] ?? "")}</ul> }}
     />
   )
 }

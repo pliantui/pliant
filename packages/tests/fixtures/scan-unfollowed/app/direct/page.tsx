@@ -15,7 +15,7 @@ export default function DirectPage() {
         <Banner />
       </PliantActivity>
       {renderBanner()}
-      {["x"].map(renderRow)}
+      {renderRow("x")}
       <DefaultBanner />
       <Tree depth={1} />
       <MetaBanner table />
