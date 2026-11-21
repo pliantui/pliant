@@ -143,7 +143,7 @@ This reads the `cva` and `tailwind-variants` definitions in the ui folder, witho
 ## 5. Verify
 
 1. Run the project's typecheck and `next build`. Fix the errors your change caused; don't touch unrelated ones.
-2. Check that each `PliantRoot` and its `PliantPrePaint` have the same `surface`, and that it is the route pattern.
+2. Run `npx pliantui doctor --json` and fix every check whose `status` is `fail`, using its `fix`. It checks that each `PliantRoot` has a `PliantPrePaint` with the same `surface`; check yourself that the surface is the route pattern.
 3. Start the dev server and load the route. The page's HTML should contain `data-slot="pliant-region"` for each region and `data-pliant-id` on each slot.
 4. Prove a change applies. Temporarily add a client component inside `PliantRoot` with a button that calls `usePliantStore().applyOps("personal", [{ op: "hide", target: "summary/slots/status" }])`, using your own region and slot ids. Import `usePliantStore` from `@pliantui/react`, and log the returned result: `success` is `false` with an `error` when the op is rejected, which otherwise fails silently. After the click the slot should disappear from the page. Remove the component afterwards.
 
@@ -164,4 +164,4 @@ This reads the `cva` and `tailwind-variants` definitions in the ui folder, witho
 - [Operations](https://pliantui.dev/docs/concepts/operations): what users can change and what renders.
 - [Layers](https://pliantui.dev/docs/concepts/layers): how org, team, personal and session changes stack.
 - [Guardrails](https://pliantui.dev/docs/concepts/guardrails): what users can't change.
-- [CLI](https://pliantui.dev/docs/cli): `init`, `manifest` and `skills`.
+- [CLI](https://pliantui.dev/docs/cli): `init`, `manifest`, `scan`, `doctor` and `skills`.

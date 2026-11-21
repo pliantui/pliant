@@ -21,6 +21,12 @@ npx pliantui scan
 Lists the node ids on each surface of your app, and which node holds which, for core's `baseIds` and `baseParents`. Pass `--check` in CI.
 
 ```bash
+npx pliantui doctor
+```
+
+Checks that Pliant is set up correctly: the project, `@pliantui/react`, Pliant's components, a `PliantPrePaint` for each `PliantRoot`, and whether the inventory is up to date. Exits with code 1 when a check fails; pass `--json` for agents.
+
+```bash
 npx pliantui skills add
 ```
 
