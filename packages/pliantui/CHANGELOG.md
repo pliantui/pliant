@@ -1,0 +1,25 @@
+# pliantui
+
+## 0.1.0
+
+### Minor Changes
+
+- [#144](https://github.com/pliantui/pliant/pull/144) [`5ad310d`](https://github.com/pliantui/pliant/commit/5ad310d67a0a17349f4b449edd70f1ec9825d60f) Thanks [@TFM-HITESH](https://github.com/TFM-HITESH)! - Add `pliantui doctor`. It checks that Pliant is set up correctly and prints how to fix what isn't: a Next.js App Router project with `components.json`, `@pliantui/react` in `package.json`, Pliant's components in your `components` folder, a `PliantPrePaint` with the same `surface` in the route of every `PliantRoot`, and an inventory from `pliantui scan` that is up to date. It exits with code 1 when a check fails, and `--json` prints the checks for scripts and agents.
+
+- [#133](https://github.com/pliantui/pliant/pull/133) [`a7b7ee2`](https://github.com/pliantui/pliant/commit/a7b7ee250e5efba300e75bd0745797abe4711f09) Thanks [@TFM-HITESH](https://github.com/TFM-HITESH)! - Add `pliantui init`. In a Next.js App Router project that already uses shadcn/ui, it adds `@pliantui/react` with your package manager and the `pliant-region` component with `shadcn add`, then prints how to wrap a page in `PliantRoot`. It asks before each step, and `--yes` skips the questions. Run it again and it skips what is already installed.
+
+- [#136](https://github.com/pliantui/pliant/pull/136) [`5e13a7a`](https://github.com/pliantui/pliant/commit/5e13a7ae8aeec6ed5bf9e2dde000cfc9082a5ce2) Thanks [@TFM-HITESH](https://github.com/TFM-HITESH)! - Add two skills to `pliantui skills add`: `tables`, which guides an agent through making a data table customizable with `usePliantTable` and the `pliant-data-table` components, including grouping and aggregates, and `storage`, which guides it through choosing where users' changes are stored and setting up server storage for personal, team and org layers.
+
+- [#135](https://github.com/pliantui/pliant/pull/135) [`3f19da3`](https://github.com/pliantui/pliant/commit/3f19da370e100a09313d3cdc08d9235a11554c0c) Thanks [@TFM-HITESH](https://github.com/TFM-HITESH)! - Add `pliantui skills add`, which copies Pliant's skills for coding agents into your project: to `.claude/skills` if the project has a `.claude` folder, otherwise to `.agents/skills`, or to the folder you give with `--dir`. The first skill, `setup`, guides an agent through adding Pliant to a Next.js and shadcn app. Run the command again to update the skills; it asks before it overwrites files you changed, and `--yes` skips the question. `pliantui skills list` shows what comes with the package.
+
+- [#92](https://github.com/pliantui/pliant/pull/92) [`3e2f759`](https://github.com/pliantui/pliant/commit/3e2f75987ec1a120315fb6b6fc63ec8a9170a392) Thanks [@TFM-HITESH](https://github.com/TFM-HITESH)! - Add `pliantui manifest`. It reads the `cva` and `tailwind-variants` definitions in your ui folder and generates a manifest for each component. A review step lets you check the result first; skip it with `--yes`. Kinds are namespaced (`app:button` by default; set your own with `--namespace`).
+
+- [#108](https://github.com/pliantui/pliant/pull/108) [`270b1fe`](https://github.com/pliantui/pliant/commit/270b1fe89aa02f0b6d156f69bb5b8079747c91ab) Thanks [@TFM-HITESH](https://github.com/TFM-HITESH)! - Add `pliantui scan`. It reads your app's source and writes `lib/pliant/inventory.generated.ts`: for each surface, the ids of its regions, slots, tables and columns, which node holds which and in what order, and the kind of each id with a hash of its kind and manifest. A surface's `baseIds` and `baseParents` go straight into core's `resolveLayers` and `validateOverlay`. A `PliantRoot` in an App Router layout covers the pages under it. Slot ids that start with a digit are rejected, and anything the scan can't read is reported instead of guessed. Run `pliantui scan --check` in CI to fail when the committed inventory is out of date.
+
+### Patch Changes
+
+- [#18](https://github.com/pliantui/pliant/pull/18) [`8d8e8f2`](https://github.com/pliantui/pliant/commit/8d8e8f27a9c61afb11117f8f7c1659c5e6e4a258) Thanks [@dependabot](https://github.com/apps/dependabot)! - Update `commander` to 15.1.0.
+
+- [#145](https://github.com/pliantui/pliant/pull/145) [`c945314`](https://github.com/pliantui/pliant/commit/c94531442ca0bf4d7ae2d19b7c7336d6ca55aded) Thanks [@TFM-HITESH](https://github.com/TFM-HITESH)! - Follow the new `@pliantui/react` entry points. `pliantui scan` finds `usePliantRegion` and `useRegionSlots` imported from `@pliantui/react/region`. The page code `pliantui init` prints and the `setup`, `storage` and `tables` skills import `localAdapter` from `@pliantui/react/local` and pass it to `PliantRoot` as `storage`, which is now required.
+
+- [#139](https://github.com/pliantui/pliant/pull/139) [`709f21e`](https://github.com/pliantui/pliant/commit/709f21ee977d52a57e2e09a2afcea2b66d1eef13) Thanks [@TFM-HITESH](https://github.com/TFM-HITESH)! - The `tables` skill now covers derived columns: adding one with an `addDerived` op, window functions such as `share`, and how `pliant-data-table` shows them.
