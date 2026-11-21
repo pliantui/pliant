@@ -99,7 +99,9 @@ function Orders({
 }: {
   data: Order[]
   rows?: string
-  formatAggregate?: (value: unknown, unit: string | undefined) => string
+  formatAggregate?: React.ComponentProps<
+    typeof PliantDataTable
+  >["formatAggregate"]
   formatNumber?: (value: number) => string
 }) {
   const options = usePliantTable(
@@ -334,7 +336,7 @@ describe("PliantDataTable", () => {
       within(openRow)
         .getAllByRole("cell")
         .map((cell) => cell.textContent)
-    ).toEqual(["open(5)", "", "", "", "550", "5"])
+    ).toEqual(["open(5)", "", "", "", "₹550.00", "5"])
 
     fireEvent.click(open)
     expect(open.getAttribute("aria-expanded")).toBe("true")
@@ -347,7 +349,7 @@ describe("PliantDataTable", () => {
 
     const footer = within(section("footer")).getByRole("row")
     expect(footer.textContent).toContain("All rows")
-    expect(footer.textContent).toContain("3,250")
+    expect(footer.textContent).toContain("₹3,250.00")
     expect(footer.textContent).toContain("25")
   })
 
@@ -369,6 +371,99 @@ describe("PliantDataTable", () => {
     const footer = section("footer")
     expect(footer.textContent).toContain("3250 INR!")
     expect(footer.textContent).toContain("25!")
+  })
+
+  describe("derived columns", () => {
+    const tenth: Op = {
+      op: "addDerived",
+      target: "orders-table",
+      id: "tenth",
+      label: "Tenth",
+      expr: { fn: "div", args: [{ field: "value" }, { value: 10 }] },
+      format: { type: "number", decimals: 1 },
+    }
+    const cells = (header: string) => {
+      const index = within(table())
+        .getAllByRole("columnheader")
+        .findIndex((cell) => cell.textContent === header)
+      return bodyRows().map(
+        (row) => within(row).getAllByRole("cell")[index]?.textContent
+      )
+    }
+
+    it("shows the values by the op's format, without a total", () => {
+      renderOrders()
+      apply(tenth)
+
+      expect(cells("Tenth").slice(0, 3)).toEqual(["1.0", "2.0", "3.0"])
+      expect(within(table()).getAllByRole("rowgroup")).toHaveLength(2)
+    })
+
+    it("shows a percent unit as a percentage and a currency as one, with no format", () => {
+      renderOrders()
+      apply(
+        {
+          op: "addDerived",
+          target: "orders-table",
+          id: "share",
+          label: "Share",
+          expr: { fn: "share", args: [{ field: "value" }] },
+        },
+        {
+          op: "addDerived",
+          target: "orders-table",
+          id: "double",
+          label: "Double",
+          expr: { fn: "mul", args: [{ field: "value" }, { value: 2 }] },
+        }
+      )
+
+      expect(cells("Share")[9]).toBe("3%")
+      expect(cells("Double")[9]).toBe("₹200.00")
+    })
+
+    it("sorts by the column's header and says which way", () => {
+      renderOrders()
+      apply(tenth)
+      const header = () =>
+        within(table()).getByRole("columnheader", { name: "Tenth" })
+
+      fireEvent.click(within(header()).getByRole("button", { name: "Tenth" }))
+      expect(header().getAttribute("aria-sort")).toBe("ascending")
+      fireEvent.click(within(header()).getByRole("button", { name: "Tenth" }))
+      expect(header().getAttribute("aria-sort")).toBe("descending")
+      expect(cells("Tenth")[0]).toBe("25.0")
+    })
+
+    it("leaves a group's row empty and lists the column in the columns menu", async () => {
+      renderOrders()
+      apply(tenth, ...groupByStatus)
+
+      const open = within(table()).getByRole("button", { name: /open/ })
+      expect(
+        within(rowOf(open))
+          .getAllByRole("cell")
+          .map((cell) => cell.textContent)
+      ).toEqual(["open(5)", "", "", "", "", "₹550.00", "5"])
+      fireEvent.keyDown(screen.getByRole("button", { name: "Columns" }), {
+        key: "Enter",
+      })
+      await settle()
+      expect(
+        screen.getAllByRole("menuitemcheckbox").map((item) => item.textContent)
+      ).toContain("Tenth")
+    })
+
+    it("gives the unit and format to the function that formats it", () => {
+      renderOrders({
+        data: orders,
+        formatAggregate: (value, unit, format) =>
+          `${String(value)} ${String(unit)} ${JSON.stringify(format)}`,
+      })
+      apply(tenth)
+
+      expect(cells("Tenth")[0]).toBe('1 INR {"type":"number","decimals":1}')
+    })
   })
 
   it("shows the text the root was given", () => {

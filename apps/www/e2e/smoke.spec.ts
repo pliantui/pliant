@@ -48,6 +48,7 @@ test("lists and serves the data table registry item", async ({ request }) => {
   expect(item.files.map((file) => file.path).sort()).toEqual([
     "registry/pliant/pliant-data-table-column-header.tsx",
     "registry/pliant/pliant-data-table-features.ts",
+    "registry/pliant/pliant-data-table-format.ts",
     "registry/pliant/pliant-data-table-pagination.tsx",
     "registry/pliant/pliant-data-table-view-options.tsx",
     "registry/pliant/pliant-data-table.tsx",
