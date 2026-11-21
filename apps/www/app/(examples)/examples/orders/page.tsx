@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 
 import { PliantRoot } from "@pliantui/react"
+import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
 import { PliantRegion } from "@/registry/pliant/pliant-region"
@@ -26,7 +27,7 @@ export default function OrdersPage() {
       className="flex-1 bg-background text-foreground outline-none max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh] sm:has-[[data-slot=pliant-ask-panel]]:pr-96"
     >
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 lg:px-6">
-        <PliantRoot surface="/examples/orders">
+        <PliantRoot surface="/examples/orders" storage={localAdapter}>
           <PliantPrePaint surface="/examples/orders" />
           <header className="flex items-start justify-between gap-4">
             <div className="flex flex-col gap-1">

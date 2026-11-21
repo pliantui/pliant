@@ -10,6 +10,7 @@ import {
 import { createPortal } from "react-dom"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { localAdapter } from "./local-adapter"
 import { PliantRoot } from "./pliant-root"
 import { usePointMode } from "./use-point-mode"
 
@@ -688,6 +689,7 @@ describe("usePointMode", () => {
     render(
       <PliantRoot
         surface="/orders"
+        storage={localAdapter}
         messages={{
           pointModeOn: "Mode pointage activé.",
           pointModeOff: "Mode pointage désactivé.",

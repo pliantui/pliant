@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react"
 import { act, cleanup, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { localAdapter } from "./local-adapter"
 import { PliantActivity } from "./pliant-activity"
 import { PliantRoot } from "./pliant-root"
 import { useRegionSlots } from "./use-region-slots"
@@ -43,7 +44,7 @@ afterEach(() => {
 describe("useRegionSlots", () => {
   it("registers the region and its slots as mounted", async () => {
     render(
-      <PliantRoot surface="/dashboard">
+      <PliantRoot surface="/dashboard" storage={localAdapter}>
         <Region id="key-metrics" slots={slots} />
         <MountedIds />
       </PliantRoot>
@@ -72,7 +73,7 @@ describe("useRegionSlots", () => {
       )
     }
     render(
-      <PliantRoot surface="/dashboard">
+      <PliantRoot surface="/dashboard" storage={localAdapter}>
         <Content id="orders" />
         <Toggle />
       </PliantRoot>
@@ -87,7 +88,7 @@ describe("useRegionSlots", () => {
 
   it("updates shared content when the slots change", () => {
     const { rerender } = render(
-      <PliantRoot surface="/dashboard">
+      <PliantRoot surface="/dashboard" storage={localAdapter}>
         <Region id="key-metrics" slots={{ revenue: "$1" }} />
         <Content id="revenue" />
       </PliantRoot>
@@ -95,7 +96,7 @@ describe("useRegionSlots", () => {
     expect(screen.getByRole("status").textContent).toBe("$1")
 
     rerender(
-      <PliantRoot surface="/dashboard">
+      <PliantRoot surface="/dashboard" storage={localAdapter}>
         <Region id="key-metrics" slots={{ revenue: "$2" }} />
         <Content id="revenue" />
       </PliantRoot>
@@ -112,7 +113,7 @@ describe("useRegionSlots", () => {
       shown: boolean
     }) {
       return (
-        <PliantRoot surface="/dashboard">
+        <PliantRoot surface="/dashboard" storage={localAdapter}>
           <Content id="card" />
           <MountedIds />
           {shown && (

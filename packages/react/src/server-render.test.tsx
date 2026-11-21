@@ -3,6 +3,7 @@ import { renderToString } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
 
 import { memoryStorage, stored } from "../test/storage"
+import { localAdapter } from "./local-adapter"
 import { PliantPrePaint } from "./pliant-pre-paint"
 import { PliantRoot } from "./pliant-root"
 import type { StorageAdapter } from "./storage-adapter"
@@ -38,10 +39,10 @@ describe("PliantRoot on the server", () => {
     expect(load).not.toHaveBeenCalled()
   })
 
-  it("renders with the default adapter", () => {
+  it("renders with localAdapter passed uncalled", () => {
     expect(
       renderToString(
-        <PliantRoot surface="/orders">
+        <PliantRoot surface="/orders" storage={localAdapter}>
           <Probe />
         </PliantRoot>
       )
@@ -56,7 +57,7 @@ describe("PliantRoot on the server", () => {
 
     expect(
       renderToString(
-        <PliantRoot surface="/orders">
+        <PliantRoot surface="/orders" storage={localAdapter}>
           <Region />
         </PliantRoot>
       )
@@ -93,7 +94,11 @@ describe("PliantRoot on the server", () => {
 
     expect(
       renderToString(
-        <PliantRoot surface="/orders" layers={{ personal }}>
+        <PliantRoot
+          surface="/orders"
+          storage={localAdapter}
+          layers={{ personal }}
+        >
           <Region />
         </PliantRoot>
       )

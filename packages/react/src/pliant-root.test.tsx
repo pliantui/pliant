@@ -110,7 +110,7 @@ describe("PliantRoot", () => {
       )
     )
     render(
-      <PliantRoot surface={surface}>
+      <PliantRoot surface={surface} storage={localAdapter}>
         <Width />
       </PliantRoot>
     )
@@ -152,6 +152,39 @@ describe("PliantRoot", () => {
       root.unmount()
     })
     container.remove()
+  })
+
+  it("calls a storage function when the surface mounts, not on rerenders", () => {
+    const { storage } = memoryAdapter([
+      personalOverlay("01KAB0000000000000000000P1", 240),
+    ])
+    const createStorage = vi.fn(() => storage)
+    const { rerender } = render(
+      <PliantRoot surface={surface} storage={createStorage}>
+        <Width />
+      </PliantRoot>
+    )
+    const calls = createStorage.mock.calls.length
+    rerender(
+      <PliantRoot surface={surface} storage={createStorage}>
+        <Width />
+      </PliantRoot>
+    )
+
+    expect(screen.getByRole("status").textContent).toBe("240")
+    expect(createStorage).toHaveBeenCalled()
+    expect(createStorage.mock.calls.length).toBe(calls)
+  })
+
+  it("names the fix when storage is missing", () => {
+    expect(() =>
+      renderToString(
+        // @ts-expect-error JavaScript callers can leave storage out
+        <PliantRoot surface={surface}>
+          <Width />
+        </PliantRoot>
+      )
+    ).toThrow("PliantRoot needs `storage`")
   })
 
   it("renders and hydrates the layers loaded on the server", async () => {
@@ -222,7 +255,7 @@ describe("PliantRoot", () => {
     localStorage.setItem(`pliant:${surface}`, "{not json")
     sessionStorage.setItem(`pliant:session:${surface}`, "[1, 2")
     render(
-      <PliantRoot surface={surface}>
+      <PliantRoot surface={surface} storage={localAdapter}>
         <Width />
       </PliantRoot>
     )
@@ -667,7 +700,7 @@ describe("PliantRoot", () => {
       })
     const { result } = renderHook(() => usePliantStore(), {
       wrapper: ({ children }: { children: ReactNode }) => (
-        <PliantRoot surface={surface} onError={onError}>
+        <PliantRoot surface={surface} storage={localAdapter} onError={onError}>
           {children}
         </PliantRoot>
       ),
@@ -737,7 +770,7 @@ describe("PliantRoot", () => {
         },
         {
           wrapper: ({ children }: { children: ReactNode }) => (
-            <PliantRoot surface={surface} {...props}>
+            <PliantRoot surface={surface} storage={localAdapter} {...props}>
               {children}
             </PliantRoot>
           ),
@@ -1486,7 +1519,9 @@ describe("PliantRoot", () => {
     it("keeps the resolved layers when nothing stored changed", async () => {
       const { result } = renderHook(() => useResolved(), {
         wrapper: ({ children }: { children: ReactNode }) => (
-          <PliantRoot surface={surface}>{children}</PliantRoot>
+          <PliantRoot surface={surface} storage={localAdapter}>
+            {children}
+          </PliantRoot>
         ),
       })
       void localAdapter().save(

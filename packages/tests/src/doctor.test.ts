@@ -147,7 +147,7 @@ describe("pliantui doctor", () => {
         problems: [
           {
             file: path.normalize("app/orders/page.tsx"),
-            line: 10,
+            line: 11,
             message:
               "PliantRoot renders /orders with no PliantPrePaint in this route.",
           },
@@ -318,8 +318,8 @@ describe("pliantui doctor", () => {
       await edit(
         cwd,
         "app/reports/page.tsx",
-        '<PliantRoot surface="/reports">',
-        "<PliantRoot surface={String(Date.now())}>"
+        '<PliantRoot surface="/reports" storage={localAdapter}>',
+        "<PliantRoot surface={String(Date.now())} storage={localAdapter}>"
       )
       const result = await doctor(cwd)
       expect(result.check("pre-paint")).toMatchObject({

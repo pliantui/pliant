@@ -7,7 +7,7 @@ import { Slot } from "radix-ui"
 import { createPortal } from "react-dom"
 
 import { usePliantMessages, type PliantMessages } from "@pliantui/react"
-import { usePointMode } from "@pliantui/react/ask"
+import { usePointMode } from "@pliantui/react/point-mode"
 
 import { Button } from "@/components/ui/button"
 

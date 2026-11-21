@@ -6,15 +6,17 @@ import { ChevronDownIcon } from "lucide-react"
 
 import type { ByBreakpoint, RegionEntry, RegionLayout } from "@pliantui/core"
 import {
-  PliantActivity,
   usePliantMessages,
   usePliantNodeProps,
+  type PliantMessages,
+} from "@pliantui/react"
+import {
+  PliantActivity,
   usePliantRegion,
   useRegionItems,
   useSlotContent,
-  type PliantMessages,
   type RegionItem,
-} from "@pliantui/react"
+} from "@pliantui/react/region"
 
 import { Button } from "@/components/ui/button"
 

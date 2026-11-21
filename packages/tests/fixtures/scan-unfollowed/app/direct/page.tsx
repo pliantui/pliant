@@ -1,4 +1,5 @@
-import { PliantActivity, PliantRoot } from "@pliantui/react"
+import { PliantRoot } from "@pliantui/react"
+import { PliantActivity } from "@pliantui/react/region"
 
 import { Banner } from "@/components/banner"
 import DefaultBanner, {

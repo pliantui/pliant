@@ -9,10 +9,10 @@ Pliant keeps users' changes as overlays in four layers: `org`, `team`, `personal
 
 ## Pick one
 
-- **Default, `localAdapter`.** Nothing to set up. Personal changes are kept in the browser's `localStorage`, per browser and per origin. There are no team or org overlays. Right for a demo, an internal tool, or when per-browser is enough.
+- **Browser, `localAdapter`.** Nothing to set up: pass `storage={localAdapter}`, imported from `@pliantui/react/local`. Personal changes are kept in the browser's `localStorage`, per browser and per origin. There are no team or org overlays. Right for a demo, an internal tool, or when per-browser is enough.
 - **Server storage.** Your app serves a route with `createStorageHandler`, backed by a database table you own, and the browser uses `serverAdapter`. Personal changes follow the user across browsers, and team and org defaults become possible. The rest of this skill is about it.
 
-If the user hasn't said, use the default and mention the other. Server storage needs sign-in: the handler can't work without knowing who the user is.
+If the user hasn't said, use `localAdapter` and mention the other. Server storage needs sign-in: the handler can't work without knowing who the user is.
 
 ## 1. Implement an `OverlayStore`
 
