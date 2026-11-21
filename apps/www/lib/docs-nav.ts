@@ -1,4 +1,4 @@
-import type { Folder, Item, Root } from "fumadocs-core/page-tree"
+import type { Folder, Item, Node, Root } from "fumadocs-core/page-tree"
 
 export interface DocsGroup {
   id: string
@@ -6,24 +6,36 @@ export interface DocsGroup {
   pages: Item[]
 }
 
-// A folder appears at the top level through its index page.
-export function getDocsSections(tree: Root): Item[] {
-  return tree.children.flatMap((node) => {
-    if (node.type === "page") return [node]
-    if (node.type === "folder" && node.index) {
-      return [{ ...node.index, name: node.name }]
-    }
-    return []
-  })
+// A folder is listed by its index page, under the folder's name, then its
+// other pages.
+function pagesOf(node: Node): Item[] {
+  if (node.type === "page") return [node]
+  if (node.type !== "folder") return []
+  const pages = node.children.filter(
+    (child): child is Item => child.type === "page"
+  )
+  return node.index ? [{ ...node.index, name: node.name }, ...pages] : pages
 }
 
+// The docs' separators split the top level into groups, as `meta.json`
+// orders it.
 export function getDocsGroups(tree: Root): DocsGroup[] {
-  return tree.children.flatMap((node) => {
-    if (node.type !== "folder") return []
-    const pages = node.children.filter(
-      (child): child is Item => child.type === "page"
-    )
-    if (pages.length === 0) return []
-    return [{ id: node.$id ?? pages[0]?.url ?? "", name: node.name, pages }]
-  })
+  const groups: DocsGroup[] = []
+  for (const node of tree.children) {
+    if (node.type === "separator") {
+      groups.push({
+        id: node.$id ?? String(groups.length),
+        name: node.name ?? "",
+        pages: [],
+      })
+      continue
+    }
+    let group = groups.at(-1)
+    if (!group) {
+      group = { id: "start", name: "", pages: [] }
+      groups.push(group)
+    }
+    group.pages.push(...pagesOf(node))
+  }
+  return groups.filter((group) => group.pages.length > 0)
 }

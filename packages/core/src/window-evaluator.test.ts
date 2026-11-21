@@ -193,6 +193,49 @@ describe("createWindowEvaluator", () => {
       expect(evaluate(fn("runningSum", x), rows, { getRowId })).toEqual([3, 1])
     })
 
+    it("compares number row keys numerically", () => {
+      const rows = [
+        { id: 2, score: 1 },
+        { id: 10, score: 100 },
+        { id: 9, score: 10 },
+      ]
+      expect(evaluate(fn("runningSum", x), rows)).toEqual([1, 111, 11])
+    })
+
+    it("compares numeric text row keys by code point", () => {
+      const rows = [
+        { id: "2", score: 1 },
+        { id: "10", score: 100 },
+        { id: "9", score: 10 },
+      ]
+      expect(evaluate(fn("runningSum", x), rows)).toEqual([101, 100, 111])
+    })
+
+    it("puts number row keys before text ones", () => {
+      const rows = [
+        { id: "1", score: 1 },
+        { id: 10, score: 100 },
+        { id: 2, score: 10 },
+      ]
+      expect(evaluate(fn("runningSum", x), rows)).toEqual([111, 110, 10])
+    })
+
+    it("compares row keys from getRowId as it gives them", () => {
+      const rows = [
+        { key: 2, score: 1 },
+        { key: 10, score: 100 },
+        { key: 9, score: 10 },
+      ]
+      const asNumber = (row: object): unknown => Reflect.get(row, "key")
+      const asText = (row: object) => String(Reflect.get(row, "key"))
+      expect(
+        evaluate(fn("runningSum", x), rows, { getRowId: asNumber })
+      ).toEqual([1, 111, 11])
+      expect(evaluate(fn("runningSum", x), rows, { getRowId: asText })).toEqual(
+        [101, 100, 111]
+      )
+    })
+
     it("keeps small values that a larger one later cancels", () => {
       expect(evaluate(fn("runningSum", x), scores(1e16, 1, -1e16))).toEqual([
         1e16,

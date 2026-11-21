@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dialog"
 import { Spinner } from "@/components/ui/spinner"
 import { useMutationObserver } from "@/hooks/use-mutation-observer"
-import { getDocsGroups, getDocsSections } from "@/lib/docs-nav"
+import { getDocsGroups } from "@/lib/docs-nav"
 import type { NavItem } from "@/lib/nav"
 
 const groupClassName =
@@ -62,7 +62,6 @@ export function CommandMenu({
   // search needs no server.
   const { search, onSearchChange, isLoading, data } = useStaticSearch()
 
-  const sections = React.useMemo(() => getDocsSections(tree), [tree])
   const groups = React.useMemo(() => getDocsGroups(tree), [tree])
 
   const handleOpenChange = React.useCallback((open: boolean) => {
@@ -171,23 +170,6 @@ export function CommandMenu({
             </CommandGroup>
             {renderDelayedGroups ? (
               <>
-                <CommandGroup heading="Sections" className={groupClassName}>
-                  {sections.map((page) => (
-                    <CommandMenuItem
-                      key={page.url}
-                      value={`Sections ${nodeText(page.name)}`}
-                      onHighlight={highlightPage}
-                      onSelect={() => {
-                        runCommand(() => {
-                          router.push(page.url)
-                        })
-                      }}
-                    >
-                      <ArrowRightIcon />
-                      {page.name}
-                    </CommandMenuItem>
-                  ))}
-                </CommandGroup>
                 {groups.map((group) => (
                   <CommandGroup
                     key={group.id}

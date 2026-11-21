@@ -50,9 +50,13 @@ export const mdxComponents = {
   h5: createHeading("h5"),
   h6: createHeading("h6"),
   // Typeset tables stay real tables and wrap to fit; wrap them to scroll
-  // wide ones horizontally instead.
+  // wide ones horizontally instead. The wrapper takes focus so keyboard users
+  // can scroll it too.
   table: (props: React.ComponentProps<"table">) => (
-    <div className="typeset-scroll scroll-fade-x scrollbar-none *:[table]:w-full">
+    <div
+      tabIndex={0}
+      className="typeset-scroll scroll-fade-x scrollbar-none rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 *:[table]:w-full"
+    >
       <table {...props} />
     </div>
   ),
@@ -101,5 +105,15 @@ export const mdxComponents = {
   },
   Callout,
   Link,
+  LinkedCard: ({ className, ...props }: React.ComponentProps<typeof Link>) => (
+    <Link
+      data-not-typeset
+      className={cn(
+        "flex w-full flex-col items-center rounded-2xl bg-surface p-6 text-surface-foreground transition-colors hover:bg-surface/80 sm:p-10",
+        className
+      )}
+      {...props}
+    />
+  ),
   SiteUrl,
 }

@@ -1,16 +1,14 @@
 import type { Row, RowData, Table, TableFeatures } from "@tanstack/react-table"
 
 import type { Expression } from "@pliantui/contract"
-import { compareCodePoints } from "@pliantui/core"
+import { compareRowKeys } from "@pliantui/core"
 
 type AnyTable = Table<TableFeatures, RowData>
 type AnyRow = Row<TableFeatures, RowData>
 
-/** A row's key: `getRowId`, else the field named `id`, as text. */
-export function rowKeyOf(row: AnyRow) {
-  return String(
-    row.table.options.getRowId ? row.id : Reflect.get(row.original, "id")
-  )
+/** A row's key: `getRowId`, else the field named `id`. */
+export function rowKeyOf(row: AnyRow): unknown {
+  return row.table.options.getRowId ? row.id : Reflect.get(row.original, "id")
 }
 
 /**
@@ -45,7 +43,7 @@ export function compareByTableSort(table: AnyTable) {
         return desc === !invertSorting ? -order : order
       }
     }
-    return compareCodePoints(rowKeyOf(a), rowKeyOf(b))
+    return compareRowKeys(rowKeyOf(a), rowKeyOf(b))
   }
 }
 

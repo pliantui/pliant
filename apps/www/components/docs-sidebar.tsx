@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { cn } from "cn"
 import type { Item, Root } from "fumadocs-core/page-tree"
 
 import {
@@ -15,14 +16,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { getDocsGroups, getDocsSections } from "@/lib/docs-nav"
+import { getDocsGroups } from "@/lib/docs-nav"
 
 export function DocsSidebar({
   tree,
   ...props
 }: React.ComponentProps<typeof Sidebar> & { tree: Root }) {
   const pathname = usePathname()
-  const sections = getDocsSections(tree)
   const groups = getDocsGroups(tree)
 
   return (
@@ -35,29 +35,8 @@ export function DocsSidebar({
     >
       <div className="absolute top-12 right-2 bottom-0 hidden h-full w-px bg-[linear-gradient(to_bottom,transparent_0%,var(--border)_10%,var(--border)_90%,transparent_100%)] lg:flex" />
       <SidebarContent className="w-(--sidebar-menu-width) scroll-fade scrollbar-none overflow-x-hidden pl-2.5">
-        <SidebarGroup className="pt-12">
-          <SidebarGroupLabel className="font-medium text-muted-foreground">
-            Sections
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {sections.map((page) => (
-                <DocsSidebarLink
-                  key={page.url}
-                  page={page}
-                  isActive={
-                    page.url === "/docs"
-                      ? pathname === page.url
-                      : pathname === page.url ||
-                        pathname.startsWith(`${page.url}/`)
-                  }
-                />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        {groups.map((group) => (
-          <SidebarGroup key={group.id}>
+        {groups.map((group, index) => (
+          <SidebarGroup key={group.id} className={cn(index === 0 && "pt-12")}>
             <SidebarGroupLabel className="font-medium text-muted-foreground">
               {group.name}
             </SidebarGroupLabel>
