@@ -68,11 +68,15 @@ const menuItems = {
   ),
 }
 
+function subscribe() {
+  return () => undefined
+}
+
 // The page's address comes from the browser, so the links name the site the
 // reader is on.
 function usePageUrl(path: string) {
   return React.useSyncExternalStore(
-    () => () => undefined,
+    subscribe,
     () => new URL(path, window.location.origin).href,
     () => path
   )

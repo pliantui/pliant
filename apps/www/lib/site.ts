@@ -3,6 +3,9 @@ const repository = "https://github.com/pliantui/pliant"
 export const site = {
   name: "Pliant",
   description: "Let the users of your shadcn app reshape it to fit their work.",
+  headline: "Build pliant interfaces: apps your users can reshape.",
+  summary:
+    "Pliant adds per-user and per-team customization to your shadcn app, within the rules you set.",
   repository,
   links: {
     getStarted: "/docs",

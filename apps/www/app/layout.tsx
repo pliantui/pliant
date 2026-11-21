@@ -29,6 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       )}
     >
       <head>
+        <meta name="theme-color" content={META_THEME_COLORS.light} />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -40,7 +41,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             `,
           }}
         />
-        <meta name="theme-color" content={META_THEME_COLORS.light} />
       </head>
       <body className="group/body overscroll-none antialiased [--footer-height:calc(var(--spacing)*14)] xl:[--footer-height:calc(var(--spacing)*24)]">
         <ThemeProvider>

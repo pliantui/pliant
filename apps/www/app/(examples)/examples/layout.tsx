@@ -19,12 +19,9 @@ export default function ExamplesLayout({ children }: LayoutProps<"/examples">) {
     <>
       <PageHeader>
         <PageHeaderHeading className="max-w-4xl">
-          Build pliant interfaces: apps your users can reshape.
+          {site.headline}
         </PageHeaderHeading>
-        <PageHeaderDescription>
-          Pliant adds per-user and per-team customization to your shadcn app,
-          within the rules you set.
-        </PageHeaderDescription>
+        <PageHeaderDescription>{site.summary}</PageHeaderDescription>
         <PageActions>
           <Button asChild className="h-[35px] rounded-4xl px-3">
             <Link href={site.links.getStarted}>Get Started</Link>

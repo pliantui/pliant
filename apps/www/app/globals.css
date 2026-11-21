@@ -7,7 +7,6 @@
 
 @theme inline {
   --breakpoint-3xl: 1600px;
-  --breakpoint-4xl: 2000px;
   --font-sans: var(--font-sans);
   --font-heading: var(--font-heading);
   --font-mono: var(--font-mono);
@@ -193,15 +192,6 @@
   @apply mx-auto max-w-[1400px] px-4 3xl:max-w-screen-2xl lg:px-8;
 }
 
-@utility no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
 @utility extend-touch-target {
   @media (pointer: coarse) {
     @apply relative touch-manipulation after:absolute after:-inset-2;
@@ -209,14 +199,6 @@
 }
 
 @layer components {
-  /* Component links (asChild buttons, cards) keep their own affordances
-     inside typeset prose. Consumer-level rule: this app knows its components
-     carry data-slot. Same layer as typeset, wins on specificity. */
-  .typeset a[data-slot] {
-    font-weight: inherit;
-    text-decoration-line: none;
-  }
-
   [data-rehype-pretty-code-figure] {
     background-color: var(--color-code);
     color: var(--color-code-foreground);

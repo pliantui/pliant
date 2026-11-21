@@ -19,9 +19,8 @@ export default function NotFound() {
       <p className="text-sm font-medium text-muted-foreground">404</p>
       <PageHeaderHeading>Page not found</PageHeaderHeading>
       <PageHeaderDescription>
-        This page doesn&apos;t exist or has moved. Press{" "}
-        <kbd className="rounded border bg-muted px-1 font-sans text-sm">/</kbd>{" "}
-        to search the docs, or head back.
+        This page doesn&apos;t exist or has moved. Find what you need in the
+        docs, or head back home.
       </PageHeaderDescription>
       <PageActions>
         <Button asChild className="h-[35px] rounded-4xl px-3">

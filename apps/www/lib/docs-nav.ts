@@ -6,7 +6,7 @@ export interface DocsGroup {
   pages: Item[]
 }
 
-// The top level of the docs: each page, and each folder by its index page.
+// A folder appears at the top level through its index page.
 export function getDocsSections(tree: Root): Item[] {
   return tree.children.flatMap((node) => {
     if (node.type === "page") return [node]
@@ -17,7 +17,6 @@ export function getDocsSections(tree: Root): Item[] {
   })
 }
 
-// One group per folder, listing the pages inside it.
 export function getDocsGroups(tree: Root): DocsGroup[] {
   return tree.children.flatMap((node) => {
     if (node.type !== "folder") return []

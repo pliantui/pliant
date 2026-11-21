@@ -37,15 +37,6 @@ import type { NavItem } from "@/lib/nav"
 const groupClassName =
   "p-0! **:[[cmdk-group-heading]]:scroll-mt-16 **:[[cmdk-group-heading]]:p-3! **:[[cmdk-group-heading]]:pb-1!"
 
-function isEditable(target: EventTarget | null) {
-  return (
-    (target instanceof HTMLElement && target.isContentEditable) ||
-    target instanceof HTMLInputElement ||
-    target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement
-  )
-}
-
 function nodeText(node: React.ReactNode) {
   return typeof node === "string" ? node : ""
 }
@@ -93,9 +84,7 @@ export function CommandMenu({
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || e.key === "/") {
-        if (isEditable(e.target)) return
-
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         setOpen((open) => !open)
         setRenderDelayedGroups(false)
@@ -133,7 +122,7 @@ export function CommandMenu({
       </DialogTrigger>
       <CommandDialogContent className="rounded-xl border-none bg-clip-padding p-2 pb-11 shadow-2xl ring-4 ring-neutral-200/80 dark:bg-neutral-900 dark:ring-neutral-800">
         <DialogHeader className="sr-only">
-          <DialogTitle>Search documentation...</DialogTitle>
+          <DialogTitle>Search documentation</DialogTitle>
           <DialogDescription>
             Search the docs and jump to a page.
           </DialogDescription>
@@ -337,7 +326,8 @@ function SearchResults({
             onSelect(item.url)
           }}
           className="h-9 rounded-md border border-transparent px-3! font-normal data-[selected=true]:border-input data-[selected=true]:bg-input/50"
-          keywords={[item.content]}
+          // The index already matched these; the query keeps them in the list.
+          keywords={[item.content, search]}
           value={`${item.content} ${item.type}`}
         >
           <div className="line-clamp-1 text-sm">{item.content}</div>

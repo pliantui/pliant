@@ -11,7 +11,7 @@ export function Callout({
   ...props
 }: Omit<React.ComponentProps<typeof Alert>, "variant"> & {
   icon?: React.ReactNode
-  variant?: "default" | "info" | "warning"
+  variant?: "default" | "warning"
 }) {
   return (
     <Alert
@@ -19,14 +19,18 @@ export function Callout({
       role="note"
       data-variant={variant}
       className={cn(
-        "not-typeset mt-6 w-auto rounded-2xl border-surface bg-surface text-surface-foreground md:-mx-1 **:[a]:font-medium **:[a]:underline **:[a]:decoration-current/30 **:[a]:hover:decoration-current **:[code]:border",
+        "not-typeset mt-6 w-auto rounded-2xl border-surface bg-surface text-surface-foreground data-[variant=warning]:border-amber-200 data-[variant=warning]:bg-amber-50 data-[variant=warning]:text-amber-950 md:-mx-1 dark:data-[variant=warning]:border-amber-900/60 dark:data-[variant=warning]:bg-amber-950/40 dark:data-[variant=warning]:text-amber-50 **:[a]:font-medium **:[a]:underline **:[a]:decoration-current/30 **:[a]:hover:decoration-current **:[code]:border",
         className
       )}
       {...props}
     >
       {icon}
       {title && <AlertTitle>{title}</AlertTitle>}
-      <AlertDescription className="text-card-foreground/80">
+      <AlertDescription
+        className={
+          variant === "warning" ? "text-current" : "text-card-foreground/80"
+        }
+      >
         {children}
       </AlertDescription>
     </Alert>

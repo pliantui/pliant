@@ -6,6 +6,13 @@ export function useCopyToClipboard({
   timeout = 2000,
 }: { timeout?: number } = {}) {
   const [isCopied, setIsCopied] = React.useState(false)
+  const timer = React.useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  React.useEffect(() => {
+    return () => {
+      clearTimeout(timer.current)
+    }
+  }, [])
 
   const copyToClipboard = async (value: string) => {
     if (!value) return false
@@ -17,7 +24,8 @@ export function useCopyToClipboard({
     }
 
     setIsCopied(true)
-    setTimeout(() => {
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
       setIsCopied(false)
     }, timeout)
     return true

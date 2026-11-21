@@ -30,9 +30,9 @@ test.describe("the skip link", () => {
       })
       await expect(skipLink).toBeFocused()
       await expect(skipLink).toBeVisible()
-      expect(
-        await skipLink.evaluate((link) => link.closest("header") !== null)
-      ).toBe(true)
+      await expect(
+        page.getByRole("banner").getByRole("link", { name: "Skip to content" })
+      ).toBeFocused()
 
       await page.keyboard.press("Enter")
       await expect
@@ -156,10 +156,6 @@ test.describe("on a wide screen", () => {
 
     await page.keyboard.press("ControlOrMeta+k")
     await expect(dialog).toBeVisible()
-    await page.keyboard.press("Escape")
-
-    await page.keyboard.press("/")
-    await expect(dialog).toBeVisible()
   })
 
   test("the docs sidebar lists every docs page and marks the current one", async ({
@@ -233,7 +229,9 @@ test.describe("on a wide screen", () => {
 
     const copied = await page.evaluate(() => navigator.clipboard.readText())
     expect(copied).toContain('"fn": "div"')
-    await expect(block.getByRole("button", { name: "Copied" })).toBeVisible()
+    await expect(
+      page.getByRole("status").filter({ hasText: "Copied" })
+    ).toHaveCount(1)
   })
 
   test("the examples nav moves between the examples", async ({ page }) => {
@@ -415,7 +413,7 @@ test.describe("the 404 page", () => {
 
   test("opens search from the keyboard", async ({ page }) => {
     await page.goto("/no-such-page")
-    await page.keyboard.press("/")
+    await page.keyboard.press("ControlOrMeta+k")
     await expect(page.getByRole("dialog", { name: /^Search/ })).toBeVisible()
   })
 
