@@ -36,8 +36,8 @@ export interface GuardrailInput {
 
 /**
  * A rule the resolved state breaks, named after what it enforces, with the
- * flag and flagged node it protects, and the applied ops that together
- * break it.
+ * node it protects and the flag that makes the rule apply, if one does, and
+ * the applied ops that together break it.
  */
 export type Violation =
   | {
@@ -49,6 +49,22 @@ export type Violation =
   | {
       readonly guardrail: "stays-clear"
       readonly flag: "destructive"
+      readonly node: string
+      readonly ops: readonly ResolvedOp[]
+    }
+  | {
+      readonly guardrail: "free-shortcut"
+      readonly node: string
+      readonly ops: readonly ResolvedOp[]
+    }
+  | {
+      readonly guardrail: "keeps-meaning"
+      readonly flag?: "destructive"
+      readonly node: string
+      readonly ops: readonly ResolvedOp[]
+    }
+  | {
+      readonly guardrail: "valid-default" | "stays-in-place"
       readonly node: string
       readonly ops: readonly ResolvedOp[]
     }
