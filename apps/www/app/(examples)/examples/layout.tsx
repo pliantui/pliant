@@ -24,7 +24,7 @@ export default function ExamplesLayout({ children }: LayoutProps<"/examples">) {
         <PageHeaderDescription>{site.summary}</PageHeaderDescription>
         <PageActions>
           <Button asChild className="h-[35px] rounded-4xl px-3">
-            <Link href={site.links.getStarted}>Get Started</Link>
+            <Link href={site.links.getStarted}>Get started</Link>
           </Button>
           <Button asChild variant="secondary" className="rounded-4xl px-3">
             <a href={site.repository} target="_blank" rel="noreferrer">

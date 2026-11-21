@@ -254,7 +254,7 @@ test.describe("on a wide screen", () => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"])
     await page.goto("/docs/concepts/expressions")
     const block = page
-      .locator("figure")
+      .getByRole("figure")
       .filter({ hasText: '"fn": "div"' })
       .first()
     await block.getByRole("button", { name: "Copy" }).click()
@@ -342,7 +342,7 @@ test.describe("on a wide screen", () => {
     await main.getByRole("link", { name: "View Examples" }).click()
     await expect(page).toHaveURL("/examples/orders")
     await page.goto("/")
-    await main.getByRole("link", { name: "Get Started" }).click()
+    await main.getByRole("link", { name: "Get started" }).click()
     await expect(
       page.getByRole("heading", { level: 1, name: "Introduction" })
     ).toBeVisible()
@@ -406,6 +406,21 @@ test.describe("on a phone", () => {
     await menu.getByRole("link", { name: "Guardrails" }).click()
     await expect(page).toHaveURL("/docs/concepts/guardrails")
     await expect(menu).toBeHidden()
+  })
+
+  test("the menu button shows where keyboard focus is", async ({ page }) => {
+    await page.goto("/docs")
+    const menu = page.getByRole("banner").getByRole("button", { name: "Menu" })
+    const unfocused = await menu.evaluate(
+      (button) => getComputedStyle(button).boxShadow
+    )
+
+    await page.keyboard.press("Tab")
+    await page.keyboard.press("Tab")
+    await expect(menu).toBeFocused()
+    expect(
+      await menu.evaluate((button) => getComputedStyle(button).boxShadow)
+    ).not.toBe(unfocused)
   })
 
   test("the header keeps the GitHub link and the theme toggle", async ({
