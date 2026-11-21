@@ -11,7 +11,7 @@ Use the `init` command to add Pliant to a Next.js App Router project that alread
 npx pliantui init
 ```
 
-The command installs the `@pliantui/react` package with your package manager, found from your lockfile (pnpm, npm, yarn or bun), and adds the `pliant-region` component to your project with `shadcn add`. It asks before each step and shows the command it will run. If you answer no, it prints that command so you can run it yourself.
+The command installs the `@pliantui/react` package with your package manager, found from your lockfile or, without one, the `packageManager` field in `package.json` (pnpm, npm, yarn or bun), and adds the `pliant-region` component to your project with `shadcn add`. It asks before each step and shows the command it will run. If you answer no, it prints that command so you can run it yourself.
 
 ```txt
 Usage: pliantui init [options]
@@ -32,7 +32,7 @@ Your project needs:
 - Next.js with an `app` or `src/app` folder
 - a `components.json` file. If it's missing, run `npx shadcn@latest init`, then run `pliantui init` again.
 
-Other frameworks, and the Next.js Pages Router, aren't supported by `init`. Follow the [installation guide](https://pliantui.dev/docs) to set them up by hand. The command exits with an error in these cases and changes nothing.
+Other frameworks and the Next.js Pages Router aren't supported by `init`. In these cases the command exits with an error and changes nothing.
 
 `init` doesn't edit your pages. When it finishes, it prints the code to wrap a page with:
 
@@ -40,21 +40,30 @@ Other frameworks, and the Next.js Pages Router, aren't supported by `init`. Foll
 import { PliantRoot } from "@pliantui/react"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
+import { PliantRegion } from "@/components/pliant/pliant-region"
+
+const surface = "/orders/[id]" // this page's route pattern
+
 export default function Page() {
   return (
-    <PliantRoot surface="/">
-      <PliantPrePaint surface="/" />
-      {/* the page */}
+    <PliantRoot surface={surface}>
+      <PliantPrePaint surface={surface} />
+      <PliantRegion
+        id="summary"
+        slots={{ total: <OrderTotal />, status: <OrderStatus /> }}
+      />
     </PliantRoot>
   )
 }
 ```
 
+The `surface` is the page's route pattern, such as `/orders/[id]`. `PliantRoot` and `PliantPrePaint` must receive the same `surface`. `PliantRegion` is the component `init` added: its `slots` are the parts of the page that users can reorder, hide and resize.
+
 `PliantPrePaint` keeps a customized page from flashing its original layout before Pliant applies the user's changes.
 
 Run `init` again at any time. It skips what is already installed, and says so when there's nothing left to do.
 
-Pass `--yes` to skip the questions, for example in a script. Pass `--registry` to install the components from your own registry; the component files are read from `<url>/pliant-region.json`.
+Pass `--yes` to skip the questions, for example in a script. Pass `--registry` to install the components from your own registry; the component files are read from `<url>/pliant-region.json`. The URL must use `http` or `https` and can't contain a query string, a fragment or credentials.
 
 ## manifest
 

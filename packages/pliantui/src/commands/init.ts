@@ -11,6 +11,7 @@ import {
   installCommand,
   runnerCommand,
 } from "../init/package-manager"
+import { parseRegistryUrl } from "../init/registry-url"
 import { getConfig } from "../utils/get-config"
 import { handleError } from "../utils/handle-error"
 import { highlighter } from "../utils/highlighter"
@@ -24,12 +25,18 @@ const baseItems = ["pliant-region"]
 const initOptionsSchema = z.object({
   cwd: z.string(),
   yes: z.boolean(),
-  registry: z
-    .string()
-    .refine((value) => /^https?:\/\/\S+$/.test(value), {
-      error: "The registry must be an http or https URL.",
-    })
-    .transform((value) => value.replace(/\/+$/, "")),
+  registry: z.string().transform((value, ctx) => {
+    const registry = parseRegistryUrl(value)
+    if (!registry) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "The registry must be an http or https URL without a query string, fragment or credentials.",
+      })
+      return z.NEVER
+    }
+    return registry
+  }),
 })
 
 class InitCancelledError extends Error {}
@@ -83,7 +90,7 @@ async function setUp(options: z.infer<typeof initOptionsSchema>) {
       `${project.description} is not supported by ${highlighter.info("pliantui init")}.`
     )
     logger.error(
-      `To set up Pliant by hand, follow the installation guide: ${highlighter.info(docsUrl)}`
+      `${highlighter.info("pliantui init")} sets up Next.js App Router projects that use shadcn/ui.`
     )
     logger.break()
     process.exit(1)
@@ -106,7 +113,7 @@ async function setUp(options: z.infer<typeof initOptionsSchema>) {
     )
   }
 
-  const packageManager = detectPackageManager(cwd)
+  const packageManager = await detectPackageManager(cwd)
   const missingPackage = !(reactPackage in project.dependencies)
   const missingItems = baseItems.filter(
     (item) =>
@@ -186,7 +193,9 @@ async function setUp(options: z.infer<typeof initOptionsSchema>) {
     logger.success("✔ Pliant is ready.")
   }
   logger.break()
-  logger.log("Next, wrap a page in PliantRoot with PliantPrePaint:")
+  logger.log(
+    "Next, wrap a page in PliantRoot and PliantPrePaint, and put its content in a PliantRegion:"
+  )
   logger.break()
   logger.log(pageSnippet)
   logger.break()

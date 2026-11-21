@@ -59,7 +59,7 @@ describe("pliantui init", () => {
 
     expect(exitCode).toBe(1)
     expect(stdout).toContain("Vite is not supported by pliantui init.")
-    expect(stdout).toContain("https://pliantui.dev/docs")
+    expect(stdout).toContain("sets up Next.js App Router projects")
   })
 
   it("asks for shadcn first when components.json is missing", async () => {

@@ -31,16 +31,20 @@ interface ProjectOptions {
   dependencies?: Record<string, string>
   appDirectory?: string | null
   shadcn?: boolean
-  lockfile?: string
+  lockfile?: string | null
+  packageManager?: string
   componentsAlias?: string
   installed?: string[]
 }
 
+let root: string
 let cwd: string
 let output: string[]
 
 beforeEach(async () => {
-  cwd = await mkdtemp(path.join(tmpdir(), "pliantui-init-"))
+  root = await mkdtemp(path.join(tmpdir(), "pliantui-init-"))
+  cwd = path.join(root, "app")
+  await mkdir(cwd)
   output = []
   vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
     output.push(stripVTControlCharacters(args.join(" ")))
@@ -55,7 +59,7 @@ afterEach(async () => {
   vi.restoreAllMocks()
   vi.mocked(runCommand).mockClear()
   setTerminal(false)
-  await rm(cwd, { recursive: true, force: true })
+  await rm(root, { recursive: true, force: true })
 })
 
 function setTerminal(isTTY: boolean) {
@@ -75,11 +79,17 @@ async function createProject({
   appDirectory = "app",
   shadcn = true,
   lockfile = "pnpm-lock.yaml",
+  packageManager,
   componentsAlias = "./*",
   installed = [],
 }: ProjectOptions = {}) {
-  await write("package.json", JSON.stringify({ name: "app", dependencies }))
-  await write(lockfile, "")
+  await write(
+    "package.json",
+    JSON.stringify({ name: "app", dependencies, packageManager })
+  )
+  if (lockfile) {
+    await write(lockfile, "")
+  }
   if (appDirectory) {
     await write(
       `${appDirectory}/layout.tsx`,
@@ -166,8 +176,66 @@ describe("pliantui init in a Next.js app with shadcn", () => {
   )
 
   it("uses npm when there is no lockfile", async () => {
-    await createProject()
-    await rm(path.join(cwd, "pnpm-lock.yaml"))
+    await createProject({ lockfile: null })
+
+    await run("--yes")
+
+    expect(commands()[0]).toBe("npm install @pliantui/react")
+  })
+
+  it("finds the lockfile in a parent folder", async () => {
+    await createProject({ lockfile: null })
+    await writeFile(path.join(root, "pnpm-lock.yaml"), "")
+
+    await run("--yes")
+
+    expect(commands()).toEqual([
+      "pnpm add @pliantui/react",
+      `pnpm dlx ${addRegion}`,
+    ])
+  })
+
+  it.each([
+    ["pnpm@9.15.0", "pnpm add @pliantui/react", `pnpm dlx ${addRegion}`],
+    ["yarn@4.5.0+sha512.abc", "yarn add @pliantui/react", `npx ${addRegion}`],
+    ["bun@1.2.0", "bun add @pliantui/react", `bunx ${addRegion}`],
+    ["npm@10.0.0", "npm install @pliantui/react", `npx ${addRegion}`],
+  ])(
+    "uses the packageManager field %s when there is no lockfile",
+    async (packageManager, install, add) => {
+      await createProject({ lockfile: null, packageManager })
+
+      await run("--yes")
+
+      expect(commands()).toEqual([install, add])
+    }
+  )
+
+  it("finds the packageManager field in a parent folder", async () => {
+    await createProject({ lockfile: null })
+    await writeFile(
+      path.join(root, "package.json"),
+      JSON.stringify({ packageManager: "pnpm@9.15.0" })
+    )
+
+    await run("--yes")
+
+    expect(commands()[0]).toBe("pnpm add @pliantui/react")
+  })
+
+  it("prefers a lockfile over the packageManager field", async () => {
+    await createProject({
+      lockfile: "yarn.lock",
+      packageManager: "pnpm@9.15.0",
+    })
+
+    await run("--yes")
+
+    expect(commands()[0]).toBe("yarn add @pliantui/react")
+  })
+
+  it("ignores a packageManager field it doesn't know", async () => {
+    await createProject({ lockfile: null, packageManager: "deno@2.0.0" })
 
     await run("--yes")
 
@@ -195,13 +263,39 @@ describe("pliantui init in a Next.js app with shadcn", () => {
     )
   })
 
-  it("rejects a registry that is not an http URL", async () => {
+  it.each([
+    "pliantui.dev/r",
+    "ftp://pliantui.dev/r",
+    "file:///etc/passwd",
+    "https://pliantui.dev/r?token=abc",
+    "https://pliantui.dev/r#section",
+    "https://user:secret@pliantui.dev/r",
+    "https://pliantui.dev/r & calc",
+    "https://pliantui.dev/r|calc",
+    "https://pliantui.dev/r^calc",
+    "https://pliantui.dev/%PATH%",
+    'https://pliantui.dev/"r"',
+    "https://pliantui.dev/r;calc",
+    "https://pliantui.dev/$(calc)",
+    "https://pliantui.dev/r%zz",
+    "https://",
+  ])("rejects the registry %s", async (registry) => {
     await createProject()
 
-    expect(await run("--yes", "--registry", "pliantui.dev/r")).toBe(1)
+    expect(await run("--yes", "--registry", registry)).toBe(1)
 
-    expect(printed()).toContain("The registry must be an http or https URL.")
+    expect(printed()).toContain("The registry must be an http or https URL")
     expect(commands()).toEqual([])
+  })
+
+  it("accepts a registry with a port and percent-encoded characters", async () => {
+    await createProject()
+
+    await run("--yes", "--registry", "http://localhost:4000/my%20r")
+
+    expect(commands()[1]).toContain(
+      "http://localhost:4000/my%20r/pliant-region.json"
+    )
   })
 
   it("prints the next step and the docs link", async () => {
@@ -216,6 +310,8 @@ describe("pliantui init in a Next.js app with shadcn", () => {
     )
     expect(text).toContain("<PliantRoot surface=")
     expect(text).toContain("<PliantPrePaint surface=")
+    expect(text).toContain("<PliantRegion")
+    expect(text).toContain("route pattern")
     expect(text).toContain("https://pliantui.dev/docs")
   })
 
@@ -385,7 +481,10 @@ describe("pliantui init prerequisites", () => {
     expect(await run("--yes")).toBe(1)
 
     expect(printed()).toContain(`${name} is not supported by pliantui init.`)
-    expect(printed()).toContain("https://pliantui.dev/docs")
+    expect(printed()).toContain(
+      "pliantui init sets up Next.js App Router projects that use shadcn/ui."
+    )
+    expect(printed()).not.toContain("installation guide")
     expect(commands()).toEqual([])
   })
 
