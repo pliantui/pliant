@@ -135,6 +135,9 @@ function isKnownTag(value: Node, root: string, seen: Set<Node>): boolean {
   if (!Node.isIdentifier(node) && !Node.isPropertyAccessExpression(node)) {
     return false
   }
+  if (isContextPart(node, root)) {
+    return true
+  }
   let base: Node = node
   while (Node.isPropertyAccessExpression(base)) {
     base = unwrapExpression(base.getExpression())
@@ -150,17 +153,49 @@ function isKnownTag(value: Node, root: string, seen: Set<Node>): boolean {
       const initializer = declaration.getInitializer()
       return initializer !== undefined && isKnownTag(initializer, root, seen)
     }
+    return false
   }
-  // A member a package declares, like `table.FlexRender` on a parameter
-  // typed by the package.
+  // A member a package declares on a parameter, like `table.FlexRender`
+  // on a table prop. A member of a call's result, like
+  // `useContext(Context).Banner`, may be the app's own data.
   const declaration = getDeclarations(node)[0]
-  if (declaration) {
-    const file = declaration.getSourceFile()
-    if (file.isInNodeModules() || !isInside(file.getFilePath(), root)) {
-      return true
-    }
+  const file = declaration?.getSourceFile()
+  const baseDeclaration = Node.isIdentifier(base)
+    ? base.getSymbol()?.getDeclarations()[0]
+    : undefined
+  return (
+    file !== undefined &&
+    (file.isInNodeModules() || !isInside(file.getFilePath(), root)) &&
+    baseDeclaration !== undefined &&
+    (Node.isParameterDeclaration(baseDeclaration) ||
+      baseDeclaration.getFirstAncestor((ancestor) =>
+        Node.isParameterDeclaration(ancestor)
+      ) !== undefined)
+  )
+}
+
+// `Context.Provider` or `Context.Consumer` of a context made by a
+// package's `createContext()`.
+function isContextPart(node: Node, root: string) {
+  if (
+    !Node.isPropertyAccessExpression(node) ||
+    !["Provider", "Consumer"].includes(node.getName())
+  ) {
+    return false
   }
-  return isFromPackage(node, root, new Set())
+  const context = getDeclarations(node.getExpression())[0]
+  const initializer = Node.isVariableDeclaration(context)
+    ? context.getInitializer()
+    : undefined
+  const call = initializer && unwrapExpression(initializer)
+  if (!Node.isCallExpression(call)) {
+    return false
+  }
+  const callee = unwrapExpression(call.getExpression())
+  const name = Node.isPropertyAccessExpression(callee)
+    ? callee.getName()
+    : callee.getText()
+  return name === "createContext" && isFromPackage(callee, root, new Set())
 }
 
 /**

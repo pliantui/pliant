@@ -1130,6 +1130,11 @@ describe("pliantui scan, for what it can't follow", () => {
         "app/class-component/page.tsx Banner",
       ],
       "context-value": ["app/context-value/page.tsx renderBanner"],
+      // A member of what `useContext()` returns is the app's own data.
+      "context-member": ["app/context-member/page.tsx <ui.Banner>"],
+      "context-member-variable": [
+        "app/context-member-variable/page.tsx <Picked>",
+      ],
       "create-element": ["app/create-element/page.tsx Banner"],
       // A module typed only by the app's own declaration files, here a
       // `.js` file with a `.d.ts` beside it and `declare module "*.mdx"`
