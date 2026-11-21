@@ -1,6 +1,6 @@
 import type { Op } from "@pliantui/contract"
 
-import { orderItems } from "./order-items"
+import { resolveItems } from "./resolve-items"
 import type { ResolvedLayers } from "./resolve-layers"
 import type { RegionEntry } from "./resolve-region"
 
@@ -38,40 +38,18 @@ export interface ResolveFormOptions {
  * parent.
  */
 export function resolveForm(
-  { properties, placements }: Pick<ResolvedLayers, "properties" | "placements">,
+  layers: Pick<ResolvedLayers, "properties" | "placements">,
   { id, fields }: ResolveFormOptions
 ): ResolvedForm {
-  const form = properties.get(id)
+  const entries = resolveItems(layers, id, "fields", fields)
   const defaults = new Map<string, DefaultValue>()
-  const order = orderItems(fields, (field) => {
-    const placement = placements.get(`${id}/fields/${field}`)
-    return placement?.container === id ? placement.position : undefined
-  })
-  const entries = order.map((field) => {
-    const own = properties.get(`${id}/fields/${field}`)
-    const setDefault = own?.get("default")?.winner.check.op
+  for (const { id: field } of entries) {
+    const setDefault = layers.properties
+      .get(`${id}/fields/${field}`)
+      ?.get("default")?.winner.check.op
     if (setDefault?.op === "setDefault") {
       defaults.set(field, setDefault.value)
     }
-    const position = placements.get(`${id}/fields/${field}`)?.position
-    const pin =
-      position && "pin" in position && position.pin !== "none"
-        ? position.pin
-        : undefined
-    const collapse = form?.get(`collapse.${field}`)?.winner.check.op
-    return {
-      kind: "slot" as const,
-      id: field,
-      visible: own?.get("visible")?.winner.check.op.op !== "hide",
-      ...(pin && { pinned: pin }),
-      ...(collapse?.op === "collapse" &&
-        collapse.into !== "none" && {
-          collapsed: {
-            into: collapse.into,
-            ...(collapse.label !== undefined && { label: collapse.label }),
-          },
-        }),
-    }
-  })
+  }
   return { entries, defaults }
 }
