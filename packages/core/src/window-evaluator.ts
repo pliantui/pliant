@@ -31,7 +31,9 @@ export interface WindowEvaluatorOptions<
 > extends RowEvaluatorOptions<TRow> {
   /**
    * The row key, like TanStack Table's `getRowId`. By default, it's the
-   * row's field named `id`, as text.
+   * row's field named `id`, as text. Without either, every key is
+   * `"undefined"`, so tied rows stay in the order they're given: a dataset
+   * needs a row key for display order to be defined.
    */
   readonly getRowId?: ((row: TRow) => string) | undefined
 }
@@ -64,7 +66,7 @@ export interface WindowExpression<
    * group when the table is grouped, otherwise every row after filters.
    * Rows can be given in any order; the values come back in the same order.
    */
-  readonly evaluate: (
+  readonly compute: (
     rows: readonly TRow[],
     options?: WindowPartitionOptions<TRow>
   ) => RowValue[]
@@ -99,9 +101,11 @@ const noValue: Run = () => null
  * gives what its row accessor gives.
  *
  * Running sums and totals are compensated, and means and deviations are
- * accumulated by Welford's algorithm merged pairwise by Chan's, on values
- * scaled by a power of two so that they can't overflow, so results stay
- * within the catalog's floating-point allowances at any number of rows.
+ * accumulated by Welford's algorithm merged pairwise by Chan's. Each is kept
+ * in units of a power of two near the largest value involved (for a running
+ * sum, the largest so far), so huge values can't overflow and tiny ones
+ * can't underflow on the way, and results stay within the catalog's
+ * floating-point allowances at any number of rows.
  *
  * Throws a `RangeError` when `timeZone` or a value of `todayTimeZones` isn't
  * a time zone the runtime knows.
@@ -172,7 +176,7 @@ export function createWindowEvaluator<TRow extends object = object>(
       success: true,
       data: {
         ...checked.data,
-        evaluate: (rows, { compare } = {}) => {
+        compute: (rows, { compare } = {}) => {
           context.tick()
           let current: TRow | undefined
           const scope: Scope = {

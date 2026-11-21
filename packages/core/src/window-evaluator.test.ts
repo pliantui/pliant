@@ -57,7 +57,7 @@ function evaluate(
   options: Options = {},
   partition?: WindowPartitionOptions
 ) {
-  return prepare(expression, options).evaluate(rows, partition)
+  return prepare(expression, options).compute(rows, partition)
 }
 
 function messages(expression: Expression, options: Options = {}) {
@@ -201,12 +201,37 @@ describe("createWindowEvaluator", () => {
       ])
     })
 
+    it("keeps small values that cancel after a larger one arrives", () => {
+      const sums = evaluate(
+        fn("runningSum", x),
+        scores(1e16, 1, 1e17, -1e17, -1e16)
+      )
+      expect(sums.at(-1)).toBe(1)
+    })
+
     it("gives null where the sum overflows, and the sum again after", () => {
       const max = Number.MAX_VALUE
       expect(evaluate(fn("runningSum", x), scores(max, max, -max))).toEqual([
         max,
         null,
         max,
+      ])
+    })
+
+    it("keeps values far below a larger one that comes later", () => {
+      const max = Number.MAX_VALUE
+      const running = (...values: number[]) =>
+        evaluate(fn("runningSum", x), scores(...values))
+      expect(running(1e-200, 3, 1e200)).toEqual([1e-200, 3, 1e200])
+      expect(running(1e-300, 1e300)).toEqual([1e-300, 1e300])
+      expect(running(5e-324, max)).toEqual([5e-324, max])
+      const rows = [
+        { id: "c", score: 1e300 },
+        { id: "b", score: 5e-324 },
+        { id: "a", score: 1e-300 },
+      ]
+      expect(evaluate(fn("runningSum", x), rows)).toEqual([
+        1e300, 1e-300, 1e-300,
       ])
     })
 
@@ -274,9 +299,8 @@ describe("createWindowEvaluator", () => {
 
     it("scores values whose squares overflow or underflow", () => {
       const max = Number.MAX_VALUE
-      const huge = evaluate(fn("zScore", x), scores(max, -max))
-      expect(huge[0]).toBeCloseTo(Math.SQRT1_2, 15)
-      expect(huge[1]).toBeCloseTo(-Math.SQRT1_2, 15)
+      const huge = evaluate(fn("zScore", x), scores(max, 0, -max))
+      expect(huge).toEqual([1, 0, -1])
       expect(
         evaluate(fn("zScore", x), scores(5e-324, 1e-323, 1.5e-323))
       ).toEqual([-1, 0, 1])
@@ -312,8 +336,8 @@ describe("createWindowEvaluator", () => {
 
     it("computes each partition on its own", () => {
       const expression = prepare(fn("share", x))
-      expect(expression.evaluate(scores(1, 3))).toEqual([0.25, 0.75])
-      expect(expression.evaluate(scores(2, 2))).toEqual([0.5, 0.5])
+      expect(expression.compute(scores(1, 3))).toEqual([0.25, 0.75])
+      expect(expression.compute(scores(2, 2))).toEqual([0.5, 0.5])
     })
   })
 

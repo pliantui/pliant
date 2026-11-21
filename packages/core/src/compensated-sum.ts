@@ -13,6 +13,11 @@ export function createSum() {
         Math.abs(sum) >= Math.abs(x) ? sum - total + x : x - total + sum
       sum = total
     },
+    /** Applies `by`, a multiplication by a power of two, to the sum. */
+    scale(by: (x: number) => number) {
+      sum = by(sum)
+      compensation = by(compensation)
+    },
     total: () => sum + compensation,
   }
 }

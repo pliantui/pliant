@@ -52,9 +52,9 @@ function scaleBy(x: number, exponent: number) {
 
 /**
  * The numbers among the values, multiplied by the power of two that brings
- * the largest magnitude near 1, with NaN for null, and that exponent.
- * Scaling by a power of two is exact, except for values so far below the
- * largest that the allowances can't see them, and it keeps sums of huge
+ * the largest magnitude near 1, with NaN for null. Shares and scores don't
+ * change with the scale, and scaling is exact except for values so far below
+ * the largest that their allowances can't see them. It keeps sums of huge
  * values from overflowing and squares of tiny ones from underflowing.
  */
 function normalize(values: readonly Value[]) {
@@ -65,50 +65,49 @@ function normalize(values: readonly Value[]) {
     }
   }
   const exponent = largest === 0 ? 0 : Math.floor(Math.log2(largest))
-  return {
-    xs: Float64Array.from(values, (value) =>
-      typeof value === "number" ? scaleBy(value, -exponent) : Number.NaN
-    ),
-    exponent,
-  }
+  return Float64Array.from(values, (value) =>
+    typeof value === "number" ? scaleBy(value, -exponent) : Number.NaN
+  )
 }
 
 const numeric =
-  (
-    compute: (
-      xs: Float64Array,
-      exponent: number,
-      displayOrder: () => readonly number[]
-    ) => (x: number, index: number) => number
-  ): CreateWindow =>
+  (compute: (xs: Float64Array) => (x: number) => number): CreateWindow =>
   () =>
-  (values, displayOrder) => {
-    const { xs, exponent } = normalize(values)
+  (values) => {
+    const xs = normalize(values)
     const results = values.map((): Value => null)
-    const resultOf = compute(xs, exponent, displayOrder)
+    const resultOf = compute(xs)
     xs.forEach((x, index) => {
       if (!Number.isNaN(x)) {
-        results[index] = finite(resultOf(x, index))
+        results[index] = finite(resultOf(x))
       }
     })
     return results
   }
 
-const runningSum = numeric((xs, exponent, displayOrder) => {
-  const sums = new Float64Array(xs.length)
+// The sum is kept in units of a power of two near the largest value so far,
+// so huge values can't overflow it on the way. A row's allowance counts only
+// the values up to it, so the scale grows only as larger values arrive, and
+// growing it drops only bits below the new allowance.
+const runningSum: CreateWindow = () => (values, displayOrder) => {
+  const results = values.map((): Value => null)
   const sum = createSum()
+  let exponent = 0
   for (const index of displayOrder()) {
-    const x = xs[index] ?? Number.NaN
-    if (!Number.isNaN(x)) {
-      sum.add(x)
-      sums[index] = scaleBy(sum.total(), exponent)
+    const x = values[index] ?? null
+    if (typeof x === "number") {
+      const next = Math.floor(Math.log2(Math.abs(x)))
+      if (next > exponent) {
+        sum.scale((y) => scaleBy(y, exponent - next))
+        exponent = next
+      }
+      sum.add(scaleBy(x, -exponent))
+      results[index] = finite(scaleBy(sum.total(), exponent))
     }
   }
-  return (_, index) => sums[index] ?? Number.NaN
-})
+  return results
+}
 
-// Shares and scores don't change when every value is scaled, so they're
-// computed from the scaled values as they are.
 const share = numeric((xs) => {
   const sum = createSum()
   for (const x of xs) {
