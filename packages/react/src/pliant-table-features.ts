@@ -21,6 +21,10 @@ import {
 } from "@tanstack/react-table"
 
 import { pliantFilterFns } from "./pliant-filter-fns"
+import { derivedValuesFeature } from "./table-derived-values"
+
+// Not a feature TanStack's types name: spread, so it isn't checked as a key.
+const pliantFeatures = { derivedValuesFeature }
 
 /**
  * The developer's features with the ones Pliant's ops need added: column
@@ -30,7 +34,8 @@ import { pliantFilterFns } from "./pliant-filter-fns"
  * an op sets their state),
  * the sort functions TanStack's `auto` picks from (`basic` for numbers,
  * `datetime` for dates, `alphanumeric` and `text` for text, which sort
- * case-insensitively), and the `pliant:*` filter functions. The
+ * case-insensitively), the `pliant:*` filter functions, and the feature that
+ * reads the values of derived columns. The
  * paginated row model isn't added: it would page a table that shows every
  * row. The developer's own entries win.
  */
@@ -47,6 +52,7 @@ export function withPliantFeatures(features: TableFeatures): TableFeatures {
     rowPaginationFeature,
     rowSortingFeature,
     ...features,
+    ...pliantFeatures,
     expandedRowModel: features.expandedRowModel ?? createExpandedRowModel(),
     filteredRowModel: features.filteredRowModel ?? createFilteredRowModel(),
     groupedRowModel: features.groupedRowModel ?? createGroupedRowModel(),

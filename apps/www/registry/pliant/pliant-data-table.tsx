@@ -18,7 +18,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+import { PliantDataTableColumnHeader } from "./pliant-data-table-column-header"
 import type { PliantDataTableFeatures } from "./pliant-data-table-features"
+import {
+  formatPliantValue,
+  type PliantDataTableFormat,
+} from "./pliant-data-table-format"
 
 declare module "@pliantui/react" {
   interface PliantMessages {
@@ -45,7 +50,14 @@ function defaultFormatNumber(value: number) {
   return defaultNumber.format(value)
 }
 
-function defaultFormatAggregate(value: unknown) {
+function defaultFormatAggregate(
+  value: unknown,
+  unit: string | undefined,
+  format?: PliantDataTableFormat
+) {
+  if (format) {
+    return formatPliantValue(value, format, unit)
+  }
   if (typeof value === "number") {
     return defaultFormatNumber(value)
   }
@@ -54,10 +66,23 @@ function defaultFormatAggregate(value: unknown) {
     : "—"
 }
 
+function isDerived<TData extends RowData>(
+  column: Column<PliantDataTableFeatures, TData>
+) {
+  return column.columnDef.meta?.pliant?.derived === true
+}
+
 function isAggregate<TData extends RowData>(
   column: Column<PliantDataTableFeatures, TData>
 ) {
-  return column.columnDef.meta?.pliant?.type !== undefined
+  return column.columnDef.meta?.pliant?.type !== undefined && !isDerived(column)
+}
+
+function isNumeric<TData extends RowData>(
+  column: Column<PliantDataTableFeatures, TData>
+) {
+  const type = column.columnDef.meta?.pliant?.type
+  return type === "number" || type === "integer"
 }
 
 type PliantDataTableName =
@@ -89,7 +114,8 @@ function getColumnStyles<TData extends RowData>(
  * `usePliantTable`: column headers, rows, and, when users group the rows,
  * a row per group with a button that expands it and an aggregate in each
  * aggregated cell. Columns with `meta.pliant.type`, the ones Pliant
- * aggregates, get their total in a footer.
+ * aggregates, get their total in a footer. Derived columns (`meta.pliant.derived`)
+ * get a sortable header and show their values by their `format`.
  * Pinned columns stay in place while the table scrolls sideways.
  *
  * The table scrolls inside a focusable region, so keyboard users can scroll
@@ -114,10 +140,16 @@ function PliantDataTable<TData extends RowData>({
     /** The table from `useTable`, with the options from `usePliantTable`. */
     table: ReactTable<PliantDataTableFeatures, TData>
     /**
-     * Formats an aggregated value, given the unit from the column's
-     * `meta.pliant`, if any. Defaults to English digit grouping for numbers.
+     * Formats an aggregated or derived value, given the unit and, for a
+     * derived column, the `format` from the column's `meta.pliant`, if any.
+     * Defaults to the `format` when there is one (see `formatPliantValue`),
+     * and English digit grouping for numbers otherwise.
      */
-    formatAggregate?: (value: unknown, unit: string | undefined) => string
+    formatAggregate?: (
+      value: unknown,
+      unit: string | undefined,
+      format?: PliantDataTableFormat
+    ) => string
     /** Formats the number of rows in a group. */
     formatNumber?: (value: number) => string
   }) {
@@ -163,7 +195,17 @@ function PliantDataTable<TData extends RowData>({
                     className={pinnedClassName}
                     style={getColumnStyles(header.column)}
                   >
-                    {header.isPlaceholder ? null : (
+                    {header.isPlaceholder ? null : isDerived(header.column) ? (
+                      <div
+                        className={
+                          isNumeric(header.column)
+                            ? "-mr-2.5 flex justify-end pr-4"
+                            : undefined
+                        }
+                      >
+                        <PliantDataTableColumnHeader column={header.column} />
+                      </div>
+                    ) : (
                       <table.FlexRender header={header} />
                     )}
                   </TableHead>
@@ -207,7 +249,20 @@ function PliantDataTable<TData extends RowData>({
                           cell.column.columnDef.meta?.pliant?.unit
                         )}
                       </div>
-                    ) : row.getIsGrouped() ? null : (
+                    ) : row.getIsGrouped() ? null : isDerived(cell.column) ? (
+                      <div
+                        className={cn(
+                          "tabular-nums",
+                          isNumeric(cell.column) && "pr-4 text-right"
+                        )}
+                      >
+                        {formatAggregate(
+                          cell.getValue(),
+                          cell.column.columnDef.meta?.pliant?.unit,
+                          cell.column.columnDef.meta?.pliant?.format
+                        )}
+                      </div>
+                    ) : (
                       <table.FlexRender cell={cell} />
                     )}
                   </TableCell>
