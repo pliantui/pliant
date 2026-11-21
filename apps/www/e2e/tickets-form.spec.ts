@@ -146,6 +146,36 @@ test("opens More fields when a field inside is invalid", async ({ page }) => {
   await expect(page.getByRole("status")).toHaveText("")
 })
 
+test("leaves More fields closed when a field inside becomes invalid as the user types", async ({
+  page,
+}) => {
+  await load(page, [collapse])
+  const subject = page.getByLabel("Subject")
+  await subject.fill("Refund")
+  await page
+    .getByLabel("Description")
+    .fill("I returned my order two weeks ago.")
+  await page.getByRole("button", { name: "Submit ticket" }).click()
+  await expect(page.getByRole("status")).not.toHaveText("")
+  // A form that validates on change can mark a field in More fields invalid
+  // while the user types in another one.
+  await subject.evaluate((input) => {
+    input.addEventListener("input", () => {
+      document
+        .getElementById("ticket-form-cc")
+        ?.setAttribute("aria-invalid", "true")
+    })
+  })
+
+  await subject.press("End")
+  await subject.pressSequentially(" not received")
+  await expect(subject).toBeFocused()
+  await expect(subject).toHaveValue("Refund not received")
+  await expect(
+    page.getByRole("button", { name: "More fields" })
+  ).toHaveAttribute("aria-expanded", "false")
+})
+
 test("opens More fields before the browser reports an invalid field", async ({
   page,
 }) => {

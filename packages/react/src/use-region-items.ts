@@ -108,11 +108,14 @@ function groupsOf(entries: readonly RegionEntry[]) {
  * entries a `collapse` holds follow a trigger in the same parent, so opening
  * and closing them never remounts them. Holds which collapses are open, and
  * moves focus to the trigger when an op collapses the focused entry. A
- * closed collapse opens when a control inside becomes invalid: when it gets
- * `aria-invalid="true"`, as form libraries set it, and focus moves to it
- * unless an invalid control has focus; or when the browser's validation
- * fires `invalid` on it, before the browser focuses it. The user can close
- * it again while the control is invalid.
+ * closed collapse opens when a form submit finds a control inside invalid:
+ * when the control gets `aria-invalid="true"`, as form libraries set it, and
+ * focus moves to it unless an invalid control has focus; or when the
+ * browser's validation fires `invalid` on it, before the browser focuses it.
+ * A control that becomes invalid while the user types or clicks, as with
+ * validation on change, leaves the collapse and focus as they are. The user
+ * can close it again while the control is invalid, and it stays closed
+ * until a submit finds a control inside invalid again.
  *
  * @experimental
  */
@@ -197,14 +200,6 @@ export function useRegionItems(
 
   // Focus would be lost in an entry an op just collapsed, so it moves to the
   // entry's trigger.
-  //
-  // A collapse opens when a control inside becomes invalid, so the user sees
-  // the error: a form library marks it with `aria-invalid`, and the
-  // browser's own validation fires `invalid` on it. It opens synchronously,
-  // since the browser focuses the invalid control right after the event.
-  // A form library tried to focus the first invalid control while it was
-  // hidden, so unless an invalid control has focus, focus moves to the
-  // invalid control in the collapse that opens.
   const watchClosed = useEffectEvent(() => {
     for (const [entryId, triggerId] of closed) {
       if (document.getElementById(entryId)?.contains(document.activeElement)) {
@@ -212,44 +207,72 @@ export function useRegionItems(
         break
       }
     }
-    return closed.map(([entryId, , group]) => {
-      const element = document.getElementById(entryId)
-      const openGroup = () => {
-        flushSync(() => {
-          setOpen((current) => new Set(current).add(group))
-        })
-      }
-      const observer = new MutationObserver(() => {
-        const control = element?.querySelector<HTMLElement>(invalid)
-        if (control) {
-          openGroup()
-          if (!document.activeElement?.matches(invalid)) {
-            control.focus()
-          }
-        }
-      })
-      if (element) {
-        element.addEventListener("invalid", openGroup, true)
-        observer.observe(element, {
-          subtree: true,
-          attributeFilter: ["aria-invalid"],
-        })
-      }
-      return () => {
-        element?.removeEventListener("invalid", openGroup, true)
-        observer.disconnect()
-      }
-    })
   })
 
   useLayoutEffect(() => {
-    const cleanups = watchClosed()
-    return () => {
-      for (const cleanup of cleanups) {
-        cleanup()
+    watchClosed()
+  }, [closedKey])
+
+  const reveal = useEffectEvent((control: Element) => {
+    const group = closed.find(([entryId]) =>
+      document.getElementById(entryId)?.contains(control)
+    )?.[2]
+    if (group) {
+      flushSync(() => {
+        setOpen((current) => new Set(current).add(group))
+      })
+    }
+    return group
+  })
+
+  // A collapse opens when a submit finds a control inside invalid, so the
+  // user sees the error: the browser's own validation fires `invalid` on it,
+  // and a form library marks it with `aria-invalid` once its validation
+  // settles. It opens synchronously, since the browser focuses the invalid
+  // control right after the event. A form library tried to focus the first
+  // invalid control while it was hidden, so unless an invalid control has
+  // focus, focus moves to the invalid control in the collapse that opens.
+  // A control can also become invalid as the user types elsewhere, when a
+  // form validates on change: opening the collapse and moving focus then
+  // would change the context under the user, so only a submit, until the
+  // user's next input, opens it.
+  useLayoutEffect(() => {
+    let submitting = false
+    const types = ["invalid", "submit", "input", "keydown", "click"]
+    const track = (event: Event) => {
+      if (event.type !== "invalid") {
+        submitting = event.type === "submit"
+      } else if (event.target instanceof Element) {
+        reveal(event.target)
       }
     }
-  }, [closedKey])
+    const observer = new MutationObserver((records) => {
+      for (const { target } of records) {
+        if (
+          submitting &&
+          target instanceof HTMLElement &&
+          target.matches(invalid) &&
+          reveal(target) &&
+          !document.activeElement?.matches(invalid)
+        ) {
+          target.focus()
+        }
+      }
+    })
+    observer.observe(document, {
+      subtree: true,
+      attributeFilter: ["aria-invalid"],
+    })
+    for (const type of types) {
+      document.addEventListener(type, track, true)
+    }
+    return () => {
+      observer.disconnect()
+      for (const type of types) {
+        document.removeEventListener(type, track, true)
+      }
+    }
+  }, [])
 
   return items
 }

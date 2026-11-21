@@ -12,7 +12,7 @@
   },
   {
     "path": "dist/region.js",
-    "limit": "1.59 kB",
+    "limit": "1.67 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -101,7 +101,7 @@
       "dist/table.js",
       "dist/local.js"
     ],
-    "limit": "15.75 kB",
+    "limit": "15.81 kB",
     "ignore": [
       "react",
       "react-dom",
