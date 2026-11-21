@@ -1,3 +1,5 @@
+import { createUnits, scaleBy } from "./scale"
+
 /**
  * Accumulates a sum by Neumaier's compensated summation: its error is
  * bounded by the sum of the absolute values times twice the rounding unit,
@@ -19,5 +21,24 @@ export function createSum() {
       compensation = by(compensation)
     },
     total: () => sum + compensation,
+  }
+}
+
+/**
+ * A compensated sum kept in units of a power of two near the largest value
+ * so far, as `createUnits` keeps them, so values that would overflow it
+ * can't, and `total` overflows only when the sum itself is out of range.
+ * Growing the units drops only bits below the new largest value's allowance.
+ */
+export function createScaledSum() {
+  const sum = createSum()
+  const units = createUnits(0, (by) => {
+    sum.scale((x) => scaleBy(x, by))
+  })
+  return {
+    add: (x: number) => {
+      sum.add(units.of(x))
+    },
+    total: () => scaleBy(sum.total(), units.exponent()),
   }
 }

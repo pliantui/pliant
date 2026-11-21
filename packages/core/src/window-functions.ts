@@ -1,10 +1,11 @@
 import type { FunctionName } from "@pliantui/contract"
 
 import { isFunctionName } from "./check-function-call"
-import { createSum } from "./compensated-sum"
+import { createScaledSum, createSum } from "./compensated-sum"
 import { createMoments } from "./moments"
 import { finite, type Value } from "./read-value"
 import { compareValues } from "./row-functions"
+import { scaleBy } from "./scale"
 
 /**
  * Computes a window function call for every row of a partition, from the
@@ -42,13 +43,6 @@ const ranking =
     })
     return results
   }
-
-// Multiplies by 2 to the power of exponent in two steps, each of which stays
-// within the range of doubles.
-function scaleBy(x: number, exponent: number) {
-  const half = Math.trunc(exponent / 2)
-  return x * 2 ** half * 2 ** (exponent - half)
-}
 
 /**
  * The numbers among the values, multiplied by the power of two that brings
@@ -91,18 +85,12 @@ const numeric =
 // growing it drops only bits below the new allowance.
 const runningSum: CreateWindow = () => (values, displayOrder) => {
   const results = values.map((): Value => null)
-  const sum = createSum()
-  let exponent = 0
+  const sum = createScaledSum()
   for (const index of displayOrder()) {
     const x = values[index] ?? null
     if (typeof x === "number") {
-      const next = Math.floor(Math.log2(Math.abs(x)))
-      if (next > exponent) {
-        sum.scale((y) => scaleBy(y, exponent - next))
-        exponent = next
-      }
-      sum.add(scaleBy(x, -exponent))
-      results[index] = finite(scaleBy(sum.total(), exponent))
+      sum.add(x)
+      results[index] = finite(sum.total())
     }
   }
   return results
