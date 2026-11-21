@@ -1,5 +1,6 @@
 import type { Row, RowData, TableFeatures } from "@tanstack/react-table"
 
+import type { Expression } from "@pliantui/contract"
 import {
   createAggregateEvaluator,
   createRowEvaluator,
@@ -14,30 +15,43 @@ import type {
 } from "./table-aggregates"
 import type { AcceptedDerived, TableDerived } from "./table-derived"
 import { readsOrder, rowKeyOf } from "./table-display-order"
+import type { AcceptedHighlight, TableHighlight } from "./table-highlights"
 import { evaluatorOptions, viewerZones } from "./table-ops"
 
+const kinds = {
+  addDerived: "derived column",
+  addAggregate: "aggregate",
+  addHighlight: "highlight",
+}
+
 /**
- * The derived columns and aggregates that can be columns, and each that
- * can't with its reason: no dataset, an id a column has, or an expression
- * that fails its check. The ids it accepts are added to `taken`, so a derived
- * column that comes first wins over an aggregate with its id. Derived columns
- * can `ref` one another, and aggregate functions can `ref` them.
+ * The derived columns and aggregates that can be columns, and the highlights
+ * that can be computed, and each that can't with its reason: no dataset, an
+ * id a column has, or an expression that fails its check, or for a
+ * highlight isn't true or false. The ids of the columns it accepts are added
+ * to `taken`, so a derived column that comes first wins over an aggregate
+ * with its id; highlights have ids of their own. Derived columns can `ref`
+ * one another, and aggregate functions and highlights can `ref` them.
  */
 export function acceptedColumns(
   derived: readonly TableDerived[],
   aggregates: readonly TableAggregate[],
+  highlights: readonly TableHighlight[],
   dataset: PliantTableDataset | undefined,
   taken: Set<string>
 ) {
   const accepted: (AcceptedDerived | AcceptedAggregate)[] = []
+  const shown: AcceptedHighlight[] = []
   const issues: string[] = []
   const accept = (column: AcceptedDerived | AcceptedAggregate) => {
     accepted.push(column)
     taken.add(column.id)
   }
-  const reject = (item: TableDerived | TableAggregate, reason: string) => {
-    const kind = item.op === "addDerived" ? "derived column" : "aggregate"
-    issues.push(`${kind} ${item.id}: ${reason}`)
+  const reject = (
+    item: TableDerived | TableAggregate | TableHighlight,
+    reason: string
+  ) => {
+    issues.push(`${kinds[item.op]} ${item.id}: ${reason}`)
   }
   try {
     if (!dataset) {
@@ -52,6 +66,22 @@ export function acceptedColumns(
     })
     const expressions = new Map(aggregates.map(({ id, expr }) => [id, expr]))
     const zones = viewerZones(aggregates)
+    // Only a window function fails a row expression that checks.
+    const evaluate = (expr: Expression, todayTimeZone?: string) => {
+      const row = evaluateRow(expr, { todayTimeZone })
+      return row.success ? row : evaluateWindow(expr, { todayTimeZone })
+    }
+    const highlightZones = viewerZones(highlights)
+    for (const item of highlights) {
+      const result = evaluate(item.when, highlightZones[item.id])
+      if (!result.success) {
+        reject(item, formatError(result.error))
+      } else if (result.data.type === "boolean") {
+        shown.push({ ...item, expression: result.data })
+      } else {
+        reject(item, "its condition isn't true or false")
+      }
+    }
     const evaluateAggregate = createAggregateEvaluator({
       ...options,
       aggregates: Object.fromEntries(expressions),
@@ -73,10 +103,7 @@ export function acceptedColumns(
         }
         continue
       }
-      const todayTimeZone = options.todayTimeZones[id]
-      // Only a window function fails a row expression that checks.
-      const row = evaluateRow(expr, { todayTimeZone })
-      const result = row.success ? row : evaluateWindow(expr, { todayTimeZone })
+      const result = evaluate(expr, options.todayTimeZones[id])
       if (result.success) {
         accept({ ...item, expression: result.data })
       } else {
@@ -84,9 +111,9 @@ export function acceptedColumns(
       }
     }
   } catch (error) {
-    for (const item of [...derived, ...aggregates]) {
+    for (const item of [...derived, ...aggregates, ...highlights]) {
       reject(item, error instanceof Error ? error.message : String(error))
     }
   }
-  return { accepted, issues }
+  return { accepted, highlights: shown, issues }
 }

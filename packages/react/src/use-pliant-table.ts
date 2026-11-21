@@ -47,6 +47,11 @@ import {
   type TableDerived,
 } from "./table-derived"
 import { filtersToSave, presentFilters, type RawFilter } from "./table-filters"
+import {
+  highlightsOption,
+  type AcceptedHighlight,
+  type TableHighlight,
+} from "./table-highlights"
 import { tableOpsOf } from "./table-ops"
 import { usePliantStatus } from "./use-pliant-status"
 
@@ -61,9 +66,10 @@ export interface UsePliantTableOptions {
   readonly persistFilters?: boolean | undefined
   /**
    * The dataset's fields and time zone, which derived columns (`addDerived`
-   * ops) and aggregates (`addAggregate` ops) are computed against: a
-   * `defineDataset` result works. Without it, a table shows neither. Define
-   * it outside the component, or keep it equal as data between renders.
+   * ops), aggregates (`addAggregate` ops) and highlights (`addHighlight` ops)
+   * are computed against: a `defineDataset` result works. Without it, a
+   * table shows none of them. Define it outside the component, or keep it
+   * equal as data between renders.
    */
   readonly dataset?: PliantTableDataset | undefined
 }
@@ -91,6 +97,7 @@ type Slice = keyof CompiledTableState
 
 interface Accepted {
   readonly accepted: (AcceptedDerived | AcceptedAggregate)[]
+  readonly highlights: AcceptedHighlight[]
   readonly issues: string[]
 }
 
@@ -232,6 +239,12 @@ function baseOf(options: object): Partial<CompiledTableState> {
  *   `column.getAggregationValue()` for the filtered rows as a whole, hold
  *   it, computed over those rows, and its expression can `ref` derived
  *   columns.
+ * - Each `addHighlight` op gives its tone to the data rows its condition
+ *   (`when`) is true for, read with `getPliantHighlights(row)`. Its
+ *   condition can `ref` derived columns, and one with window functions is
+ *   computed over each row's partition, as a derived column is. A condition
+ *   that can't be computed, or isn't true or false, is reported to `onError`
+ *   and left out. Highlights have ids of their own, apart from the columns'.
  * - Display order is what `first`, `last` and the window functions read:
  *   the table's sort, as the sorted row model compares rows, with ties and
  *   an unsorted table in ascending order of the row key (`getRowId`, else
@@ -239,9 +252,10 @@ function baseOf(options: object): Partial<CompiledTableState> {
  *   leaves out a sort by a column with window functions, since its values
  *   need the order. Rows that tie show in TanStack's order, which is the
  *   order of the data.
- * - Derived columns and aggregates need the `dataset` option, and one that
- *   can't be computed, or whose id a column already has (a derived column
- *   wins over an aggregate), is reported to `onError` and left out.
+ * - Derived columns, aggregates and highlights need the `dataset` option,
+ *   and a column that can't be computed, or whose id a column already has
+ *   (a derived column wins over an aggregate), is reported to `onError` and
+ *   left out.
  * - Rows expand with `row.toggleExpanded()`, since a group's rows show only
  *   once it does.
  * - The table node and its columns (`<id>/columns/<column id>`) are
@@ -288,6 +302,7 @@ export function usePliantTable<
     ops: createDerived<{
       derived: TableDerived[]
       aggregates: TableAggregate[]
+      highlights: TableHighlight[]
     }>(),
     accepted: createDerived<Accepted>(),
     built: createDerived<readonly unknown[]>(),
@@ -331,17 +346,21 @@ export function usePliantTable<
   const columnIds = allColumns.map((column) => column.id).join("\n")
   const stableDataset = cache.dataset([dataset], () => dataset)
   const acceptedAt = (resolved: Parameters<typeof cache.table.compile>[0]) => {
-    const { derived, aggregates } = cache.ops([resolved], () => ({
+    const { derived, aggregates, highlights } = cache.ops([resolved], () => ({
       derived: tableOpsOf(resolved, id, "addDerived"),
       aggregates: tableOpsOf(resolved, id, "addAggregate"),
+      highlights: tableOpsOf(resolved, id, "addHighlight"),
     }))
-    return cache.accepted([derived, aggregates, stableDataset, columnIds], () =>
-      acceptedColumns(
-        derived,
-        aggregates,
-        stableDataset,
-        new Set(columnIds.split("\n"))
-      )
+    return cache.accepted(
+      [derived, aggregates, highlights, stableDataset, columnIds],
+      () =>
+        acceptedColumns(
+          derived,
+          aggregates,
+          highlights,
+          stableDataset,
+          new Set(columnIds.split("\n"))
+        )
     )
   }
   const setupAt = (resolved: Parameters<typeof cache.table.compile>[0]) =>
@@ -357,7 +376,7 @@ export function usePliantTable<
       ],
       base
     )
-  const { accepted, issues } = useSyncExternalStore(
+  const { accepted, highlights, issues } = useSyncExternalStore(
     store.subscribe,
     () => acceptedAt(store.getResolved()),
     () => acceptedAt(store.getServerResolved())
@@ -626,6 +645,10 @@ export function usePliantTable<
     () => ({ filterFn: pliantFilterFn, ...options.defaultColumn }),
     [options.defaultColumn]
   )
+  const highlightOption = useMemo(
+    () => highlightsOption(highlights),
+    [highlights]
+  )
   const handlers = Object.fromEntries(
     slices.map((slice) => [
       callbacks[slice],
@@ -638,6 +661,7 @@ export function usePliantTable<
   // TanStack types the options by the developer's features only, so the
   // features Pliant adds, and their state and handlers, aren't in the type.
   const tableOptions = Object.assign({}, options, handlers, {
+    ...highlightOption,
     features,
     columns: fresh.columns,
     defaultColumn,

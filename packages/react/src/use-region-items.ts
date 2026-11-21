@@ -107,12 +107,19 @@ function groupsOf(entries: readonly RegionEntry[]) {
  * `usePliantRegion`, or a wrapper's. Each entry keeps its key, and the
  * entries a `collapse` holds follow a trigger in the same parent, so opening
  * and closing them never remounts them. Holds which collapses are open, and
- * moves focus to the trigger when an op collapses the focused entry. A
- * closed collapse opens when a control inside becomes invalid: when it gets
- * `aria-invalid="true"`, as form libraries set it, and focus moves to it
- * unless an invalid control has focus; or when the browser's validation
- * fires `invalid` on it, before the browser focuses it. The user can close
- * it again while the control is invalid.
+ * moves focus to the trigger when an op collapses the focused entry.
+ *
+ * A closed collapse opens when the `submit` event of its form finds a
+ * control inside invalid: one with `aria-invalid="true"`, as form libraries
+ * set it once their validation settles, and focus then moves to the form's
+ * first invalid control unless an invalid control has focus. It also opens
+ * when the browser's validation fires `invalid` on a control inside, before
+ * the browser focuses it. Only a `submit` event counts: a button that runs a
+ * form library's submit handler without a `<form>` doesn't open it, and
+ * autosave that calls `form.requestSubmit()` does. A control that becomes
+ * invalid while the user types or clicks, as with validation on change,
+ * leaves the collapse and focus as they are. The user can close it again
+ * while a control inside is invalid, and the next submit opens it again.
  *
  * @experimental
  */
@@ -197,14 +204,6 @@ export function useRegionItems(
 
   // Focus would be lost in an entry an op just collapsed, so it moves to the
   // entry's trigger.
-  //
-  // A collapse opens when a control inside becomes invalid, so the user sees
-  // the error: a form library marks it with `aria-invalid`, and the
-  // browser's own validation fires `invalid` on it. It opens synchronously,
-  // since the browser focuses the invalid control right after the event.
-  // A form library tried to focus the first invalid control while it was
-  // hidden, so unless an invalid control has focus, focus moves to the
-  // invalid control in the collapse that opens.
   const watchClosed = useEffectEvent(() => {
     for (const [entryId, triggerId] of closed) {
       if (document.getElementById(entryId)?.contains(document.activeElement)) {
@@ -212,44 +211,82 @@ export function useRegionItems(
         break
       }
     }
-    return closed.map(([entryId, , group]) => {
-      const element = document.getElementById(entryId)
-      const openGroup = () => {
-        flushSync(() => {
-          setOpen((current) => new Set(current).add(group))
-        })
-      }
-      const observer = new MutationObserver(() => {
-        const control = element?.querySelector<HTMLElement>(invalid)
-        if (control) {
-          openGroup()
-          if (!document.activeElement?.matches(invalid)) {
-            control.focus()
-          }
-        }
-      })
-      if (element) {
-        element.addEventListener("invalid", openGroup, true)
-        observer.observe(element, {
-          subtree: true,
-          attributeFilter: ["aria-invalid"],
-        })
-      }
-      return () => {
-        element?.removeEventListener("invalid", openGroup, true)
-        observer.disconnect()
-      }
-    })
   })
 
   useLayoutEffect(() => {
-    const cleanups = watchClosed()
-    return () => {
-      for (const cleanup of cleanups) {
-        cleanup()
+    watchClosed()
+  }, [closedKey])
+
+  const reveal = useEffectEvent((scope: Element, form?: boolean) => {
+    const groups = closed
+      .filter(([entryId]) => {
+        const element = document.getElementById(entryId)
+        return form
+          ? scope.contains(element) && element?.querySelector(invalid)
+          : element?.contains(scope)
+      })
+      .map(([, , group]) => group)
+    if (groups.length) {
+      flushSync(() => {
+        setOpen((current) => new Set([...current, ...groups]))
+      })
+      if (form && !document.activeElement?.matches(invalid)) {
+        scope.querySelector<HTMLElement>(invalid)?.focus()
       }
     }
-  }, [closedKey])
+  })
+
+  // A collapse opens when a submit finds a control inside invalid, so the
+  // user sees the error, even one the user closed while the control was
+  // invalid. The browser's own validation fires `invalid` on the control,
+  // and the collapse opens synchronously, since the browser focuses the
+  // control right after the event. A form library marks the control with
+  // `aria-invalid` once its validation settles, so the collapses of the
+  // submitted form open when an `aria-invalid` changes, or a task after the
+  // submit if none does. A form library tried to focus the first invalid
+  // control while it was hidden, so unless an invalid control has focus,
+  // focus moves to the form's first invalid control. A control can also
+  // become invalid as the user types elsewhere, when a form validates on
+  // change: opening the collapse and moving focus then would change the
+  // context under the user, so only a submit, until the user's next input,
+  // opens it.
+  useLayoutEffect(() => {
+    let submitted: Element | null = null
+    const types = ["invalid", "submit", "input", "keydown", "click"]
+    const settle = () => {
+      if (submitted) {
+        reveal(submitted, true)
+      }
+    }
+    const track = (event: Event) => {
+      if (!(event.target instanceof Element)) {
+        return
+      }
+      if (event.type === "invalid") {
+        reveal(event.target)
+      } else {
+        submitted = event.type === "submit" ? event.target : null
+        if (submitted) {
+          setTimeout(settle)
+        }
+      }
+    }
+    const observer = new MutationObserver(settle)
+    observer.observe(document, {
+      subtree: true,
+      attributeFilter: ["aria-invalid"],
+    })
+    for (const type of types) {
+      document.addEventListener(type, track, true)
+    }
+    return () => {
+      submitted = null
+      observer.disconnect()
+      for (const type of types) {
+        document.removeEventListener(type, track, true)
+      }
+    }
+  }, [])
 
   return items
 }

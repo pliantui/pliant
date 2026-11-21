@@ -83,6 +83,11 @@ const messages: PliantMessages = {
   dataTableNoRows: (rows) => `⟦dataTableNoRows ${rows}⟧`,
   dataTablePrevious: "⟦dataTablePrevious⟧",
   dataTableNext: "⟦dataTableNext⟧",
+  dataTableHighlighted: (names) => `⟦dataTableHighlighted ${names.join(" ")}⟧`,
+  dataTableHighlightEmphasis: "⟦dataTableHighlightEmphasis⟧",
+  dataTableHighlightSuccess: "⟦dataTableHighlightSuccess⟧",
+  dataTableHighlightWarning: "⟦dataTableHighlightWarning⟧",
+  dataTableHighlightDanger: "⟦dataTableHighlightDanger⟧",
 }
 
 const surface = "/dashboard"
@@ -534,6 +539,24 @@ describe("the registry components with every message given", () => {
     ).toBeTruthy()
     expect(unmarkedText()).toEqual([])
     fireEvent.click(screen.getByRole("button", { name: "⟦dataTablePrevious⟧" }))
+
+    apply(
+      ...(["emphasis", "success", "warning", "danger"] as const).map(
+        (tone): Op => ({
+          op: "addHighlight",
+          target: "orders-table",
+          id: tone,
+          when: { fn: "gt", args: [{ field: "value" }, { value: 0 }] },
+          tone,
+        })
+      )
+    )
+    expect(
+      screen.getAllByText(
+        "⟦dataTableHighlighted ⟦dataTableHighlightEmphasis⟧ ⟦dataTableHighlightSuccess⟧ ⟦dataTableHighlightWarning⟧ ⟦dataTableHighlightDanger⟧⟧"
+      )
+    ).toHaveLength(10)
+    expect(unmarkedText()).toEqual([])
 
     apply(
       { op: "setGroupBy", target: "orders-table", fields: ["status"] },

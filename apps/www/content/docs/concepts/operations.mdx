@@ -45,7 +45,7 @@ When you describe a target to the ask route, its manifest lists the target's cap
 
 Every op validates and resolves. Pliant's components render these:
 
-- **Tables** (`usePliantTable`): `setSort`, `setFilter`, `clearFilter`, `setGroupBy`, `addDerived`, `addAggregate`, `setPage` and `setColumnWidth`, plus `hide`, `show`, `move` and `pin` on columns. Each `addDerived` adds a column with a value on every row, and each `addAggregate` one with a value on every group's row and in the column's total. The column ops apply to both like any column. Pass the table's `dataset` (its `fields` and `timeZone`) to `usePliantTable` so it can compute them.
+- **Tables** (`usePliantTable`): `setSort`, `setFilter`, `clearFilter`, `setGroupBy`, `addDerived`, `addAggregate`, `addHighlight`, `setPage` and `setColumnWidth`, plus `hide`, `show`, `move` and `pin` on columns. Each `addDerived` adds a column with a value on every row, and each `addAggregate` one with a value on every group's row and in the column's total. The column ops apply to both like any column. Each `addHighlight` gives its tone to the rows its condition is true for: `getPliantHighlights(row)` lists them, and the data table tints those rows and marks them with an icon and text for screen readers. Pass the table's `dataset` (its `fields` and `timeZone`) to `usePliantTable` so it can compute them.
 - **Regions** (`PliantRegion`): `hide`, `show`, `move`, `pin`, `collapse`, `setLayout`, `span`, `wrap` and `remove`. A node added with `insert` renders as a placeholder.
 
 The other ops are part of the format: overlays that contain them load, save and resolve, and no component renders their effect.

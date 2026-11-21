@@ -101,7 +101,7 @@
       "name": "pliant-data-table",
       "type": "registry:component",
       "title": "Pliant Data Table",
-      "description": "A data table for usePliantTable with sortable headers, grouped rows that expand, aggregate totals, derived columns, a column menu and pagination.",
+      "description": "A data table for usePliantTable with sortable headers, grouped rows that expand, aggregate totals, derived columns, highlighted rows, a column menu and pagination.",
       "dependencies": [
         "@pliantui/react",
         "@tanstack/react-table",
