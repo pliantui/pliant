@@ -378,6 +378,17 @@ function walkCall(
     }
     return
   }
+  // A portal moves where the DOM goes, not where its content sits.
+  if (
+    (Node.isIdentifier(callee) || Node.isPropertyAccessExpression(callee)) &&
+    isPliantExport(callee, "react-dom", "createPortal")
+  ) {
+    const [content] = call.getArguments()
+    if (content) {
+      walkRendered(content, scope, parent, walk)
+    }
+    return
+  }
   if (callRenderProp(call, scope, parent, walk)) {
     return
   }

@@ -370,6 +370,42 @@ describe("pliantui scan", () => {
     expect(help?.baseOrder["pair"]).toEqual(["two-a", "two-banner", "two-b"])
   })
 
+  it("counts what a portal renders where the component sits", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await edit(
+      cwd,
+      "components/two-panel.tsx",
+      "      <Peek />",
+      [
+        "      <Peek />",
+        "      {createPortal(",
+        "        <>",
+        "          <Peek region={both.b} />",
+        '          <PliantRegion id="portaled" slots={{ inside: <p>In</p> }} />',
+        "        </>,",
+        "        document.body",
+        "      )}",
+      ].join("\n")
+    )
+    await edit(
+      cwd,
+      "components/two-panel.tsx",
+      'import * as React from "react"',
+      'import * as React from "react"\nimport { createPortal } from "react-dom"'
+    )
+    const { output } = await scanJson(cwd)
+    const help = output.inventory["help"]
+
+    expect(help?.baseIds.source).toBe("inventory")
+    expect(help?.baseOrder["pair"]).toEqual([
+      "two-b",
+      "portaled",
+      "two-a",
+      "two-banner",
+    ])
+    expect(help?.baseOrder["portaled"]).toEqual(["inside"])
+  })
+
   it("counts a spread into a component's props as passing the value on", async () => {
     const cwd = await createFixtureDirectory("scan-app")
     await edit(
