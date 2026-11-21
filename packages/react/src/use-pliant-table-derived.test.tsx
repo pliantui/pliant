@@ -5,8 +5,10 @@ import {
   columnOrderingFeature,
   columnVisibilityFeature,
   createColumnHelper,
+  createPaginatedRowModel,
   rowAggregationFeature,
   rowExpandingFeature,
+  rowPaginationFeature,
   rowSortingFeature,
   tableFeatures,
   useTable,
@@ -58,7 +60,9 @@ const features = tableFeatures({
   columnVisibilityFeature,
   rowAggregationFeature,
   rowExpandingFeature,
+  rowPaginationFeature,
   rowSortingFeature,
+  paginatedRowModel: createPaginatedRowModel(),
 })
 
 type Features = typeof features
@@ -112,6 +116,8 @@ function setup(
         { id: tableId, dataset: config.dataset }
       )
     )
+    // A table that is shown reads its rows as it renders.
+    current.getRowModel()
     const actions = usePliantStore()
     useLayoutEffect(() => {
       table = current
@@ -364,6 +370,23 @@ describe("usePliantTable derived columns", () => {
       ["o04", 90],
       ["o02", 100],
     ])
+  })
+
+  it("keeps the page when it changes", async () => {
+    const t = setup()
+    t.apply(share)
+    expect(rows(t)).toHaveLength(4)
+    await act(() => Promise.resolve())
+    act(() => {
+      t.table.setPageSize(2)
+    })
+    act(() => {
+      t.table.setPageIndex(1)
+    })
+    expect(idsOf(t)).toEqual(["o03", "o04"])
+    await act(() => Promise.resolve())
+    expect(idsOf(t)).toEqual(["o03", "o04"])
+    expect(t.table.state.pagination.pageIndex).toBe(1)
   })
 
   it("registers its column as mounted until the op is removed", () => {

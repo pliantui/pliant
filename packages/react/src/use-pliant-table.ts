@@ -282,6 +282,8 @@ export function usePliantTable<
     table: createTableCache(),
     filters: createDerived<ReturnType<typeof presentFilters>>(),
     shown: createDerived<CompiledTableState>(),
+    grouping: createDerived<string[]>(),
+    windowless: createDerived<ReturnType<typeof presentFilters>["shown"]>(),
     ops: createDerived<{
       derived: TableDerived[]
       aggregates: TableAggregate[]
@@ -394,17 +396,23 @@ export function usePliantTable<
   const windows = accepted.flatMap(({ id, expression }) =>
     "compute" in expression ? [id] : []
   )
-  const shownOf = (state: CompiledTableState) =>
-    cache.shown([state, local, filtersOf(state).shown, windows.join()], () => {
-      const { grouping, ...others } = withLocal(state, local)
-      return {
-        ...others,
-        grouping: grouping.filter((column) => !windows.includes(column)),
-        columnFilters: filtersOf(state).shown.filter(
-          ({ id }) => !windows.includes(id)
-        ),
-      }
-    })
+  // Each slice keeps its array while it is equal, so TanStack, which resets
+  // the page when the grouping or filters change, sees no change.
+  const shownOf = (state: CompiledTableState) => {
+    const merged = withLocal(state, local)
+    const key = windows.join()
+    const grouping = cache.grouping([merged.grouping, key], () =>
+      merged.grouping.filter((column) => !windows.includes(column))
+    )
+    const columnFilters = cache.windowless([filtersOf(state).shown, key], () =>
+      filtersOf(state).shown.filter(({ id }) => !windows.includes(id))
+    )
+    return cache.shown([state, local, grouping, columnFilters], () => ({
+      ...merged,
+      grouping,
+      columnFilters,
+    }))
+  }
   const shown = shownOf(compiled)
 
   // TanStack computes an aggregate by its rows, so a group's `first` and
