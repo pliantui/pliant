@@ -5,10 +5,13 @@ import {
   useState,
   type MouseEvent,
 } from "react"
+import { flushSync } from "react-dom"
 
 import type { RegionEntry } from "@pliantui/core"
 
 type Collapse = NonNullable<RegionEntry["collapsed"]>
+
+const invalid = '[aria-invalid="true"]'
 
 type ClickHandler = (event: MouseEvent<HTMLButtonElement>) => void
 
@@ -104,7 +107,12 @@ function groupsOf(entries: readonly RegionEntry[]) {
  * `usePliantRegion`, or a wrapper's. Each entry keeps its key, and the
  * entries a `collapse` holds follow a trigger in the same parent, so opening
  * and closing them never remounts them. Holds which collapses are open, and
- * moves focus to the trigger when an op collapses the focused entry.
+ * moves focus to the trigger when an op collapses the focused entry. A
+ * closed collapse opens when a control inside becomes invalid: when it gets
+ * `aria-invalid="true"`, as form libraries set it, and focus moves to it
+ * unless an invalid control has focus; or when the browser's validation
+ * fires `invalid` on it, before the browser focuses it. The user can close
+ * it again while the control is invalid.
  *
  * @experimental
  */
@@ -118,14 +126,11 @@ export function useRegionItems(
   function toggle(group: string) {
     setOpen((current) => {
       const next = new Set(current)
-      if (!next.delete(group)) {
-        next.add(group)
-      }
-      return next
+      return next.delete(group) ? next : next.add(group)
     })
   }
 
-  const closed: (readonly [string, string])[] = []
+  const closed: (readonly [string, string, string])[] = []
 
   function entryItem(
     entry: RegionEntry,
@@ -182,7 +187,9 @@ export function useRegionItems(
     }
     items.push(...members)
     if (!isOpen) {
-      closed.push(...members.map((member) => [member.props.id, id] as const))
+      closed.push(
+        ...members.map((member) => [member.props.id, id, part.key] as const)
+      )
     }
   }
 
@@ -190,21 +197,58 @@ export function useRegionItems(
 
   // Focus would be lost in an entry an op just collapsed, so it moves to the
   // entry's trigger.
-  const moveFocusOutOfClosed = useEffectEvent(() => {
-    const active = document.activeElement
-    if (!active) {
-      return
-    }
+  //
+  // A collapse opens when a control inside becomes invalid, so the user sees
+  // the error: a form library marks it with `aria-invalid`, and the
+  // browser's own validation fires `invalid` on it. It opens synchronously,
+  // since the browser focuses the invalid control right after the event.
+  // A form library tried to focus the first invalid control while it was
+  // hidden, so unless an invalid control has focus, focus moves to the
+  // invalid control in the collapse that opens.
+  const watchClosed = useEffectEvent(() => {
     for (const [entryId, triggerId] of closed) {
-      if (document.getElementById(entryId)?.contains(active)) {
+      if (document.getElementById(entryId)?.contains(document.activeElement)) {
         document.getElementById(triggerId)?.focus()
-        return
+        break
       }
     }
+    return closed.map(([entryId, , group]) => {
+      const element = document.getElementById(entryId)
+      const openGroup = () => {
+        flushSync(() => {
+          setOpen((current) => new Set(current).add(group))
+        })
+      }
+      const observer = new MutationObserver(() => {
+        const control = element?.querySelector<HTMLElement>(invalid)
+        if (control) {
+          openGroup()
+          if (!document.activeElement?.matches(invalid)) {
+            control.focus()
+          }
+        }
+      })
+      if (element) {
+        element.addEventListener("invalid", openGroup, true)
+        observer.observe(element, {
+          subtree: true,
+          attributeFilter: ["aria-invalid"],
+        })
+      }
+      return () => {
+        element?.removeEventListener("invalid", openGroup, true)
+        observer.disconnect()
+      }
+    })
   })
 
   useLayoutEffect(() => {
-    moveFocusOutOfClosed()
+    const cleanups = watchClosed()
+    return () => {
+      for (const cleanup of cleanups) {
+        cleanup()
+      }
+    }
   }, [closedKey])
 
   return items

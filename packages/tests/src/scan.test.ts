@@ -98,6 +98,7 @@ describe("pliantui scan", () => {
       "reports",
       "settings",
       "shop",
+      "tickets",
     ])
     const orders = inventory["/orders"]
     expect(orders?.baseIds).toEqual({
@@ -176,6 +177,58 @@ describe("pliantui scan", () => {
     expect(orders?.ids["orders-table"]?.kind).toBe("pliant:table")
     expect(orders?.ids["orders-table/columns/id"]?.kind).toBe("pliant:column")
     expect(orders?.ids["address"]?.kind).toBe("pliant:slot")
+  })
+
+  it("lists a form's fields as items of the form", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    const { output, exitCode } = await scanJson(cwd)
+
+    expect(exitCode).toBe(0)
+    const tickets = output.inventory["tickets"]
+    expect(tickets?.baseIds.ids).toEqual([
+      "hint",
+      "order-hints",
+      "ticket-form",
+      "ticket-form/fields/cc",
+      "ticket-form/fields/orderId",
+      "ticket-form/fields/subject",
+      "ticket-page",
+    ])
+    expect(tickets?.baseParents).toEqual({
+      "ticket-page": null,
+      "ticket-form": "ticket-page",
+      // What a field renders sits in the form.
+      "order-hints": "ticket-form",
+      hint: "order-hints",
+    })
+    expect(tickets?.ids["ticket-form"]?.kind).toBe("pliant:form")
+    expect(tickets?.ids["ticket-form/fields/cc"]?.kind).toBe("pliant:field")
+    expect(tickets?.baseIds.source).toBe("inventory")
+    expect(
+      output.warnings.filter((warning) => warning.file.includes("tickets"))
+    ).toEqual([])
+  })
+
+  it("reports field names overlays can't address", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await edit(cwd, "app/tickets/page.tsx", "cc: <input", '"2fa": <input')
+    await edit(
+      cwd,
+      "app/tickets/page.tsx",
+      "subject: <input",
+      '"sub ject": <input'
+    )
+    const { output, exitCode } = await scanJson(cwd)
+
+    expect(exitCode).toBe(1)
+    expect(output.errors.map((error) => error.message)).toContainEqual(
+      expect.stringContaining(
+        'The field "2fa" in ticket-form starts with a digit'
+      )
+    )
+    expect(output.warnings.map((warning) => warning.message)).toContainEqual(
+      expect.stringContaining('The field "sub ject" of ticket-form is left out')
+    )
   })
 
   it("follows an App Router layout's children into the pages under it", async () => {
@@ -767,7 +820,14 @@ describe("pliantui scan", () => {
     // No surface renders that file, so any of them might.
     expect(
       Object.values(output.inventory).map(({ baseIds }) => baseIds.source)
-    ).toEqual(["mounted", "mounted", "mounted", "mounted", "mounted"])
+    ).toEqual([
+      "mounted",
+      "mounted",
+      "mounted",
+      "mounted",
+      "mounted",
+      "mounted",
+    ])
   })
 
   it("marks only the surface that renders the file of what it can't reach", async () => {
