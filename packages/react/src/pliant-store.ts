@@ -25,6 +25,15 @@ export type LockInResult =
     }
   | { readonly success: false; readonly error: string }
 
+/**
+ * Whether `resetNode` dropped the user's changes, or why it didn't.
+ *
+ * @experimental
+ */
+export type ResetResult =
+  | { readonly success: true }
+  | { readonly success: false; readonly error: string }
+
 /** @experimental */
 export interface ApplyOpsOptions {
   /** One short sentence per op, shown in history. */
@@ -121,4 +130,19 @@ export interface PliantStore {
   readonly discard: () => void
   /** Loads the layers from the storage adapter again, as after an error. */
   readonly reload: () => void
+  /**
+   * Drops the user's own changes to a node: the ops in the personal and
+   * session layers that write its properties or those of its items, such
+   * as a table's sort and filters and its columns' widths. Where the node
+   * sits and whether it shows are left, since they belong to its container,
+   * and so is the preview. The node then shows as the org and team layers,
+   * and then the base, have it, and follows their later changes.
+   * `usePliantNodeChanged` tells whether there is anything to drop.
+   *
+   * A personal version with such ops is removed from storage with the
+   * adapter's `remove`, and its other ops are saved as a new version dated
+   * the same, so they keep applying in the same order. It is rejected
+   * when the adapter has no `remove`, or until the layers are `ready`.
+   */
+  readonly resetNode: (target: string) => ResetResult
 }

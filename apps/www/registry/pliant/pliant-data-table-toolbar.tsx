@@ -1,6 +1,6 @@
 "use client"
 
-import type { ComponentProps, ReactNode } from "react"
+import { useRef, type ComponentProps, type ReactNode } from "react"
 import type { Column, ReactTable, RowData } from "@tanstack/react-table"
 import { cn } from "cn"
 import { ChevronDown, X } from "lucide-react"
@@ -8,6 +8,7 @@ import { ChevronDown, X } from "lucide-react"
 import type { Op } from "@pliantui/contract"
 import {
   usePliantMessages,
+  usePliantNodeChanged,
   usePliantStore,
   useResolved,
   type PliantMessages,
@@ -67,23 +68,10 @@ type PliantDataTablePreset = ItemOp<"addPreset">
 
 type TableColumn<TData extends RowData> = Column<PliantDataTableFeatures, TData>
 
-const userItemKinds = [
-  "derived",
-  "aggregate",
-  "highlight",
-  "sortOption",
-  "filterControl",
-  "preset",
-]
-
 function read(source: unknown, key: string): unknown {
   return typeof source === "object" && source !== null
     ? Reflect.get(source, key)
     : undefined
-}
-
-function same(a: unknown, b: unknown) {
-  return JSON.stringify(a) === JSON.stringify(b)
 }
 
 // A node's identity is its bare id: the part after its last `/slots/`.
@@ -124,39 +112,6 @@ function filtersKey(filters: readonly { id: string; value: unknown }[]) {
 
 function columnFiltersOf(filters: PliantDataTablePreset["filters"]) {
   return filters.map(({ field, ...value }) => ({ id: field, value }))
-}
-
-// Whether the table shows anything other than the developer's initial
-// state, leaving out the page, which the filters reset.
-function hasChanges<TData extends RowData>(
-  table: ReactTable<PliantDataTableFeatures, TData>
-) {
-  const { state, initialState } = table
-  const own = table
-    .getAllLeafColumns()
-    .filter((column) => column.columnDef.meta?.pliant?.type === undefined)
-  const ids = own.map((column) => column.id)
-  const order = (columnOrder: readonly string[]) =>
-    columnOrder.filter((id) => ids.includes(id))
-  const initialOrder = order(initialState.columnOrder)
-  return (
-    !same(state.sorting, initialState.sorting) ||
-    !same(state.columnFilters, initialState.columnFilters) ||
-    !same(state.grouping, initialState.grouping) ||
-    !same(state.columnPinning, initialState.columnPinning) ||
-    state.pagination.pageSize !== initialState.pagination.pageSize ||
-    !same(order(state.columnOrder), [
-      ...initialOrder,
-      ...ids.filter((id) => !initialOrder.includes(id)),
-    ]) ||
-    own.some(
-      (column) =>
-        column.getIsVisible() !==
-          (initialState.columnVisibility[column.id] ?? true) ||
-        column.getSize() !==
-          (initialState.columnSizing[column.id] ?? column.columnDef.size ?? 150)
-    )
-  )
 }
 
 function PliantDataTableSearch<TData extends RowData>({
@@ -264,10 +219,10 @@ function PliantDataTableChoice({
  * Other controls aren't shown. Picking a sort option replaces the sort, and
  * picking a preset replaces the filters, and the sort when it has one.
  *
- * Reset shows while the table differs from its initial state. It puts back
- * the sort, filters, grouping, page, and the columns' order, visibility,
- * sizes and pins, and removes the derived columns, aggregates, highlights,
- * filters, sort options and presets the user added to the table.
+ * Reset shows while the user has changed the table: its sort, filters,
+ * grouping, page, columns, or the items they added. It drops those changes
+ * with `resetNode`, so the table shows as the team and org layers, and then
+ * your own setup, have it, and moves focus to the first filter or button.
  */
 function PliantDataTableToolbar<TData extends RowData>({
   table,
@@ -301,27 +256,13 @@ function PliantDataTableToolbar<TData extends RowData>({
   const messages = usePliantMessages(toolbarMessages)
   const store = usePliantStore()
   const resolved = useResolved()
-  const resolvedOps = Array.from(
-    resolved.properties.get(identityOf(node)) ?? [],
-    ([property, { winner }]) => ({
-      property,
-      op: winner.check.op,
-      layer: winner.overlay.layer,
-    })
-  )
+  const changed = usePliantNodeChanged(node)
+  const toolbar = useRef<HTMLDivElement>(null)
   const added = <Name extends Op["op"]>(name: Name) =>
-    resolvedOps
-      .map(({ op }) => op)
-      .filter((op): op is Extract<Op, { op: Name }> => op.op === name)
-  // A user item's property is its kind and id, such as `highlight.overdue`.
-  const userItems = resolvedOps.flatMap(({ property, op, layer }) => {
-    const [kind = "", ...id] = property.split(".")
-    return userItemKinds.includes(kind) &&
-      op.op !== "removeUserItem" &&
-      (layer === "personal" || layer === "session")
-      ? [{ id: id.join("."), layer }]
-      : []
-  })
+    Array.from(
+      resolved.properties.get(identityOf(node))?.values() ?? [],
+      ({ winner }) => winner.check.op
+    ).filter((op): op is Extract<Op, { op: Name }> => op.op === name)
 
   const columns = table.getAllLeafColumns()
   const controls = merge(
@@ -346,30 +287,26 @@ function PliantDataTableToolbar<TData extends RowData>({
   const views = merge(presets, added("addPreset"))
   const sorting = sortKey(table.state.sorting)
   const filtering = filtersKey(table.state.columnFilters)
-  const changed = userItems.length > 0 || hasChanges(table)
 
-  function reset() {
-    for (const layer of ["personal", "session"] as const) {
-      const ops = userItems
-        .filter((item) => item.layer === layer)
-        .map(({ id }): Op => ({ op: "removeUserItem", target: node, id }))
-      if (ops.length > 0) {
-        store.applyOps(layer, ops)
-      }
+  function reset(button: HTMLElement) {
+    const result = store.resetNode(node)
+    if (!result.success) {
+      console.error(result.error)
+      return
     }
-    table.resetSorting()
-    table.resetColumnFilters()
-    table.resetGrouping()
-    table.resetColumnVisibility()
-    table.resetColumnOrder()
-    table.resetColumnPinning()
-    table.resetColumnSizing()
-    table.resetPagination()
     table.resetExpanded()
+    // The button goes away, so focus moves to the first other control
+    // rather than to the page.
+    Array.from(
+      toolbar.current?.querySelectorAll<HTMLElement>("input, button") ?? []
+    )
+      .find((control) => control !== button)
+      ?.focus()
   }
 
   return (
     <div
+      ref={toolbar}
       {...props}
       data-slot="pliant-data-table-toolbar"
       className={cn(
@@ -397,7 +334,13 @@ function PliantDataTableToolbar<TData extends RowData>({
           ) : null
         )}
         {changed ? (
-          <Button variant="ghost" size="sm" onClick={reset}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(event) => {
+              reset(event.currentTarget)
+            }}
+          >
             {messages.dataTableReset}
             <X />
           </Button>

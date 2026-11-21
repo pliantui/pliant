@@ -942,6 +942,180 @@ describe("createLayerStore", () => {
     })
   })
 
+  describe("resetNode", () => {
+    const sort = (dir: "asc" | "desc"): Op => ({
+      op: "setSort",
+      target: "orders-table",
+      sort: [{ field: "total", dir }],
+    })
+    const team = {
+      ...personalOverlay("01KAB0000000000000000000T1", [
+        sort("asc"),
+        { op: "hide", target: "orders-table/columns/notes" },
+      ]),
+      layer: "team",
+      scope: { team: "ops" },
+    }
+    const mine = personalOverlay("01KAB0000000000000000000P1", [
+      sort("desc"),
+      { op: "show", target: "orders-table/columns/notes" },
+      { op: "hide", target: "orders-table" },
+      { ...sort("asc"), target: "orders-chart" },
+    ])
+
+    function winner(
+      resolved: ReturnType<ReturnType<typeof setup>["store"]["getResolved"]>,
+      address: string,
+      property: "sort" | "visible"
+    ) {
+      const resolvedProperty = resolved.properties.get(address)?.get(property)
+      return (
+        resolvedProperty && {
+          layer: resolvedProperty.winner.overlay.layer,
+          op: resolvedProperty.winner.check.op.op,
+        }
+      )
+    }
+
+    it("drops the user's ops for the node, so the team layer shows", async () => {
+      const { storage, records } = memoryStorage({
+        team: [team],
+        personal: [mine],
+      })
+      const store = createLayerStore({ surface, storage })
+      store.connect()
+      store.actions.applyOps("session", [
+        {
+          op: "setFilter",
+          target: "page/slots/orders-table",
+          filter: { field: "status", operator: "eq", value: "open" },
+        },
+      ])
+      expect(store.changesNode("page/slots/orders-table")).toBe(true)
+
+      expect(store.actions.resetNode("page/slots/orders-table")).toEqual({
+        success: true,
+      })
+      const resolved = store.getResolved()
+      expect(winner(resolved, "orders-table", "sort")).toEqual({
+        layer: "team",
+        op: "setSort",
+      })
+      expect(winner(resolved, "orders-table/columns/notes", "visible")).toEqual(
+        { layer: "team", op: "hide" }
+      )
+      expect(
+        resolved.properties.get("orders-table")?.has("filter.status")
+      ).toBe(false)
+      // Where the node sits and whether it shows belong to its container,
+      // and other nodes keep their changes.
+      expect(winner(resolved, "orders-table", "visible")).toEqual({
+        layer: "personal",
+        op: "hide",
+      })
+      expect(winner(resolved, "orders-chart", "sort")).toEqual({
+        layer: "personal",
+        op: "setSort",
+      })
+      expect(store.changesNode("orders-table")).toBe(false)
+      await vi.waitFor(() => {
+        expect(records.get("01KAB0000000000000000000P1")?.deletedAt).toEqual(
+          expect.any(String)
+        )
+      })
+
+      // A new store over the same storage shows the same.
+      const reloaded = createLayerStore({
+        surface,
+        storage: memoryStorage().storage,
+        layers: {
+          team: stored(team),
+          personal: [...records.values()].filter((record) => !record.deletedAt),
+        },
+      })
+      expect(winner(reloaded.getResolved(), "orders-table", "sort")).toEqual({
+        layer: "team",
+        op: "setSort",
+      })
+      expect(winner(reloaded.getResolved(), "orders-table", "visible")).toEqual(
+        { layer: "personal", op: "hide" }
+      )
+      expect(reloaded.changesNode("orders-table", true)).toBe(false)
+    })
+
+    it("counts only the personal and session layers as changes", () => {
+      const store = createLayerStore({
+        surface,
+        storage: memoryStorage().storage,
+        layers: { team: stored(team), personal: stored(mine) },
+      })
+
+      expect(store.changesNode("orders-table", true)).toBe(true)
+      expect(store.changesNode("orders-chart", true)).toBe(true)
+      expect(
+        createLayerStore({
+          surface,
+          storage: memoryStorage().storage,
+          layers: { team: stored(team) },
+        }).changesNode("orders-table", true)
+      ).toBe(false)
+    })
+
+    it("removes a version once a save still running stores it", async () => {
+      const memory = memoryStorage()
+      const remove = vi.spyOn(memory.storage, "remove")
+      let finish: (() => void) | undefined
+      const store = createLayerStore({
+        surface,
+        storage: {
+          ...memory.storage,
+          save: (...args) =>
+            new Promise((resolve) => {
+              finish = () => {
+                resolve(memory.storage.save(...args))
+              }
+            }),
+        },
+      })
+      store.connect()
+      store.actions.applyOps("personal", [sort("desc")])
+      store.flush()
+
+      expect(store.actions.resetNode("orders-table")).toEqual({
+        success: true,
+      })
+      expect(remove).not.toHaveBeenCalled()
+      finish?.()
+      await vi.waitFor(() => {
+        expect(remove).toHaveBeenCalledOnce()
+      })
+      expect(
+        [...memory.records.values()].every((record) => record.deletedAt)
+      ).toBe(true)
+    })
+
+    it("is rejected when the adapter can't remove overlays", () => {
+      const { storage } = memoryStorage({ personal: [mine] })
+      const store = createLayerStore({
+        surface,
+        storage: {
+          load: (...args) => storage.load(...args),
+          save: (...args) => storage.save(...args),
+        },
+      })
+      store.connect()
+
+      expect(store.actions.resetNode("orders-table")).toEqual({
+        success: false,
+        error: "The storage adapter of /orders can't remove overlays",
+      })
+      expect(winner(store.getResolved(), "orders-table", "sort")).toEqual({
+        layer: "personal",
+        op: "setSort",
+      })
+    })
+  })
+
   describe("getResolved", () => {
     it("returns the same object until something changes", async () => {
       const { store } = setup()

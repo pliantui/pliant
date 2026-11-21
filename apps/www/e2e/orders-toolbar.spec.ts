@@ -288,6 +288,7 @@ test("resets the user's changes to the table, and keeps them reset", async ({
   await reset.click()
 
   await expect(reset).toBeHidden()
+  await expect(page.getByRole("searchbox", { name: "Customer" })).toBeFocused()
   await expect(range(page, orders.length)).toBeVisible()
   await expect(header(page, "Notes")).toBeVisible()
   await expect(header(page, "Value")).not.toHaveAttribute("aria-sort")

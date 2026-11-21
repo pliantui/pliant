@@ -36,7 +36,8 @@ export interface StoredLayers {
  * again.
  *
  * `PliantRoot` stores each personal version as one record, with
- * `ifMatch: null`, and calls only `load`, `save` and `subscribe`. When a
+ * `ifMatch: null`, and calls only `load`, `save` and `subscribe`, and
+ * `remove` when the user resets a node (see `PliantStore.resetNode`). When a
  * save's answer is lost and the version is removed elsewhere before the
  * retry, the retry's conflict carries the tombstone, and the version is
  * dropped instead of stored again.

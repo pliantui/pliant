@@ -6,12 +6,14 @@ export type {
   ApplyOpsOptions,
   OverlayResult,
   PliantStore,
+  ResetResult,
 } from "./pliant-store"
 export type { StorageAdapter, StoredLayers } from "./storage-adapter"
 export type { Overlay, StoredOverlay } from "@pliantui/contract"
 export { StorageConflictError } from "./storage-conflict-error"
 export { useMountedNodes } from "./use-mounted-nodes"
 export { usePliantMessages } from "./use-pliant-messages"
+export { usePliantNodeChanged } from "./use-pliant-node-changed"
 export { usePliantNodeProps } from "./use-pliant-node-props"
 export { usePliantStatus } from "./use-pliant-status"
 export { usePliantStore } from "./use-pliant-store"

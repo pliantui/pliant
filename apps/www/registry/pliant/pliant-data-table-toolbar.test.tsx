@@ -11,7 +11,7 @@ import {
 } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
-import type { Op } from "@pliantui/contract"
+import type { Op, Overlay } from "@pliantui/contract"
 import {
   PliantRoot,
   usePliantStore,
@@ -77,14 +77,46 @@ const columns = helper.columns([
   }),
 ])
 
-const storage: StorageAdapter = {
-  load: () => ({ personal: [] }),
-  save: (_surface, overlay) => ({
+function recordOf<T>(overlay: T) {
+  return {
     overlay,
     etag: crypto.randomUUID(),
     version: 1,
     updatedAt: new Date().toISOString(),
+  }
+}
+
+// The team layer's ops, and the personal versions saved and not removed.
+let teamOps: Op[] = []
+const personal = new Map<string, Overlay>()
+
+const storage: StorageAdapter = {
+  load: () => ({
+    team: teamOps.length
+      ? [
+          recordOf({
+            v: 1,
+            id: "01KAB0000000000000000000T1",
+            surface: "/orders",
+            layer: "team",
+            scope: { team: "ops" },
+            ops: teamOps,
+            basis: { contract: 1, core: "0.0.0", manifests: {} },
+            source: "manual",
+            createdBy: "local",
+            createdAt: "2026-11-19T00:00:00.000Z",
+          }),
+        ]
+      : [],
+    personal: [...personal.values()].map(recordOf),
   }),
+  save: (_surface, overlay) => {
+    personal.set(overlay.id, overlay)
+    return recordOf(overlay)
+  },
+  remove: (_surface, id) => {
+    personal.delete(id)
+  },
 }
 
 let store: PliantStore | undefined
@@ -170,6 +202,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   store = undefined
+  teamOps = []
+  personal.clear()
 })
 
 describe("PliantDataTableToolbar", () => {
@@ -367,6 +401,51 @@ describe("PliantDataTableToolbar", () => {
     expect(
       screen.getByRole<HTMLInputElement>("searchbox", { name: "Order" }).value
     ).toBe("")
+    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull()
+    expect(document.activeElement).toBe(
+      screen.getByRole("searchbox", { name: "Order" })
+    )
+  })
+
+  it("resets to the team's table without overriding it", async () => {
+    teamOps = [
+      {
+        op: "setSort",
+        target: "orders-table",
+        sort: [{ field: "value", dir: "desc" }],
+      },
+      { op: "hide", target: "orders-table/columns/flagged" },
+    ]
+    await renderOrders()
+    const headers = () =>
+      within(table())
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent)
+    expect(cells(2).slice(0, 2)).toEqual(["120", "110"])
+    expect(headers()).not.toContain("Flagged")
+    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull()
+
+    apply(
+      {
+        op: "setSort",
+        target: "orders-table",
+        sort: [{ field: "value", dir: "asc" }],
+      },
+      { op: "show", target: "orders-table/columns/flagged" }
+    )
+    expect(cells(2).slice(0, 2)).toEqual(["10", "20"])
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }))
+    await settle()
+
+    expect(cells(2).slice(0, 2)).toEqual(["120", "110"])
+    expect(headers()).not.toContain("Flagged")
+    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull()
+    // Unmounting saves what is waiting, and after a reload the team's
+    // table still shows.
+    cleanup()
+    expect(personal.size).toBe(0)
+    await renderOrders()
+    expect(cells(2).slice(0, 2)).toEqual(["120", "110"])
     expect(screen.queryByRole("button", { name: "Reset" })).toBeNull()
   })
 

@@ -5,7 +5,7 @@ description: Choose where Pliant stores users' changes and set up self-hosted se
 
 # Where Pliant stores changes
 
-Pliant keeps users' changes as overlays in four layers: `org`, `team`, `personal` and `session`. A storage adapter loads the org, team and personal overlays of a page and saves personal ones. The session layer is per browser tab and is never stored. This skill covers the adapters and the self-hosted server storage. Adding Pliant to a page is the `setup` skill.
+Pliant keeps users' changes as overlays in four layers: `org`, `team`, `personal` and `session`. A storage adapter loads the org, team and personal overlays of a page, saves personal ones, and removes them when a user resets a table with the toolbar's Reset. The session layer is per browser tab and is never stored. This skill covers the adapters and the self-hosted server storage. Adding Pliant to a page is the `setup` skill.
 
 ## Pick one
 
