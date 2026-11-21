@@ -1,0 +1,86 @@
+---
+title: Manual
+description: Add Pliant's packages and components to your project by hand, without the shadcn CLI.
+---
+
+Install Pliant without `pliantui init` or the shadcn CLI. You add the packages yourself and copy the component files into your project.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The `@pliantui/*` packages aren't on npm yet, so the install commands on this
+  page work only inside the Pliant repository.
+</Callout>
+
+## Before you start
+
+Your project needs React 19.2 or later, Tailwind CSS v4, and the shadcn/ui components that Pliant's components render. Each component lists the ones it needs below.
+
+<Steps>
+
+<Step>Install the packages</Step>
+
+```bash
+npm install @pliantui/react @pliantui/core zod cn lucide-react
+```
+
+`@pliantui/react` loads, applies and saves each user's changes. The other packages are used by the component files.
+
+Some components need one more package:
+
+- `pliant-data-table` needs `@tanstack/react-table`, and its toolbar needs `@pliantui/contract` too.
+- `pliant-ask-panel` and `pliant-point-mode` need `radix-ui`.
+
+<Step>Add the shadcn components they use</Step>
+
+Pliant's components import your own shadcn components from `@/components/ui`. Make sure the ones you need exist:
+
+| Pliant component            | shadcn components it uses                                    |
+| --------------------------- | ------------------------------------------------------------ |
+| `pliant-region`             | `button`                                                     |
+| `pliant-data-table`         | `button`, `dropdown-menu`, `select`, `table`                 |
+| `pliant-data-table-toolbar` | `badge`, `button`, `dropdown-menu`, `input`, `separator`     |
+| `pliant-form`               | `button`, `field`                                            |
+| `pliant-nav`                | `dropdown-menu`, `sidebar`                                   |
+| `pliant-ask-panel`          | `badge`, `button`, `label`, `select`, `skeleton`, `textarea` |
+| `pliant-point-mode`         | `button`                                                     |
+
+<Step>Copy the component files</Step>
+
+Each component is a registry item at <SiteUrl path="/r/pliant-region.json" />, and so on for each name in the table. Its `files` hold the source and the path it goes to. Copy each file into `components/pliant`:
+
+<FileTree>
+  <Folder name="components">
+    <Folder name="pliant">
+      <File name="pliant-region.tsx" />
+      <File name="pliant-data-table.tsx" />
+      <File name="pliant-data-table-column-header.tsx" />
+      <File name="pliant-data-table-features.ts" />
+      <File name="pliant-data-table-format.ts" />
+      <File name="pliant-data-table-pagination.tsx" />
+      <File name="pliant-data-table-view-options.tsx" />
+    </Folder>
+    <Folder name="ui" />
+  </Folder>
+</FileTree>
+
+The files import shadcn components from `@/components/ui`. If your project uses another alias, update those imports.
+
+<Step>Use them on a page</Step>
+
+Wrap the page in `PliantRoot`, and render a region inside it:
+
+<include cwd lang="tsx" meta='title="app/orders/page.tsx"'>
+  snippets/installation/page.tsx#page
+</include>
+
+`surface` names the page, and `PliantPrePaint` takes the same one. `storage={localAdapter}` keeps each user's changes in their browser.
+
+</Steps>
+
+## Next steps
+
+- [Your first editable table](/docs/first-editable-table): build a table that remembers its sort and columns.
+- [Storage](/docs/storage): save changes to your own backend.

@@ -1,149 +1,80 @@
 ---
 title: Guardrails
-description: What users can't change, and what Pliant doesn't protect.
+description: What users can never change, the parts of a page you can protect, and what Pliant doesn't protect.
 ---
 
-Users reshape the page you built. They can't change what it does. These rules hold for every overlay, whether a user made it by hand or with the ask panel.
+Users reshape the page you built. They can't change what it does. These rules hold for every change, whether a user made it by hand or with the ask panel, so you can let people customize freely without reviewing each change.
 
-## Only the catalog's changes
+## Only changes from the catalog
 
-An overlay is a list of [operations](/docs/concepts/operations) from a closed catalog. It can't contain code, markup, CSS or a query. Labels are plain text and filter values are data, never interpolated into anything.
+A change is a list of [operations](/docs/concepts/operations) from a fixed catalog. It can't contain code, markup, CSS or a query. Labels are plain text and filter values are data, never interpolated into anything. A change can't name a single row of data, so it can only change how data is shown.
 
-Ops have fixed limits: at most 500 per overlay, layouts of at most four columns, column widths clamped to the limits you set on the column, and so on. Addresses for a single row, such as `order-card[42]`, are rejected, so an overlay never targets a single row.
+Each operation has fixed limits: at most 500 per change, layouts of at most four columns, column widths within the limits you set on the column, and so on.
 
-## Base items can be hidden, not deleted
+## What you wrote can be hidden, never deleted
 
-`remove` deletes only nodes a user, team or org added with `insert` or `wrap`, and only from the scope that added them. Everything you wrote can be hidden, and shown again, but never removed. Removing every overlay always brings back your page as you wrote it.
+Users can hide anything you built, and show it again. They can only remove what their own layer added, such as a section they grouped cards into. Clearing every change always brings back your page as you wrote it.
 
-## Visual order is DOM order
+## Visual order is reading order
 
-When an overlay reorders a region, Pliant reorders the rendered elements, not their CSS position. Tab order and screen-reader order follow what the user sees.
+When a user reorders a region, Pliant moves the elements themselves, not just their position on screen. Keyboard focus and screen readers follow the order users see. Tables keep the same promise for their columns.
 
-For tables, Pliant sets TanStack's column order and pinning, so a table rendered from `getHeaderGroups()` and `getVisibleCells()` keeps DOM order and visual order the same.
+## Some things are never saved
 
-## Some state is never saved
-
-`setPage` is allowed only in the `session` layer, so a table's page number is never saved or shared. Table filters stay in the session too, unless you opt in with `persistFilters`.
+A table's page number lives only in the browser tab, so it's never saved or shared. Table filters stay in the tab too, unless you save them with `persistFilters`.
 
 ## The ask panel can only propose
 
-The ask route offers the model only a fixed set of ops that the target's capabilities allow, and only the item and field ids you list in the target's context. It turns away asks that start with a verb that acts on data, such as "delete" or "refund", unless they name a part of the view. It has no way to change your data.
+The AI behind the ask panel can only answer with operations, and only the ones the part the user pointed at allows. It's told the names of your columns and cards, never your rows. Asks to act on data, such as "delete these orders" or "refund this", are turned away.
 
-Every answer is validated on the server, then validated again in the browser before it's applied. It applies to the `session` layer as a preview, and nothing is saved until the user saves it.
+Every answer is checked on your server, then again in the browser. It shows as a preview, and nothing is saved until the user locks it in.
 
-## Required, critical and destructive items
+## Protecting parts of a page
 
-`PliantRoot` doesn't take flags, so in your app any slot or column a user can see, an overlay can hide or move. Don't rely on a region to keep something on screen, such as a notice users must read: render it outside Pliant's regions.
+Some parts of a page need protecting from well-meant changes. Mark them with **flags**, by address:
 
-If you resolve overlays with `@pliantui/core` directly, pass the page's flags by address to `resolveLayers` and `validateOverlay`. Two rules apply to them.
+| Flag          | The rule                                                                                                   |
+| ------------- | ---------------------------------------------------------------------------------------------------------- |
+| `critical`    | Always visible. It can't be hidden, collapsed, demoted or removed, directly or by hiding what contains it. |
+| `required`    | The same, for a form field.                                                                                |
+| `primary`     | The main action of its group, such as **Save**. A group has at most one.                                   |
+| `destructive` | An action such as **Delete**. It can't move closer to the primary action, and its variant can't change.    |
 
-**Critical and required items stay visible.** A node or form field flagged `critical` or `required` can't be hidden, collapsed, demoted or removed, directly or through a node that holds it, and can't be moved into a hidden node or a cycle of nodes.
+So with **Save**, **Cancel**, **Archive** and **Delete** in a row, a user can move Delete to the end or into the overflow menu, but can't move it right next to Save or before it.
 
-**Destructive actions stay clear of the primary action.** An action flagged `destructive` never ends up closer to the action flagged `primary` in its group than your page puts it. A group is either a node's slots or one of a node's item collections, such as the `actions` of `orders-toolbar`. For slots, the group is the node that holds the primary action, and actions in wrappers inside it count as part of it. A destructive action in another group isn't judged against this primary action, so moving it out to another node is allowed. From far to close, a destructive action is apart from the primary action, right after it, or above it:
+A change that would break a rule is skipped, and the rest of the change still applies. When changes from several layers combine to break a rule, the one from the highest layer is skipped.
 
-- In the order the group renders, a destructive action is above the primary action when it comes first, and right after it when no shown action sits between them. Moves, `pin start`, `pin end` and wraps all count, and a wrapper's actions count in its place. Hidden actions keep their place, but don't keep the two apart, and neither does a wrapper on its own.
-- A demoted or collapsed action, or one in a collapsed wrapper, has left the group's bar for its overflow menu. An action in the bar is above every action in the overflow, and the overflow is ordered the same way. Core counts every action as in the bar until an operation demotes or collapses it.
+<Callout>
+  `PliantRoot` doesn't take flags. Flags apply when you resolve changes with
+  `resolveLayers` or check them with `validateOverlay` from `@pliantui/core`,
+  passing them as `flags`. In your app, render anything users must always see
+  outside Pliant's regions.
+</Callout>
 
-So with Save, Cancel, Archive and Delete in that order, a user can move Delete before Archive, pin it to the end or collapse it into the overflow menu, but can't move it right after Save, pin it to the start, or collapse Save into the overflow menu. When a user hides Cancel and then Archive, the second hide is skipped. If your page already puts Delete right after Save, operations can keep it there, but never move it above Save.
+## More rules that always hold
 
-A group has at most one `primary` action: `resolveLayers` and `validateOverlay` throw a `TypeError` when two primary actions share a group. A node's slots and each of its item collections are separate groups.
+- **Shortcuts don't take reserved keys.** A shortcut a user binds can't take keys the browser, the operating system or a screen reader relies on, such as <Kbd>Ctrl</Kbd> <Kbd>T</Kbd>, or keys another action already has. Combinations such as <Kbd>⌘</Kbd> <Kbd>K</Kbd> stay free for users. Pass your app's own shortcuts as `reservedShortcuts` to protect them too.
+- **Variants keep their meaning.** Prop values that carry meaning, such as a button's `destructive` variant, are marked `semantic` in the component's manifest. Only your code assigns them.
+- **Form defaults must be valid.** A default a user or team sets on a form field must pass the field's schema, such as your Zod schema. Otherwise it's skipped.
+- **Form fields stay in their form.** Fields can move and fold into a **More fields** section, but never into another container, so they keep their focus and value.
 
-Operations apply one at a time, from the lowest layer up. Each one that would break a rule, given the operations before it, is skipped and reported with the rule's name, `stays-visible` or `stays-clear` (and `free-shortcut`, `keeps-meaning`, `valid-default` or `stays-in-place` for the rules below), so when layers combine to break one, the operation from the highest layer involved is the one skipped. A lower layer's operation is judged only by the operations before it, so it's skipped even if a higher layer would undo it. `validateOverlay` rejects an overlay that has such an operation.
+## Team defaults aren't locks
 
-To know which nodes hold a flagged one, pass the page's node tree as `baseParents`: each node id mapped to the id of the node that holds it, or `null` at the top of the page. Its key order is ignored. To give the order each group renders in, pass `baseOrder`: each node id mapped to its children's ids, and each `<node>/<collection>` mapped to its item ids, in order.
+A team or organization default is a starting point. Each user can still adjust anything it sets for themselves.
 
-```ts
-const baseParents = {
-  page: null,
-  "checkout-actions": "page",
-  save: "checkout-actions",
-  cancel: "checkout-actions",
-  delete: "checkout-actions",
-}
-
-const baseOrder = {
-  "checkout-actions": ["save", "cancel", "delete"],
-  "orders-toolbar/actions": ["export", "print", "delete"],
-}
-```
-
-A node the tree leaves out, such as one that isn't mounted yet, takes the parent its flag's address shows. A node that the tree leaves out and no flag names has no parent, and the addresses of operations don't supply one. The tree must agree with those addresses and have no cycle. When you pass it, addresses in overlays don't change it. Without it, parents come from the addresses in your flags and in the overlays, so give each flag by its full address, such as `page/slots/checkout-actions/slots/pay-now`. A node that an overlay names only by its id is then not traced to the nodes that hold it: for example, the destination of a `move … into`, or an item in a `collapse`.
-
-`baseOrder` lists each child once, in the parent that `baseParents` gives it, or, without `baseParents`, the parent its flag's address shows. With `baseParents`, every node it names must be in the tree. Without it, a node `baseOrder` lists takes that parent where nothing else gives one, and those parents must have no cycle. `resolveLayers` and `validateOverlay` throw a `TypeError` otherwise.
-
-`baseOrder` may leave out a group, or some of a group's members. Core then builds the group's starting order only from what you passed (`baseParents`, `baseOrder` and your flags' addresses), never from the overlays. An unlisted primary action goes first, an unlisted destructive one last, and the other known members go between them by id, after the listed ones. When the only members Core knows are the two flagged actions, they start out adjacent. That's the least strict case: users can't move the destructive action above the primary one, but can move it right after it. To get the full rule, list the group's order in `baseOrder`.
-
-## Shortcuts don't take reserved keys
-
-A `bindShortcut` that takes keys the browser, the operating system or a screen reader relies on is skipped, and so is one that takes keys another action is already bound to on the page. Keys are compared on Windows and Linux, where `mod` is Ctrl, and on macOS, where `mod` is Command, so `mod+k` and `ctrl+k` take the same keys. When two layers bind the same keys, the binding from the lower layer wins and the other is skipped.
-
-Reserved, on every page:
-
-- Keys with no modifier, or with Shift alone. They type text, move focus and drive a screen reader's browse mode.
-- Alt or Alt+Shift alone, which type characters on macOS and open the browser's menus on Windows and Linux.
-- Ctrl+Alt, which is AltGr on Windows and holds the VoiceOver keys on macOS, and `meta`, the Windows or Super key, on Windows and Linux.
-- `mod` with `a c d f g h j l n p q r t u v w x y z`, a digit, `=`, `-`, `[`, `]`, `tab`, `space`, `home`, `end`, `backspace`, `delete` or an arrow, and `mod+shift` with `b g n o r t w z = tab home end` or an arrow: tabs, windows, the address bar, reloading, history, downloads, bookmarks, find, printing, the page source, zoom and text editing.
-- `ctrl+tab` and `ctrl+shift+tab`, which switch tabs.
-- On Windows and Linux, `ctrl` with `pageup`, `pagedown` or `f4`, `mod+escape`, and `mod+shift` with `c`, `i`, `j`, `delete` or `escape`: switching and closing tabs, the Start menu, developer tools, clearing browsing data and the Task Manager.
-- On macOS, `mod` with `m`, `,`, `` ` `` or `f5` (which turns VoiceOver on and off), `ctrl` with `space` or an arrow, `mod+shift` with `3`, `4`, `5`, `q`, `[` or `]`, and `mod+alt` with `c`, `d`, `i`, `j` or `escape`.
-
-That leaves combinations such as `mod+k`, `mod+shift+k` and `mod+s` for users. A binding on an action that is hidden or removed still takes its keys. If your app binds keys itself, pass them as `reservedShortcuts`, and bindings to them are skipped too:
-
-```ts
-resolveLayers(overlays, {
-  surface: "/orders",
-  reservedShortcuts: ["mod+k", "mod+shift+p"],
-})
-
-validateOverlay(overlay, {
-  layers: { overlays: below, surface: "/orders" },
-  reservedShortcuts: ["mod+k", "mod+shift+p"],
-})
-```
-
-`validateOverlay` rejects a binding to reserved keys, or to your `reservedShortcuts`, even without `layers`. Without `layers` it can't see other actions' bindings, so a binding that takes another action's keys is caught only with them.
-
-## Variants keep their meaning
-
-Some prop values carry meaning, such as a button's `destructive` variant. A manifest marks them as `semantic`, and only your app assigns them: a `setProp` that sets a semantic value is skipped, in every layer. A node or item flagged `destructive` also keeps its variant: any `setProp` on one of its props that has semantic values is skipped, so a destructive action can't be made to look harmless. Its other props, such as `size`, can still change. A `destructive` node is protected this way only when its manifest marks the variant's values as `semantic`.
-
-Pass the manifests of the page's nodes by address as `manifests`, to `resolveLayers` and to `validateOverlay`. A node with no manifest isn't checked. `validateOverlay` rejects a semantic value even without `layers`; to check a `destructive` node's variant, it needs the flags in `layers`.
-
-```ts
-resolveLayers(overlays, {
-  surface: "/settings",
-  manifests: { "account-actions/slots/delete-account": buttonManifest },
-  flags: { "account-actions/slots/delete-account": { destructive: true } },
-})
-```
-
-## Form fields keep their values
-
-A default a user, team or org sets on a form field with `setDefault` must be valid data. Pass each field's schema by address as `fields` to `resolveLayers` and `validateOverlay`: any schema that implements [Standard Schema](https://standardschema.dev) and validates synchronously, such as a Zod schema. A `setDefault` whose value the schema rejects is skipped with the rule's name, `valid-default`, and a lower layer's default stays. A field with no schema isn't checked. Since a field flagged `required` always stays visible, a default never lands on a required field the user can't see.
-
-```ts
-resolveLayers(overlays, {
-  surface: "/tickets",
-  fields: {
-    "ticket-form/fields/priority": ticketSchema.shape.priority,
-    "ticket-form/fields/due": ticketSchema.shape.due,
-  },
-})
-```
-
-Form fields also never change parent. A new parent would remount a field, and it would lose its focus, its local state and, with react-hook-form's `shouldUnregister`, its value. So a `wrap` that takes a field of the form it targets is skipped, with the rule's name `stays-in-place`. Core knows a form's fields from `fields`, from your flags' addresses, and from `baseOrder` under `<form>/fields`. `validateOverlay` checks both rules even without `layers`, then knowing only the fields in `fields`. A field can't `move` into another node at all, and a `collapse` keeps fields where they are: the collapsed section is the same fields rendered hidden in place.
-
-## Team and org defaults aren't locks
-
-A team or org overlay sets a default. Each user's personal overlay can override any property it sets, and Pliant has no way to stop that.
-
-A lock in any UI is a policy, not a security boundary: the overlays and the code that applies them run in the user's browser, and a user can change what runs there. Anything that must be hidden from a user belongs in your dataset permissions, enforced on your server, so it never reaches the browser.
+Any lock in a browser is a policy, not a security boundary: the code that applies changes runs on the user's device, and they control it. Anything a user must not see belongs in your server's permissions, so it never reaches the browser.
 
 ## Hidden is not secret
 
-Hiding a column or a slot is a display preference. Hidden slots stay mounted, and hidden columns stay in the table's data. Everything you render is still sent to the browser.
+Hiding a column or a card is a display preference. Hidden cards stay on the page, and hidden columns stay in the table's data.
 
-<Callout variant="warning">
-  Never use `hide` to protect data. If a user mustn't see a field or a row,
-  leave it out of what your server sends them.
+<Callout variant="warning" title="Never use hide to protect data">
+  If a user mustn't see a field or a row, leave it out of what your server sends
+  them.
 </Callout>
+
+## Related
+
+- [pliant.config.ts](/docs/config): flags for your whole app, in one file.
+- [Operations](/docs/concepts/operations)
+- [Overlays and layers](/docs/concepts/layers)

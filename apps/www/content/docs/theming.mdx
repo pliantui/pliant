@@ -1,0 +1,57 @@
+---
+title: Theming
+description: Pliant's components use your shadcn theme, so they match your app in light and dark mode. Change them like any other component you own.
+---
+
+Pliant's components look like the rest of your app because they're built from your shadcn components and your theme's colors. Change your theme, and they follow. Need something different? Edit the component files: they're copied into your project, so they're yours.
+
+## Your theme applies automatically
+
+The components use the same CSS variables as shadcn/ui, such as `--background`, `--muted`, `--primary`, `--destructive`, `--border` and `--radius`. Define them once, as you already do for shadcn, and Pliant's tables, toolbars, regions and panels pick them up:
+
+```css title="app/globals.css"
+:root {
+  --primary: oklch(0.45 0.16 255);
+  --radius: 0.75rem;
+}
+
+.dark {
+  --primary: oklch(0.72 0.14 255);
+}
+```
+
+Dark mode works the same way. Whatever switches your app to dark, such as a `dark` class on `<html>`, switches Pliant's components too.
+
+They also render your own `components/ui`. If you've restyled your `Button`, `Table` or `DropdownMenu`, Pliant's components show your versions.
+
+## Change a component
+
+Each component lives in `components/pliant`, for example `components/pliant/pliant-data-table.tsx`. Open it and change the Tailwind classes, as you would with any shadcn component. When you add the component again with the shadcn CLI, it asks before overwriting your changes.
+
+## Highlighted rows
+
+The data table can tint rows with one of four tones. Each tone also shows an icon in the row's first cell, so the meaning never rests on color alone:
+
+| Tone       | Color                | Icon       |
+| ---------- | -------------------- | ---------- |
+| `emphasis` | Your `--primary`     | A star     |
+| `success`  | Emerald              | A check    |
+| `warning`  | Amber                | A triangle |
+| `danger`   | Your `--destructive` | An alert   |
+
+To change them, edit the `tones` object near the top of `pliant-data-table.tsx`. Keep enough contrast for the text in both themes.
+
+## Region spacing
+
+A region renders each of its items inside a wrapper that doesn't take part in layout. So give the region its spacing with `gap-*` classes, as in `className="grid grid-cols-1 gap-4 md:grid-cols-3"`. Classes such as `space-y-*` and `divide-*`, which style the children directly, don't reach your items.
+
+When a user changes a region's layout, such as to a two-column grid, the change applies from the `md` breakpoint up. Below it, the region keeps the classes you gave it, so your mobile layout stays as you designed it.
+
+## Loading placeholders
+
+While a customized page loads, `PliantPrePaint` shows a soft, pulsing placeholder in place of each part that's about to change. It uses the text color at low opacity and your `--radius`, so it suits both themes. The pulse stops for users who prefer reduced motion.
+
+## Related
+
+- [Rendering modes](/docs/concepts/rendering)
+- [RTL and languages](/docs/languages)

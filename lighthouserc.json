@@ -7,7 +7,7 @@
       "url": [
         "http://localhost:4000/",
         "http://localhost:4000/docs",
-        "http://localhost:4000/docs/concepts",
+        "http://localhost:4000/docs/concepts/surfaces",
         "http://localhost:4000/examples/orders"
       ],
       "numberOfRuns": 5,

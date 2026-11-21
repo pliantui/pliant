@@ -1,0 +1,42 @@
+---
+title: Why Pliant
+description: Software usually makes people adapt to it. Pliant is a small step the other way, in a long tradition of software that bends to the people who use it.
+---
+
+Most software asks people to adapt to it. The columns are where the developer put them, the cards are in the order a designer chose, and the one view a person needs every morning takes six clicks to rebuild. Pliant lets the people who use your app shape it to fit their work, within the limits you set.
+
+## Pliant interfaces
+
+A **pliant interface** is one that its users can reshape, safely, without writing code and without breaking it. You build the page once. Each person, team or organization can then adjust it: reorder, hide, resize, sort, filter and lay out what you built. Their changes stay theirs, and the page you wrote is always there underneath.
+
+Three things make an interface pliant rather than merely configurable:
+
+- **The user decides what changes, not a settings screen you had to design.** Any part you make editable can change, through the controls on the page or by asking in plain words.
+- **Changes are layered.** An organization's defaults, a team's defaults and one person's tweaks stack on top of each other, and each one can be undone on its own.
+- **Changes are safe by construction.** They're data from a fixed list of operations, never code. The worst a bad change can do is be skipped.
+
+## The lineage
+
+The idea that people should be able to reshape their own software is old. Pliant borrows from it and credits it gladly.
+
+- **Alan Kay and Smalltalk.** At Xerox PARC in the 1970s, Kay and his colleagues built Smalltalk around the idea that a personal computer is a medium its user can change: every part of the system could be inspected and modified while it ran.
+- **HyperCard.** Bill Atkinson's HyperCard, released by Apple in 1987, let people who never thought of themselves as programmers build and remix their own stacks of cards, buttons and fields.
+- **Spreadsheets.** From VisiCalc in 1979 onwards, spreadsheets have been the most successful end-user programming tool there is. Millions of people shape them to their own work every day, and they're the reason many teams still export to a spreadsheet rather than live with a fixed report.
+- **Dynamicland.** Bret Victor and the Dynamicland community explore computing that lives in a shared physical space, where anyone in the room can see and change how things work.
+- **Ink & Switch.** The research lab's essay [Malleable software](https://www.inkandswitch.com/essay/malleable-software/) argues for restoring user agency in a world of locked-down apps, and maps the approaches that have been tried. Its vocabulary shaped how we think about Pliant.
+
+## Where Pliant fits
+
+Pliant is a deliberately modest piece of that tradition. It doesn't make your whole app programmable, and it doesn't ask your users to learn a new tool. It works on the apps people already ship: React, shadcn/ui and TanStack Table. It gives each user control over the presentation of the page you built, and nothing beyond it.
+
+That narrow scope is the point:
+
+- **Developers stay in charge.** You choose what's editable. Your components, data and permissions don't change. See [Guardrails](/docs/concepts/guardrails) for what users can never do.
+- **Users get real control.** Within those bounds, they can make the page theirs, by hand or by describing the change.
+- **AI is optional and contained.** A model can propose a change, but only as data that Pliant checks, previews and lets the user keep or discard. It never writes code.
+
+## Learn more
+
+- [How it works in 5 minutes](/docs/how-it-works): the whole model on one page.
+- [What users can do](/docs/what-users-can-do): every change a user can make.
+- [About and credits](/docs/about): the people and projects Pliant builds on.

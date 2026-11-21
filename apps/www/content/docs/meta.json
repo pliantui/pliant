@@ -2,12 +2,22 @@
   "pages": [
     "---Get started---",
     "index",
+    "why",
+    "what-users-can-do",
     "installation",
+    "first-editable-table",
+    "how-it-works",
+    "config",
+    "theming",
+    "languages",
+    "changelog",
+    "about",
+    "---Concepts---",
+    "concepts",
     "---Guides---",
     "storage",
     "ask-panel",
     "---Reference---",
-    "concepts",
     "cli",
     "roadmap"
   ]

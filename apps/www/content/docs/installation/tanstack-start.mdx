@@ -1,0 +1,61 @@
+---
+title: TanStack Start
+description: Add Pliant to a TanStack Start app. Beta.
+---
+
+Add Pliant to a TanStack Start app, and make the cards on an order page rearrangeable for each user.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This guide shows how Pliant will work with this framework. Parts of it aren't
+  tested with it yet, and the `@pliantui/*` packages aren't on npm yet.
+</Callout>
+
+## Before you start
+
+You need a TanStack Start app with React 19.2 or later, and [shadcn/ui](https://ui.shadcn.com/docs/installation/tanstack) with Tailwind CSS v4. If you don't have one yet, follow shadcn's TanStack Start guide first.
+
+## Install
+
+<Steps>
+
+<Step>Install the React package</Step>
+
+```bash
+npm install @pliantui/react zod
+```
+
+<Step>Add the region component</Step>
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-region.json
+```
+
+</Steps>
+
+## Make a route customizable
+
+In the route's component, wrap the page in `PliantRoot` and render `PliantPrePaint` first inside it:
+
+<include cwd lang="tsx" meta='title="src/components/order-page.tsx"'>
+  snippets/installation/route-order-page.tsx#page
+</include>
+
+Render `OrderPage` as the `component` of the route `/orders/$id`.
+
+- `surface` names the page. Write dynamic segments in brackets: TanStack Router's `/orders/$id` becomes `/orders/[id]`, so every order page shares one layout.
+- `PliantPrePaint` takes the same `surface`. It keeps a server-rendered page from flashing its original layout before the user's changes apply.
+- `storage={localAdapter}` keeps each user's changes in their browser. To keep them on your server, see [Storage](/docs/storage).
+
+## What works differently
+
+- `pliantui init`, `scan` and `doctor` read Next.js projects. In a TanStack Start app, install by hand as shown on this page.
+- The ask panel and storage routes are standard web handlers: serve them from server routes.
+
+## Next steps
+
+- [Your first editable table](/docs/first-editable-table)
+- [Rendering modes](/docs/concepts/rendering)

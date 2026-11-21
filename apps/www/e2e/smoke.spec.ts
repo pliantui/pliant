@@ -68,11 +68,13 @@ test("serves the data table toolbar registry item", async ({ request }) => {
 })
 
 const conceptPages = [
-  { path: "/docs/concepts", title: "Core concepts" },
-  { path: "/docs/concepts/layers", title: "Layers" },
+  { path: "/docs/concepts/surfaces", title: "Surfaces, nodes and addresses" },
+  { path: "/docs/concepts/layers", title: "Overlays and layers" },
   { path: "/docs/concepts/operations", title: "Operations" },
+  { path: "/docs/concepts/expressions", title: "Expressions and functions" },
   { path: "/docs/concepts/guardrails", title: "Guardrails" },
-  { path: "/docs/concepts/expressions", title: "Expressions" },
+  { path: "/docs/concepts/rendering", title: "Rendering modes" },
+  { path: "/docs/concepts/glossary", title: "Glossary" },
 ]
 
 for (const { path, title } of conceptPages) {
@@ -113,7 +115,7 @@ test("points the canonical link at the site address", async ({ page }) => {
 })
 
 for (const { path, schema } of [
-  { path: "/docs/concepts", schema: "/schema/overlay.json" },
+  { path: "/docs/concepts/layers", schema: "/schema/overlay.json" },
   { path: "/docs/concepts/operations", schema: "/schema/op.json" },
 ]) {
   test(`links ${path} to the ${schema} it serves`, async ({

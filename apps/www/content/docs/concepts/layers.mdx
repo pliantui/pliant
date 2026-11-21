@@ -1,42 +1,98 @@
 ---
-title: Layers
-description: How org, team, personal and session overlays stack, and which one wins.
+title: Overlays and layers
+description: How a user's changes are stored as overlays, and how organization, team, personal and session layers stack to decide what each user sees.
 ---
 
-Overlays live in four layers. Your page as you wrote it is the base, and the layers stack on top of it, from lowest to highest precedence:
+Every set of changes is stored as an **overlay**, a small JSON document. Overlays sit in **layers**, from organization-wide defaults down to a single browser tab, and stack on top of your page. This page explains both, so you can predict what each user sees.
 
-1. **`org`**: defaults for everyone in an organization.
-2. **`team`**: defaults for a team.
-3. **`personal`**: one user's own changes.
-4. **`session`**: changes that last for one browser tab, such as an ask panel preview that isn't saved yet, the current page of a table, and its filters, unless you save them with `persistFilters`.
+## Overlays
 
-Pliant loads `org` and `team` overlays from your storage adapter. Users create `personal` and `session` overlays, by using the page and through the ask panel.
+An overlay holds a list of [operations](/docs/concepts/operations) for one surface and one layer. This one sorts the orders table by value and hides its notes column, for one user:
 
-## Precedence is per property
+```json title="overlay.json"
+{
+  "v": 1,
+  "id": "01JD5Z8Q9W3X4Y5Z6A7B8C9D0E",
+  "surface": "/orders",
+  "layer": "personal",
+  "ops": [
+    {
+      "op": "setSort",
+      "target": "orders-table",
+      "sort": [{ "field": "value", "dir": "desc" }]
+    },
+    { "op": "hide", "target": "orders-table/columns/notes" }
+  ],
+  "basis": { "contract": 1, "core": "0.0.0", "manifests": {} },
+  "source": "manual",
+  "createdBy": "user_123",
+  "createdAt": "2026-11-20T09:30:00Z"
+}
+```
 
-Every operation writes one or more properties of a node or item. `hide` and `show` write a column's `visible`, `move` and `pin` write its placement, and `setSort` writes the table's `sort`. When two layers write the same property, the higher layer wins. Different properties never conflict.
+You rarely write overlays by hand. Pliant creates them as users work, and your storage keeps them. An overlay saved by a newer version of Pliant loads in an older one without losing anything, and changes the older version doesn't know are skipped, not lost.
 
-So if the team layer sorts `orders-table` by `value` and a user hides its `notes` column, both apply. If the user then sorts by `date`, their sort replaces the team's, because both write the same property. `setSort` and `setGroupBy` replace the whole list: sorts don't merge field by field.
+The full format is in the [overlay reference](#overlay-fields) below.
 
-Some properties are keyed, so they combine:
+## Layers
 
-- Filters are per field. A team filter on `status` and a personal filter on `region` both apply.
-- Layout and span are per breakpoint. Ops from the same scope merge breakpoint by breakpoint. When another scope, such as a higher layer, sets any breakpoint, it replaces every breakpoint set below it.
+Your page as you wrote it is the base. Four layers stack on top of it, from lowest to highest:
 
-`move` anchors (`before` and `after` another item) resolve against the full order, hidden items included, so hiding an item never breaks another layer's move.
+| Layer      | Who it's for                | How long it lasts                                 |
+| ---------- | --------------------------- | ------------------------------------------------- |
+| `org`      | Everyone in an organization | Until it's changed                                |
+| `team`     | Everyone on a team          | Until it's changed                                |
+| `personal` | One user                    | Every visit, on every device your storage reaches |
+| `session`  | One user, in one tab        | Until the tab closes                              |
 
-## Order within a layer
+The `session` layer holds things that shouldn't follow a user around: the table's current page, its filters unless you save them, and an ask panel preview the user hasn't kept yet.
 
-A layer can hold many overlays. They apply in a fixed order, and the later one wins:
+Pliant loads `org` and `team` overlays from your storage along with the user's own. See [Storage](/docs/storage).
 
-- In the `team` layer, by the `teamOrder` you pass to `PliantRoot` (highest precedence first; teams you don't list rank below the ones you do), then by team id.
-- In the `org` layer, by org id.
-- Then, in every layer, by `createdAt`, then by `id`.
+## Higher layers win, per property
 
-Within one overlay, later operations win over earlier ones. The order never depends on the order your storage returns overlays in.
+When two layers change the same property, the higher layer wins. Different properties never conflict.
 
-If two overlays share an `id`, the first in this order is used and the others are skipped. If they tie on every key of the order but differ in content, all of them are skipped.
+- A team sorts `orders-table` by value, and a user hides its notes column. **Both apply.**
+- The user then sorts by date. **The user's sort wins**, because both change the table's sort. Sorts replace each other whole; they don't merge field by field.
+- A team filters on status and the user filters on region. **Both apply**, because filters are kept per field.
 
-## Removing only undoes your own scope
+Moves are placed relative to other items, such as "before revenue", so hiding a card never breaks another layer's move.
 
-`remove` deletes a node that was added with `insert` or `wrap`, but only if the same scope added it: the same team or org, or, for `personal` and `session`, the same layer. A user can hide a team's wrapper, but can't delete it from the team layer. A `remove` aimed at something another scope added doesn't apply, and it is never turned into a `hide`.
+## Several overlays in one layer
+
+A layer can hold many overlays: a user may have changed the page many times, or belong to several teams. They apply in a fixed order, and the later one wins:
+
+- Team overlays follow the `teamOrder` you pass to `PliantRoot`, highest precedence first. Teams you don't list rank below those you do.
+- Then, in every layer, older overlays apply before newer ones.
+
+The result never depends on the order your storage returns overlays in.
+
+## Undoing your own scope
+
+Users can hide anything, but they can only remove what their own layer added. A user can hide a section their team added, but can't delete it from the team's layer.
+
+## Overlay fields
+
+| Field       | Description                                                                                                 |
+| ----------- | ----------------------------------------------------------------------------------------------------------- |
+| `v`         | The format version, always `1`.                                                                             |
+| `id`        | A [ULID](https://github.com/ulid/spec). Saving an overlay with the same `id` replaces it.                   |
+| `surface`   | The surface it applies to.                                                                                  |
+| `layer`     | `org`, `team`, `personal` or `session`.                                                                     |
+| `scope`     | `{ "org": "…" }` on the `org` layer, `{ "team": "…" }` on the `team` layer, and none otherwise.             |
+| `ops`       | Between 1 and 500 operations.                                                                               |
+| `basis`     | What it was made against: the format version, the `@pliantui/core` version and component manifest versions. |
+| `source`    | How it was made: `ai`, `manual`, `chip`, `share` or `promote`.                                              |
+| `lang`      | Optional. The language of its labels, as a BCP 47 tag such as `en-IN`.                                      |
+| `explain`   | Optional. One short sentence per operation, describing the change to the user.                              |
+| `createdBy` | Who made it.                                                                                                |
+| `createdAt` | When it was made, as an RFC 3339 timestamp with seconds.                                                    |
+
+The JSON Schema is published at <SiteUrl path="/schema/overlay.json" />, for tools and for implementations in other languages.
+
+## Related
+
+- [Operations](/docs/concepts/operations)
+- [Storage](/docs/storage)
+- [Glossary](/docs/concepts/glossary)

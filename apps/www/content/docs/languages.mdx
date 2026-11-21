@@ -1,0 +1,59 @@
+---
+title: RTL and languages
+description: Show Pliant's labels in your users' language, and lay its components out right to left for languages that need it.
+---
+
+Pliant's components show a few labels of their own, such as **Columns**, **Next** and **More**. You can replace each one with a translation, and the components lay themselves out right to left for languages such as Arabic and Hebrew.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how languages will work. Translating labels with `messages`
+  works today. Right-to-left layout and translated team labels aren't in Pliant
+  yet.
+</Callout>
+
+## Translate the labels
+
+Pass `messages` to `PliantRoot`: any labels you leave out keep their English defaults. Pass `lang` too if your app's language isn't already set on `<html lang>`.
+
+<include cwd lang="tsx" meta='title="app/orders/orders-root.tsx"'>
+  snippets/languages/providers.tsx#providers
+</include>
+
+- Some labels take values, such as the page range under a table. Give those as functions.
+- A catalog with functions can't be passed from a Server Component. Create it in a client module, as above.
+- Define the catalog outside your component, so it isn't rebuilt on every render.
+- A `PliantRoot` nested inside another uses the outer one's `messages` unless you give it its own.
+
+Each component lists its labels and their English defaults at the top of its file, such as `dataTableNext` in `pliant-data-table-pagination.tsx`. TypeScript knows every key you can pass, and checks the arguments of the ones that are functions.
+
+## Numbers and dates
+
+Pliant doesn't format your data: your columns and cards show values the way you format them, as in `Intl.NumberFormat("en-IN")`. The data table's own numbers, such as the page range and group counts, take a `formatNumber` prop, so you can format them for your users' locale too.
+
+## The language of a change
+
+`lang` also records the language of the labels in each change a user makes, such as the name of a calculated column. When `lang` isn't set, Pliant reads it from `<html lang>`. Give it as a BCP 47 tag, such as `fr-FR` or `ar-EG`.
+
+## Right to left
+
+Set `dir="rtl"` on `<html>`, as you would for the rest of your app. Pliant's components follow it:
+
+- Tables, toolbars and menus mirror, so the first column sits on the right.
+- Pinning a column to the start pins it on the right.
+- Region layouts flow from right to left, and keyboard order follows what users see.
+- Icons that point a direction, such as **Next** and **Previous**, flip.
+
+Changes are stored by meaning, not by side. A column pinned to the start stays at the start when a user switches between English and Arabic.
+
+## Team labels in several languages
+
+A team default can carry its labels in several languages, such as a calculated column called "Margin" in English and "Marge" in French. Each user sees the label in their own language, and falls back to the team's first language when there's no match.
+
+## Related
+
+- [Theming](/docs/theming)
+- [pliant.config.ts](/docs/config)
