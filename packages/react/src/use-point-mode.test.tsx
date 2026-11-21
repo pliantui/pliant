@@ -688,8 +688,8 @@ describe("usePointMode", () => {
   it("announces the mode with the root's messages", async () => {
     render(
       <PliantRoot
-        storage={localAdapter}
         surface="/orders"
+        storage={localAdapter}
         messages={{
           pointModeOn: "Mode pointage activé.",
           pointModeOff: "Mode pointage désactivé.",
