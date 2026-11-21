@@ -149,6 +149,17 @@ test.describe("the start page", () => {
     await expect(page).toHaveURL("/examples/app/inbox")
   })
 
+  test("is the inbox when the layers fail to load", async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem("unrelated", "1")
+      Storage.prototype.key = () => {
+        throw new Error("Storage is blocked")
+      }
+    })
+    await page.goto("/examples/app")
+    await expect(page).toHaveURL("/examples/app/inbox")
+  })
+
   test("is picked from a link's options and kept", async ({ page }) => {
     await load(page)
     const options = sidebarNav(page).getByRole("button", {

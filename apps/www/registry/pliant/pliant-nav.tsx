@@ -126,6 +126,12 @@ function MoreTrigger({
  * `SidebarMenuItem`, so tab order follows the order users see. The item
  * that is the current page gets `aria-current="page"`.
  *
+ * Wrap it in a `<nav>` with an `aria-label`, such as
+ * `<nav aria-label="Main">`, so screen readers list it as a landmark. Each
+ * link is a plain `<a>`; for client-side navigation, swap in your router's
+ * link, such as `next/link`'s `Link`, which `SidebarMenuButton`'s `asChild`
+ * passes its props and classes to.
+ *
  * Each item's options menu sets it as the user's start page. Read the
  * start page with `usePliantNav(id, items).landing` where your app's start
  * route renders, and redirect to that item's `url`.

@@ -42,7 +42,9 @@ function baseNav(ids: readonly string[]): ResolvedNav {
  * The landing is always an item the user can reach: when they hide the
  * item they landed on, `landing` is `undefined` and your own start page
  * applies. Read it where your app's start route renders, and redirect to
- * the item's page once the layers are ready (see `usePliantStatus`).
+ * the item's page once the layers are ready (see `usePliantStatus`). When
+ * the status is `error`, the layers didn't load: redirect to your own start
+ * page then, or the start route stays blank.
  *
  * Render a hidden item with `PliantActivity`, or leave it out: a nav item
  * is a link, with no state to keep.
