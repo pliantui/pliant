@@ -102,10 +102,14 @@ export type DatasetDefinition<
   /**
    * The rows a user may load, as conditions every query, aggregate and load
    * must match, such as `(user) => ({ orgId: user.orgId })`. `"public"`
-   * lets every user load every row.
+   * lets every user load every row. Synchronous: look up what it needs, such
+   * as the user's organizations, before calling `authorizeDataset`.
    */
   readonly scope: "public" | ((user: TUser) => DatasetScope)
-  /** Whether a user may use the dataset at all. Only `true` allows it. */
+  /**
+   * Whether a user may use the dataset at all. Only `true` allows it.
+   * Synchronous, and checked before `scope` runs.
+   */
   readonly access?: ((user: TUser) => boolean) | undefined
   readonly privacy?:
     | {
@@ -138,7 +142,10 @@ type ResolvedField<TField extends DatasetField> = TField extends unknown
 /**
  * A checked dataset. Its fields carry every capability, resolved from their
  * type's defaults and their own overrides, and feed core's
- * `createExpressionChecker` and `createRowEvaluator` as they are.
+ * `createRowEvaluator` as they are. They include fields a user can't read
+ * and fields hidden from the model, so to check a user's or the model's
+ * expressions with `createExpressionChecker`, pass the `fields` of
+ * `describeDataset(dataset, { user, audience })` instead.
  *
  * @experimental
  */
@@ -383,8 +390,10 @@ function withoutUndefined(field: Readonly<Record<string, unknown>>) {
  * Throws a `TypeError` listing every problem: a bad dataset or field id, an
  * unknown type, unit, currency, time zone or option, text that is empty or
  * too long, a format that doesn't fit its field, bad enum values, a
- * missing or invalid row key, a missing scope, or an `access` that isn't a
- * function.
+ * missing or invalid row key, a row key field that sets `access` or
+ * `exposeToAI: false`, a missing scope, an `access`, on the dataset or a
+ * field, that isn't a function, `privacy` that isn't `{ minGroupSize }` with
+ * a whole number of at least 1, or an `exposeToAI` that isn't a boolean.
  *
  * @experimental
  */

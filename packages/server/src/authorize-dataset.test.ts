@@ -27,6 +27,10 @@ const orders = defineDataset({
   },
 })
 
+const scopeError = new TypeError(
+  'Dataset "orders": scope(user) must return a plain object of conditions, each named by an id and a string, finite number, boolean or non-empty list of them'
+)
+
 function withScope(scope: (user: User) => unknown) {
   return defineDataset({
     id: "orders",
@@ -160,11 +164,80 @@ describe("authorizeDataset", () => {
         withScope(() => scope),
         alice
       )
-    ).toThrow(
-      new TypeError(
-        'Dataset "orders": scope(user) must return conditions, each a string, finite number, boolean or non-empty list of them'
+    ).toThrow(scopeError)
+  })
+
+  it("throws for a nested list", () => {
+    expect(() =>
+      authorizeDataset(
+        withScope(() => ({ orgId: [["acme"]] })),
+        alice
       )
-    )
+    ).toThrow(scopeError)
+  })
+
+  describe("a scope that hides a condition from the copy", () => {
+    class Scope {
+      orgId = "acme"
+      get region() {
+        return this.orgId === "acme" ? "eu" : "us"
+      }
+    }
+    const nonEnumerable = { orgId: "acme" }
+    Object.defineProperty(nonEnumerable, "region", {
+      value: "eu",
+      enumerable: false,
+    })
+
+    it.each([
+      ["a getter on a class's prototype", new Scope()],
+      ["a symbol key", { orgId: "acme", [Symbol("region")]: "eu" }],
+      ["a non-enumerable property", nonEnumerable],
+    ])("throws for %s", (_, scope) => {
+      expect(() =>
+        authorizeDataset(
+          withScope(() => scope),
+          alice
+        )
+      ).toThrow(scopeError)
+    })
+  })
+
+  it.each([
+    ["__proto__", '{ "__proto__": 1 }'],
+    ["an empty key", '{ "": 1 }'],
+    ["a key with a quote and SQL", '{ "orgId\\" OR 1=1 --": 1 }'],
+  ])("throws for %s as a condition's name", (_, json) => {
+    expect(() =>
+      authorizeDataset(
+        withScope(() => JSON.parse(json) as unknown),
+        alice
+      )
+    ).toThrow(scopeError)
+  })
+
+  it("accepts a scope without a prototype", () => {
+    const scope = Object.assign(Object.create(null) as object, {
+      orgId: "acme",
+    })
+    expect(
+      authorizeDataset(
+        withScope(() => scope),
+        alice
+      )?.scope
+    ).toEqual({ orgId: "acme" })
+  })
+
+  it("checks access before it runs scope", () => {
+    const dataset = defineDataset({
+      id: "ledger",
+      scope: () => {
+        throw new Error("scope ran")
+      },
+      access: (user: User) => user.roles.includes("finance"),
+      fields: { id: { type: "id" } },
+    })
+    expect(authorizeDataset(dataset, alice)).toBeNull()
   })
 
   it("throws for a user without the value the scope reads", () => {
@@ -214,6 +287,11 @@ describe("authorizeDataset", () => {
       id: "orders",
       // @ts-expect-error a condition can't be undefined
       scope: (user: User) => ({ orgId: user.id === "" ? undefined : user.id }),
+      fields: { id: { type: "id" } },
+    })
+    defineDataset({
+      id: "orders",
+      scope: (user: { orgIds: string[] }) => ({ orgId: user.orgIds }),
       fields: { id: { type: "id" } },
     })
     expect(() =>
