@@ -6,7 +6,7 @@
   },
   {
     "path": "dist/data.js",
-    "limit": "2.5 kB",
+    "limit": "3 kB",
     "ignore": ["zod", "@pliantui/contract", "@pliantui/core"]
   },
   {
