@@ -349,6 +349,12 @@ describe("pliantui scan", () => {
       statement: "",
       before: "<Peek onPick={() => both.b.entries} />",
     },
+    {
+      name: "JSX returned by a function the component never renders",
+      statement:
+        "const onOpen = () => {\n    return <Peek region={both.b} />\n  }\n  React.useDebugValue(onOpen)",
+      before: "",
+    },
   ])("doesn't count $name as rendering", async ({ statement, before }) => {
     const cwd = await createFixtureDirectory("scan-app")
     await edit(
@@ -370,7 +376,7 @@ describe("pliantui scan", () => {
     expect(help?.baseOrder["pair"]).toEqual(["two-a", "two-banner", "two-b"])
   })
 
-  it("counts what a portal renders where the component sits", async () => {
+  it("counts what a portal renders where the component renders it", async () => {
     const cwd = await createFixtureDirectory("scan-app")
     await edit(
       cwd,
@@ -404,6 +410,75 @@ describe("pliantui scan", () => {
       "two-banner",
     ])
     expect(help?.baseOrder["portaled"]).toEqual(["inside"])
+  })
+
+  // Each renders both.b before both.a through a different rendering path.
+  it.each([
+    {
+      name: "a useMemo callback",
+      statement:
+        "const early = React.useMemo(() => <Peek region={both.b} />, [both])",
+      before: "{early}",
+    },
+    {
+      name: "a named .map callback",
+      statement:
+        "function renderEarly() {\n    return <Peek region={both.b} />\n  }",
+      before: '{["early"].map(renderEarly)}',
+    },
+  ])("follows $name", async ({ statement, before }) => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await edit(
+      cwd,
+      "components/two-panel.tsx",
+      "  React.useDebugValue(show)",
+      `  React.useDebugValue(show)\n  ${statement}`
+    )
+    await edit(
+      cwd,
+      "components/two-panel.tsx",
+      "      <Peek />",
+      `      <Peek />\n      ${before}`
+    )
+    const { output } = await scanJson(cwd)
+    const help = output.inventory["help"]
+
+    expect(help?.baseIds.source).toBe("inventory")
+    expect(help?.baseOrder["pair"]).toEqual(["two-b", "two-a", "two-banner"])
+  })
+
+  it("warns about a component that renders a region where the scan can't follow", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    // ItemList declares no region itself: it renders a PliantRegion. Passed
+    // through context, it isn't rendered anywhere the scan follows.
+    await edit(
+      cwd,
+      "components/two-panel.tsx",
+      "  React.useDebugValue(show)",
+      [
+        "  React.useDebugValue(show)",
+        "  const Context = React.createContext<React.ReactNode>(null)",
+        "  React.useDebugValue(",
+        "    <Context.Provider value={<ItemList items={[]} renderItem={() => null} />} />",
+        "  )",
+      ].join("\n")
+    )
+    await edit(
+      cwd,
+      "components/two-panel.tsx",
+      'import { PliantRegion } from "@/components/pliant/pliant-region"',
+      'import { ItemList } from "@/components/item-list"\nimport { PliantRegion } from "@/components/pliant/pliant-region"'
+    )
+    const { output } = await scanJson(cwd)
+
+    expect(output.inventory["help"]?.baseIds.source).toBe("mounted")
+    expect(output.warnings).toContainEqual(
+      expect.objectContaining({
+        file: "components/two-panel.tsx",
+        message:
+          "<ItemList> isn't rendered under a PliantRoot the scan can follow, so it's in no inventory.",
+      })
+    )
   })
 
   it("counts a spread into a component's props as passing the value on", async () => {

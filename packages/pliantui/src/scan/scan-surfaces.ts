@@ -371,11 +371,18 @@ function walkCall(
     listMethods.has(callee.getName())
   ) {
     renderValue(callee.getExpression(), parent, walk)
+    // An inline callback, or a named one like `rows.map(renderRow)`.
     const [callback] = call.getArguments()
-    const fn = callback && functionIn(callback)
-    if (fn && isFunction(unwrapExpression(callback))) {
-      walkReturns(fn, scope, parent, walk)
-    }
+    walkFunction(callback && functionIn(callback), scope, parent, walk)
+    return
+  }
+  // `useMemo(() => <Panel />, deps)` renders what its callback returns.
+  if (
+    (Node.isIdentifier(callee) || Node.isPropertyAccessExpression(callee)) &&
+    isPliantExport(callee, "react", "useMemo")
+  ) {
+    const [factory] = call.getArguments()
+    walkFunction(factory && functionIn(factory), scope, parent, walk)
     return
   }
   // A portal moves where the DOM goes, not where its content sits.
@@ -395,6 +402,15 @@ function walkCall(
   // The app's own function called to render, like `{renderRows()}`.
   const name = Node.isIdentifier(callee) ? callee.getText() : ""
   const fn = name && !/^use[A-Z]/.test(name) ? functionIn(callee) : undefined
+  walkFunction(fn, scope, parent, walk)
+}
+
+function walkFunction(
+  fn: ComponentFunction | undefined,
+  scope: Scope,
+  parent: Parent,
+  walk: Walk
+) {
   if (fn && !walk.following.has(fn)) {
     walk.following.add(fn)
     walkReturns(fn, scope, parent, walk)
@@ -1114,13 +1130,25 @@ function reportUnreached(
   report: ScanReport,
   surfaces: readonly ScannedSurface[]
 ) {
+  // Whether a component declares a region or table, itself or through the
+  // components it renders, so a wrapper like a Banner that renders a
+  // PliantRegion counts too.
   const declares = new Map<ComponentFunction, boolean>()
-  const declaresNodes = (fn: ComponentFunction) => {
+  const declaresNodes = (fn: ComponentFunction): boolean => {
     const cached = declares.get(fn)
     if (cached !== undefined) {
       return cached
     }
-    const result = hookCalls(fn).length > 0
+    declares.set(fn, false)
+    const result =
+      hookCalls(fn).length > 0 ||
+      [
+        ...fn.getDescendantsOfKind(SyntaxKind.JsxElement),
+        ...fn.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
+      ].some((element) => {
+        const rendered = componentOf(tagOf(element))
+        return rendered !== undefined && declaresNodes(rendered)
+      })
     declares.set(fn, result)
     return result
   }
