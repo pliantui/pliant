@@ -31,8 +31,8 @@ import { pliantFilterFn } from "./pliant-filter-fns"
 import { withPliantFeatures } from "./pliant-table-features"
 import { propertiesOf } from "./property-keys"
 import { isSameState } from "./same-state"
+import { acceptedColumns } from "./table-accepted"
 import {
-  acceptedAggregates,
   aggregateColumn,
   type AcceptedAggregate,
   type PliantTableDataset,
@@ -41,7 +41,6 @@ import {
 import { createDerived, createTableCache } from "./table-cache"
 import { tableColumnsOf, type TableColumn } from "./table-columns"
 import {
-  acceptedDerived,
   derivedColumn,
   type AcceptedDerived,
   type TableDerived,
@@ -62,8 +61,8 @@ export interface UsePliantTableOptions {
   /**
    * The dataset's fields and time zone, which derived columns (`addDerived`
    * ops) and aggregates (`addAggregate` ops) are computed against: a
-   * `defineDataset` result works. Without it, a table shows neither. Define it outside the component, or keep
-   * it equal as data between renders.
+   * `defineDataset` result works. Without it, a table shows neither. Define
+   * it outside the component, or keep it equal as data between renders.
    */
   readonly dataset?: PliantTableDataset | undefined
 }
@@ -221,9 +220,11 @@ function baseOf(options: object): Partial<CompiledTableState> {
  *   pinned like a data column. An expression with window functions (`share`,
  *   `rank`, `runningSum`) gets its values over the rows of its partition: a
  *   group's rows when the table is grouped, otherwise the rows that pass the
- *   filters. Those columns can't be filtered or grouped by, and a row's value
- *   changes as filters, grouping and, for `runningSum`, the sort do. A null
- *   value is `undefined`, which sorts last.
+ *   filters. Those columns can't be filtered or grouped by: a grouping or
+ *   filter that names one is left out and reported to `onError`. A row's value
+ *   changes with the filters, the grouping and the sort. A null
+ *   value is `undefined`, which sorts last. Faceting (`getUniqueValues`)
+ *   caches a column's values, and isn't refreshed for derived columns.
  * - Each `addAggregate` op adds a column with its id, label and a `meta`
  *   of `{ label, pliant: { type, unit } }`, the type and unit of its
  *   values. It has no value on a data row. A group's row, and
@@ -287,6 +288,11 @@ export function usePliantTable<
     }>(),
     accepted: createDerived<Accepted>(),
     built: createDerived<readonly unknown[]>(),
+    fresh: createDerived<{
+      columns: readonly unknown[]
+      sorting: unknown[]
+      columnFilters: unknown[]
+    }>(),
     dataset: createDerived<PliantTableDataset | undefined>(),
   }))
   const [rawFilters, setRawFilters] = useState<ReadonlyMap<string, RawFilter>>(
@@ -326,26 +332,17 @@ export function usePliantTable<
       derived: tableOpsOf(resolved, id, "addDerived"),
       aggregates: tableOpsOf(resolved, id, "addAggregate"),
     }))
-    return cache.accepted(
-      [derived, aggregates, stableDataset, columnIds],
-      () => {
-        const taken = new Set(columnIds.split("\n"))
-        const own = acceptedDerived(derived, stableDataset, taken)
-        const others = acceptedAggregates(
-          aggregates,
-          stableDataset,
-          taken,
-          derived
-        )
-        return {
-          accepted: [...own.accepted, ...others.accepted],
-          issues: [...own.issues, ...others.issues],
-        }
-      }
+    return cache.accepted([derived, aggregates, stableDataset, columnIds], () =>
+      acceptedColumns(
+        derived,
+        aggregates,
+        stableDataset,
+        new Set(columnIds.split("\n"))
+      )
     )
   }
-  const setupAt = (resolved: Parameters<typeof cache.table.compile>[0]) => {
-    return compileSetupOf(
+  const setupAt = (resolved: Parameters<typeof cache.table.compile>[0]) =>
+    compileSetupOf(
       id,
       [
         ...columns,
@@ -357,7 +354,6 @@ export function usePliantTable<
       ],
       base
     )
-  }
   const { accepted, issues } = useSyncExternalStore(
     store.subscribe,
     () => acceptedAt(store.getResolved()),
@@ -393,11 +389,22 @@ export function usePliantTable<
     cache.filters([state.columnFilters, rawFilters, ownFilters], () =>
       presentFilters(state.columnFilters, rawFilters, columnOf)
     )
+  // A column with window functions has values only once the rows are
+  // filtered and grouped, so it can't be filtered or grouped by.
+  const windows = accepted.flatMap(({ id, expression }) =>
+    "compute" in expression ? [id] : []
+  )
   const shownOf = (state: CompiledTableState) =>
-    cache.shown([state, local, filtersOf(state).shown], () => ({
-      ...withLocal(state, local),
-      columnFilters: filtersOf(state).shown,
-    }))
+    cache.shown([state, local, filtersOf(state).shown, windows.join()], () => {
+      const { grouping, ...others } = withLocal(state, local)
+      return {
+        ...others,
+        grouping: grouping.filter((column) => !windows.includes(column)),
+        columnFilters: filtersOf(state).shown.filter(
+          ({ id }) => !windows.includes(id)
+        ),
+      }
+    })
   const shown = shownOf(compiled)
 
   // TanStack computes an aggregate by its rows, so a group's `first` and
@@ -418,6 +425,17 @@ export function usePliantTable<
         "ordered" in item ? aggregateColumn(item) : derivedColumn(item)
       ),
     ]
+  )
+
+  // TanStack sorts and filters again only when the sort or filters change, so
+  // new columns need new arrays to do it again.
+  const fresh = cache.fresh(
+    [built, shown.sorting, shown.columnFilters],
+    () => ({
+      columns: built,
+      sorting: [...shown.sorting],
+      columnFilters: [...shown.columnFilters],
+    })
   )
 
   // While a preview writes a property, a personal change to it would stay
@@ -504,8 +522,17 @@ export function usePliantTable<
         )
       }
     }
-    for (const issue of issues) {
-      const text = `Pliant: ${id} has no ${issue}`
+    const barred = [
+      ...compiled.grouping,
+      ...compiled.columnFilters.map(({ id }) => id),
+    ].filter((column) => windows.includes(column))
+    for (const text of [
+      ...issues.map((issue) => `${id} has no ${issue}`),
+      ...barred.map(
+        (column) =>
+          `${id} can't group or filter by ${column}, which has window functions`
+      ),
+    ].map((text) => `Pliant: ${text}`)) {
       if (!warned.has(text)) {
         warned.add(text)
         store.report(new Error(text))
@@ -594,9 +621,14 @@ export function usePliantTable<
   // features Pliant adds, and their state and handlers, aren't in the type.
   const tableOptions = Object.assign({}, options, handlers, {
     features,
-    columns: built,
+    columns: fresh.columns,
     defaultColumn,
-    state: { ...objectOf(read(options, "state")), ...shown },
+    state: {
+      ...objectOf(read(options, "state")),
+      ...shown,
+      sorting: fresh.sorting,
+      columnFilters: fresh.columnFilters,
+    },
   })
   // `defineProperty` doesn't add the property it defines to the type.
   return Object.defineProperty(tableOptions, "ready", {

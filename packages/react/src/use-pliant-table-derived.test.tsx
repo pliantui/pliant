@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Expression, Format, Op } from "@pliantui/contract"
 
 import { memoryStorage } from "../test/storage"
+import { useLayerStore } from "./pliant-context"
 import { PliantRoot } from "./pliant-root"
 import type { PliantStore } from "./pliant-store"
 import type { PliantTableDataset } from "./table-aggregates"
@@ -84,7 +85,22 @@ function setup(
   const { storage } = memoryStorage()
   let table: ReturnType<typeof useTable<Features, Order>> | undefined
   let store: PliantStore | undefined
+  const mounted = new Map<string, number>()
+  let spied = false
   function Table() {
+    const layers = useLayerStore("test")
+    if (!spied) {
+      spied = true
+      const register = layers.registerNodes
+      vi.spyOn(layers, "registerNodes").mockImplementation((ids) => {
+        ids.forEach((id) => mounted.set(id, (mounted.get(id) ?? 0) + 1))
+        const unregister = register(ids)
+        return () => {
+          ids.forEach((id) => mounted.set(id, (mounted.get(id) ?? 1) - 1))
+          unregister()
+        }
+      })
+    }
     const current = useTable(
       usePliantTable(
         {
@@ -113,6 +129,8 @@ function setup(
       if (!table) throw new Error("No table yet")
       return table
     },
+    mounted: () =>
+      [...mounted].flatMap(([id, count]) => (count > 0 ? [id] : [])),
     apply(...ops: Op[]) {
       act(() => {
         const result = store?.applyOps("personal", ops)
@@ -311,6 +329,51 @@ describe("usePliantTable derived columns", () => {
     expect(valuesOf(t, "double")).toEqual([120, 30, 90, 60])
   })
 
+  it("sorts again when a sorted column is redefined", () => {
+    const t = setup()
+    t.apply(double, sortBy("double", "asc"))
+    expect(idsOf(t)).toEqual(["o02", "o04", "o03", "o01"])
+    t.apply(derived("double", "Double", call("mul", field("value"), value(-1))))
+    expect(valuesOf(t, "double")).toEqual([-40, -30, -20, -10])
+    expect(idsOf(t)).toEqual(["o01", "o03", "o04", "o02"])
+  })
+
+  it("filters again when a filtered column is redefined", () => {
+    const t = setup()
+    t.apply(double)
+    setFilter(t, "double", { operator: "gte", value: 60 })
+    expect(idsOf(t)).toEqual(["o01", "o03"])
+    t.apply(derived("double", "Double", call("mul", field("value"), value(1))))
+    expect(idsOf(t)).toEqual([])
+  })
+
+  it("accumulates in the new order when the sort column is redefined", () => {
+    const t = setup()
+    t.apply(
+      double,
+      derived("running", "Running", call("runningSum", field("value"))),
+      sortBy("double", "asc")
+    )
+    expect(valuesOf(t, "running")).toEqual([10, 30, 60, 100])
+    t.apply(derived("double", "Double", call("mul", field("value"), value(-1))))
+    expect(
+      rows(t).map((row) => [row.original.id, row.getValue("running")])
+    ).toEqual([
+      ["o01", 40],
+      ["o03", 70],
+      ["o04", 90],
+      ["o02", 100],
+    ])
+  })
+
+  it("registers its column as mounted until the op is removed", () => {
+    const t = setup()
+    t.apply(double)
+    expect(t.mounted()).toContain(`${tableId}/columns/double`)
+    t.apply({ op: "removeUserItem", target: tableId, id: "double" })
+    expect(t.mounted()).not.toContain(`${tableId}/columns/double`)
+  })
+
   it("drops the column when the op is removed", () => {
     const onError = vi.fn()
     const t = setup({ dataset }, onError)
@@ -483,6 +546,25 @@ describe("usePliantTable window columns", () => {
       o03: 80,
       o04: 100,
     })
+  })
+
+  it("leaves out a grouping and a filter by a window column, and reports them", () => {
+    const onError = vi.fn()
+    vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    const t = setup({ dataset }, onError)
+    t.apply(share)
+    t.apply(groupBy("share"), {
+      op: "setFilter",
+      target: tableId,
+      filter: { field: "share", operator: "gte", value: 0.3 },
+    })
+    expect(t.table.state.grouping).toEqual([])
+    expect(t.table.state.columnFilters).toEqual([])
+    expect(idsOf(t)).toEqual(["o01", "o02", "o03", "o04"])
+    expect(valuesOf(t, "share")).toEqual([0.4, 0.1, 0.3, 0.2])
+    expect(onError.mock.calls.map(([error]) => String(error))).toEqual([
+      expect.stringContaining("group or filter by share"),
+    ])
   })
 
   it("reports an expression that can't be computed and leaves it out", () => {

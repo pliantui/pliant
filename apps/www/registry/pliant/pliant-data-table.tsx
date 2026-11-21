@@ -55,15 +55,7 @@ function defaultFormatAggregate(
   unit: string | undefined,
   format?: PliantDataTableFormat
 ) {
-  if (format) {
-    return formatPliantValue(value, format, unit)
-  }
-  if (typeof value === "number") {
-    return defaultFormatNumber(value)
-  }
-  return typeof value === "string" || typeof value === "boolean"
-    ? String(value)
-    : "—"
+  return formatPliantValue(value, format, unit)
 }
 
 function isDerived<TData extends RowData>(
@@ -114,8 +106,9 @@ function getColumnStyles<TData extends RowData>(
  * `usePliantTable`: column headers, rows, and, when users group the rows,
  * a row per group with a button that expands it and an aggregate in each
  * aggregated cell. Columns with `meta.pliant.type`, the ones Pliant
- * aggregates, get their total in a footer. Derived columns (`meta.pliant.derived`)
- * get a sortable header and show their values by their `format`.
+ * aggregates, get their total in a footer. Derived columns
+ * (`meta.pliant.derived`) get a sortable header and show their values by
+ * their `format`.
  * Pinned columns stay in place while the table scrolls sideways.
  *
  * The table scrolls inside a focusable region, so keyboard users can scroll
@@ -142,8 +135,9 @@ function PliantDataTable<TData extends RowData>({
     /**
      * Formats an aggregated or derived value, given the unit and, for a
      * derived column, the `format` from the column's `meta.pliant`, if any.
-     * Defaults to the `format` when there is one (see `formatPliantValue`),
-     * and English digit grouping for numbers otherwise.
+     * Defaults to `formatPliantValue`: the `format` when there is one, else
+     * the unit (a percentage, or a currency rounded to its minor units), else
+     * English digit grouping for numbers.
      */
     formatAggregate?: (
       value: unknown,

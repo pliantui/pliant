@@ -3,7 +3,7 @@
 import { ChevronDown } from "lucide-react"
 
 import type { Expression, Format, Op } from "@pliantui/contract"
-import { usePliantStore } from "@pliantui/react"
+import { usePliantStore, useResolved } from "@pliantui/react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -38,20 +38,25 @@ const columns: DerivedColumn[] = [
   },
 ]
 
-export function DataTableColumnMenu({
-  node,
-  columnIds,
-}: {
-  node: string
-  columnIds: readonly string[]
-}) {
+export function DataTableColumnMenu({ node }: { node: string }) {
   const store = usePliantStore()
+  // Whether the op is there, not whether its column shows: an op whose
+  // column can't be computed stays in the layer.
+  const added = useResolved((resolved) =>
+    columns
+      .filter(({ id }) => resolved.properties.get(node)?.has(`derived.${id}`))
+      .map(({ id }) => id)
+      .join()
+  ).split(",")
 
   function toggle({ id, label, expr, format }: DerivedColumn) {
-    const op: Op = columnIds.includes(id)
+    const op: Op = added.includes(id)
       ? { op: "removeUserItem", target: node, id }
       : { op: "addDerived", target: node, id, label, expr, format }
-    store.applyOps("personal", [op])
+    const result = store.applyOps("personal", [op])
+    if (!result.success) {
+      console.error(result.error)
+    }
   }
 
   return (
@@ -65,7 +70,7 @@ export function DataTableColumnMenu({
         {columns.map((column) => (
           <DropdownMenuCheckboxItem
             key={column.id}
-            checked={columnIds.includes(column.id)}
+            checked={added.includes(column.id)}
             onCheckedChange={() => {
               toggle(column)
             }}

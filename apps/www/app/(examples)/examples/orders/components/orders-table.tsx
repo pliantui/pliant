@@ -36,10 +36,7 @@ export function OrdersTable({ data }: { data: Order[] }) {
           All orders
         </h2>
         <div className="flex gap-2">
-          <DataTableColumnMenu
-            node={nodeId}
-            columnIds={table.getAllLeafColumns().map(({ id }) => id)}
-          />
+          <DataTableColumnMenu node={nodeId} />
           <DataTableGroupMenu
             node={nodeId}
             value={table.state.grouping[0] ?? "none"}

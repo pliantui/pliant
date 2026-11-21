@@ -336,7 +336,7 @@ describe("PliantDataTable", () => {
       within(openRow)
         .getAllByRole("cell")
         .map((cell) => cell.textContent)
-    ).toEqual(["open(5)", "", "", "", "550", "5"])
+    ).toEqual(["open(5)", "", "", "", "₹550.00", "5"])
 
     fireEvent.click(open)
     expect(open.getAttribute("aria-expanded")).toBe("true")
@@ -349,7 +349,7 @@ describe("PliantDataTable", () => {
 
     const footer = within(section("footer")).getByRole("row")
     expect(footer.textContent).toContain("All rows")
-    expect(footer.textContent).toContain("3,250")
+    expect(footer.textContent).toContain("₹3,250.00")
     expect(footer.textContent).toContain("25")
   })
 
@@ -399,6 +399,29 @@ describe("PliantDataTable", () => {
       expect(within(table()).getAllByRole("rowgroup")).toHaveLength(2)
     })
 
+    it("shows a percent unit as a percentage and a currency as one, with no format", () => {
+      renderOrders()
+      apply(
+        {
+          op: "addDerived",
+          target: "orders-table",
+          id: "share",
+          label: "Share",
+          expr: { fn: "share", args: [{ field: "value" }] },
+        },
+        {
+          op: "addDerived",
+          target: "orders-table",
+          id: "double",
+          label: "Double",
+          expr: { fn: "mul", args: [{ field: "value" }, { value: 2 }] },
+        }
+      )
+
+      expect(cells("Share")[9]).toBe("3%")
+      expect(cells("Double")[9]).toBe("₹200.00")
+    })
+
     it("sorts by the column's header and says which way", () => {
       renderOrders()
       apply(tenth)
@@ -421,7 +444,7 @@ describe("PliantDataTable", () => {
         within(rowOf(open))
           .getAllByRole("cell")
           .map((cell) => cell.textContent)
-      ).toEqual(["open(5)", "", "", "", "", "550", "5"])
+      ).toEqual(["open(5)", "", "", "", "", "₹550.00", "5"])
       fireEvent.keyDown(screen.getByRole("button", { name: "Columns" }), {
         key: "Enter",
       })

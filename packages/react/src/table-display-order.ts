@@ -14,18 +14,18 @@ export function rowKeyOf(row: AnyRow) {
 }
 
 /**
- * Compares two rows by the table's sort, as the sorted row model does, and
- * gives 0 for rows it ties. Display order is this order with ties, and an
- * unsorted table, in ascending order of the row key: `first`, `last` and the
- * window functions read it.
+ * Compares two rows by display order: the table's sort, as the sorted row
+ * model does, with ties, and an unsorted table, in ascending order of the row
+ * key. `first`, `last` and the window functions read it.
  */
 export function compareByTableSort(table: AnyTable) {
-  const sorts = table.atoms.sorting.get().flatMap(({ id, desc }) => {
-    const column = table.getColumn(id)
-    return column?.getCanSort() ? [{ id, desc, column }] : []
-  })
+  const sorting = table.atoms.sorting.get()
   return (a: AnyRow, b: AnyRow) => {
-    for (const { id, desc, column } of sorts) {
+    for (const { id, desc } of sorting) {
+      const column = table.getColumn(id)
+      if (!column?.getCanSort()) {
+        continue
+      }
       const { sortUndefined, invertSorting } = column.columnDef
       let order = 0
       if (sortUndefined) {
@@ -45,19 +45,8 @@ export function compareByTableSort(table: AnyTable) {
         return desc === !invertSorting ? -order : order
       }
     }
-    return 0
+    return compareCodePoints(rowKeyOf(a), rowKeyOf(b))
   }
-}
-
-/** The rows in display order. */
-export function inDisplayOrder(
-  rows: readonly AnyRow[],
-  table: AnyTable
-): readonly AnyRow[] {
-  const compare = compareByTableSort(table)
-  return rows.toSorted(
-    (a, b) => compare(a, b) || compareCodePoints(rowKeyOf(a), rowKeyOf(b))
-  )
 }
 
 /**

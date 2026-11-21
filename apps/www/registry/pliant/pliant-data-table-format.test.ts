@@ -119,6 +119,30 @@ describe("formatPliantValue", () => {
     ).toBe("3/10/26, 11:30 PM")
   })
 
+  it("shows a number by its unit when there is no format", () => {
+    const show = (value: number, unit?: string) =>
+      formatPliantValue(value, undefined, unit, locale)
+    expect(show(0.256, "percent")).toBe("26%")
+    expect(show(1234.5, "USD")).toBe("$1,234.50")
+    expect(show(1234.5, "JPY")).toBe("¥1,235")
+    expect(show(1234.5)).toBe("1,234.5")
+    expect(show(1234.5, "kilometer")).toBe("1,234.5")
+  })
+
+  it("counts calendar days for a date without a time", () => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date("2026-03-10T18:00:00Z"))
+    const show = (value: string, timeZone = "UTC") =>
+      formatPliantValue(value, { type: "date", style: "relative" }, undefined, {
+        locale: "en-US",
+        timeZone,
+      })
+    expect(show("2026-03-10")).toBe("today")
+    expect(show("2026-03-11")).toBe("tomorrow")
+    expect(show("2026-03-03")).toBe("last week")
+    expect(show("2026-03-10", "Asia/Tokyo")).toBe("yesterday")
+  })
+
   it("shows a relative date by the largest unit that fits", () => {
     vi.useFakeTimers({ toFake: ["Date"] })
     vi.setSystemTime(new Date("2026-03-10T12:00:00Z"))

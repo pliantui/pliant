@@ -33,6 +33,11 @@ export function derivedAccessor(read: ReadValue) {
 /**
  * The feature that reads the values of derived columns: `row.getValue` calls
  * their reader and leaves other columns to TanStack.
+ *
+ * It wraps a core API through `assignRowPrototype` because TanStack offers no
+ * other way to make a column's value depend on its row's group, the filters
+ * and the sort: `accessorFn` gets only the row's data, and `row.getValue`
+ * caches its result for as long as the data lives.
  */
 export const derivedValuesFeature: TableFeature = {
   assignRowPrototype: (prototype) => {
@@ -76,8 +81,8 @@ let computing = false
 /**
  * Values of an expression with window functions, computed for every
  * partition together when a row's is asked for, and again when the rows
- * before sorting changeor the sort. A
- * window function's order leaves out sorts by columns with window functions.
+ * before sorting or the sort change. A window function's order leaves out
+ * sorts by columns with window functions.
  */
 export function readWindow(expression: WindowExpression<AnyRow>): ReadValue {
   let last:
