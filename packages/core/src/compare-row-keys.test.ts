@@ -7,6 +7,8 @@ const sorted = (...keys: unknown[]) => keys.toSorted(compareRowKeys)
 describe("compareRowKeys", () => {
   it("compares numbers numerically", () => {
     expect(sorted(2, 10, 9, -1, 0.5)).toEqual([-1, 0.5, 2, 9, 10])
+    expect(sorted(Infinity, 1, -Infinity)).toEqual([-Infinity, 1, Infinity])
+    expect(compareRowKeys(Infinity, Infinity)).toBe(0)
   })
 
   it("compares text by code point", () => {

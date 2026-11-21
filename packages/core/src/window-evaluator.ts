@@ -31,11 +31,10 @@ export interface WindowEvaluatorOptions<
 > extends RowEvaluatorOptions<TRow> {
   /**
    * The row key, like TanStack Table's `getRowId`. By default, it's the
-   * row's field named `id`. Keys compare numerically when both are numbers,
-   * otherwise by code point of their text. Without
-   * either, every key is `undefined`, so tied rows stay in the order
-   * they're given: a dataset needs a row key for display order to be
-   * defined.
+   * row's field named `id`. Number keys come first, in numeric order;
+   * other keys follow, by code point of their text. Without either, every
+   * key is `undefined`, so tied rows stay in the order they're given: a
+   * dataset needs a row key for display order to be defined.
    */
   readonly getRowId?: ((row: TRow) => unknown) | undefined
 }

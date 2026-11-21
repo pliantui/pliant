@@ -12,7 +12,7 @@ const isNumberKey = (key: unknown): key is number =>
 export function compareRowKeys(a: unknown, b: unknown): number {
   const aIsNumber = isNumberKey(a)
   const bIsNumber = isNumberKey(b)
-  if (aIsNumber && bIsNumber) return a - b
+  if (aIsNumber && bIsNumber) return a < b ? -1 : a > b ? 1 : 0
   if (aIsNumber) return -1
   if (bIsNumber) return 1
   return compareCodePoints(String(a), String(b))
