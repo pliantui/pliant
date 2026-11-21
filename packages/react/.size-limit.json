@@ -19,5 +19,10 @@
       "@pliantui/core",
       "@tanstack/react-table"
     ]
+  },
+  {
+    "path": "dist/server-adapter.js",
+    "limit": "1 kB",
+    "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
   }
 ]
