@@ -43,6 +43,16 @@ describe("memoryOverlayStore", () => {
     expect(await store.get(key)).toEqual(record("b", 2))
   })
 
+  it("keeps its records apart from the objects it is given and returns", async () => {
+    const store = memoryOverlayStore()
+    const sent = record("a", 1)
+    await store.put(key, sent, null)
+    sent.overlay.ops.length = 0
+    const got = await store.get(key)
+    got?.overlay.ops.splice(0)
+    expect(await store.get(key)).toEqual(record("a", 1))
+  })
+
   it("keeps keys in different scopes apart", async () => {
     const store = memoryOverlayStore()
     await store.put(key, record("a", 1), null)
@@ -65,9 +75,12 @@ describe("memoryOverlayStore", () => {
       surfaces: ["/orders"],
     }
     expect(
-      await store.history({ ...query, surfaces: ["/orders", "/users"] })
+      await store.history?.({ ...query, surfaces: ["/orders", "/users"] })
     ).toEqual([earlier, record("a", 1), record("b", 2)])
-    expect(await store.history(query)).toEqual([record("a", 1), record("b", 2)])
+    expect(await store.history?.(query)).toEqual([
+      record("a", 1),
+      record("b", 2),
+    ])
     expect(await store.list(query)).toEqual([record("b", 2)])
     expect(await store.list({ ...query, surfaces: ["/accounts"] })).toEqual([])
   })

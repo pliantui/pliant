@@ -6,6 +6,7 @@ import {
 } from "@pliantui/contract"
 import { formatError } from "@pliantui/core"
 
+import { byTime } from "./by-time"
 import type { OverlayKey, OverlayScope, OverlayStore } from "./overlay-store"
 import { isJson, readBody } from "./read-body"
 import { ulid } from "./ulid"
@@ -19,8 +20,9 @@ type SharedLayer = "org" | "team"
 
 /**
  * The signed-in user, as `getUser` returns it: their id, the org they
- * belong to and the teams they are a member of. It may carry anything else
- * `canPublish` needs, such as roles.
+ * belong to and the teams they are a member of. Team ids must be unique
+ * across orgs, unless every team overlay carries `scope.org`. It may carry
+ * anything else `canPublish` needs, such as roles.
  *
  * @experimental
  */
@@ -242,6 +244,16 @@ export function createStorageHandler<User extends StorageUser>(
     }
   }
 
+  // A team key holds only the team id, so with team ids that repeat across
+  // orgs, the record under it may belong to another org.
+  async function currentOf(user: User, key: OverlayKey) {
+    const current = await store.get(key)
+    if (current && !keyOf(user, current.overlay)) {
+      throw new HttpError("This overlay belongs to another org", 403)
+    }
+    return current
+  }
+
   function nextRecord(
     overlay: Overlay,
     previous: StoredOverlay | undefined,
@@ -261,8 +273,8 @@ export function createStorageHandler<User extends StorageUser>(
   async function read(user: User, params: URLSearchParams) {
     const scopes = readableScopes(user)
     const layer = params.get("layer")
-    if (layer !== null && !params.has("surface")) {
-      if (!layers.some((name) => name === layer)) {
+    if (layer !== null) {
+      if (params.has("surface") || !layers.some((name) => name === layer)) {
         throw new HttpError("layer must be org, team or personal", 400)
       }
       const records = await store.list({
@@ -274,11 +286,10 @@ export function createStorageHandler<User extends StorageUser>(
     }
     const surfaces = surfacesOf(readSurface(params))
     if (params.has("history")) {
-      const records = await store.history({
-        scopes,
-        surfaces,
-        id: readId(params),
-      })
+      const query = { scopes, surfaces, id: readId(params) }
+      const records = store.history
+        ? await store.history(query)
+        : [...(await store.list(query))].sort(byTime)
       return respond({
         records: records.filter((record) => keyOf(user, record.overlay)),
       })
@@ -311,13 +322,13 @@ export function createStorageHandler<User extends StorageUser>(
       throw new HttpError(`You aren't a member of this ${overlay.layer}`, 403)
     }
     await assertCanWrite(user, overlay)
-    const current = await store.get(key)
+    const current = await currentOf(user, key)
     if (current?.deletedAt) {
       return conflict(current)
     }
     const record = nextRecord(overlay, current)
     if (!(await store.put(key, record, ifMatch))) {
-      return conflict(await store.get(key))
+      return conflict(await currentOf(user, key))
     }
     return respond(record, ifMatch === null ? 201 : 200, {
       etag: `"${record.etag}"`,
@@ -349,7 +360,8 @@ export function createStorageHandler<User extends StorageUser>(
     await assertCanWrite(user, record.overlay)
     const tombstone = nextRecord(record.overlay, record, true)
     if (!(await store.put(key, tombstone, ifMatch))) {
-      return conflict(await store.get(key))
+      const current = await currentOf(user, key)
+      return current?.deletedAt ? noContent() : conflict(current)
     }
     return noContent()
   }

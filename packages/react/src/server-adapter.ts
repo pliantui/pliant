@@ -3,8 +3,9 @@ import { storedOverlaySchema, type StoredOverlay } from "@pliantui/contract"
 import type { StorageAdapter, StoredLayers } from "./storage-adapter"
 import { StorageConflictError } from "./storage-conflict-error"
 
-// Browsers refuse a `keepalive` request whose body passes 64 KiB, so a
-// larger save goes out without it.
+// Browsers refuse a `keepalive` request once the bodies of all the
+// `keepalive` requests in flight pass 64 KiB, so a save that would pass it
+// goes out without `keepalive`.
 const keepaliveBytes = 65_536
 
 /** @experimental */
@@ -69,6 +70,7 @@ async function conflict(response: Response) {
  * `history` or `layer`, and send the browser's cookies for the same
  * origin. Saves send `If-Match` or `If-None-Match: *`, and an HTTP 412
  * rejects with a `StorageConflictError` that carries the current record.
+ * `list` returns tombstones too, so an export includes removed overlays.
  *
  * It has no `subscribe`, because the handler doesn't push changes: a
  * surface reloads when it mounts. To reload on changes from other tabs or
@@ -81,6 +83,8 @@ export function serverAdapter({
   endpoint,
   fetch: send = (input, init) => fetch(input, init),
 }: ServerAdapterOptions): StorageAdapter {
+  let keepaliveInFlight = 0
+
   function url(params: Record<string, string>) {
     return `${endpoint}${endpoint.includes("?") ? "&" : "?"}${new URLSearchParams(params).toString()}`
   }
@@ -105,6 +109,10 @@ export function serverAdapter({
     },
     async save(surface, overlay, { ifMatch }) {
       const body = new TextEncoder().encode(JSON.stringify(overlay))
+      const keepalive = keepaliveInFlight + body.byteLength <= keepaliveBytes
+      if (keepalive) {
+        keepaliveInFlight += body.byteLength
+      }
       const response = await send(url({ surface }), {
         method: "PUT",
         headers: {
@@ -114,7 +122,11 @@ export function serverAdapter({
             : { "if-match": `"${ifMatch}"` }),
         },
         body,
-        keepalive: body.byteLength < keepaliveBytes,
+        keepalive,
+      }).finally(() => {
+        if (keepalive) {
+          keepaliveInFlight -= body.byteLength
+        }
       })
       if (response.status === 412) {
         throw await conflict(response)

@@ -1,5 +1,6 @@
 import type { StoredOverlay } from "@pliantui/contract"
 
+import { byTime } from "./by-time"
 import type { OverlayKey, OverlayQuery, OverlayStore } from "./overlay-store"
 
 interface Entry {
@@ -21,14 +22,6 @@ function matches({ key }: Entry, { scopes, surfaces, id }: OverlayQuery) {
   )
 }
 
-function byTime(a: StoredOverlay, b: StoredOverlay) {
-  return (
-    Date.parse(a.updatedAt) - Date.parse(b.updatedAt) ||
-    a.version - b.version ||
-    (a.overlay.id < b.overlay.id ? -1 : a.overlay.id > b.overlay.id ? 1 : 0)
-  )
-}
-
 /**
  * Keeps stored overlays in memory, every version of each one, for tests,
  * demos and examples. They are lost when the process exits, and each
@@ -42,14 +35,15 @@ export function memoryOverlayStore(): OverlayStore {
 
   return {
     get(key) {
-      return Promise.resolve(current.get(keyOf(key))?.record)
+      const entry = current.get(keyOf(key))
+      return Promise.resolve(entry && structuredClone(entry.record))
     },
     put(key, record, ifMatch) {
       const id = keyOf(key)
       if ((current.get(id)?.record.etag ?? null) !== ifMatch) {
         return Promise.resolve(false)
       }
-      const entry = { key, record }
+      const entry = { key, record: structuredClone(record) }
       current.set(id, entry)
       versions.push(entry)
       return Promise.resolve(true)
@@ -58,14 +52,14 @@ export function memoryOverlayStore(): OverlayStore {
       return Promise.resolve(
         [...current.values()]
           .filter((entry) => matches(entry, query))
-          .map((entry) => entry.record)
+          .map((entry) => structuredClone(entry.record))
       )
     },
     history(query) {
       return Promise.resolve(
         versions
           .filter((entry) => matches(entry, query))
-          .map((entry) => entry.record)
+          .map((entry) => structuredClone(entry.record))
           .sort(byTime)
       )
     },

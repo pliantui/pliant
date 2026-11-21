@@ -119,6 +119,34 @@ describe("serverAdapter", () => {
     expect(requestOf(fetch).init.keepalive).toBe(false)
   })
 
+  it("keeps the keepalive saves in flight under 64 KiB together", async () => {
+    const answers: (() => void)[] = []
+    const fetch = vi.fn<typeof globalThis.fetch>(
+      () =>
+        new Promise((resolve) => {
+          answers.push(() => {
+            resolve(Response.json(record, { status: 201 }))
+          })
+        })
+    )
+    const adapter = serverAdapter({ endpoint: "/s", fetch })
+    const big = overlay({ explain: ["x".repeat(40_000)] })
+    const first = adapter.save("/orders", big, { ifMatch: null })
+    const second = adapter.save("/orders", big, { ifMatch: null })
+    for (const answer of answers) {
+      answer()
+    }
+    await Promise.all([first, second])
+    const third = adapter.save("/orders", big, { ifMatch: null })
+    answers.at(-1)?.()
+    await third
+    expect(fetch.mock.calls.map(([, init]) => init?.keepalive)).toEqual([
+      true,
+      false,
+      true,
+    ])
+  })
+
   it("rejects with a StorageConflictError carrying the current record on 412", async () => {
     const { adapter } = adapterAnswering(412, { current: record })
     const error = await rejectionOf(

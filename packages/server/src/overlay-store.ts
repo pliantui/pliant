@@ -13,7 +13,12 @@ export interface OverlayScope {
 
 /**
  * The key of one stored overlay. A store keeps at most one current record
- * per key, which is a unique key in a SQL table.
+ * per key, which is a unique key in a SQL table. A tombstone blocks saving
+ * under its own key only: the same overlay id in another layer, scope or
+ * surface is another record.
+ *
+ * A team key holds the team id without the org, so team ids must be
+ * unique across orgs, or team overlays must carry `scope.org`.
  *
  * @experimental
  */
@@ -55,7 +60,7 @@ export interface OverlayStore {
    * condition didn't hold. The check and the write must be one atomic step,
    * such as an `INSERT … ON CONFLICT DO NOTHING` or an
    * `UPDATE … WHERE etag = $ifMatch`, judged by the number of rows written.
-   * Every stored record is also kept for `history`.
+   * A store with `history` also keeps every record it stores.
    */
   put(
     key: OverlayKey,
@@ -66,7 +71,9 @@ export interface OverlayStore {
   list(query: OverlayQuery): Promise<readonly StoredOverlay[]>
   /**
    * The matching records the store keeps, earlier versions and tombstones
-   * included, ordered by `updatedAt`, then by `version`.
+   * included, ordered by `updatedAt`, then by `version`, then by overlay
+   * id. Without it, history holds only the current record of each overlay,
+   * from `list`.
    */
-  history(query: OverlayQuery): Promise<readonly StoredOverlay[]>
+  history?(query: OverlayQuery): Promise<readonly StoredOverlay[]>
 }

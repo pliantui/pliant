@@ -24,7 +24,7 @@ Install `ai` and the provider you use; the package doesn't depend on a provider.
 
 ## Storage handler (experimental)
 
-`@pliantui/server/storage` exports `createStorageHandler`, a route handler that stores overlays in your own database, and `serverAdapter` from `@pliantui/react/server-adapter` is the storage adapter that calls it.
+`@pliantui/server/storage` exports `createStorageHandler`, a route handler that stores overlays through an `OverlayStore`, and `serverAdapter` from `@pliantui/react/server-adapter` is the storage adapter that calls it.
 
 ```ts
 // app/api/pliant/storage/route.ts
@@ -52,13 +52,15 @@ const handler = createStorageHandler({
 export { handler as GET, handler as PUT, handler as DELETE }
 ```
 
-```tsx
-<PliantRoot storage={serverAdapter({ endpoint: "/api/pliant/storage" })}>
+```ts
+import { serverAdapter } from "@pliantui/react/server-adapter"
+
+const storage = serverAdapter({ endpoint: "/api/pliant/storage" })
 ```
 
-Each user reads their own personal overlays, the overlays of the teams in `teams` and of their `org`. Saving or removing a team or org overlay also needs `canPublish` to return `true`; without `canPublish`, nobody can. The handler validates every overlay against the contract and assigns every etag, version and timestamp itself; a save sends `If-Match` or `If-None-Match: *`, and a conflict answers 412 with the current record. Removing an overlay stores a tombstone, which blocks saving that id again.
+Pass `storage` to `PliantRoot`. Users read their own personal overlays and those of their `teams` and `org`. Saving or removing a team or org overlay also needs `canPublish`; without it, nobody can. The handler validates every overlay and assigns every etag, version and timestamp. A conflict answers 412 with the current record, and a removal stores a tombstone. `list` returns tombstones too, so an export includes removed overlays.
 
-`memoryOverlayStore` keeps overlays in memory, for tests and demos. In production, implement `OverlayStore` over your database: one row per `(surface, layer, scope, id)`, a `put` that writes only when the stored etag matches in a single statement, and a history of every record written. Tombstones are rows with `deletedAt`; purge them after 30 days or more, as the `@pliantui/contract` README describes.
+`memoryOverlayStore` is for tests and demos. In production, implement `OverlayStore` over your database: one row per `(surface, layer, scope, id)` and a `put` that writes only when the stored etag matches, in one statement.
 
 ## Recordings
 

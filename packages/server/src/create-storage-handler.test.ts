@@ -140,7 +140,15 @@ describe("createStorageHandler", () => {
     const handler = handlerFor()
     expect((await handler(put(overlay({ layer: "session" })))).status).toBe(400)
     expect(
-      (await handler(put(overlay({ surface: "Orders" }), {}, "Orders"))).status
+      (
+        await handler(
+          put(
+            overlay({ surface: "Orders" }),
+            { "if-none-match": "*" },
+            "Orders"
+          )
+        )
+      ).status
     ).toBe(400)
     expect((await handler(new Request(url))).status).toBe(400)
     expect(
@@ -150,6 +158,9 @@ describe("createStorageHandler", () => {
     expect((await handler(new Request(`${url}?layer=session`))).status).toBe(
       400
     )
+    expect(
+      (await handler(new Request(`${url}?layer=team&surface=%2Forders`))).status
+    ).toBe(400)
   })
 
   it("keeps a team overlay of another org from members of a team with its id", async () => {
@@ -170,6 +181,30 @@ describe("createStorageHandler", () => {
     }
   })
 
+  it("answers 403 instead of a conflict over another org's team overlay", async () => {
+    const store = memoryOverlayStore()
+    const acme = handlerFor({ store })
+    const globex = handlerFor({
+      store,
+      getUser: () => ({ id: "cy", org: "globex", teams: ["ops"] }),
+    })
+    const created = await stored(
+      await acme(
+        put(overlay({ layer: "team", scope: { team: "ops", org: "acme" } }))
+      )
+    )
+    for (const headers of [
+      { "if-none-match": "*" },
+      { "if-match": `"${created.etag}"` },
+    ]) {
+      const response = await globex(
+        put(overlay({ layer: "team", scope: { team: "ops" } }), headers)
+      )
+      expect(response.status).toBe(403)
+      expect(JSON.stringify(await response.json())).not.toContain(created.etag)
+    }
+  })
+
   it("lets nobody publish without canPublish", async () => {
     const handler = createStorageHandler({
       store: memoryOverlayStore(),
@@ -187,6 +222,40 @@ describe("createStorageHandler", () => {
       put(overlay({ layer: "team", scope: { team: "ops" } }))
     )
     expect(canPublish).toHaveBeenCalledWith(ana, "team", { team: "ops" })
+  })
+
+  it("does nothing when another removal wins the race", async () => {
+    const store = memoryOverlayStore()
+    const created = await stored(await handlerFor({ store })(put(overlay())))
+    const racing: OverlayStore = {
+      ...store,
+      put: async (key, record, ifMatch) => {
+        await store.put(key, { ...record, etag: "other" }, ifMatch)
+        return false
+      },
+    }
+    const response = await handlerFor({ store: racing })(
+      remove({ "if-match": `"${created.etag}"` })
+    )
+    expect(response.status).toBe(204)
+  })
+
+  it("serves the current records as history from a store without history", async () => {
+    const base = memoryOverlayStore()
+    const latest: OverlayStore = {
+      get: (key) => base.get(key),
+      put: (key, record, ifMatch) => base.put(key, record, ifMatch),
+      list: (query) => base.list(query),
+    }
+    const handler = handlerFor({ store: latest })
+    const first = await stored(await handler(put(overlay())))
+    const second = await stored(
+      await handler(put(overlay(), { "if-match": `"${first.etag}"` }))
+    )
+    const response = await handler(
+      new Request(`${url}?surface=%2Forders&history`)
+    )
+    expect(await response.json()).toEqual({ records: [second] })
   })
 
   it("does nothing when removing an overlay that isn't stored", async () => {
