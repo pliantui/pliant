@@ -1,19 +1,18 @@
 import { compareCodePoints } from "./compare-code-points"
 
-const isNumber = (key: unknown): key is number =>
-  typeof key === "number" && !Number.isNaN(key)
-
 /**
  * Compares two row keys for display order: numerically when both are
- * numbers, otherwise by code point as text, with a number before text.
- * TanStack Table's `getRowId` gives text, so its keys compare by code point.
+ * numbers, otherwise by code point of their text, so `2` comes before `10`
+ * but `"10"` before `"2"`. TanStack Table's `getRowId` gives text, so its
+ * keys compare by code point. Keys that mix numbers and text don't always
+ * have a consistent order: `2` is before `10`, `10` before `"15"` and
+ * `"15"` before `2`.
  */
 export function compareRowKeys(a: unknown, b: unknown): number {
-  if (isNumber(a) && isNumber(b)) {
-    return a - b
-  }
-  return (
-    Number(isNumber(b)) - Number(isNumber(a)) ||
-    compareCodePoints(String(a), String(b))
-  )
+  // NaN compares as text, so the comparison stays consistent.
+  const difference =
+    typeof a === "number" && typeof b === "number" ? a - b : Number.NaN
+  return Number.isNaN(difference)
+    ? compareCodePoints(String(a), String(b))
+    : difference
 }

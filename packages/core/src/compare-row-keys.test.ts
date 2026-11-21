@@ -19,8 +19,10 @@ describe("compareRowKeys", () => {
     ])
   })
 
-  it("puts numbers before text", () => {
-    expect(sorted("1", 10, "a", 2)).toEqual([2, 10, "1", "a"])
+  it("compares a number with text by code point of the number's text", () => {
+    expect(sorted("a", 2, "10", "1")).toEqual(["1", "10", 2, "a"])
+    expect(sorted("B", 10)).toEqual([10, "B"])
+    expect(sorted(9, "10")).toEqual(["10", 9])
   })
 
   it("compares NaN and missing keys as text", () => {
