@@ -230,7 +230,7 @@ Options:
   -h, --help        display help for command
 ```
 
-Skills go in `.claude/skills/<name>` when the project has a `.claude` folder, because Claude Code reads only that folder. Otherwise they go in `.agents/skills/<name>`, the folder most other coding agents read. Pass `--dir` to choose another folder, such as `.cursor/skills`. A relative path is resolved from the working directory.
+Skills go in `.claude/skills/<name>` when the project has a `.claude` folder, because Claude Code reads only that folder. Otherwise they go in `.agents/skills/<name>`, the folder most other coding agents read. Pass `--dir` to choose another folder: GitHub Copilot reads `.github/skills`, so use `--dir .github/skills` for it. A relative path is resolved from the working directory.
 
 Run the command again at any time, for example after you update `pliantui`. It skips skills that are already up to date. If you changed a skill's files, it asks before it overwrites them, in an interactive terminal. In a script, pass `--yes` to overwrite them, or the command exits with an error and writes nothing. Files you added to a skill's folder are left alone.
 

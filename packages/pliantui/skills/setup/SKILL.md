@@ -19,7 +19,7 @@ Pliant lets the users of a shadcn app reshape its pages: reorder, hide, pin and 
 npx pliantui init --yes
 ```
 
-This adds `@pliantui/react` with the project's package manager and the `pliant-region` component to `components/pliant`. Without `--yes` it asks before each step and needs an interactive terminal, which agent shells usually aren't. Running it again is safe: it skips what is installed.
+This adds `@pliantui/react` with the project's package manager and the `pliant-region` component to the `pliant` folder inside the `components` alias from `components.json` (usually `components/pliant`). Without `--yes` it asks before each step and needs an interactive terminal, which agent shells usually aren't. Running it again is safe: it skips what is installed.
 
 ## 2. Wrap a route
 
@@ -54,7 +54,7 @@ Rules that matter:
 - The page can stay a Server Component. Slot content can be Server Components too.
 - A region `id` is kebab-case, starts with a letter, and is unique on the page. Slot ids, the keys of `slots`, are kebab-case too. The key order is the base order.
 - Reuse the page's existing parts as slots: move each existing block into `slots`, keep its markup, and keep the region's spacing in `gap` classes. Don't use `space-*` or `divide-*` on a region, because slots sit in wrapper elements.
-- If you pass `storage` to `PliantRoot`, create it in a client module. Without it, changes are kept in the browser.
+- If you pass `storage` to `PliantRoot`, render `PliantRoot` inside a client component (a file that starts with `"use client"`) that creates the storage, and use that component from the page. Without `storage`, changes are kept in the browser.
 
 ## 3. Add a table (optional)
 
@@ -144,7 +144,7 @@ This reads the `cva` and `tailwind-variants` definitions in the ui folder, witho
 1. Run the project's typecheck and `next build`. Fix the errors your change caused; don't touch unrelated ones.
 2. Check that each `PliantRoot` and its `PliantPrePaint` have the same `surface`, and that it is the route pattern.
 3. Start the dev server and load the route. The page's HTML should contain `data-slot="pliant-region"` for each region and `data-pliant-id` on each slot.
-4. Prove a change applies. Temporarily add a client component inside `PliantRoot` with a button that calls `usePliantStore().applyOps("personal", [{ op: "hide", target: "summary/slots/status" }])`, using your own region and slot ids. After the click the slot should disappear from the page. Remove the component afterwards.
+4. Prove a change applies. Temporarily add a client component inside `PliantRoot` with a button that calls `usePliantStore().applyOps("personal", [{ op: "hide", target: "summary/slots/status" }])`, using your own region and slot ids. Import `usePliantStore` from `@pliantui/react`, and log the returned result: `success` is `false` with an `error` when the op is rejected, which otherwise fails silently. After the click the slot should disappear from the page. Remove the component afterwards.
 
 ## Common mistakes
 
