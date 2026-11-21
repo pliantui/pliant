@@ -91,3 +91,29 @@ for (const id of schemaIds) {
     expect(await response.json()).toMatchObject({ $id: id })
   })
 }
+
+const siteUrl = "https://pliantui-www.pliantui-dev.workers.dev"
+
+test("points the canonical link at the site address", async ({ page }) => {
+  await page.goto("/docs/concepts/operations")
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    `${siteUrl}/docs/concepts/operations`
+  )
+})
+
+for (const { path, schema } of [
+  { path: "/docs/concepts", schema: "/schema/overlay.json" },
+  { path: "/docs/concepts/operations", schema: "/schema/op.json" },
+]) {
+  test(`links ${path} to the ${schema} it serves`, async ({
+    page,
+    request,
+  }) => {
+    await page.goto(path)
+    const link = page.getByRole("link", { name: `${siteUrl}${schema}` })
+    await expect(link).toHaveAttribute("href", `${siteUrl}${schema}`)
+    const response = await request.get(schema)
+    expect(response.status()).toBe(200)
+  })
+}
