@@ -45,6 +45,28 @@ Everything in this repository and on GitHub (code, comments, docs, READMEs, chan
 - Link an issue in a comment only when it explains current behaviour, such as a known upstream bug, never to mark something as not done.
 - Changesets are release notes: say what changed for users, in plain language.
 
+## Writing docs
+
+Docs teach people to use Pliant. They follow [Diátaxis](https://diataxis.fr), the [Google developer documentation style guide](https://developers.google.com/style) and the [Write the Docs principles](https://www.writethedocs.org/guide/writing/docs-principles/). For tone and layout, take shadcn, Tailwind, Stripe, TanStack and the Vercel AI SDK as models.
+
+- Each page is one kind:
+  - a tutorial (a guided lesson that ends with something working);
+  - a how-to guide (the steps for one task);
+  - a concept page (what Diátaxis calls explanation);
+  - a reference page (exact options and rules).
+
+  Don't mix them. Link to the reference instead of repeating it.
+
+- Write to the reader as "you", in the present tense and active voice, with short sentences. Keep the language plain and warm.
+- Describe what the reader can do and what they'll see, not how Pliant works inside. Delete any sentence about internals that a user doesn't need.
+- Open with one or two sentences on what the page lets you do. Then show a short working example or a live preview, then the details: usage before options, and the common case before edge cases. Put flags, exact rules and limits last or on a reference page.
+- Keep pages under about 800 words, and split longer ones.
+- Define a term in plain words the first time a page uses it.
+- Write link text that names the destination, never "here".
+- Make each page stand on its own, for people and agents alike: give it clear headings and don't write "as mentioned above".
+- Make pages scannable with the MDX components registered in `apps/www/components/mdx.tsx`, and prefer a short list or table to a long paragraph.
+- Every code sample must work. Take samples from files that the checks build or test.
+
 ## Tests
 
 - Tests assert behaviour a user or an API caller can observe. Query UI by role or label, as the user perceives it.
