@@ -96,7 +96,7 @@ describe("formatPliantValue", () => {
     expect(
       formatPliantValue("2026-03-10", format, undefined, {
         locale: "en-US",
-        timeZone: "Pacific/Kiritimati",
+        timeZone: "America/Los_Angeles",
       })
     ).toBe("Mar 10, 2026")
   })
