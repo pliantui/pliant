@@ -3,6 +3,7 @@ import { useLayoutEffect, useState, type ReactNode } from "react"
 import { createLayerStore } from "./layer-store"
 import { localAdapter } from "./local-adapter"
 import { PliantContext } from "./pliant-context"
+import { PliantMessagesContext, type PliantMessages } from "./pliant-messages"
 import type { StorageAdapter } from "./storage-adapter"
 
 /** @experimental */
@@ -34,8 +35,15 @@ export interface PliantRootProps {
    * malformed tag is ignored, with a warning in development.
    */
   readonly lang?: string | undefined
+  /**
+   * Text to show in place of the English defaults, by key, such as a
+   * translation for `lang`. Entries left out keep their defaults.
+   */
+  readonly messages?: Partial<PliantMessages> | undefined
   readonly children?: ReactNode
 }
+
+const noMessages: Partial<PliantMessages> = {}
 
 function PliantSurfaceRoot({
   surface,
@@ -107,5 +115,9 @@ function PliantSurfaceRoot({
  * @experimental
  */
 export function PliantRoot(props: PliantRootProps) {
-  return <PliantSurfaceRoot key={props.surface} {...props} />
+  return (
+    <PliantMessagesContext value={props.messages ?? noMessages}>
+      <PliantSurfaceRoot key={props.surface} {...props} />
+    </PliantMessagesContext>
+  )
 }

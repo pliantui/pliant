@@ -7,14 +7,28 @@ import { ChevronDownIcon } from "lucide-react"
 import type { ByBreakpoint, RegionEntry, RegionLayout } from "@pliantui/core"
 import {
   PliantActivity,
+  usePliantMessages,
   usePliantNodeProps,
   usePliantRegion,
   useRegionItems,
   useSlotContent,
+  type PliantMessages,
   type RegionItem,
 } from "@pliantui/react"
 
 import { Button } from "@/components/ui/button"
+
+declare module "@pliantui/react" {
+  interface PliantMessages {
+    regionMore: string
+    regionNodeUnavailable: (label: string) => string
+  }
+}
+
+const regionMessages = {
+  regionMore: "More",
+  regionNodeUnavailable: (label) => `${label} can't be shown yet`,
+} satisfies Partial<PliantMessages>
 
 type Breakpoint = keyof ByBreakpoint<never>
 type Columns = readonly [string, string, string, string]
@@ -265,13 +279,14 @@ const insertedNodeRenderers: Partial<
 > = {}
 
 function InsertedNodeContent({ node }: { node: InsertedNode }) {
+  const messages = usePliantMessages(regionMessages)
   const render = insertedNodeRenderers[node.kind]
   if (render) {
     return render(node)
   }
   return (
     <div className="flex min-h-24 items-center justify-center rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
-      {node.label ?? node.kind} can&apos;t be shown yet
+      {messages.regionNodeUnavailable(node.label ?? node.kind)}
     </div>
   )
 }
@@ -329,6 +344,7 @@ function CollapseTrigger({
 }: {
   item: Extract<RegionItem, { kind: "trigger" }>
 }) {
+  const messages = usePliantMessages(regionMessages)
   return (
     <Button
       {...item.getTriggerProps()}
@@ -336,7 +352,7 @@ function CollapseTrigger({
       size="sm"
       className="col-span-full -ml-2.5 self-start justify-self-start"
     >
-      {item.label ?? "More"}
+      {item.label ?? messages.regionMore}
       <ChevronDownIcon
         className={cn("transition-transform", item.open && "rotate-180")}
       />

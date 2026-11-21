@@ -6,7 +6,11 @@ import { Loader2Icon, SparklesIcon, XIcon } from "lucide-react"
 import { Slot } from "radix-ui"
 import * as z from "zod"
 
-import { usePreview } from "@pliantui/react"
+import {
+  usePliantMessages,
+  usePreview,
+  type PliantMessages,
+} from "@pliantui/react"
 import { useAskPanel } from "@pliantui/react/ask"
 
 import { Badge } from "@/components/ui/badge"
@@ -21,6 +25,61 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
+
+declare module "@pliantui/react" {
+  interface PliantMessages {
+    askOpen: string
+    askPreviewActive: string
+    askTitle: string
+    askDescription: string
+    askClose: string
+    askTargetLabel: string
+    askPromptLabel: string
+    askPromptPlaceholder: string
+    askPromptHint: string
+    askCancel: string
+    askSend: string
+    askAsking: string
+    askCancelled: string
+    askDiscarded: string
+    askLockedIn: string
+    askKeptInSession: (count: number) => string
+    askCurrentPreview: string
+    askLockIn: string
+    askDiscard: string
+    askSuggestions: string
+    askUnreadableAnswer: (status: number) => string
+  }
+}
+
+const askPanelMessages = {
+  askOpen: "Ask",
+  askPreviewActive: "(preview active)",
+  askTitle: "Ask",
+  askDescription:
+    "Describe how this page should look. You see a preview, and nothing is saved until you lock it in.",
+  askClose: "Close",
+  askTargetLabel: "Change",
+  askPromptLabel: "Ask",
+  askPromptPlaceholder: "Describe a change",
+  askPromptHint: "Enter to send, Shift+Enter for a new line.",
+  askCancel: "Cancel",
+  askSend: "Send",
+  askAsking: "Asking…",
+  askCancelled: "Cancelled.",
+  askDiscarded: "Discarded.",
+  askLockedIn: "Locked in.",
+  askKeptInSession: (count) =>
+    count === 1
+      ? "1 change stays for this session only."
+      : `${String(count)} changes stay for this session only.`,
+  askCurrentPreview: "Current preview",
+  askLockIn: "Lock in",
+  askDiscard: "Discard",
+  askSuggestions: "Suggestions",
+  askUnreadableAnswer: (status) =>
+    `Couldn't read the answer (HTTP ${String(status)}).`,
+} satisfies Partial<PliantMessages>
 
 const maxPromptLength = 500
 
@@ -89,7 +148,8 @@ interface PliantAskTarget {
 async function requestAnswer(
   endpoint: string,
   body: unknown,
-  signal: AbortSignal
+  signal: AbortSignal,
+  unreadable: (status: number) => string
 ): Promise<Answer> {
   const response = await fetch(endpoint, {
     method: "POST",
@@ -101,16 +161,7 @@ async function requestAnswer(
   const answer = askResponseSchema.safeParse(json)
   return answer.success
     ? answer.data
-    : {
-        status: "error",
-        message: `Couldn't read the answer (HTTP ${String(response.status)}).`,
-      }
-}
-
-function sessionNote(count: number) {
-  return count === 1
-    ? "1 change stays for this session only."
-    : `${String(count)} changes stay for this session only.`
+    : { status: "error", message: unreadable(response.status) }
 }
 
 /**
@@ -139,7 +190,7 @@ function PliantAskPanel({
   target,
   defaultTarget,
   onTargetChange,
-  placeholder = "Describe a change",
+  placeholder,
   trigger,
   open,
   defaultOpen,
@@ -159,14 +210,15 @@ function PliantAskPanel({
    * or later, as after a navigation, and focus stays on the picker.
    */
   onTargetChange?: (target: string) => void
-  /** The prompt's placeholder. */
+  /** The prompt's placeholder, in place of `askPromptPlaceholder`. */
   placeholder?: string
-  /** The element that opens the panel. Defaults to an "Ask" button. */
+  /** The element that opens the panel. Defaults to an `askOpen` button. */
   trigger?: React.ReactElement
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
 }) {
+  const messages = usePliantMessages(askPanelMessages)
   const panel = useAskPanel({
     targets,
     target,
@@ -184,7 +236,8 @@ function PliantAskPanel({
           prompt: ask.prompt,
           context: ask.target.context,
         },
-        signal
+        signal,
+        messages.askUnreadableAnswer
       ),
   })
   const id = React.useId()
@@ -201,10 +254,10 @@ function PliantAskPanel({
         {trigger ?? (
           <Button type="button" variant="outline" size="sm">
             <SparklesIcon />
-            Ask
+            {messages.askOpen}
             {previewing && !panel.open && (
               <span className="size-2 rounded-full bg-primary">
-                <span className="sr-only">(preview active)</span>
+                <span className="sr-only">{messages.askPreviewActive}</span>
               </span>
             )}
           </Button>
@@ -219,11 +272,10 @@ function PliantAskPanel({
           <div className="flex items-start justify-between gap-2 p-4 pb-0">
             <div className="flex flex-col gap-1.5">
               <h2 id={`${id}-title`} className="font-semibold">
-                Ask
+                {messages.askTitle}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Describe how this page should look. You see a preview, and
-                nothing is saved until you lock it in.
+                {messages.askDescription}
               </p>
             </div>
             <Button
@@ -231,7 +283,7 @@ function PliantAskPanel({
               variant="ghost"
               size="icon"
               className="size-7"
-              aria-label="Close"
+              aria-label={messages.askClose}
               onClick={() => {
                 panel.setOpen(false)
               }}
@@ -247,7 +299,7 @@ function PliantAskPanel({
             }}
           >
             <div className="grid gap-2">
-              <Label htmlFor={`${id}-target`}>Change</Label>
+              <Label htmlFor={`${id}-target`}>{messages.askTargetLabel}</Label>
               <Select
                 value={panel.target?.id ?? ""}
                 onValueChange={panel.setTarget}
@@ -270,22 +322,22 @@ function PliantAskPanel({
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor={`${id}-prompt`}>Ask</Label>
+              <Label htmlFor={`${id}-prompt`}>{messages.askPromptLabel}</Label>
               <Textarea
                 {...panel.getPromptProps()}
                 id={`${id}-prompt`}
                 maxLength={maxPromptLength}
-                placeholder={placeholder}
+                placeholder={placeholder ?? messages.askPromptPlaceholder}
                 aria-describedby={`${id}-hint`}
               />
               <p id={`${id}-hint`} className="text-xs text-muted-foreground">
-                Enter to send, Shift+Enter for a new line.
+                {messages.askPromptHint}
               </p>
             </div>
             <div className="flex justify-end gap-2">
               {asking && (
                 <Button type="button" variant="outline" onClick={panel.cancel}>
-                  Cancel
+                  {messages.askCancel}
                 </Button>
               )}
               <Button
@@ -293,7 +345,7 @@ function PliantAskPanel({
                 disabled={asking || panel.prompt.trim() === ""}
               >
                 {asking && <Loader2Icon className="animate-spin" />}
-                Send
+                {messages.askSend}
               </Button>
             </div>
           </form>
@@ -311,7 +363,7 @@ function PliantAskPanel({
             >
               {state.status === "asking" && (
                 <>
-                  <span className="sr-only">Asking…</span>
+                  <span className="sr-only">{messages.askAsking}</span>
                   <Skeleton className="h-4 w-3/4" />
                   <Skeleton className="h-4 w-1/2" />
                 </>
@@ -323,14 +375,14 @@ function PliantAskPanel({
               {state.status === "failed" && (
                 <p className="text-destructive">{state.message}</p>
               )}
-              {state.status === "cancelled" && <p>Cancelled.</p>}
-              {state.status === "discarded" && <p>Discarded.</p>}
+              {state.status === "cancelled" && <p>{messages.askCancelled}</p>}
+              {state.status === "discarded" && <p>{messages.askDiscarded}</p>}
               {state.status === "locked" && (
                 <>
-                  <p>Locked in.</p>
+                  <p>{messages.askLockedIn}</p>
                   {state.keptInSession.length > 0 && (
                     <p className="text-muted-foreground">
-                      {sessionNote(state.keptInSession.length)}
+                      {messages.askKeptInSession(state.keptInSession.length)}
                     </p>
                   )}
                 </>
@@ -342,7 +394,9 @@ function PliantAskPanel({
                     state.status !== "idle" && "border-t pt-3"
                   )}
                 >
-                  <Badge variant="secondary">Current preview</Badge>
+                  <Badge variant="secondary">
+                    {messages.askCurrentPreview}
+                  </Badge>
                   <ul className="flex flex-col gap-1">
                     {explain.map((sentence) => (
                       <li key={sentence}>{sentence}</li>
@@ -354,10 +408,10 @@ function PliantAskPanel({
             {previewing && !asking && (
               <div className="flex gap-2">
                 <Button type="button" onClick={panel.lockIn}>
-                  Lock in
+                  {messages.askLockIn}
                 </Button>
                 <Button type="button" variant="outline" onClick={panel.discard}>
-                  Discard
+                  {messages.askDiscard}
                 </Button>
               </div>
             )}
@@ -365,7 +419,7 @@ function PliantAskPanel({
           {suggestions.length > 0 && (
             <div
               role="group"
-              aria-label="Suggestions"
+              aria-label={messages.askSuggestions}
               className={cn(
                 "flex flex-wrap gap-2 p-4",
                 previewing && "max-sm:hidden"

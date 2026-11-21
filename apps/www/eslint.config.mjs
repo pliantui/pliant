@@ -17,6 +17,26 @@ export default defineConfig(
     },
   },
   {
+    // Registry components show text from `usePliantMessages`, so apps can
+    // replace it through `PliantRoot`'s `messages`.
+    files: ["registry/**/*.tsx"],
+    ignores: ["registry/**/*.test.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXText[value=/\\p{L}/u]",
+          message: "Show text from usePliantMessages, not a literal.",
+        },
+        {
+          selector:
+            "JSXAttribute[name.name=/^(alt|aria-description|aria-label|aria-placeholder|aria-roledescription|aria-valuetext|placeholder|title)$/] > Literal",
+          message: "Show text from usePliantMessages, not a literal.",
+        },
+      ],
+    },
+  },
+  {
     files: ["app/**/{page,layout,route}.{ts,tsx}"],
     rules: {
       "no-restricted-exports": "off",
