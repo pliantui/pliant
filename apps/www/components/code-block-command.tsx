@@ -10,7 +10,9 @@ import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard"
 type PackageManager = Config["packageManager"]
 
 function isPackageManager(value: string): value is PackageManager {
-  return ["pnpm", "npm", "yarn", "bun"].includes(value)
+  return (
+    value === "pnpm" || value === "npm" || value === "yarn" || value === "bun"
+  )
 }
 
 export function CodeBlockCommand({
@@ -35,7 +37,7 @@ export function CodeBlockCommand({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <Tabs
         value={config.packageManager}
         className="gap-0"

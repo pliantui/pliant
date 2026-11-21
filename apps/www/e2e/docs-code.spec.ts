@@ -14,10 +14,10 @@ test("shows install commands for the reader's package manager", async ({
     "aria-selected",
     "true"
   )
-  await expect(page.getByText("pnpm dlx pliantui init")).toBeVisible()
+  await expect(page.getByText("pnpm dlx pliantui init").first()).toBeVisible()
 
   await first.getByRole("tab", { name: "yarn" }).click()
-  await expect(page.getByText("yarn dlx pliantui init")).toBeVisible()
+  await expect(page.getByText("yarn dlx pliantui init").first()).toBeVisible()
   await expect(
     managers.nth(1).getByRole("tab", { name: "yarn" })
   ).toHaveAttribute("aria-selected", "true")
@@ -25,12 +25,17 @@ test("shows install commands for the reader's package manager", async ({
   const block = page
     .locator("figure")
     .filter({ has: page.getByText("yarn dlx pliantui init") })
+    .first()
   await block.getByRole("button", { name: "Copy" }).click()
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
     "yarn dlx pliantui init"
   )
 
   await page.reload()
-  await expect(page.getByText("yarn dlx pliantui init")).toBeVisible()
+  await expect(first.getByRole("tab", { name: "yarn" })).toHaveAttribute(
+    "aria-selected",
+    "true"
+  )
+  await expect(page.getByText("yarn dlx pliantui init").first()).toBeVisible()
   expect(errors).toEqual([])
 })

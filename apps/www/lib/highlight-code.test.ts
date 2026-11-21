@@ -25,6 +25,18 @@ describe("transformers", () => {
     expect(properties["__npm__"]).toBeUndefined()
   })
 
+  it("leaves multi-line blocks and other commands as plain code", async () => {
+    for (const source of [
+      "npm install a\nnpm run dev",
+      "npxyz",
+      "npm install",
+    ]) {
+      const properties = await codeProperties(source)
+      expect(properties["__raw__"]).toBe(source)
+      expect(properties["__npm__"]).toBeUndefined()
+    }
+  })
+
   it.each([
     [
       "npx pliantui init",
@@ -38,7 +50,7 @@ describe("transformers", () => {
       "yarn add @pliantui/react",
       "bun add @pliantui/react",
     ],
-    ["npm run build", "pnpm build", "yarn build", "bun build"],
+    ["npm run build", "pnpm build", "yarn build", "bun run build"],
     [
       "npx create-next-app@latest",
       "pnpm create next-app@latest",

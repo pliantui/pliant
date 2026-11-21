@@ -7,15 +7,52 @@ export interface Config {
   installationType: "cli" | "manual"
 }
 
-const storageKey = "config"
+const storageKey = "pliant-docs-config"
 const defaultConfig: Config = {
   packageManager: "pnpm",
   installationType: "cli",
 }
 const listeners = new Set<() => void>()
 
-function isConfig(value: unknown): value is Partial<Config> {
-  return typeof value === "object" && value !== null
+const packageManagers: readonly Config["packageManager"][] = [
+  "pnpm",
+  "npm",
+  "yarn",
+  "bun",
+]
+const installationTypes: readonly Config["installationType"][] = [
+  "cli",
+  "manual",
+]
+
+function pick<T extends string>(
+  allowed: readonly T[],
+  value: unknown,
+  fallback: T
+): T {
+  return allowed.find((item) => item === value) ?? fallback
+}
+
+function parse(raw: string | null): Config {
+  let stored: unknown = null
+  try {
+    stored = raw === null ? null : JSON.parse(raw)
+  } catch {
+    return defaultConfig
+  }
+  if (typeof stored !== "object" || stored === null) return defaultConfig
+  return {
+    packageManager: pick(
+      packageManagers,
+      "packageManager" in stored ? stored.packageManager : undefined,
+      defaultConfig.packageManager
+    ),
+    installationType: pick(
+      installationTypes,
+      "installationType" in stored ? stored.installationType : undefined,
+      defaultConfig.installationType
+    ),
+  }
 }
 
 let cached: { raw: string | null; config: Config } | undefined
@@ -30,13 +67,7 @@ function read(): Config {
     return unstored
   }
   if (cached?.raw === raw) return cached.config
-  let config = defaultConfig
-  try {
-    const parsed: unknown = raw === null ? null : JSON.parse(raw)
-    if (isConfig(parsed)) config = { ...defaultConfig, ...parsed }
-  } catch {
-    // A malformed entry falls back to the defaults.
-  }
+  const config = parse(raw)
   cached = { raw, config }
   return config
 }
