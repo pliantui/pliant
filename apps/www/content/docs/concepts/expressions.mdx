@@ -120,13 +120,13 @@ The catalog also defines a value that isn't a finite number (`NaN` or infinity),
 
 ## Functions
 
-The catalog defines 62 built-in functions, in three kinds. A **row** function reads one row. An **aggregate** function reads every row of a group. A **window** function gives each row a value over its partition, which the catalog defines as the row's group when the table is grouped, and otherwise every row after filters.
+The catalog defines 65 built-in functions, in three kinds. A **row** function reads one row. An **aggregate** function reads every row of a group. A **window** function gives each row a value over its partition, which the catalog defines as the row's group when the table is grouped, and otherwise every row after filters.
 
 | Group      | Functions                                                                                                                                                                    |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Arithmetic | `add`, `sub`, `mul`, `div`, `abs`, `round`, `floor`, `ceil`, `min2`, `max2`, `clamp`, `percentChange`                                                                        |
-| Logic      | `if`, `and`, `or`, `not`, `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `between`, `in`, `isNull`, `coalesce`                                                                       |
-| Text       | `concat`, `lower`, `upper`, `length`, `contains`, `startsWith`, `left`, `right`                                                                                              |
+| Logic      | `if`, `and`, `or`, `not`, `eq`, `eqI`, `neq`, `gt`, `gte`, `lt`, `lte`, `between`, `in`, `isNull`, `coalesce`                                                                |
+| Text       | `concat`, `lower`, `upper`, `length`, `contains`, `containsI`, `startsWith`, `startsWithI`, `left`, `right`                                                                  |
 | Date       | `dateDiff`, `datePart`, `dateTrunc`, `addDays`, `today`, `age`                                                                                                               |
 | Aggregate  | `count`, `countIf`, `sum`, `sumIf`, `mean`, `min`, `max`, `variance`, `stddev`, `variancePop`, `stddevPop`, `median`, `percentile`, `mode`, `distinctCount`, `first`, `last` |
 | Window     | `rank`, `denseRank`, `runningSum`, `share`, `zScore`                                                                                                                         |
@@ -136,6 +136,7 @@ The arguments of an aggregate or window function are row expressions, so they ca
 The catalog also defines rules that apply to every function:
 
 - Strings compare by Unicode code point, case included. Lengths and positions count code points.
+- `eqI`, `containsI` and `startsWithI` ignore case. They lowercase both strings as `lower` does, without locale-specific rules, then compare them as `eq`, `contains` and `startsWith` do. Lowercasing isn't full case folding: `containsI("Straße", "SS")` is `false`, and `eqI("İ", "i")` is `false` because `İ` lowercases to `i` followed by a combining dot.
 - `today` is defined as the current date in the viewer's time zone for `personal` and `session` overlays, and in the dataset's time zone for `org` and `team` overlays.
 - A string literal fits a `date` as `YYYY-MM-DD`, and a `datetime` as an ISO 8601 date-time with seconds and an offset.
 
@@ -160,6 +161,6 @@ The operators are `eq`, `neq`, `in`, `contains`, `startsWith`, `gt`, `gte`, `lt`
 Tables apply filters with these rules:
 
 - A missing value (`null` or `undefined`) passes only `isNull`. `neq` and every comparison leave it out, as in SQL.
-- `eq`, `neq` and `in` compare text case-sensitively. `contains` and `startsWith` ignore case, as most search boxes do.
+- `eq`, `neq` and `in` compare text case-sensitively. `contains` and `startsWith` ignore case, as most search boxes do, lowercasing both sides as `lower` does, the same folding as `containsI` and `startsWithI`.
 - A number compares with a number or numeric text; two pieces of text compare as text. Values that can't be compared, such as a word and a number, are never equal.
 - A date without a time, such as `2026-03-01`, covers that whole day in the viewer's time zone.
