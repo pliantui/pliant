@@ -7,6 +7,7 @@ import {
   type AggregateEvaluatorOptions,
 } from "./aggregate-evaluator"
 import type { ExpressionField } from "./check-expression"
+import { scaleBy } from "./scale"
 
 // Stryker reruns every test that covers a mutant, so under mutation testing
 // (PLIANT_MUTATION, set by stryker.config.mjs) the tests that read many
@@ -149,6 +150,32 @@ describe("createAggregateEvaluator", () => {
       ).toBe(2)
     })
 
+    it("keeps a sum whose partial sums overflow but whose result fits", () => {
+      const max = Number.MAX_VALUE
+      const sum = (...values: number[]) =>
+        aggregate(fn("sum", field("score")), scores(...values))
+      expect(sum(max, max, -max)).toBe(max)
+      expect(sum(1e308, 1e308, -1e308)).toBe(1e308)
+      expect(sum(-max, -max, max)).toBe(-max)
+      expect(sum(max, -max, 1)).toBe(1)
+      expect(
+        aggregate(
+          fn("sumIf", field("score"), field("active")),
+          [max, max, -max].map((score) => ({ score, active: true }))
+        )
+      ).toBe(max)
+    })
+
+    it("averages values whose deviations overflow", () => {
+      const max = Number.MAX_VALUE
+      const mean = (...values: number[]) =>
+        aggregate(fn("mean", field("score")), scores(...values))
+      expect(mean(1e308, -1e308)).toBe(0)
+      expect(mean(max, max)).toBe(max)
+      expect(mean(max, -max, max, -max)).toBe(0)
+      expect(mean(-max, max, 1e308)).toBeCloseTo(1e308 / 3, -300)
+    })
+
     it("gives null for a sum that overflows", () => {
       expect(
         aggregate(fn("sum", field("score")), scores(1e308, 1e308))
@@ -183,6 +210,52 @@ describe("createAggregateEvaluator", () => {
         expect(aggregate(fn(name, field("score")), scores(3))).toBe(0)
         expect(aggregate(fn(name, field("score")), scores(null))).toBeNull()
       }
+    })
+
+    it("gives 0 for equal values at the top of the range", () => {
+      const max = Number.MAX_VALUE
+      const rows = scores(max, max, max)
+      expect(aggregate(fn("variance", field("score")), rows)).toBe(0)
+      expect(aggregate(fn("variancePop", field("score")), rows)).toBe(0)
+    })
+
+    it("computes deviations whose squares overflow", () => {
+      const stddev = (name: string, ...values: number[]) =>
+        aggregate(fn(name, field("score")), scores(...values))
+      expect(stddev("stddev", 1e308, -1e308)).toBeCloseTo(
+        Math.SQRT2 * 1e308,
+        -299
+      )
+      expect(stddev("stddevPop", 1e308, -1e308)).toBeCloseTo(1e308, -299)
+      expect(stddev("stddevPop", 1e308, 1e308, 1e308)).toBe(0)
+      // The variance of four of these is 1e308, though their squared
+      // deviations sum to twice that.
+      expect(stddev("variancePop", 1e154, -1e154, 1e154, -1e154)).toBeCloseTo(
+        1e308,
+        -299
+      )
+      expect(stddev("variance", 1e308, -1e308)).toBeNull()
+    })
+
+    it("computes deviations whose squares underflow", () => {
+      const stddev = (name: string, ...values: number[]) =>
+        aggregate(fn(name, field("score")), scores(...values))
+      expect(stddev("stddev", 1e-200, 3e-200)).toBeCloseTo(
+        Math.SQRT2 * 1e-200,
+        212
+      )
+      expect(stddev("stddevPop", 1e-200, 3e-200)).toBeCloseTo(1e-200, 212)
+      expect(stddev("variancePop", 1e-200, 3e-200)).toBe(0)
+      expect(stddev("mean", 1e-200, 3e-200)).toBeCloseTo(2e-200, 212)
+    })
+
+    it("computes statistics of values that grow past each other", () => {
+      const values = scores(1, 3, 1e150, -1e150, 2, 1e154, -1e154)
+      expect(aggregate(fn("mean", field("score")), values)).toBeCloseTo(0, -140)
+      expect(aggregate(fn("stddevPop", field("score")), values)).toBeCloseTo(
+        Math.sqrt((2 / 7) * (1 + 1e-8)) * 1e154,
+        -143
+      )
     })
 
     it("gives 0 for equal values, however large", () => {
@@ -567,19 +640,31 @@ function partsOf(x: number): [bigint, number] {
     : [sign * (fraction | (1n << 52n)), exponent - 1075]
 }
 
+// n × 2^exponent as a double, however large n is.
+function ratio(n: bigint, exponent: number) {
+  const shift = Math.max(0, n.toString(2).length - 900)
+  return scaleBy(Number(n >> BigInt(shift)), exponent + shift)
+}
+
 /**
  * The exact sum, mean and variances of the values, computed with integers
  * and rounded once at the end, and the quantities the catalog's allowances
- * are stated in.
+ * are stated in. They're given in units of 2^`unit`, a power of two near the
+ * largest magnitude (the sum and mean in those units, and the variances in
+ * their squares), so the allowances can't overflow or underflow for huge or
+ * tiny values.
  */
 function exactOf(values: Float64Array) {
   const parts = Array.from(values, partsOf)
   let low = Infinity
-  for (const [mantissa, exponent] of parts) {
+  let largest = 0
+  for (const [index, [mantissa, exponent]] of parts.entries()) {
     if (mantissa !== 0n) {
       low = Math.min(low, exponent)
     }
+    largest = Math.max(largest, Math.abs(values[index] ?? 0))
   }
+  const unit = largest === 0 ? 0 : Math.floor(Math.log2(largest))
   let sum = 0n
   let squares = 0n
   for (const [mantissa, exponent] of parts) {
@@ -588,23 +673,23 @@ function exactOf(values: Float64Array) {
     squares += scaled * scaled
   }
   const n = BigInt(values.length)
-  const scale = 2 ** low
-  const mean = (Number(sum) / values.length) * scale
-  const m2 = (Number(n * squares - sum * sum) / values.length) * scale * scale
-  let largest = 0
+  const sumUnits = ratio(sum, low - unit)
+  const mean = sumUnits / values.length
+  const m2 = ratio(n * squares - sum * sum, 2 * (low - unit)) / values.length
   let deviation = 0
   let absolute = 0
   for (const x of values) {
-    largest = Math.max(largest, Math.abs(x))
-    deviation = Math.max(deviation, Math.abs(x - mean))
-    absolute += Math.abs(x)
+    const inUnits = scaleBy(x, -unit)
+    deviation = Math.max(deviation, Math.abs(inUnits - mean))
+    absolute += Math.abs(inUnits)
   }
   return {
-    sum: Number(sum) * scale,
+    unit,
+    sum: sumUnits,
     mean,
     variance: m2 / (values.length - 1),
     variancePop: m2 / values.length,
-    M: largest,
+    M: scaleBy(largest, -unit),
     D: deviation,
     A: absolute,
   }
@@ -615,17 +700,50 @@ function expectWithin(actual: unknown, exact: number, allowance: number) {
   expect(Math.abs(Number(actual) - exact)).toBeLessThanOrEqual(allowance)
 }
 
-/** Checks each mergeable statistic of the values against the catalog's allowances. */
+/**
+ * Checks each mergeable statistic of the values against the catalog's
+ * allowances, in units of 2^`unit` to the `power`, where a result that
+ * overflows its range is null.
+ */
 function expectAccurate(values: Float64Array) {
   const exact = exactOf(values)
-  const { M, D, A } = exact
+  const { M, D, A, unit } = exact
   const of = (name: string) =>
     aggregate(
       fn(name, field("score")),
       rowsOf(values.length, (i) => values[i] ?? 0)
     )
-  expectWithin(of("sum"), exact.sum, 1e-9 * A)
-  expectWithin(of("mean"), exact.mean, 1e-9 * M)
+  const expectStatistic = (
+    name: string,
+    power: number,
+    expected: number,
+    allowance: number
+  ) => {
+    const actual = of(name)
+    // The statistic is out of range, or too near it for the test to tell.
+    if (
+      !Number.isFinite(scaleBy(scaleBy(expected, unit), (power - 1) * unit))
+    ) {
+      expect(actual).toBeNull()
+    } else {
+      // One subnormal step is added to every allowance: where the result is
+      // subnormal, the nearest double can be a whole step from the exact one,
+      // which is beyond any relative allowance.
+      const step = scaleBy(
+        scaleBy(Number.MIN_VALUE, -unit),
+        -(power - 1) * unit
+      )
+      expectWithin(
+        typeof actual === "number"
+          ? scaleBy(scaleBy(actual, -unit), -(power - 1) * unit)
+          : actual,
+        expected,
+        allowance + step
+      )
+    }
+  }
+  expectStatistic("sum", 1, exact.sum, 1e-9 * A)
+  expectStatistic("mean", 1, exact.mean, 1e-9 * M)
   const V = 1e-9 * M * (D + 1e-9 * M)
   for (const [name, root, variance] of [
     ["variance", "stddev", exact.variance],
@@ -634,10 +752,10 @@ function expectAccurate(values: Float64Array) {
     if (name === "variance" && values.length < 2) {
       continue
     }
-    expectWithin(of(name), variance, V)
+    expectStatistic(name, 2, variance, V)
     const sigma = Math.sqrt(variance)
     const S = sigma === 0 ? Math.sqrt(V) : Math.min(Math.sqrt(V), V / sigma)
-    expectWithin(of(root), sigma, S)
+    expectStatistic(root, 1, sigma, S)
   }
 }
 
@@ -678,6 +796,74 @@ describe("accuracy", () => {
       expectAccurate(
         Float64Array.from({ length: scaled(count) }, () => generate(next))
       )
+    },
+    timeout
+  )
+
+  it("stays within the allowances for huge values and subnormals that cancel", () => {
+    const next = random(11)
+    const max = Number.MAX_VALUE
+    const halves = Array.from(
+      { length: 10_000 },
+      () => (max / 4) * (1 + next()) * (next() < 0.5 ? -1 : 1)
+    )
+    const values = [...halves, ...halves.map((x) => -x)]
+    for (let index = 0; index < 50; index++) {
+      values.push(
+        Number.MIN_VALUE * Math.ceil(next() * 1000) * (index % 2 ? -1 : 1)
+      )
+    }
+    // Shuffled, so partial sums reach the overflow range and come back.
+    for (let index = values.length - 1; index > 0; index--) {
+      const other = Math.floor(next() * (index + 1))
+      ;[values[index], values[other]] = [values[other] ?? 0, values[index] ?? 0]
+    }
+    expectAccurate(Float64Array.from(values))
+  })
+
+  // The first runs are merged long before the largest values arrive, so
+  // the units grow under moments already held in pairs.
+  it.each([
+    ["1e30", 100],
+    ["1e300", 10],
+  ])(
+    "stays within the allowances for magnitudes growing to %s over the rows",
+    (_, perDecade) => {
+      const next = random(5)
+      expectAccurate(
+        Float64Array.from(
+          { length: 1000 },
+          (_, index) => (next() - 0.5) * 10 ** (index / perDecade)
+        )
+      )
+    }
+  )
+
+  it.each([
+    [
+      "magnitudes from 1e-320 to 1e300 of either sign",
+      (r: () => number) => (r() < 0.5 ? -1 : 1) * 10 ** (r() * 620 - 320),
+    ],
+    [
+      "huge values among subnormals",
+      (r: () => number) =>
+        (r() < 0.5 ? -1 : 1) *
+        (r() < 0.1
+          ? 1e300 * (1 + r())
+          : Number.MIN_VALUE * Math.ceil(r() * 1e6)),
+    ],
+    [
+      "values near the largest double",
+      (r: () => number) =>
+        (r() < 0.5 ? -1 : 1) * Number.MAX_VALUE * (0.5 + r() / 2),
+    ],
+  ])(
+    "stays within the allowances for %s",
+    (_, generate) => {
+      for (const length of [1, 2, 3, 100, 1000]) {
+        const next = random(length)
+        expectAccurate(Float64Array.from({ length }, () => generate(next)))
+      }
     },
     timeout
   )

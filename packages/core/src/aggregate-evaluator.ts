@@ -89,9 +89,11 @@ function constantNumber(node: Expression | undefined) {
  * does, and an aggregate that a `ref` names is computed once per group.
  *
  * Sums are compensated, and means and variances are accumulated by
- * Welford's algorithm in short runs merged pairwise by Chan's, so results
- * stay within the catalog's floating-point allowances at any number of
- * rows. Medians, percentiles, modes and distinct counts hold every value of
+ * Welford's algorithm in short runs merged pairwise by Chan's. Each is kept
+ * in units of a power of two near the largest value so far, so huge values
+ * can't overflow on the way and tiny ones can't underflow, and results stay
+ * within the catalog's floating-point allowances at any number of rows. A
+ * result is null only when it's out of range itself. Medians, percentiles, modes and distinct counts hold every value of
  * the group while it's computed.
  *
  * Throws a `RangeError` when `timeZone` or a value of `todayTimeZones` or

@@ -1,10 +1,11 @@
 import type { FunctionName } from "@pliantui/contract"
 
 import { isFunctionName } from "./check-function-call"
-import { createSum } from "./compensated-sum"
-import { createMoments, type Moments } from "./moments"
+import { createScaledSum } from "./compensated-sum"
+import { createScaledMoments, type Moments } from "./moments"
 import type { Value } from "./read-value"
 import { compareValues } from "./row-functions"
+import { scaleBy } from "./scale"
 
 /** Accumulates one aggregate function call over the rows of a group. */
 export interface Aggregation {
@@ -37,7 +38,7 @@ const counting =
 const summing =
   (counts: (args: readonly Value[]) => boolean): CreateAggregation =>
   () => {
-    const sum = createSum()
+    const sum = createScaledSum()
     return {
       add: (args) => {
         const [x = null] = args
@@ -49,26 +50,41 @@ const summing =
     }
   }
 
+// Moments are kept in units of a power of two, so a result is computed in
+// those units and multiplied back by the power of two of `power` times the
+// exponent: 1 for a mean or a deviation, and 2 for a variance.
 const fromMoments =
-  (compute: (moments: Moments) => number | null): CreateAggregation =>
+  (
+    compute: (moments: Moments) => number | null,
+    power: number
+  ): CreateAggregation =>
   () => {
-    const moments = createMoments()
+    const moments = createScaledMoments()
     return {
       add: ([x = null]) => {
         if (isNumber(x)) {
           moments.add(x)
         }
       },
-      result: () => compute(moments.moments()),
+      result: () => {
+        const scaled = moments.moments()
+        const result = compute(scaled)
+        return result === null ? null : scaleBy(result, power * scaled.exponent)
+      },
     }
   }
 
 const variance = (minimum: number, divisor: (count: number) => number) =>
-  fromMoments(({ count, m2 }) => (count < minimum ? null : m2 / divisor(count)))
+  fromMoments(
+    ({ count, m2 }) => (count < minimum ? null : m2 / divisor(count)),
+    2
+  )
 
 const deviation = (minimum: number, divisor: (count: number) => number) =>
-  fromMoments(({ count, m2 }) =>
-    count < minimum ? null : Math.sqrt(m2 / divisor(count))
+  fromMoments(
+    ({ count, m2 }) =>
+      count < minimum ? null : Math.sqrt(m2 / divisor(count)),
+    1
   )
 
 const sample = (count: number) => count - 1
@@ -155,7 +171,7 @@ const aggregations: Partial<Record<FunctionName, CreateAggregation>> = {
   countIf: counting(([condition]) => condition === true),
   sum: summing(() => true),
   sumIf: summing(([, condition]) => condition === true),
-  mean: fromMoments(({ count, mean }) => (count === 0 ? null : mean)),
+  mean: fromMoments(({ count, mean }) => (count === 0 ? null : mean), 1),
   min: picking((value, kept) => compareValues(value, kept) < 0),
   max: picking((value, kept) => compareValues(value, kept) > 0),
   variance: variance(2, sample),

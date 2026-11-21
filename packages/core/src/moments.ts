@@ -1,3 +1,5 @@
+import { createUnits, scaleBy } from "./scale"
+
 /**
  * The mergeable summary of a set of numbers that their mean and variance
  * come from: how many there are, their mean, and the sum of their squared
@@ -45,9 +47,22 @@ export function createMoments() {
   let m2 = 0
   // Merged runs, each twice the size of the one after it, as in a binary
   // counter.
-  const merged: { moments: Moments; level: number }[] = []
+  let merged: { moments: Moments; level: number }[] = []
 
   return {
+    /** Multiplies every value by 2 to the power of `exponent`. */
+    scale(exponent: number) {
+      mean = scaleBy(mean, exponent)
+      m2 = scaleBy(m2, 2 * exponent)
+      merged = merged.map(({ moments, level }) => ({
+        moments: {
+          count: moments.count,
+          mean: scaleBy(moments.mean, exponent),
+          m2: scaleBy(moments.m2, 2 * exponent),
+        },
+        level,
+      }))
+    },
     add(x: number) {
       count++
       const delta = x - mean
@@ -77,5 +92,28 @@ export function createMoments() {
         { count, mean, m2 }
       )
     },
+  }
+}
+
+/**
+ * Moments of the values so far, in units of a power of two near the largest
+ * magnitude among them, as `createUnits` keeps them, so that squared
+ * deviations can't overflow or underflow on the way. `moments` gives them in
+ * those units, with their exponent: the mean is its mean times 2^exponent,
+ * and the sum of squared deviations is its m2 times 2^(2 × exponent).
+ */
+export function createScaledMoments() {
+  const moments = createMoments()
+  const units = createUnits(undefined, (by) => {
+    moments.scale(by)
+  })
+  return {
+    add: (x: number) => {
+      moments.add(units.of(x))
+    },
+    moments: (): Moments & { readonly exponent: number } => ({
+      ...moments.moments(),
+      exponent: units.exponent(),
+    }),
   }
 }
