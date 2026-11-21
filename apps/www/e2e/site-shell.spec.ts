@@ -70,7 +70,18 @@ test.describe("on a wide screen", () => {
       )
 
     expect(hrefs).toEqual(
-      expect.arrayContaining(["/", "/docs", "/examples/orders", repository])
+      expect.arrayContaining([
+        "/",
+        "/docs",
+        "/components",
+        "/blocks",
+        "/charts",
+        "/examples/orders",
+        "/playground",
+        "/directory",
+        "/templates",
+        repository,
+      ])
     )
     for (const href of hrefs.filter((href) => href.startsWith("/"))) {
       expect((await request.get(href)).status(), href).toBe(200)
@@ -108,6 +119,27 @@ test.describe("on a wide screen", () => {
 
     await nav.getByRole("link", { name: "Home" }).click()
     await expect(page).toHaveURL("/")
+  })
+
+  test("the main nav reaches every section of the site", async ({ page }) => {
+    await page.goto("/")
+    const nav = page.getByRole("navigation", { name: "Main" })
+
+    for (const name of [
+      "Components",
+      "Blocks",
+      "Charts",
+      "Playground",
+      "Directory",
+      "Templates",
+    ]) {
+      await nav.getByRole("link", { name }).click()
+      await expect(page.getByRole("heading", { level: 1, name })).toBeVisible()
+      await expect(nav.getByRole("link", { name })).toHaveAttribute(
+        "aria-current",
+        "page"
+      )
+    }
   })
 
   test("the get started button leads to the docs", async ({ page }) => {
@@ -268,7 +300,10 @@ test.describe("on a wide screen", () => {
 
     expect(links).toEqual([
       ["Docs", "/docs"],
+      ["Components", "/components"],
       ["Examples", "/examples/orders"],
+      ["Roadmap", "/roadmap"],
+      ["Changelog", "/changelog"],
       ["GitHub", repository],
       ["License", `${repository}/blob/main/LICENSE.md`],
       ["Code of conduct", `${repository}/blob/main/CODE_OF_CONDUCT.md`],
@@ -311,6 +346,22 @@ test.describe("on a wide screen", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: "Introduction" })
     ).toBeVisible()
+  })
+})
+
+test.describe("on a tablet", () => {
+  test.use({ viewport: { width: 1024, height: 768 } })
+
+  test("the header fits, with the menu in place of the main nav", async ({
+    page,
+  }) => {
+    await page.goto("/docs")
+    const header = page.getByRole("banner")
+    await expect(header.getByRole("button", { name: "Menu" })).toBeVisible()
+    await expect(
+      header.getByRole("link", { name: "Get started" })
+    ).toBeInViewport({ ratio: 1 })
+    expect(await hasHorizontalScroll(page)).toBe(false)
   })
 })
 

@@ -4,7 +4,10 @@ import { site } from "@/lib/site"
 
 const links = [
   { title: "Docs", href: "/docs" },
+  { title: "Components", href: "/components" },
   { title: "Examples", href: "/examples/orders" },
+  { title: "Roadmap", href: "/roadmap" },
+  { title: "Changelog", href: "/changelog" },
   { title: "GitHub", href: site.repository, external: true },
   { title: "License", href: site.links.license, external: true },
   { title: "Code of conduct", href: site.links.codeOfConduct, external: true },
