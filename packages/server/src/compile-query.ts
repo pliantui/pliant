@@ -26,7 +26,8 @@ export interface CompileQueryOptions {
   readonly columns?: Readonly<Record<string, string>> | undefined
   /**
    * The most rows a page may have. A query asking for more gets this many.
-   * Defaults to 100.
+   * Defaults to 100, and can't be more than 1000, so no request can make one
+   * query read an unbounded number of rows.
    */
   readonly maxPageSize?: number | undefined
 }
@@ -43,6 +44,7 @@ export interface CompiledQuery {
 }
 
 const defaultMaxPageSize = 100
+const hardMaxPageSize = 1000
 
 function identifier(name: unknown) {
   if (
@@ -124,8 +126,12 @@ export function compileQuery<TUser>(
     throw new TypeError(`Query on dataset ${quote(dataset.id)}: ${problem}`)
   }
   const { maxPageSize = defaultMaxPageSize, columns = {} } = options
-  if (!Number.isSafeInteger(maxPageSize) || maxPageSize < 1) {
-    throw new TypeError("maxPageSize must be a whole number of at least 1")
+  if (
+    !Number.isSafeInteger(maxPageSize) ||
+    maxPageSize < 1 ||
+    maxPageSize > hardMaxPageSize
+  ) {
+    throw new TypeError("maxPageSize must be a whole number from 1 to 1000")
   }
   const parsed = serverQuerySchema.safeParse(query)
   if (!parsed.success) {

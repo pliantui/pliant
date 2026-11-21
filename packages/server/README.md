@@ -103,7 +103,7 @@ const { text, values } = compileQuery(orders, grant, query, {
 const { rows } = await pool.query(text, values)
 ```
 
-Each field is read from the column named by its id, or by `columns`; scope keys map the same way. Table and column names come only from these options and the dataset, and every value is a parameter. The query is parsed before use, and a query that names a field the user can't read, or sorts or filters in a way the field's capabilities don't allow, throws a `TypeError`. Every query is paged: a page has at most `maxPageSize` rows, 100 by default, whatever the query asks for. Store dates as `date` and datetimes as `timestamptz`; a day in a filter covers that day in the dataset's time zone.
+Each field is read from the column named by its id, or by `columns`; scope keys map the same way. Table and column names come only from these options and the dataset, and every value is a parameter. The query is parsed before use, and a query that names a field the user can't read, or sorts or filters in a way the field's capabilities don't allow, throws a `TypeError`. Every query is paged: a page has at most `maxPageSize` rows, whatever the query asks for. It defaults to 100 and can be set up to 1000. Store dates as `date` and datetimes as `timestamptz`; a day in a filter covers that day in the dataset's time zone. Text sorts in the column's collation, so the database's order can differ from the browser's for accents and case; give sort columns an ICU collation, such as `"und-x-icu"`, if the two must match.
 
 ## Recordings
 

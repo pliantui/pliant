@@ -427,6 +427,13 @@ describe("compileQuery", () => {
       expect(await ids({ page: { index: 3, size: 2 } })).toEqual([])
     })
 
+    it("accepts a maxPageSize up to 1000 and rejects more", async () => {
+      expect(await ids({}, ana, { maxPageSize: 1000 })).not.toHaveLength(0)
+      await expect(ids({}, ana, { maxPageSize: 1001 })).rejects.toThrow(
+        "maxPageSize must be a whole number from 1 to 1000"
+      )
+    })
+
     it("caps the page size at maxPageSize", async () => {
       expect(
         await ids({ page: { index: 0, size: 10 } }, ana, { maxPageSize: 4 })
