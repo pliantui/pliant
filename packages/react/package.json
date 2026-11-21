@@ -36,6 +36,10 @@
       "types": "./dist/form.d.ts",
       "default": "./dist/form.js"
     },
+    "./nav": {
+      "types": "./dist/nav.d.ts",
+      "default": "./dist/nav.js"
+    },
     "./table": {
       "types": "./dist/table.d.ts",
       "default": "./dist/table.js"
