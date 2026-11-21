@@ -25,6 +25,7 @@ import {
   unwrapExpression,
 } from "../utils/read-static"
 import { appDirectory, appRoutes, isAppLayout } from "./app-routes"
+import { isOpaqueTag } from "./opaque-tag"
 import { isPliantExport } from "./pliant-export"
 import { readColumns } from "./read-columns"
 import {
@@ -658,6 +659,15 @@ function walkElement(
       ? undefined
       : follows(tag, walk)
   if (!fn) {
+    // Fail closed: a tag the scan can't follow, like a class component or
+    // a component picked at runtime, may render anything.
+    if (isOpaqueTag(tag)) {
+      warn(
+        walk,
+        element,
+        `<${tag.getText()}> renders a component the scan can't follow, so ${walk.surface.surface} isn't read in full.`
+      )
+    }
     // An HTML element renders its children; its props don't render.
     if (Node.isJsxElement(element)) {
       for (const child of element.getJsxChildren()) {
@@ -1338,20 +1348,42 @@ function reportUnfollowed(
           .getTypeArguments()[0]
           ?.getSymbol()
           ?.getDeclarations()[0]
+        const inPackage =
+          Node.isSourceFile(module) &&
+          (module.isInNodeModules() || module.isDeclarationFile())
         const exported = Node.isSourceFile(module)
           ? [...module.getExportedDeclarations().values()].flat()
           : undefined
-        if (
-          !exported ||
-          exported.some((declaration) => {
-            const fn = isFunction(declaration)
-              ? declaration
-              : Node.isVariableDeclaration(declaration)
-                ? functionIn(declaration.getNameNode())
-                : undefined
-            return fn !== undefined && declaresNodes(fn)
-          })
-        ) {
+        // Fail closed: an export that may render a region or table, or
+        // that can't be read, like a class, marks the surface.
+        const mayRender = (declaration: Node) => {
+          if (Node.isClassDeclaration(declaration)) {
+            return true
+          }
+          const value = Node.isVariableDeclaration(declaration)
+            ? declaration.getInitializer()
+            : Node.isExportAssignment(declaration)
+              ? declaration.getExpression()
+              : declaration
+          if (!value) {
+            return false
+          }
+          const fn = isFunction(value)
+            ? value
+            : Node.isVariableDeclaration(declaration)
+              ? functionIn(declaration.getNameNode())
+              : functionIn(value)
+          if (fn) {
+            return declaresNodes(fn)
+          }
+          return (
+            holdsDeclaring(value, declaresNodes) ||
+            value.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)
+              .length > 0 ||
+            value.getDescendantsOfKind(SyntaxKind.JsxElement).length > 0
+          )
+        }
+        if (!inPackage && (!exported || exported.some(mayRender))) {
           flag(node, describeExpression(node))
         }
       }

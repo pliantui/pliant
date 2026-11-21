@@ -38,3 +38,11 @@ export default function DefaultBanner() {
 }
 
 export { Banner as ReBanner } from "@/components/banner"
+
+export function getComponents() {
+  return { Banner }
+}
+
+export function useBannerComponent() {
+  return Banner
+}

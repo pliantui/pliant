@@ -1075,44 +1075,50 @@ describe("pliantui scan, for what it can't follow", () => {
       ["self-render", ["banner", "message"]],
       ["use-callback", ["banner", "message"]],
     ])
-    const marked = (surface: string) =>
-      output.warnings
-        .filter(({ message }) =>
-          message.endsWith(`so ${surface} isn't read in full.`)
-        )
-        .map(({ file, message }) => `${file} ${message.split(" ")[0] ?? ""}`)
-    expect(marked("dynamic-tag")).toEqual(["app/dynamic-tag/page.tsx Banner"])
-    expect(marked("create-element")).toEqual([
-      "app/create-element/page.tsx Banner",
-    ])
-    expect(marked("context-value")).toEqual([
-      "app/context-value/page.tsx renderBanner",
-    ])
-    expect(marked("array-from")).toEqual(["app/array-from/page.tsx renderRow"])
-    expect(marked("lazy")).toEqual([
-      'app/lazy/page.tsx import("@/components/helpers")',
-    ])
-    expect(marked("registry")).toEqual([
-      "app/registry/page.tsx registry",
-      "app/registry/page.tsx Banner",
-    ])
-    expect(marked("as-prop")).toEqual(["app/as-prop/page.tsx Banner"])
-    expect(marked("unrendered-variable")).toEqual([
-      "app/unrendered-variable/page.tsx <Banner>",
-    ])
-    // Tree renders itself and the banner.
-    expect(marked("recursive")).toEqual(["app/recursive/page.tsx Tree"])
-    for (const surface of [
-      "array-from",
-      "as-prop",
-      "context-value",
-      "create-element",
-      "dynamic-tag",
-      "lazy",
-      "recursive",
-      "registry",
-      "unrendered-variable",
-    ]) {
+    // Everything else is marked, each with what the scan couldn't follow.
+    const marked: Record<string, string[]> = {}
+    for (const { file, message } of output.warnings) {
+      const surface = /so (\S+) isn't read in full\.$/.exec(message)?.[1]
+      if (surface) {
+        marked[surface] = [
+          ...(marked[surface] ?? []),
+          `${file} ${message.split(" ")[0] ?? ""}`,
+        ]
+      }
+    }
+    expect(marked).toEqual({
+      "array-from": ["app/array-from/page.tsx renderRow"],
+      "as-prop": ["app/as-prop/page.tsx <As>", "app/as-prop/page.tsx Banner"],
+      // A class component isn't walked.
+      "class-component": [
+        "app/class-component/page.tsx <Panel>",
+        "app/class-component/page.tsx Banner",
+      ],
+      "context-value": ["app/context-value/page.tsx renderBanner"],
+      "create-element": ["app/create-element/page.tsx Banner"],
+      // A component taken from what a function returns.
+      "destructured-call": ["app/destructured-call/page.tsx <Picked>"],
+      "dynamic-tag": [
+        "app/dynamic-tag/page.tsx <Frame>",
+        "app/dynamic-tag/page.tsx Banner",
+      ],
+      "factory-call": ["app/factory-call/page.tsx <Picked>"],
+      "hook-component": ["app/hook-component/page.tsx <Picked>"],
+      lazy: ['app/lazy/page.tsx import("@/components/helpers")'],
+      // The module's default export is `memo(Banner)`.
+      "lazy-memo": [
+        'app/lazy-memo/page.tsx import("@/components/memo-banner")',
+      ],
+      // Tree renders itself and the banner.
+      recursive: ["app/recursive/page.tsx Tree"],
+      registry: [
+        "app/registry/page.tsx <Component>",
+        "app/registry/page.tsx registry",
+        "app/registry/page.tsx Banner",
+      ],
+      "unrendered-variable": ["app/unrendered-variable/page.tsx <Banner>"],
+    })
+    for (const surface of Object.keys(marked)) {
       expect(output.inventory[surface]?.baseIds.source).toBe("mounted")
     }
   })
