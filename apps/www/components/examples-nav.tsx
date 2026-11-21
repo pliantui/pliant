@@ -9,6 +9,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 const examples = [
   { name: "Orders", href: "/examples/orders" },
   { name: "Tickets", href: "/examples/tickets" },
+  { name: "Support desk", href: "/examples/app" },
 ]
 
 export function ExamplesNav({

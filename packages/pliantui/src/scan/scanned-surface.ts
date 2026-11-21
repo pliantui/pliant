@@ -11,6 +11,8 @@ export const builtInKinds = {
   column: "pliant:column",
   form: "pliant:form",
   field: "pliant:field",
+  nav: "pliant:nav",
+  navItem: "pliant:nav-item",
   slot: "pliant:slot",
 } as const
 
@@ -24,8 +26,8 @@ export interface ScannedNode {
   readonly id: string
   /**
    * The node that holds it, `null` at the top of the surface, `undefined`
-   * when it can't be read. Columns and fields have none: they are items,
-   * not nodes.
+   * when it can't be read. Columns, fields and nav items have none: they
+   * are items, not nodes.
    */
   parent: string | null | undefined
   /** What the node declares itself as, such as a region. */

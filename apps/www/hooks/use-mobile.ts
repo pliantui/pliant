@@ -1,6 +1,7 @@
 import * as React from "react"
 
 const MOBILE_BREAKPOINT = 768
+
 const query = `(max-width: ${String(MOBILE_BREAKPOINT - 1)}px)`
 
 function subscribe(onChange: () => void) {
