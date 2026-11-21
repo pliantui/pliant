@@ -127,7 +127,8 @@ export function output(
  * catalog's semantics. A derived field that a `ref` names is computed once
  * per row, however many times it's referenced. An expression that uses a
  * window function, directly or by `ref`, fails: its value depends on every
- * row of its partition. Expressions are interpreted; no code is generated.
+ * row of its partition, so `createWindowEvaluator` computes it. Expressions
+ * are interpreted; no code is generated.
  *
  * Dates and datetimes are kept to the years 0000 to 9999: one computed
  * outside them is null.

@@ -71,3 +71,10 @@ export {
   type ValidateOverlayOptions,
   type ValidatedOverlay,
 } from "./validate-overlay"
+export {
+  createWindowEvaluator,
+  type WindowEvaluator,
+  type WindowEvaluatorOptions,
+  type WindowExpression,
+  type WindowPartitionOptions,
+} from "./window-evaluator"

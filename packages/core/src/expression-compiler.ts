@@ -126,7 +126,7 @@ function compile(
   if ("ref" in node) {
     const id = node.ref
     compiler.refs.push(id)
-    if (compiler.types.get(node)?.window) {
+    if (compiler.types.get(node)?.window && !compiler.compileCall) {
       compiler.issues.push({
         path: [...path, "ref"],
         message: `${id} uses ${windowMessage}`,
@@ -141,7 +141,8 @@ function compile(
   const name = node.fn
   const definition = rowFunctionOf(name)
   // The checker allows aggregate functions only where a group expression
-  // can call them, and window functions nowhere a compiler is used.
+  // can call them, and window functions only where a row expression can,
+  // which `compileCall` compiles when the evaluator computes partitions.
   if (!definition) {
     if (compiler.compileCall) {
       return compiler.compileCall(node, path)
@@ -181,15 +182,19 @@ export interface Context<TRow extends object> {
   readonly knowsZone: (timeZone: string) => boolean
   /**
    * Compiles a checked expression. Without `compileCall`, it's a row
-   * expression. With it, it's a group expression, whose aggregate function
-   * calls it compiles.
+   * expression, which can't use window functions. With it, it's a group
+   * expression, whose aggregate function calls it compiles, or a row
+   * expression whose window function calls it compiles.
    */
   readonly compile: (
     expression: Expression,
     todayTimeZone: string | undefined,
     compileCall?: CompileCall
   ) => Compiled
-  /** Compiles the arguments of an aggregate function call as row expressions. */
+  /**
+   * Compiles the arguments of an aggregate or window function call as row
+   * expressions.
+   */
   readonly compileArgs: (
     node: FunctionCall,
     path: readonly PropertyKey[],
