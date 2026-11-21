@@ -22,6 +22,44 @@ export const POST = createPliantHandler({
 
 Install `ai` and the provider you use; the package doesn't depend on a provider. The handler uses only Web APIs, so it runs on Node.js and edge runtimes. `getUser` is required: return `null` to answer 401, or a fixed id such as `"anonymous"` to allow anonymous asks. The handler accepts only JSON bodies up to 32 KB, caps the prompt at 500 characters, the answer at 8 tool calls and each model call at 15 seconds, but it has no rate limiting. Before exposing it, add authentication through `getUser` and your own per-user rate limits and token budgets. The ask's context comes from the client, so check overlays against your own manifests before saving them.
 
+## Storage handler (experimental)
+
+`@pliantui/server/storage` exports `createStorageHandler`, a route handler that stores overlays in your own database, and `serverAdapter` from `@pliantui/react/server-adapter` is the storage adapter that calls it.
+
+```ts
+// app/api/pliant/storage/route.ts
+import {
+  createStorageHandler,
+  memoryOverlayStore,
+} from "@pliantui/server/storage"
+
+const handler = createStorageHandler({
+  store: memoryOverlayStore(),
+  getUser: async (request) => {
+    const session = await auth(request)
+    return (
+      session && {
+        id: session.userId,
+        org: session.orgId,
+        teams: session.teamIds,
+        roles: session.roles,
+      }
+    )
+  },
+  canPublish: (user, layer) => layer === "team" || user.roles.includes("admin"),
+})
+
+export { handler as GET, handler as PUT, handler as DELETE }
+```
+
+```tsx
+<PliantRoot storage={serverAdapter({ endpoint: "/api/pliant/storage" })}>
+```
+
+Each user reads their own personal overlays, the overlays of the teams in `teams` and of their `org`. Saving or removing a team or org overlay also needs `canPublish` to return `true`; without `canPublish`, nobody can. The handler validates every overlay against the contract and assigns every etag, version and timestamp itself; a save sends `If-Match` or `If-None-Match: *`, and a conflict answers 412 with the current record. Removing an overlay stores a tombstone, which blocks saving that id again.
+
+`memoryOverlayStore` keeps overlays in memory, for tests and demos. In production, implement `OverlayStore` over your database: one row per `(surface, layer, scope, id)`, a `put` that writes only when the stored etag matches in a single statement, and a history of every record written. Tombstones are rows with `deletedAt`; purge them after 30 days or more, as the `@pliantui/contract` README describes.
+
 ## Recordings
 
 `@pliantui/server/recordings` exports `recordingMiddleware`, an AI SDK middleware for development, tests and demos. In `replay` mode it serves answers from JSON files instead of calling the model, keyed by a hash of the model, the prompt and the tools; `record` mode writes them, including every ask.

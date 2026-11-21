@@ -31,6 +31,10 @@
     "./recordings": {
       "types": "./dist/recordings.d.ts",
       "default": "./dist/recordings.js"
+    },
+    "./storage": {
+      "types": "./dist/storage.d.ts",
+      "default": "./dist/storage.js"
     }
   },
   "files": [
@@ -71,6 +75,15 @@
         "zod",
         "node:fs/promises",
         "node:path"
+      ]
+    },
+    {
+      "path": "dist/storage.js",
+      "limit": "2.5 kB",
+      "ignore": [
+        "zod",
+        "@pliantui/contract",
+        "@pliantui/core"
       ]
     }
   ],

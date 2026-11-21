@@ -5,7 +5,8 @@
     "types": ["node"],
     "paths": {
       "@pliantui/server": ["./src/index.ts"],
-      "@pliantui/server/recordings": ["./src/recordings.ts"]
+      "@pliantui/server/recordings": ["./src/recordings.ts"],
+      "@pliantui/server/storage": ["./src/storage.ts"]
     }
   },
   "include": ["src", "tsup.config.ts", "vitest.config.ts"]
