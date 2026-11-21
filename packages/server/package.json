@@ -32,6 +32,10 @@
       "types": "./dist/data.d.ts",
       "default": "./dist/data.js"
     },
+    "./drizzle": {
+      "types": "./dist/drizzle.d.ts",
+      "default": "./dist/drizzle.js"
+    },
     "./recordings": {
       "types": "./dist/recordings.d.ts",
       "default": "./dist/recordings.js"
@@ -66,13 +70,22 @@
   },
   "peerDependencies": {
     "ai": "^7.0.0",
+    "drizzle-orm": "^0.45.0",
     "zod": "^4.1.8"
+  },
+  "peerDependenciesMeta": {
+    "drizzle-orm": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
+    "@electric-sql/pglite": "^0.5.17",
     "@size-limit/preset-small-lib": "^14.3.0",
     "@types/node": "~22.12.0",
     "ai": "^7.0.173",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.4",
     "eslint": "^9.39.5",
     "publint": "^0.3.25",
     "size-limit": "^14.3.0",

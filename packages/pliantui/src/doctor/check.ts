@@ -14,6 +14,8 @@ export interface Check {
   message: string
   fix?: string | undefined
   problems?: Problem[] | undefined
+  /** What the check lists for information, such as the fields the AI sees. */
+  details?: Diagnostic[] | undefined
 }
 
 export function problemsOf(

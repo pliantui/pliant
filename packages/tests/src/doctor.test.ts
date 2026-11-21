@@ -16,6 +16,18 @@ interface Check {
   message: string
   fix?: string
   problems?: { file: string; line: number; message: string }[]
+  details?: {
+    file: string
+    line: number
+    message: string
+    dataset: string | null
+    fields: {
+      name: string
+      type: string | null
+      exposeToAI: boolean
+      sensitive: boolean
+    }[]
+  }[]
 }
 
 async function doctor(cwd: string) {
@@ -69,6 +81,7 @@ describe("pliantui doctor", () => {
       "pre-paint": "pass",
       inventory: "pass",
       manifests: "skip",
+      "ai-fields": "skip",
     })
     expect(result.check("components").message).toContain("pliant-region")
   })
@@ -364,6 +377,304 @@ describe("pliantui doctor", () => {
           }),
         ],
       })
+    })
+  })
+
+  describe("ai-fields", () => {
+    async function withDatasets(source: string[]) {
+      const cwd = await scannedApp()
+      await writeFile(path.join(cwd, "lib/datasets.ts"), source.join("\n"))
+      return cwd
+    }
+
+    it("lists every field the AI sees and the ones hidden from it", async () => {
+      const cwd = await withDatasets([
+        'import { defineDataset } from "@pliantui/server/data"',
+        "",
+        "export const orders = defineDataset({",
+        '  id: "orders",',
+        '  scope: "public",',
+        "  fields: {",
+        '    id: { type: "id" },',
+        '    total: { type: "currency", currency: "USD" },',
+        '    customerEmail: { type: "email", exposeToAI: false },',
+        "  },",
+        "})",
+        "",
+      ])
+      const result = await doctor(cwd)
+      expect(result.exitCode).toBe(0)
+      expect(result.check("ai-fields")).toEqual({
+        name: "ai-fields",
+        status: "pass",
+        message:
+          "2 fields in 1 dataset are visible to the AI, and none look sensitive.",
+        details: [
+          {
+            file: path.normalize("lib/datasets.ts"),
+            line: 3,
+            message:
+              "orders shows the AI id (id), total (currency). Hidden: customerEmail (email).",
+            dataset: "orders",
+            fields: [
+              {
+                name: "id",
+                type: "id",
+                exposeToAI: true,
+                sensitive: false,
+                line: 7,
+              },
+              {
+                name: "total",
+                type: "currency",
+                exposeToAI: true,
+                sensitive: false,
+                line: 8,
+              },
+              {
+                name: "customerEmail",
+                type: "email",
+                exposeToAI: false,
+                sensitive: true,
+                line: 9,
+              },
+            ],
+          },
+        ],
+      })
+    })
+
+    it("warns about visible fields that look sensitive, without failing", async () => {
+      const cwd = await withDatasets([
+        'import { defineDataset } from "@pliantui/server/data"',
+        "",
+        "export const people = defineDataset({",
+        '  id: "people",',
+        '  scope: "public",',
+        '  timeZone: "UTC",',
+        "  fields: {",
+        '    id: { type: "id" },',
+        '    contact: { type: "email" },',
+        '    home_address: { type: "string" },',
+        '    dateOfBirth: { type: "date" },',
+        '    annualSalary: { type: "currency", currency: "USD" },',
+        '    team: { type: "string" },',
+        "  },",
+        "})",
+        "",
+      ])
+      const result = await doctor(cwd)
+      expect(result.exitCode).toBe(0)
+      expect(result.ok).toBe(true)
+      expect(result.check("ai-fields")).toMatchObject({
+        status: "warn",
+        message:
+          "6 fields in 1 dataset are visible to the AI: 4 fields look sensitive.",
+        fix: expect.stringContaining("exposeToAI: false") as unknown,
+        problems: [
+          "contact",
+          "home_address",
+          "dateOfBirth",
+          "annualSalary",
+        ].map((name, index) => ({
+          file: path.normalize("lib/datasets.ts"),
+          line: 9 + index,
+          message: `${name} in people looks sensitive and is visible to the AI.`,
+          status: "warn",
+        })),
+      })
+    })
+
+    it("finds datasets through renamed imports, re-exports, namespaces and const aliases", async () => {
+      const cwd = await scannedApp()
+      await writeFile(
+        path.join(cwd, "lib/server.ts"),
+        'export { defineDataset as dataset } from "@pliantui/server/data"\n'
+      )
+      await writeFile(
+        path.join(cwd, "lib/datasets.ts"),
+        [
+          'import * as data from "@pliantui/server/data"',
+          'import { dataset } from "./server"',
+          'import { defineDataset as define } from "@pliantui/server/data"',
+          "",
+          'export const a = dataset({ id: "a", scope: "public", fields: { id: { type: "id" }, phone: { type: "string" } } })',
+          'export const b = data.defineDataset({ id: "b", scope: "public", fields: { id: { type: "id" } } })',
+          'export const c = define({ id: "c", scope: "public", fields: { id: { type: "id" } } })',
+          "const alias = define",
+          'export const d = alias({ id: "d", scope: "public", fields: { id: { type: "id" } } })',
+          "",
+          "function defineDataset(definition: unknown) {",
+          "  return definition",
+          "}",
+          'defineDataset({ id: "local", fields: { password: { type: "string" } } })',
+          "",
+        ].join("\n")
+      )
+      const result = await doctor(cwd)
+      const check = result.check("ai-fields")
+      expect(check.details?.map((detail) => detail.dataset)).toEqual([
+        "a",
+        "b",
+        "c",
+        "d",
+      ])
+      expect(check.problems).toEqual([
+        expect.objectContaining({
+          message: "phone in a looks sensitive and is visible to the AI.",
+        }),
+      ])
+    })
+
+    it("warns about fields it can't read and counts them as visible", async () => {
+      const cwd = await withDatasets([
+        'import { defineDataset } from "@pliantui/server/data"',
+        'import { extraFields, flags, hidden, money } from "./fields"',
+        "",
+        "export const orders = defineDataset({",
+        '  id: "orders",',
+        '  scope: "public",',
+        "  fields: {",
+        '    id: { type: "id" },',
+        '    total: money("USD"),',
+        '    notes: { type: "text", exposeToAI: hidden },',
+        '    region: { type: "string", ...flags },',
+        "    ...extraFields,",
+        "  },",
+        "})",
+        "",
+      ])
+      await writeFile(
+        path.join(cwd, "lib/fields.ts"),
+        [
+          'export const money = (currency: string) => ({ type: "currency" as const, currency })',
+          "export let hidden = false",
+          "export let extraFields = {}",
+          "export let flags = {}",
+          "",
+        ].join("\n")
+      )
+      const result = await doctor(cwd)
+      expect(result.exitCode).toBe(0)
+      const check = result.check("ai-fields")
+      expect(check).toMatchObject({
+        status: "warn",
+        message:
+          "4 fields in 1 dataset are visible to the AI: 4 definitions can't be read.",
+        fix: expect.stringContaining("object literal") as unknown,
+      })
+      expect(check.problems?.map((problem) => problem.message)).toEqual([
+        'The fields of dataset "orders" include the spread ...extraFields, which can\'t be read, so the fields it adds count as visible to the AI.',
+        'Field total of dataset "orders" can\'t be read, so it counts as visible to the AI.',
+        'Field notes of dataset "orders" can\'t be read, so it counts as visible to the AI.',
+        'Field region of dataset "orders" can\'t be read, so it counts as visible to the AI.',
+      ])
+      expect(check.details?.[0]?.fields).toEqual([
+        expect.objectContaining({ name: "id", exposeToAI: true }),
+        expect.objectContaining({
+          name: "total",
+          type: null,
+          exposeToAI: true,
+        }),
+        expect.objectContaining({
+          name: "notes",
+          type: "text",
+          exposeToAI: true,
+        }),
+        expect.objectContaining({ name: "region", exposeToAI: true }),
+      ])
+    })
+
+    it("counts every field as visible when the definition has a spread it can't read", async () => {
+      const cwd = await withDatasets([
+        'import { defineDataset } from "@pliantui/server/data"',
+        'import { overrides } from "./overrides"',
+        "",
+        "export const orders = defineDataset({",
+        '  id: "orders",',
+        '  scope: "public",',
+        "  fields: {",
+        '    id: { type: "id" },',
+        '    note: { type: "string", exposeToAI: false },',
+        "  },",
+        "  ...overrides,",
+        "})",
+        "",
+      ])
+      await writeFile(
+        path.join(cwd, "lib/overrides.ts"),
+        "export let overrides = {}\n"
+      )
+      const result = await doctor(cwd)
+      const check = result.check("ai-fields")
+      expect(check).toMatchObject({
+        status: "warn",
+        problems: [
+          {
+            file: path.normalize("lib/datasets.ts"),
+            line: 11,
+            message:
+              'The definition of dataset "orders" includes the spread ...overrides, which can\'t be read and may replace its fields, so they all count as visible to the AI.',
+            status: "warn",
+          },
+        ],
+      })
+      expect(check.details?.[0]?.fields).toEqual([
+        expect.objectContaining({ name: "id", exposeToAI: true }),
+        expect.objectContaining({ name: "note", exposeToAI: true }),
+      ])
+    })
+
+    it("warns when a dataset's fields can't be read", async () => {
+      const cwd = await withDatasets([
+        'import { defineDataset } from "@pliantui/server/data"',
+        'import { definition } from "./definition"',
+        "",
+        "export const orders = defineDataset(definition)",
+        "",
+      ])
+      await writeFile(
+        path.join(cwd, "lib/definition.ts"),
+        "export let definition = {} as never\n"
+      )
+      const result = await doctor(cwd)
+      expect(result.check("ai-fields")).toMatchObject({
+        status: "warn",
+        problems: [
+          {
+            file: path.normalize("lib/datasets.ts"),
+            line: 4,
+            message:
+              "The fields of this dataset can't be read, so they all count as visible to the AI.",
+            status: "warn",
+          },
+        ],
+      })
+    })
+
+    it("prints the fields the AI sees", async () => {
+      const cwd = await withDatasets([
+        'import { defineDataset } from "@pliantui/server/data"',
+        "",
+        "export const orders = defineDataset({",
+        '  id: "orders",',
+        '  scope: "public",',
+        '  fields: { id: { type: "id" }, email: { type: "email" } },',
+        "})",
+        "",
+      ])
+      const { stdout, exitCode } = await runCli(cwd, ["doctor"])
+      expect(exitCode).toBe(0)
+      expect(stdout).toContain(
+        "⚠ 2 fields in 1 dataset are visible to the AI: 1 field looks sensitive."
+      )
+      expect(stdout).toContain(
+        `  ⚠ ${path.normalize("lib/datasets.ts")}:6 email in orders looks sensitive and is visible to the AI.`
+      )
+      expect(stdout).toContain(
+        `  · ${path.normalize("lib/datasets.ts")}:3 orders shows the AI id (id), email (email).`
+      )
+      expect(stdout).toContain("Set exposeToAI: false on each field")
     })
   })
 
