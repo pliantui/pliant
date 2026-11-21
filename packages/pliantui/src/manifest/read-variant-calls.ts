@@ -1,5 +1,14 @@
 import { Node, SyntaxKind, type CallExpression } from "ts-morph"
 
+import { createDiagnostic, type Diagnostic } from "../utils/diagnostic"
+import {
+  getDeclarations,
+  getMutatedName,
+  readLiteral,
+  readPropertyKey,
+  resolveExpression,
+  unwrapExpression,
+} from "../utils/read-static"
 import {
   addProp,
   fallbackOperators,
@@ -10,15 +19,6 @@ import {
   isPropsObject,
   type Component,
 } from "./component"
-import { createDiagnostic, type Diagnostic } from "./diagnostic"
-import {
-  getDeclarations,
-  getMutatedName,
-  readLiteral,
-  readPropertyKey,
-  resolveExpression,
-  unwrapExpression,
-} from "./read-static"
 import {
   getUntracedVariantCall,
   getVariantCall,

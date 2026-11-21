@@ -69,6 +69,18 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm build
 
+  scan:
+    runs-on: ubuntu-latest
+    name: pliantui scan --check
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm exec turbo run build --filter=pliantui
+      - run: node packages/pliantui/dist/index.js scan --check --cwd apps/www
+
   packages:
     runs-on: ubuntu-latest
     name: pnpm check:packages

@@ -1,27 +1,6 @@
 import type { Manifest } from "@pliantui/contract"
 
-const identifier = /^[A-Za-z_$][\w$]*$/
-
-function render(value: unknown, indent: string): string {
-  if (Array.isArray(value)) {
-    const items = value.map((item) => render(item, indent))
-    const inline = `[${items.join(", ")}]`
-    if (inline.length + indent.length <= 72) {
-      return inline
-    }
-    const inner = `${indent}  `
-    return `[\n${items.map((item) => `${inner}${item},`).join("\n")}\n${indent}]`
-  }
-  if (value !== null && typeof value === "object") {
-    const inner = `${indent}  `
-    const entries = Object.entries(value).map(
-      ([key, item]) =>
-        `${inner}${identifier.test(key) ? key : JSON.stringify(key)}: ${render(item, inner)},`
-    )
-    return entries.length === 0 ? "{}" : `{\n${entries.join("\n")}\n${indent}}`
-  }
-  return JSON.stringify(value)
-}
+import { renderLiteral } from "../utils/render-literal"
 
 export function renderManifests(
   manifests: Record<string, Manifest>,
@@ -32,7 +11,7 @@ export function renderManifests(
     `// Don't edit it by hand. Change ${decisionsFile} and run the`,
     "// command again.",
     "",
-    `export const manifests = ${render(manifests, "")}`,
+    `export const manifests = ${renderLiteral(manifests)}`,
     "",
   ].join("\n")
 }
