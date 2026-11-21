@@ -1,5 +1,6 @@
 import { addressSchema, flagsSchema, type Flags } from "@pliantui/contract"
 
+import { groupOf } from "./action-group"
 import { isPlainObject } from "./is-plain-object"
 import { addressParents, identityOf } from "./node-identity"
 
@@ -10,13 +11,39 @@ export interface ReadFlags {
 }
 
 /**
+ * Throws a `TypeError` when two nodes or items flagged `primary` are in the
+ * same action group (see `groupOf`), with nodes' parents from `parents`: an
+ * action group has at most one primary action.
+ */
+export function checkPrimaries(
+  flags: ReadonlyMap<string, Flags> | undefined,
+  parents: ReadonlyMap<string, string | null>,
+  name: string
+) {
+  const primaries = new Map<string, string>()
+  for (const [id, { primary }] of flags ?? []) {
+    const group = primary && groupOf(id, parents)
+    const other = group && primaries.get(group)
+    if (other) {
+      throw new TypeError(
+        `${name} put two primary actions, ${other} and ${id}, in ${group}`
+      )
+    }
+    if (group) {
+      primaries.set(group, id)
+    }
+  }
+}
+
+/**
  * Checks `flags` and reads them by identity. Addresses of the same node
  * combine their flags. Returns undefined when no node is flagged, so
  * resolution can skip the guardrails. `name` names the option in errors.
  *
  * Throws a `TypeError` unless `flags` is a plain object whose keys are
- * addresses and whose values are flags, and when two addresses put the same
- * node in different parents.
+ * addresses and whose values are flags, when two addresses put the same
+ * node in different parents, and when two primary actions are in the same
+ * action group as their addresses show.
  */
 export function readFlags(
   flags: unknown,
@@ -53,5 +80,6 @@ export function readFlags(
       parents.set(node, parent)
     }
   }
+  checkPrimaries(read, parents, name)
   return read.size > 0 ? { flags: read, parents } : undefined
 }
