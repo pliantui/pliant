@@ -10,6 +10,7 @@ import { TicketForm } from "./components/ticket-form"
 
 export const metadata: Metadata = {
   title: "New ticket",
+  alternates: { canonical: "/examples/tickets" },
 }
 
 export default function TicketsPage() {

@@ -98,7 +98,7 @@ interface PendingSlots {
   readonly place: (parent: Parent) => void
 }
 
-type Hook = "region" | "table" | "form"
+type Hook = "region" | "table" | "form" | "nav"
 
 function hookOf(call: CallExpression): Hook | undefined {
   const callee = call.getExpression()
@@ -113,6 +113,9 @@ function hookOf(call: CallExpression): Hook | undefined {
   }
   if (isPliantExport(callee, "@pliantui/react/form", "usePliantForm")) {
     return "form"
+  }
+  if (isPliantExport(callee, "@pliantui/react/nav", "usePliantNav")) {
+    return "nav"
   }
   return isPliantExport(callee, "@pliantui/react/table", "usePliantTable")
     ? "table"
@@ -845,6 +848,15 @@ function walkComponent(
         continue
       }
     }
+    // A nav's items are data, such as links, rather than content the
+    // component places, so they're read where the hook is called.
+    if (hook === "nav") {
+      if (several) {
+        declared.record(parent)
+      }
+      declared.renderSlots()
+      continue
+    }
     // The variable that holds it in the component, such as
     // `const region = useFramed()`.
     const key = site.getParentIfKind(SyntaxKind.VariableDeclaration) ?? site
@@ -908,7 +920,7 @@ function declareRegion(
   call: CallExpression,
   scope: Scope,
   walk: Walk,
-  hook: "region" | "form" = "region"
+  hook: Exclude<Hook, "table"> = "region"
 ): Declared {
   const [idArgument, slotsArgument] = call.getArguments()
   let id: string | undefined
@@ -941,7 +953,7 @@ function declareRegion(
   }
 
   const name = id ?? `a ${hook}`
-  const what = hook === "form" ? "field" : "slot"
+  const what = hook === "region" ? "slot" : itemsOf[hook].what
   const slots = slotsArgument && readObjectLiteral(slotsArgument, scope)
   if (!slots || "problem" in slots) {
     warn(
@@ -959,8 +971,8 @@ function declareRegion(
   }
   const renderSlots = () => {
     const entries = object?.entries ?? new Map<string, Node>()
-    if (hook === "form") {
-      renderFieldsOf(entries, id, name, slots.scope, walk)
+    if (hook !== "region") {
+      renderItemsOf(itemsOf[hook], entries, id, name, slots.scope, walk)
     } else {
       renderSlotsOf(entries, id, name, slots.scope, walk)
     }
@@ -994,9 +1006,16 @@ function renderSlotsOf(
   }
 }
 
-// A form's fields are items, like a table's columns: what each one renders
-// sits in the form itself.
-function renderFieldsOf(
+// The items of a form or a nav, by the hook that declares them.
+const itemsOf = {
+  form: { collection: "fields", what: "field", kind: builtInKinds.field },
+  nav: { collection: "items", what: "item", kind: builtInKinds.navItem },
+} as const
+
+// A form's fields and a nav's items are items, like a table's columns: what
+// each one renders sits in the form or nav itself.
+function renderItemsOf(
+  { collection, what, kind }: (typeof itemsOf)[keyof typeof itemsOf],
   entries: ReadonlyMap<string, Node>,
   id: string | undefined,
   name: string,
@@ -1008,23 +1027,23 @@ function renderFieldsOf(
       walk.report.errors.push(
         createDiagnostic(
           value,
-          `The field "${key}" in ${name} starts with a digit. JavaScript moves integer-like keys such as "2024" before every other key of an object, so the fields would render out of order. Rename it to start with a letter.`
+          `The ${what} "${key}" in ${name} starts with a digit. JavaScript moves integer-like keys such as "2024" before every other key of an object, so the ${what}s would render out of order. Rename it to start with a letter.`
         )
       )
     } else if (!itemIdSchema.safeParse(key).success) {
       walk.report.warnings.push(
         createDiagnostic(
           value,
-          `The field "${key}" of ${name} is left out: overlays can only address field names that start with a letter and contain only letters, digits, - and _.`
+          `The ${what} "${key}" of ${name} is left out: overlays can only address ${what} ${what === "field" ? "names" : "ids"} that start with a letter and contain only letters, digits, - and _.`
         )
       )
     } else if (id !== undefined) {
       addNode(
         walk.surface,
         {
-          id: `${id}/fields/${key}`,
+          id: `${id}/${collection}/${key}`,
           parent: undefined,
-          own: { kind: builtInKinds.field },
+          own: { kind },
           content: undefined,
         },
         value,
@@ -1453,6 +1472,7 @@ function reportUnfollowed(
     root,
     declaresNodes,
     isRegionHook: (call) => hookOf(call) !== undefined || isAppRegionHook(call),
+    isPliantHook: (call) => hookOf(call) !== undefined,
     isReference,
   })
   const check = (node: Node) => {

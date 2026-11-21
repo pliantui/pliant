@@ -130,4 +130,47 @@ export const inventory = {
       },
     },
   },
+  "app-shell": {
+    baseIds: {
+      ids: [
+        "app-sidebar",
+        "app-sidebar/items/customers",
+        "app-sidebar/items/inbox",
+        "app-sidebar/items/reports",
+        "app-sidebar/items/settings",
+        "app-sidebar/items/tickets",
+      ],
+      source: "mounted",
+    },
+    baseParents: {
+      "app-sidebar": null,
+    },
+    baseOrder: {},
+    ids: {
+      "app-sidebar": {
+        kind: "pliant:nav",
+        hash: "3c4bd372f62c58fb",
+      },
+      "app-sidebar/items/customers": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+      "app-sidebar/items/inbox": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+      "app-sidebar/items/reports": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+      "app-sidebar/items/settings": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+      "app-sidebar/items/tickets": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+    },
+  },
 } as const
