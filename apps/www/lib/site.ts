@@ -3,7 +3,6 @@ const repository = "https://github.com/pliantui/pliant"
 export const site = {
   name: "Pliant",
   repository,
-  installCommand: "npx pliantui manifest",
   links: {
     getStarted: "/docs",
     license: `${repository}/blob/main/LICENSE.md`,

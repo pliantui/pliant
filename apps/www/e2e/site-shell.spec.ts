@@ -10,6 +10,51 @@ async function hasHorizontalScroll(page: Page) {
   )
 }
 
+test.describe("the skip link", () => {
+  for (const path of [
+    "/",
+    "/docs",
+    "/docs/concepts/layers",
+    "/examples/orders",
+    "/no-such-page",
+  ]) {
+    test(`on ${path} is the first stop and leads to the content`, async ({
+      page,
+    }) => {
+      await page.goto(path)
+      await page.keyboard.press("Tab")
+
+      const skipLink = page.getByRole("link", {
+        name: "Skip to content",
+        exact: true,
+      })
+      await expect(skipLink).toBeFocused()
+      await expect(skipLink).toBeVisible()
+      expect(
+        await skipLink.evaluate((link) => link.closest("header") !== null)
+      ).toBe(true)
+
+      await page.keyboard.press("Enter")
+      await expect
+        .poll(() =>
+          page.evaluate(() => Boolean(document.activeElement?.closest("main")))
+        )
+        .toBe(true)
+    })
+  }
+
+  test("stays out of sight until it has focus", async ({ page }) => {
+    await page.goto("/")
+    const skipLink = page.getByRole("link", {
+      name: "Skip to content",
+      exact: true,
+    })
+    const box = await skipLink.boundingBox()
+
+    expect(box === null || box.width <= 1).toBe(true)
+  })
+})
+
 test.describe("on a wide screen", () => {
   test("the header links lead to pages that exist", async ({
     page,
@@ -95,19 +140,6 @@ test.describe("on a wide screen", () => {
     }
   })
 
-  test("the install command can be copied", async ({ page, context }) => {
-    await context.grantPermissions(["clipboard-read", "clipboard-write"])
-    await page.goto("/")
-    await page.getByRole("button", { name: "Copy command" }).first().click()
-
-    await expect(page.getByRole("status").first()).toHaveText(
-      "Command copied to the clipboard."
-    )
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-      "npx pliantui manifest"
-    )
-  })
-
   test("the home buttons lead to the docs and the repository", async ({
     page,
   }) => {
@@ -172,7 +204,9 @@ test.describe("on a phone", () => {
     await expect(
       page.getByRole("banner").getByRole("button", { name: "Open menu" })
     ).toBeVisible()
-    await expect(page.locator("#nd-subnav")).toBeVisible()
+    await expect(page.getByRole("button", { name: "Concepts" })).toBeHidden()
+    await page.locator("#nd-subnav").getByRole("button").last().click()
+    await expect(page.getByRole("button", { name: "Concepts" })).toBeVisible()
   })
 })
 

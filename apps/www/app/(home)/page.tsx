@@ -1,13 +1,12 @@
 import Link from "next/link"
 
-import { CopyCommand } from "@/components/copy-command"
 import { GitHubIcon } from "@/components/github-icon"
 import { buttonVariants } from "@/components/ui/button"
 import { site } from "@/lib/site"
 
 export default function HomePage() {
   return (
-    <main id="main" className="flex-1">
+    <main id="main" tabIndex={-1} className="flex-1 outline-none">
       <section className="mx-auto flex max-w-4xl flex-col items-center gap-6 px-4 py-20 text-center md:py-28">
         <h1 className="text-4xl font-semibold tracking-tight text-balance md:text-6xl">
           Build pliant interfaces: apps your users can reshape.
@@ -16,7 +15,6 @@ export default function HomePage() {
           Pliant adds per-user and per-team customization to your shadcn app,
           within the rules you set.
         </p>
-        <CopyCommand command={site.installCommand} />
         <div className="flex flex-wrap justify-center gap-3">
           <Link
             href={site.links.getStarted}
@@ -40,7 +38,6 @@ export default function HomePage() {
           <h2 className="text-2xl font-semibold tracking-tight">
             Try it on your own app
           </h2>
-          <CopyCommand command={site.installCommand} />
           <div className="flex flex-wrap justify-center gap-3">
             <Link
               href={site.links.getStarted}

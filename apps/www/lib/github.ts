@@ -5,14 +5,14 @@ const repositoryApi = site.repository.replace(
   "https://api.github.com/repos/"
 )
 
-// Read on the server and cached for an hour, so visitors never reach GitHub's
-// rate limit. Returns null when GitHub can't be reached, and the page then
-// shows no count.
+// Read once when the site is built, so the pages stay fully static and
+// visitors never reach GitHub. The count updates on each deploy. Returns null
+// when GitHub can't be reached, and the pages then show no count.
 export async function getStarCount(): Promise<number | null> {
   try {
     const response = await fetch(repositoryApi, {
       headers: { Accept: "application/vnd.github+json" },
-      next: { revalidate: 3600 },
+      cache: "force-cache",
       signal: AbortSignal.timeout(5000),
     })
     if (!response.ok) return null
