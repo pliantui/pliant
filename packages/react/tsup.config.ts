@@ -9,6 +9,7 @@ export default defineConfig({
   entry: [
     "src/index.ts",
     "src/region.ts",
+    "src/form.ts",
     "src/table.ts",
     "src/local.ts",
     "src/server-adapter.ts",

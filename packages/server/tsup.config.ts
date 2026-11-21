@@ -11,6 +11,7 @@ export default defineConfig({
     "src/data.ts",
     "src/drizzle.ts",
     "src/recordings.ts",
+    "src/sql.ts",
     "src/storage.ts",
   ],
   format: ["esm"],

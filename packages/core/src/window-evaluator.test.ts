@@ -211,13 +211,13 @@ describe("createWindowEvaluator", () => {
       expect(evaluate(fn("runningSum", x), rows)).toEqual([101, 100, 111])
     })
 
-    it("compares a number row key with a text one by code point", () => {
+    it("puts number row keys before text ones", () => {
       const rows = [
         { id: "1", score: 1 },
         { id: 10, score: 100 },
         { id: 2, score: 10 },
       ]
-      expect(evaluate(fn("runningSum", x), rows)).toEqual([1, 111, 11])
+      expect(evaluate(fn("runningSum", x), rows)).toEqual([111, 110, 10])
     })
 
     it("compares row keys from getRowId as it gives them", () => {

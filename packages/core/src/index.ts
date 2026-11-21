@@ -29,6 +29,7 @@ export {
 } from "./diff-table-state"
 export { compareCodePoints } from "./compare-code-points"
 export { compareRowKeys } from "./compare-row-keys"
+export type { FieldSchema } from "./field-schema"
 export { formatError, type FormatErrorOptions } from "./format-error"
 export { loadOverlay, type LoadedOverlay } from "./load-overlay"
 export {
@@ -49,6 +50,16 @@ export {
   type UnappliedOp,
   type UnappliedReason,
 } from "./resolve-layers"
+export {
+  resolveForm,
+  type ResolvedForm,
+  type ResolveFormOptions,
+} from "./resolve-form"
+export {
+  resolveNav,
+  type ResolvedNav,
+  type ResolveNavOptions,
+} from "./resolve-nav"
 export {
   resolveRegion,
   type RegionEntry,

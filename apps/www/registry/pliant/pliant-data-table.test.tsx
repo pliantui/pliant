@@ -96,6 +96,7 @@ function Orders({
   rows,
   formatAggregate,
   formatNumber,
+  formatHighlight,
 }: {
   data: Order[]
   rows?: string
@@ -103,6 +104,9 @@ function Orders({
     typeof PliantDataTable
   >["formatAggregate"]
   formatNumber?: (value: number) => string
+  formatHighlight?: React.ComponentProps<
+    typeof PliantDataTable
+  >["formatHighlight"]
 }) {
   const options = usePliantTable(
     { features: pliantDataTableFeatures, data, columns },
@@ -122,6 +126,7 @@ function Orders({
         aria-labelledby="title"
         {...(formatAggregate && { formatAggregate })}
         {...(formatNumber && { formatNumber })}
+        {...(formatHighlight && { formatHighlight })}
       />
       <PliantDataTablePagination table={table} {...(rows && { rows })} />
     </>
@@ -463,6 +468,93 @@ describe("PliantDataTable", () => {
       apply(tenth)
 
       expect(cells("Tenth")[0]).toBe('1 INR {"type":"number","decimals":1}')
+    })
+  })
+
+  describe("highlights", () => {
+    const highlight = (
+      id: string,
+      fn: string,
+      field: string,
+      value: string | number,
+      tone: "emphasis" | "success" | "warning" | "danger"
+    ): Op => ({
+      op: "addHighlight",
+      target: "orders-table",
+      id,
+      when: { fn, args: [{ field }, { value }] },
+      tone,
+    })
+    const small = highlight("small", "lt", "value", 30, "warning")
+    const open = highlight("open", "eq", "status", "open", "danger")
+    const cue = (index: number) =>
+      within(bodyRow(index)).queryByText(/^Highlighted:/)?.textContent
+
+    it("names a highlighted row's tone for screen readers", () => {
+      renderOrders()
+      apply(small)
+
+      expect([0, 1, 2].map(cue)).toEqual([
+        "Highlighted: Warning",
+        "Highlighted: Warning",
+        undefined,
+      ])
+    })
+
+    it("names a tone once when several highlights share it", () => {
+      renderOrders()
+      apply(small, highlight("first", "eq", "id", "o01", "warning"))
+
+      expect(cue(0)).toBe("Highlighted: Warning")
+    })
+
+    it("names every highlight a row has, in the order they applied", () => {
+      renderOrders({
+        data: orders,
+        formatHighlight: ({ id }) => (id === "open" ? "Open" : "Small"),
+      })
+      apply(small, open)
+
+      expect([0, 1, 5].map(cue)).toEqual([
+        "Highlighted: Small, Open",
+        "Highlighted: Small",
+        "Highlighted: Open",
+      ])
+    })
+
+    it("stops naming a row once its highlight is removed", () => {
+      renderOrders()
+      apply(open)
+      expect(cue(0)).toBe("Highlighted: Danger")
+
+      apply({ op: "removeUserItem", target: "orders-table", id: "open" })
+      expect(cue(0)).toBeUndefined()
+    })
+
+    it("names the highlights of a group's rows, not of the group", () => {
+      renderOrders()
+      apply(open, ...groupByStatus)
+
+      const group = within(table()).getByRole("button", { name: /open/ })
+      expect(within(rowOf(group)).queryByText(/^Highlighted:/)).toBeNull()
+      fireEvent.click(group)
+      expect(
+        within(section("body")).getAllByText("Highlighted: Danger")
+      ).toHaveLength(5)
+    })
+
+    it("shows the text the root was given", () => {
+      renderOrders(
+        { data: orders },
+        {
+          dataTableHighlighted: (names) => `Marked ${names.join(" and ")}`,
+          dataTableHighlightWarning: "Careful",
+        }
+      )
+      apply(small)
+
+      expect(cue(0)).toBeUndefined()
+      expect(within(bodyRow(0)).getByText("Marked Careful")).toBeTruthy()
     })
   })
 

@@ -205,7 +205,7 @@ Each report gives the file and line.
 
 ## scan
 
-Use the `scan` command to list the node ids on each surface of your app: its regions, their slots, its tables and their columns, and which node holds which. Core uses this inventory to tell a node that doesn't exist from one that just isn't on screen yet.
+Use the `scan` command to list the node ids on each surface of your app: its regions, their slots, its tables and their columns, its forms and their fields, and which node holds which. Core uses this inventory to tell a node that doesn't exist from one that just isn't on screen yet.
 
 ```bash
 npx pliantui scan
@@ -233,6 +233,7 @@ The command reads the files your `tsconfig.json` or `jsconfig.json` includes, sk
 
 - a call to `usePliantRegion` or `useRegionSlots` from `@pliantui/react/region` is a region. The keys of its slots object are its slots, in order, and each slot holds what it renders. `PliantRegion` calls `usePliantRegion` with its `id` and `slots` props, so `<PliantRegion id="key-metrics" slots={{ revenue: <KpiCard /> }} />` is the region `key-metrics` holding the slot `revenue`. A region rendered as the slot of the same id is that slot.
 - a call to `usePliantTable` from `@pliantui/react/table` is a table. Its columns are read as TanStack names them: `id`, else `accessorKey` with dots as underscores, else a string `header`. Arrays of column defs and `columnHelper.columns`, `accessor`, `display` and `group` are read, also inside a `useMemo`. A column is listed by its address, like `orders-table/columns/customer`.
+- a call to `usePliantForm` from `@pliantui/react/form` is a form. The keys of its fields object are its field names, read like slots, and each field is listed by its address, like `ticket-form/fields/priority`. What a field renders sits in the form. `PliantForm` calls `usePliantForm` with its `id` and `fields` props.
 - a call to one of your own hooks, like a `useOrdersTable` that returns `usePliantTable(…)`, is followed into that hook, also when it's called as `hooks.useOrdersTable()`. The hook's arguments aren't followed, so write the ids and slots inside the hook; an id or slots object that comes from an argument is reported.
 - a component that declares one region or table puts everything else it renders in it, and a slot holds everything rendered in it. A component that declares several, directly or through your own hooks, puts everything else where the component itself sits, since a region or table renders no element of its own.
 - a render prop, like `renderItem={(item) => …}`, is followed to where the component calls it.
@@ -251,7 +252,7 @@ It exports `inventory`, keyed by surface. Each surface has:
 
 - `baseIds`: the surface's ids, sorted, as `{ ids, source }`.
 - `baseParents`: each node id mapped to the id of the node that holds it, or `null` at the top of the surface. Columns aren't nodes, so they aren't in it; their address names their table. Its key order carries no meaning.
-- `baseOrder`: each node that holds other nodes, mapped to those nodes in the order they render, such as a region's slots in key order. Columns aren't listed; a table's columns keep TanStack's order.
+- `baseOrder`: each node that holds other nodes, mapped to those nodes in the order they render, such as a region's slots in key order. Columns and fields aren't listed; a table's columns keep TanStack's order, and a form's fields their key order.
 - `ids`: what each id is, as `{ kind, hash }`. The kind is `pliant:region`, `pliant:table` or `pliant:column`, or for a slot, the kind of the component it renders. A slot that renders a component with a manifest from `pliantui manifest` takes that manifest's kind, like `app:badge`; any other slot is `pliant:slot`. The hash covers the kind and the manifest, so it changes when either does.
 
 The kinds and hashes come from the manifests, so run `scan` again after `pliantui manifest`.
@@ -348,7 +349,7 @@ export default function OrdersPage() {
 }
 ```
 
-In development, when a region, slot, table or column mounts and the entry doesn't list its id, the console shows a warning, once per id. Either the inventory is out of date, so run `npx pliantui scan` again, or the command couldn't follow how that node is rendered, as described in [What it reads](#what-it-reads). Production builds don't check it. A Server Component sends its props to the browser, so pass only `baseIds`, and nothing in production, as above, to keep the rest of the inventory out of the page. Columns an op adds to a table aren't in the inventory, and aren't reported.
+In development, when a region, slot, table, column, form or field mounts and the entry doesn't list its id, the console shows a warning, once per id. Either the inventory is out of date, so run `npx pliantui scan` again, or the command couldn't follow how that node is rendered, as described in [What it reads](#what-it-reads). Production builds don't check it. A Server Component sends its props to the browser, so pass only `baseIds`, and nothing in production, as above, to keep the rest of the inventory out of the page. Columns an op adds to a table aren't in the inventory, and aren't reported.
 
 ### What's reported, not guessed
 

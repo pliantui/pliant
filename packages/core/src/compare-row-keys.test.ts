@@ -19,10 +19,18 @@ describe("compareRowKeys", () => {
     ])
   })
 
-  it("compares a number with text by code point of the number's text", () => {
-    expect(sorted("a", 2, "10", "1")).toEqual(["1", "10", 2, "a"])
+  it("puts number keys before text keys", () => {
+    expect(sorted("a", 2, "10", "1")).toEqual([2, "1", "10", "a"])
     expect(sorted("B", 10)).toEqual([10, "B"])
-    expect(sorted(9, "10")).toEqual(["10", 9])
+    expect(sorted(9, "10")).toEqual([9, "10"])
+    expect(sorted("15", 10, 2)).toEqual([2, 10, "15"])
+  })
+
+  it("orders mixed keys the same whatever order they start in", () => {
+    const keys = [10, "15", 2, "a", 1.5, "1"]
+    const expected = [1.5, 2, 10, "1", "15", "a"]
+    expect(sorted(...keys)).toEqual(expected)
+    expect(sorted(...keys.toReversed())).toEqual(expected)
   })
 
   it("compares NaN and missing keys as text", () => {

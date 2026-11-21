@@ -8,9 +8,8 @@ Some ops carry a calculation: a derived column, an aggregate, or the condition f
 <Callout>
   Pliant checks that an expression is well formed when it checks the op. To
   type-check one against your dataset's fields, call `checkExpression` from
-  `@pliantui/core`. `usePliantTable` computes derived columns and aggregates
-  when you pass it the table's `dataset`, but not highlights, so the ops that
-  carry those don't change what renders.
+  `@pliantui/core`. `usePliantTable` computes derived columns, aggregates and
+  highlights when you pass it the table's `dataset`.
 </Callout>
 
 ## Nodes
@@ -60,7 +59,7 @@ An expression has at most 8 levels of nesting, 16 arguments per function and 128
 
 - `addDerived` adds a column computed from each row. Its expression is a **row** expression, and may use window functions such as `share`, which give a row a value computed over its group, or over the rows that pass the filters when the table isn't grouped. Such a column can't be filtered or grouped by. An optional `format` says how the data table shows its values.
 - `addAggregate` adds a value computed over a group of rows, such as a total. Its expression is an **aggregate** expression: it reads fields only inside aggregate functions such as `sum`.
-- `addHighlight` gives rows a tone (`emphasis`, `success`, `warning` or `danger`) when a row expression is true.
+- `addHighlight` gives rows a tone (`emphasis`, `success`, `warning` or `danger`) when a row expression is true. Like a derived column's, it may use window functions and `ref` derived columns, and it must be true or false. A row with several highlights lists them in the order their ops applied; the data table shows the tone of the last one.
 
 ```json
 {
@@ -137,7 +136,7 @@ The arguments of an aggregate or window function are row expressions, so they ca
 The catalog also defines rules that apply to every function:
 
 - Strings compare by Unicode code point, case included. Lengths and positions count code points.
-- `first`, `last` and `runningSum` read rows in display order: the table's sort, with ties and an unsorted table in ascending order of the row key. Two keys that are both numbers, such as values of an `integer` field named `id`, compare numerically, so `2` comes before `10`. Other keys compare by code point of their text, so a number compared with text is read as its digits. Keep a dataset's keys all numbers or all text: mixed, they don't always have a consistent order. TanStack Table's `getRowId` returns text, so its keys compare as text.
+- `first`, `last` and `runningSum` read rows in display order: the table's sort, with ties and an unsorted table in ascending order of the row key. Two keys that are both numbers, such as values of an `integer` field named `id`, compare numerically, so `2` comes before `10`. Number keys come before any other key, and the others compare by code point of their text. TanStack Table's `getRowId` returns text, so its keys compare as text.
 - `eqI`, `containsI` and `startsWithI` ignore case. They lowercase both strings as `lower` does, without locale-specific rules, then compare them as `eq`, `contains` and `startsWith` do. Lowercasing isn't full case folding: `containsI("Straße", "SS")` is `false`; `eqI("İ", "i")` is `false` because `İ` lowercases to `i` followed by a combining dot; and `containsI("ΟΔΟΣ", "Σ")` and `eqI("ΟΔΟΣ", "οδοσ")` are `false` because a final `Σ` lowercases to `ς`, not `σ`.
 - `today` is defined as the current date in the viewer's time zone for `personal` and `session` overlays, and in the dataset's time zone for `org` and `team` overlays.
 - A string literal fits a `date` as `YYYY-MM-DD`, and a `datetime` as an ISO 8601 date-time with seconds and an offset.

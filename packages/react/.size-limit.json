@@ -1,19 +1,43 @@
 [
   {
     "path": "dist/index.js",
-    "limit": "6.5 kB",
-    "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
+    "limit": "6.65 kB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "zod",
+      "@pliantui/contract",
+      "@pliantui/core"
+    ]
   },
   {
     "path": "dist/region.js",
-    "limit": "1.45 kB",
-    "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
+    "limit": "1.72 kB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "zod",
+      "@pliantui/contract",
+      "@pliantui/core"
+    ]
+  },
+  {
+    "path": "dist/form.js",
+    "limit": "900 B",
+    "ignore": [
+      "react",
+      "react-dom",
+      "zod",
+      "@pliantui/contract",
+      "@pliantui/core"
+    ]
   },
   {
     "path": "dist/table.js",
-    "limit": "6.17 kB",
+    "limit": "6.45 kB",
     "ignore": [
       "react",
+      "react-dom",
       "zod",
       "@pliantui/contract",
       "@pliantui/core",
@@ -23,27 +47,51 @@
   {
     "path": "dist/local.js",
     "limit": "1 kB",
-    "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
+    "ignore": [
+      "react",
+      "react-dom",
+      "zod",
+      "@pliantui/contract",
+      "@pliantui/core"
+    ]
   },
   {
     "path": "dist/server-adapter.js",
     "limit": "1 kB",
-    "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
+    "ignore": [
+      "react",
+      "react-dom",
+      "zod",
+      "@pliantui/contract",
+      "@pliantui/core"
+    ]
   },
   {
     "path": "dist/ask.js",
     "limit": "1.95 kB",
-    "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
+    "ignore": [
+      "react",
+      "react-dom",
+      "zod",
+      "@pliantui/contract",
+      "@pliantui/core"
+    ]
   },
   {
     "path": "dist/point-mode.js",
     "limit": "2.6 kB",
-    "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
+    "ignore": [
+      "react",
+      "react-dom",
+      "zod",
+      "@pliantui/contract",
+      "@pliantui/core"
+    ]
   },
   {
     "path": "dist/pre-paint.js",
     "limit": "990 B",
-    "ignore": ["react"]
+    "ignore": ["react", "react-dom"]
   },
   {
     "name": "typical page (main, region, table and local)",
@@ -53,9 +101,10 @@
       "dist/table.js",
       "dist/local.js"
     ],
-    "limit": "15.6 kB",
+    "limit": "16.1 kB",
     "ignore": [
       "react",
+      "react-dom",
       "zod",
       "@pliantui/contract",
       "@pliantui/core",

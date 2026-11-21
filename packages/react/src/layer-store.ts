@@ -9,6 +9,7 @@ import {
   type ValidatedOverlay,
 } from "@pliantui/core"
 
+import { createFieldRegistry, type FieldRegistry } from "./field-registry"
 import type { LayerTools } from "./layer-tools"
 import { planLockIn } from "./lock-in"
 import { settleManual, splitManual } from "./manual-changes"
@@ -58,6 +59,7 @@ export interface LayerStore {
   readonly getStatus: () => PliantStatus
   readonly getServerStatus: () => PliantStatus
   readonly registerNodes: (ids: readonly string[]) => () => void
+  readonly registerFields: FieldRegistry["register"]
   readonly slots: SlotRegistry
   readonly retention: Retention
   readonly setTeamOrder: (teamOrder: readonly string[]) => void
@@ -84,6 +86,7 @@ export function createLayerStore({
   const loaded = new WeakMap<object, LoadedOverlay | undefined>()
   const keys = new WeakMap<LoadedOverlay, string | undefined>()
   const { ids, sync, register } = createNodeRegistry(changeLayers)
+  const fieldRegistry = createFieldRegistry(changeLayers)
   // The ids of the personal overlays known to be stored.
   const stored = new Set<unknown>()
   const { flush, save, defer, pendingId, settle } = createSaveQueue({
@@ -185,18 +188,26 @@ export function createLayerStore({
   function resolve(inputs: readonly unknown[]) {
     return resolveLayers(
       inputs.flatMap((input) => load(input) ?? []),
-      { surface, baseIds: { ids: ids(), source: "mounted" }, teamOrder }
+      {
+        surface,
+        baseIds: { ids: ids(), source: "mounted" },
+        teamOrder,
+        ...fieldRegistry.options(),
+      }
     )
   }
 
   function validateAbove(input: unknown, overlays: readonly unknown[]) {
+    const { fields, flags } = fieldRegistry.options()
     return validateOverlay(input, {
       layers: {
         overlays,
         surface,
         baseIds: { ids: ids(), source: "mounted" },
         teamOrder,
+        flags,
       },
+      fields,
     })
   }
 
@@ -675,6 +686,7 @@ export function createLayerStore({
     },
     getServerStatus: () => serverStatus,
     registerNodes: register,
+    registerFields: fieldRegistry.register,
     slots: createSlotRegistry(),
     retention: createRetention(),
     setTeamOrder(next) {

@@ -30,6 +30,7 @@ import {
 } from "./pliant-data-table-features"
 import { PliantDataTablePagination } from "./pliant-data-table-pagination"
 import { PliantDataTableViewOptions } from "./pliant-data-table-view-options"
+import { PliantForm } from "./pliant-form"
 import { PliantPointMode } from "./pliant-point-mode"
 import { PliantRegion } from "./pliant-region"
 
@@ -66,6 +67,7 @@ const messages: PliantMessages = {
   pointModeOpen: "⟦pointModeOpen⟧",
   pointModeLabel: "⟦pointModeLabel⟧",
   pointModeHelp: "⟦pointModeHelp⟧",
+  formMoreFields: "⟦formMoreFields⟧",
   regionMore: "⟦regionMore⟧",
   regionNodeUnavailable: (label) => `⟦regionNodeUnavailable ${label}⟧`,
   dataTableNoResults: "⟦dataTableNoResults⟧",
@@ -77,6 +79,11 @@ const messages: PliantMessages = {
   dataTableNoRows: (rows) => `⟦dataTableNoRows ${rows}⟧`,
   dataTablePrevious: "⟦dataTablePrevious⟧",
   dataTableNext: "⟦dataTableNext⟧",
+  dataTableHighlighted: (names) => `⟦dataTableHighlighted ${names.join(" ")}⟧`,
+  dataTableHighlightEmphasis: "⟦dataTableHighlightEmphasis⟧",
+  dataTableHighlightSuccess: "⟦dataTableHighlightSuccess⟧",
+  dataTableHighlightWarning: "⟦dataTableHighlightWarning⟧",
+  dataTableHighlightDanger: "⟦dataTableHighlightDanger⟧",
 }
 
 const surface = "/dashboard"
@@ -448,6 +455,31 @@ describe("the registry components with every message given", () => {
     expect(unmarkedText()).toEqual([])
   })
 
+  it("show only the root's text and the app's in a form", async () => {
+    render(
+      <PliantRoot surface={surface} storage={storage} messages={messages}>
+        <Page />
+        <PliantForm
+          id="ticket-form"
+          fields={{ subject: <p>«Subject»</p>, cc: <p>«CC»</p> }}
+        />
+      </PliantRoot>
+    )
+    await settle()
+
+    apply({
+      op: "collapse",
+      target: "ticket-form",
+      items: ["cc"],
+      into: "more",
+    })
+
+    expect(
+      screen.getByRole("button", { name: "⟦formMoreFields⟧" })
+    ).toBeTruthy()
+    expect(unmarkedText()).toEqual([])
+  })
+
   it("show only the root's text and the app's in a data table", async () => {
     renderOrders([])
     expect(screen.getByText("⟦dataTableNoResults⟧")).toBeTruthy()
@@ -467,6 +499,24 @@ describe("the registry components with every message given", () => {
     ).toBeTruthy()
     expect(unmarkedText()).toEqual([])
     fireEvent.click(screen.getByRole("button", { name: "⟦dataTablePrevious⟧" }))
+
+    apply(
+      ...(["emphasis", "success", "warning", "danger"] as const).map(
+        (tone): Op => ({
+          op: "addHighlight",
+          target: "orders-table",
+          id: tone,
+          when: { fn: "gt", args: [{ field: "value" }, { value: 0 }] },
+          tone,
+        })
+      )
+    )
+    expect(
+      screen.getAllByText(
+        "⟦dataTableHighlighted ⟦dataTableHighlightEmphasis⟧ ⟦dataTableHighlightSuccess⟧ ⟦dataTableHighlightWarning⟧ ⟦dataTableHighlightDanger⟧⟧"
+      )
+    ).toHaveLength(10)
+    expect(unmarkedText()).toEqual([])
 
     apply(
       { op: "setGroupBy", target: "orders-table", fields: ["status"] },

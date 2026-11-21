@@ -25,6 +25,21 @@
       ]
     },
     {
+      "name": "pliant-form",
+      "type": "registry:component",
+      "title": "Pliant Form",
+      "description": "The fields of a form, which users can reorder, hide, collapse into a \"More fields\" section and give their own defaults with Pliant overlays.",
+      "dependencies": ["@pliantui/react", "cn", "lucide-react"],
+      "registryDependencies": ["button", "field"],
+      "files": [
+        {
+          "path": "registry/pliant/pliant-form.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-form.tsx"
+        }
+      ]
+    },
+    {
       "name": "pliant-ask-panel",
       "type": "registry:component",
       "title": "Pliant Ask Panel",
@@ -71,7 +86,7 @@
       "name": "pliant-data-table",
       "type": "registry:component",
       "title": "Pliant Data Table",
-      "description": "A data table for usePliantTable with sortable headers, grouped rows that expand, aggregate totals, derived columns, a column menu and pagination.",
+      "description": "A data table for usePliantTable with sortable headers, grouped rows that expand, aggregate totals, derived columns, highlighted rows, a column menu and pagination.",
       "dependencies": [
         "@pliantui/react",
         "@tanstack/react-table",

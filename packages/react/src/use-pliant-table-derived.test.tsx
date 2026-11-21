@@ -566,13 +566,13 @@ describe("usePliantTable window columns", () => {
     expect(t.table.getColumn("last")?.getAggregationValue()).toBe(10)
   })
 
-  it("compares a number row key with a text one by code point", () => {
+  it("puts number row keys before text ones", () => {
     const t = setup({ dataset, rows: keyed("1", 10, 2) })
     t.apply(derived("running", "Running", call("runningSum", field("value"))))
     expect(runningById(t)).toEqual([
-      ["1", 1],
-      [10, 111],
-      [2, 101],
+      ["1", 111],
+      [10, 110],
+      [2, 100],
     ])
   })
 

@@ -98,7 +98,7 @@ interface PendingSlots {
   readonly place: (parent: Parent) => void
 }
 
-type Hook = "region" | "table"
+type Hook = "region" | "table" | "form"
 
 function hookOf(call: CallExpression): Hook | undefined {
   const callee = call.getExpression()
@@ -110,6 +110,9 @@ function hookOf(call: CallExpression): Hook | undefined {
     isPliantExport(callee, "@pliantui/react/region", "useRegionSlots")
   ) {
     return "region"
+  }
+  if (isPliantExport(callee, "@pliantui/react/form", "usePliantForm")) {
+    return "form"
   }
   return isPliantExport(callee, "@pliantui/react/table", "usePliantTable")
     ? "table"
@@ -834,7 +837,7 @@ function walkComponent(
     const declared =
       hook === "table"
         ? declareTable(call, callScope, walk)
-        : declareRegion(call, callScope, walk)
+        : declareRegion(call, callScope, walk, hook)
     if (!several) {
       holder = declared.id
       declared.record(parent)
@@ -904,7 +907,8 @@ interface Declared {
 function declareRegion(
   call: CallExpression,
   scope: Scope,
-  walk: Walk
+  walk: Walk,
+  hook: "region" | "form" = "region"
 ): Declared {
   const [idArgument, slotsArgument] = call.getArguments()
   let id: string | undefined
@@ -913,9 +917,9 @@ function declareRegion(
     warn(
       walk,
       read && "node" in read ? read.node : call,
-      `The id of a region can't be read${read ? `: ${read.problem}` : ""}.`
+      `The id of a ${hook} can't be read${read ? `: ${read.problem}` : ""}.`
     )
-  } else if (checkId(walk, idArgument, read.value, "region")) {
+  } else if (checkId(walk, idArgument, read.value, hook)) {
     id = read.value
   }
   const regionId = id
@@ -927,7 +931,7 @@ function declareRegion(
           id: regionId,
           // A region rendered as the slot of the same id is that slot.
           parent: parent === regionId ? undefined : parent,
-          own: { kind: builtInKinds.region },
+          own: { kind: builtInKinds[hook] },
           content: undefined,
         },
         call,
@@ -936,13 +940,14 @@ function declareRegion(
     }
   }
 
-  const name = id ?? "a region"
+  const name = id ?? `a ${hook}`
+  const what = hook === "form" ? "field" : "slot"
   const slots = slotsArgument && readObjectLiteral(slotsArgument, scope)
   if (!slots || "problem" in slots) {
     warn(
       walk,
       slots && "node" in slots ? slots.node : call,
-      `The slots of ${name} can't be read${slots ? `: ${slots.problem}` : ""}.`
+      `The ${what}s of ${name} can't be read${slots ? `: ${slots.problem}` : ""}.`
     )
     return { id, record, renderSlots: () => undefined }
   }
@@ -950,10 +955,15 @@ function declareRegion(
   walk.surface.entered.add(slots.value)
   const object = readObject(slots.value)
   for (const { node, reason } of object?.problems ?? []) {
-    warn(walk, node, `A slot of ${name} can't be read: ${reason}.`)
+    warn(walk, node, `A ${what} of ${name} can't be read: ${reason}.`)
   }
   const renderSlots = () => {
-    renderSlotsOf(object?.entries ?? new Map(), id, name, slots.scope, walk)
+    const entries = object?.entries ?? new Map<string, Node>()
+    if (hook === "form") {
+      renderFieldsOf(entries, id, name, slots.scope, walk)
+    } else {
+      renderSlotsOf(entries, id, name, slots.scope, walk)
+    }
   }
   return { id, record, renderSlots }
 }
@@ -981,6 +991,47 @@ function renderSlotsOf(
       walk.report
     )
     walkRendered(value, scope, key, walk)
+  }
+}
+
+// A form's fields are items, like a table's columns: what each one renders
+// sits in the form itself.
+function renderFieldsOf(
+  entries: ReadonlyMap<string, Node>,
+  id: string | undefined,
+  name: string,
+  scope: Scope,
+  walk: Walk
+) {
+  for (const [key, value] of entries) {
+    if (/^[0-9]/.test(key)) {
+      walk.report.errors.push(
+        createDiagnostic(
+          value,
+          `The field "${key}" in ${name} starts with a digit. JavaScript moves integer-like keys such as "2024" before every other key of an object, so the fields would render out of order. Rename it to start with a letter.`
+        )
+      )
+    } else if (!itemIdSchema.safeParse(key).success) {
+      walk.report.warnings.push(
+        createDiagnostic(
+          value,
+          `The field "${key}" of ${name} is left out: overlays can only address field names that start with a letter and contain only letters, digits, - and _.`
+        )
+      )
+    } else if (id !== undefined) {
+      addNode(
+        walk.surface,
+        {
+          id: `${id}/fields/${key}`,
+          parent: undefined,
+          own: { kind: builtInKinds.field },
+          content: undefined,
+        },
+        value,
+        walk.report
+      )
+    }
+    walkRendered(value, scope, id, walk)
   }
 }
 
@@ -1091,7 +1142,7 @@ function declareTable(
 
 function idArgumentOf(call: CallExpression, scope: Scope) {
   const [first, second] = call.getArguments()
-  if (hookOf(call) === "region") {
+  if (hookOf(call) !== "table") {
     return first
   }
   const settings = second && readObjectLiteral(second, scope)

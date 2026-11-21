@@ -213,13 +213,34 @@ store.applyOps("personal", [
 - `PliantDataTable` shows a derived column with a sortable header and its values by `format`; `formatAggregate` can format them your way, and gets the `format` as its third argument. A derived column's `id` must not be a column's id.
 - An expression that doesn't check against `dataset.fields` is saved but not shown, and an error is reported, as for aggregates.
 
-## 6. Verify
+## 6. Highlights (optional)
+
+Only when users should mark rows that meet a condition, such as overdue invoices. It needs the same `dataset`, and the app applies an `addHighlight` op to the personal layer:
+
+```tsx
+store.applyOps("personal", [
+  {
+    op: "addHighlight",
+    target: "invoices-table",
+    id: "overdue-invoices",
+    when: { fn: "eq", args: [{ field: "status" }, { value: "overdue" }] },
+    tone: "danger",
+  },
+])
+```
+
+- `when` must be true or false. It can use window functions and `ref` derived columns, like a derived column. `tone` is `emphasis`, `success`, `warning` or `danger`. `removeUserItem` removes it by id.
+- `PliantDataTable` tints a highlighted row with its tone and adds an icon and text for screen readers, so the highlight doesn't rest on color alone. Pass `formatHighlight` to name each highlight in that text, such as "Highlighted: Overdue"; by default it names the tone.
+- Elsewhere, `getPliantHighlights(row)` from `@pliantui/react/table` lists a row's highlights, in the order their ops applied.
+- A `when` that doesn't check against `dataset.fields`, or isn't true or false, is saved but not shown, and an error is reported, as for aggregates.
+
+## 7. Verify
 
 1. Run the project's typecheck and `next build`. Fix the errors your change caused.
 2. Load the page. Every header should show its `meta.label`, and the columns menu should list the columns that can be hidden.
 3. Click a header to sort, hide a column in the menu and reload the page: both should still apply.
 4. Open the page in another tab. Page and filters should be back to the defaults, and sort and hidden columns kept.
-5. With a `dataset`, group by a column and check that groups expand and the aggregate shows a total, and that an added derived column shows its values.
+5. With a `dataset`, group by a column and check that groups expand and the aggregate shows a total, and that an added derived column shows its values and an added highlight marks its rows.
 
 ## Common mistakes
 
@@ -228,7 +249,7 @@ store.applyOps("personal", [
 - Two tables on one page with the same `id`, or an `id` that is not kebab-case.
 - Calling `usePliantTable` outside `PliantRoot`, or in a Server Component.
 - Expecting `table.setPageIndex(…)` or filters to be saved. They are per tab, and filters need `persistFilters` to be saved.
-- Aggregates, derived columns or grouping without `dataset`, or `fields` that name a field missing from `dataset.fields`.
+- Aggregates, derived columns, highlights or grouping without `dataset`, or `fields` that name a field missing from `dataset.fields`.
 - Fetching rows page by page and giving the table one page of data. The table groups, sorts and filters only the rows it has.
 - Creating `columns` or `dataset` inside the component, so they change on every render.
 
@@ -236,5 +257,5 @@ store.applyOps("personal", [
 
 - [Operations](https://pliantui.dev/docs/concepts/operations): the table ops and what renders.
 - [Layers](https://pliantui.dev/docs/concepts/layers): why sorting, hiding and grouping stack the way they do.
-- [Expressions](https://pliantui.dev/docs/concepts/expressions): the functions an aggregate or a derived column can use.
+- [Expressions](https://pliantui.dev/docs/concepts/expressions): the functions an aggregate, a derived column or a highlight can use.
 - [Guardrails](https://pliantui.dev/docs/concepts/guardrails): what is never saved.

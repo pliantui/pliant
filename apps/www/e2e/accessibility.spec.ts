@@ -98,6 +98,31 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
+    test("highlighted orders have no accessibility violations", async ({
+      page,
+    }) => {
+      await loadOrders(page)
+      for (const name of ["Over ₹1,00,000", "Overdue", "Largest in group"]) {
+        await page.getByRole("button", { name: "Highlight" }).click()
+        await page.getByRole("menuitemcheckbox", { name }).click()
+        await expect(page.getByRole("menu")).toBeHidden()
+      }
+      await expect(page.getByText(/^Highlighted: /).first()).toBeAttached()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
+
+    test("the tickets example has no accessibility violations", async ({
+      page,
+    }) => {
+      await page.goto("/examples/tickets")
+      await expect(
+        page.locator('[data-pliant-id="ticket-form"]')
+      ).not.toHaveAttribute("data-pliant-pending")
+      await page.getByRole("button", { name: "Submit ticket" }).click()
+      await expect(page.getByText("Subject must be at least")).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
+
     test("the ask panel has no accessibility violations", async ({ page }) => {
       await openPanel(page)
       expect(await violations(page, colorScheme)).toEqual([])
