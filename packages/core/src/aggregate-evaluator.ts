@@ -124,13 +124,7 @@ export function createAggregateEvaluator<TRow extends object = object>(
         issues.push(...compiled.issues)
         rowRefs.push(...compiled.refs)
         // The checker allows only aggregate functions here.
-        if (!create) {
-          issues.push({
-            path: [...path, "fn"],
-            message: `${call.fn} isn't an aggregate function`,
-          })
-          return () => null
-        }
+        if (!create) return () => null
         const index = calls.length
         const p = constantNumber(call.args[1])
         calls.push({ create: () => create(p), args: compiled.args })
