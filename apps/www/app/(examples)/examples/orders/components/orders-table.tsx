@@ -17,6 +17,10 @@ import { formatAggregate, formatNumber } from "../format"
 import { columns } from "./columns"
 import { DataTableColumnMenu } from "./data-table-column-menu"
 import { DataTableGroupMenu } from "./data-table-group-menu"
+import {
+  DataTableHighlightMenu,
+  formatHighlight,
+} from "./data-table-highlight-menu"
 
 const nodeId = "orders-table"
 
@@ -31,12 +35,13 @@ export function OrdersTable({ data }: { data: Order[] }) {
 
   return (
     <div {...node} className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id={titleId} className="text-lg font-semibold">
           All orders
         </h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <DataTableColumnMenu node={nodeId} />
+          <DataTableHighlightMenu node={nodeId} />
           <DataTableGroupMenu
             node={nodeId}
             value={table.state.grouping[0] ?? "none"}
@@ -48,6 +53,7 @@ export function OrdersTable({ data }: { data: Order[] }) {
         table={table}
         aria-labelledby={titleId}
         formatAggregate={formatAggregate}
+        formatHighlight={formatHighlight}
       />
       <PliantDataTablePagination
         table={table}
