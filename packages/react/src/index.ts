@@ -8,6 +8,7 @@ export type {
   PliantStore,
 } from "./pliant-store"
 export type { StorageAdapter, StoredLayers } from "./storage-adapter"
+export type { Overlay, StoredOverlay } from "@pliantui/contract"
 export { StorageConflictError } from "./storage-conflict-error"
 export { useMountedNodes } from "./use-mounted-nodes"
 export { usePliantNodeProps } from "./use-pliant-node-props"
