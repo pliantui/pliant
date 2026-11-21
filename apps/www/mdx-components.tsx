@@ -10,7 +10,7 @@ import { File, FileTree, Folder } from "@/components/file-tree"
 import { getIconForLanguageExtension } from "@/components/icons"
 import { SiteUrl } from "@/components/site-url"
 import { Kbd } from "@/components/ui/kbd"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 function HeadingAnchor({
   id,
@@ -138,9 +138,6 @@ export const mdxComponents = {
       )}
       {...props}
     />
-  ),
-  Tabs: ({ className, ...props }: React.ComponentProps<typeof Tabs>) => (
-    <Tabs className={cn("relative mt-6 w-full", className)} {...props} />
   ),
   TabsList: ({
     className,
