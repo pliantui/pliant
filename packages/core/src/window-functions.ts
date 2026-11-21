@@ -58,7 +58,8 @@ function normalize(values: readonly Value[]) {
       largest = Math.max(largest, Math.abs(value))
     }
   }
-  const exponent = largest === 0 ? 0 : Math.floor(Math.log2(largest))
+  const exponent =
+    largest === 0 ? 0 : Math.min(1023, Math.floor(Math.log2(largest)))
   return Float64Array.from(values, (value) =>
     typeof value === "number" ? scaleBy(value, -exponent) : Number.NaN
   )

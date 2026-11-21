@@ -212,6 +212,13 @@ describe("createAggregateEvaluator", () => {
       }
     })
 
+    it("gives 0 for equal values at the top of the range", () => {
+      const max = Number.MAX_VALUE
+      const rows = scores(max, max, max)
+      expect(aggregate(fn("variance", field("score")), rows)).toBe(0)
+      expect(aggregate(fn("variancePop", field("score")), rows)).toBe(0)
+    })
+
     it("computes deviations whose squares overflow", () => {
       const stddev = (name: string, ...values: number[]) =>
         aggregate(fn(name, field("score")), scores(...values))
@@ -719,8 +726,9 @@ function expectAccurate(values: Float64Array) {
     ) {
       expect(actual).toBeNull()
     } else {
-      // Where the result is subnormal, the nearest double can be a whole
-      // step from the exact one, which is beyond any relative allowance.
+      // One subnormal step is added to every allowance: where the result is
+      // subnormal, the nearest double can be a whole step from the exact one,
+      // which is beyond any relative allowance.
       const step = scaleBy(
         scaleBy(Number.MIN_VALUE, -unit),
         -(power - 1) * unit

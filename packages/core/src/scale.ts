@@ -43,7 +43,8 @@ export function createUnits(
     /** `x` in the units, which grow to hold it first if it's too large. */
     of(x: number) {
       if (Math.abs(x) >= limit) {
-        const next = Math.floor(Math.log2(Math.abs(x)))
+        // log2 rounds up to 1024 just below MAX_VALUE, past the largest exponent.
+        const next = Math.min(1023, Math.floor(Math.log2(Math.abs(x))))
         if (exponent !== undefined) {
           grow(exponent - next)
         }
