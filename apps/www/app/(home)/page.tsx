@@ -1,8 +1,13 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 
 import { GitHubIcon } from "@/components/github-icon"
 import { buttonVariants } from "@/components/ui/button"
 import { site } from "@/lib/site"
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+}
 
 export default function HomePage() {
   return (
