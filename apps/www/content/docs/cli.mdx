@@ -36,7 +36,7 @@ Other frameworks and the Next.js Pages Router aren't supported by `init`. In the
 
 `init` doesn't edit your pages. When it finishes, it prints the code to wrap a page with:
 
-```tsx
+```tsx title="app/examples/orders/page.tsx"
 import { PliantRoot } from "@pliantui/react"
 import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
@@ -316,6 +316,31 @@ const resolved = resolveLayers(overlays, {
 ```
 
 With the inventory, an op into a node that isn't listed is reported as `missing-container`, since that node doesn't exist anywhere on the surface. `baseParents` tells core which node holds which, so a node flagged `critical` also stays visible when an op would hide a node that holds it. `baseOrder` gives each group's order before any op, so a `destructive` action starts out where it renders relative to the `primary` one.
+
+### Checking it in development
+
+Pass a surface's entry to its `PliantRoot` as `inventory`. It's plain data, so a Server Component can pass it:
+
+```tsx
+import { PliantRoot } from "@pliantui/react"
+import { localAdapter } from "@pliantui/react/local"
+
+import { inventory } from "@/lib/pliant/inventory.generated"
+
+export default function OrdersPage() {
+  return (
+    <PliantRoot
+      surface="/examples/orders"
+      storage={localAdapter}
+      inventory={inventory["/examples/orders"]}
+    >
+      {/* … */}
+    </PliantRoot>
+  )
+}
+```
+
+In development, when a region, slot, table or column mounts and the entry doesn't list its id, the console shows a warning, once per id. Either the inventory is out of date, so run `npx pliantui scan` again, or the command couldn't follow how that node is rendered, as described in [What it reads](#what-it-reads). Production builds don't check it. Columns an op adds to a table aren't in the inventory, and aren't reported.
 
 ### What's reported, not guessed
 
