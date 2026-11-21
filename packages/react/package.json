@@ -39,6 +39,10 @@
     "./server-adapter": {
       "types": "./dist/server-adapter.d.ts",
       "default": "./dist/server-adapter.js"
+    },
+    "./pre-paint": {
+      "types": "./dist/pre-paint.d.ts",
+      "default": "./dist/pre-paint.js"
     }
   },
   "files": [

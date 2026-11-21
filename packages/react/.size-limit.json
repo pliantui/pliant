@@ -24,5 +24,10 @@
     "path": "dist/server-adapter.js",
     "limit": "1 kB",
     "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
+  },
+  {
+    "path": "dist/pre-paint.js",
+    "limit": "900 B",
+    "ignore": ["react"]
   }
 ]
