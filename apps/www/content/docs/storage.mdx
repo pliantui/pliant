@@ -111,7 +111,8 @@ export const pliantStorage: StorageAdapter = {
       `/api/layers?surface=${encodeURIComponent(surface)}`,
       {
         method: "PUT",
-        headers: ifMatch === null ? { "If-None-Match": "*" } : { "If-Match": ifMatch },
+        headers:
+          ifMatch === null ? { "If-None-Match": "*" } : { "If-Match": ifMatch },
         body: JSON.stringify(overlay),
         keepalive: true,
       }
@@ -119,8 +120,7 @@ export const pliantStorage: StorageAdapter = {
     if (response.status === 412) {
       // The route answers with the stored record, or nothing when there is none.
       const current = (await response.json().catch(() => undefined)) as
-        | StoredOverlay
-        | undefined
+        StoredOverlay | undefined
       throw conflict(current)
     }
     if (!response.ok) {
@@ -141,6 +141,7 @@ The adapter is an object of functions, which a Server Component can't pass to a 
 "use client"
 
 import type { ReactNode } from "react"
+
 import { PliantRoot } from "@pliantui/react"
 
 import { pliantStorage } from "@/lib/pliant-storage"

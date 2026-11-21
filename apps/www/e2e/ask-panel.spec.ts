@@ -246,6 +246,11 @@ test("docks to the bottom on small screens, keeping the cards in view", async ({
   await expect(asked.getByRole("status")).toBeInViewport({ ratio: 1 })
   await expect(asked.getByRole("button", { name: "Lock in" })).toBeInViewport()
 
+  // The page makes room below the cards, so they can scroll clear of the
+  // docked panel.
+  await region(page).evaluate((element) => {
+    element.scrollIntoView({ block: "start" })
+  })
   const panel = await page
     .getByRole("complementary", { name: "Ask" })
     .boundingBox()

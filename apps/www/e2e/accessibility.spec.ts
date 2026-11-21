@@ -16,12 +16,14 @@ async function violations(
 ) {
   await expect(page.locator("html")).toHaveCSS("color-scheme", colorScheme)
   // Scan once the entrance animations have ended: colors mid-fade fail contrast.
+  // Scroll-driven animations, like the fading edges of scroll areas, never end.
   await page.evaluate(() =>
     Promise.all(
       document
         .getAnimations()
         .filter(
           (animation) =>
+            animation.timeline instanceof DocumentTimeline &&
             animation.effect?.getComputedTiming().iterations !== Infinity
         )
         .map((animation) => animation.finished.catch(() => undefined))
@@ -97,6 +99,41 @@ for (const colorScheme of ["light", "dark"] as const) {
       await page.goto("/docs")
       await expect(
         page.getByRole("heading", { level: 1, name: "Introduction" })
+      ).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
+
+    test("a docs page with code, a callout and a table has no accessibility violations", async ({
+      page,
+    }) => {
+      await page.goto("/docs/concepts/expressions")
+      await expect(
+        page.getByRole("heading", { level: 1, name: "Expressions" })
+      ).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
+
+    test("a docs page with code comments has no accessibility violations", async ({
+      page,
+    }) => {
+      await page.goto("/docs/ask-panel")
+      await expect(
+        page.getByRole("heading", { level: 1, name: "Ask panel" })
+      ).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
+
+    test("the search dialog has no accessibility violations", async ({
+      page,
+    }) => {
+      await page.goto("/docs")
+      await page.keyboard.press("ControlOrMeta+k")
+      const dialog = page.getByRole("dialog", { name: /^Search/ })
+      await dialog
+        .getByRole("combobox", { name: "Search documentation" })
+        .fill("overlay")
+      await expect(
+        dialog.getByRole("group", { name: "Search Results" })
       ).toBeVisible()
       expect(await violations(page, colorScheme)).toEqual([])
     })
@@ -192,6 +229,21 @@ for (const colorScheme of ["light", "dark"] as const) {
 
     test.describe("on a small screen", () => {
       test.use({ viewport: { width: 390, height: 844 } })
+
+      test("a docs page has no accessibility violations", async ({ page }) => {
+        await page.goto("/docs/concepts/layers")
+        await expect(
+          page.getByRole("heading", { level: 1, name: "Layers" })
+        ).toBeVisible()
+        expect(await violations(page, colorScheme)).toEqual([])
+      })
+
+      test("the menu has no accessibility violations", async ({ page }) => {
+        await page.goto("/docs")
+        await page.getByRole("button", { name: "Menu" }).click()
+        await expect(page.getByRole("dialog", { name: "Menu" })).toBeVisible()
+        expect(await violations(page, colorScheme)).toEqual([])
+      })
 
       test("the docked ask panel has no accessibility violations", async ({
         page,

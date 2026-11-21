@@ -23,7 +23,7 @@ export default function AppExampleLayout({
         className="min-h-[calc(100svh-var(--header-height))] flex-1 contain-layout"
       >
         <AppSidebar />
-        <SidebarInset id="main" tabIndex={-1} className="outline-none">
+        <SidebarInset>
           <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator

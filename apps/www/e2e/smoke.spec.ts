@@ -10,7 +10,9 @@ test("renders the home page", async ({ page, errors }) => {
       name: "Build pliant interfaces: apps your users can reshape.",
     })
   ).toBeVisible()
-  await expect(page.getByRole("link", { name: "Get started" })).toBeVisible()
+  await expect(
+    page.getByRole("main").getByRole("link", { name: "Get started" })
+  ).toBeVisible()
   expect(errors).toEqual([])
 })
 

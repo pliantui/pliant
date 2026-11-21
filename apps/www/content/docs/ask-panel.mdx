@@ -21,6 +21,7 @@ ANTHROPIC_API_KEY=your-api-key
 
 ```ts title="app/api/pliant/route.ts"
 import { anthropic } from "@ai-sdk/anthropic"
+
 import { createPliantHandler } from "@pliantui/server"
 
 import { auth } from "@/lib/auth" // replace with your auth
@@ -46,7 +47,7 @@ Other options:
 | `now`          | system clock | The clock used for each overlay's `createdAt`.              |
 | `generateId`   | ULIDs        | Generates overlay ids, which must be ULIDs.                 |
 
-<Callout type="warn">
+<Callout variant="warning">
   The route doesn't rate-limit asks. Keep it behind your sign-in, and add rate
   limiting before you expose it.
 </Callout>
@@ -128,7 +129,7 @@ export default function OrdersPage() {
 The panel opens from an "Ask" button. From the `sm` breakpoint up it docks to the right edge of the screen; on small screens it's a sheet at the bottom. It covers what's under it, so add room while it's open, on the `<main>` in `app/orders/page.tsx` (or your layout):
 
 ```tsx
-<main className="sm:has-[[data-slot=pliant-ask-panel]]:pr-96 max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh]">
+<main className="max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh] sm:has-[[data-slot=pliant-ask-panel]]:pr-96">
   …
 </main>
 ```

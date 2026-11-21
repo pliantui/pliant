@@ -3,7 +3,7 @@ title: Next.js
 description: Add Pliant to a Next.js app and make one region and one table customizable.
 ---
 
-<Callout type="warn" title="Not on npm yet">
+<Callout variant="warning" title="Not on npm yet">
   The `@pliantui/*` packages aren't published to npm, so `pnpm add` below
   doesn't work outside the Pliant repository. You can try Pliant today from a
   clone.
@@ -112,6 +112,7 @@ Pliant works with tables built on [TanStack Table](https://tanstack.com/table) 9
 "use client"
 
 import { useTable } from "@tanstack/react-table"
+
 import { usePliantTable } from "@pliantui/react/table"
 
 // your existing TanStack v9 setup

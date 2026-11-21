@@ -1,58 +1,131 @@
 "use client"
 
-import { useState } from "react"
+import * as React from "react"
 import Link from "next/link"
-import { MenuIcon } from "lucide-react"
+import { cn } from "cn"
+import type { Root } from "fumadocs-core/page-tree"
 
-import { GitHubLink } from "@/components/github-link"
 import { Button } from "@/components/ui/button"
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet"
-import { site } from "@/lib/site"
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { getDocsGroups } from "@/lib/docs-nav"
+import type { NavItem } from "@/lib/nav"
 
-export function MobileNav({ stars }: { stars: number | null }) {
-  const [open, setOpen] = useState(false)
+export function MobileNav({
+  tree,
+  items,
+  className,
+}: {
+  tree: Root
+  items: readonly NavItem[]
+  className?: string
+}) {
+  const [open, setOpen] = React.useState(false)
+  const close = () => {
+    setOpen(false)
+  }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
-          <MenuIcon />
-          <span className="sr-only">Open menu</span>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          className={cn(
+            "extend-touch-target h-8 touch-manipulation items-center justify-start gap-2.5 rounded-md p-0! hover:bg-transparent active:bg-transparent dark:hover:bg-transparent",
+            className
+          )}
+        >
+          <div
+            className="relative flex h-8 w-4 items-center justify-center"
+            aria-hidden="true"
+          >
+            <div className="relative size-4">
+              <span
+                className={cn(
+                  "absolute left-0 block h-0.5 w-4 bg-foreground transition-all duration-100",
+                  open ? "top-[0.4rem] -rotate-45" : "top-1"
+                )}
+              />
+              <span
+                className={cn(
+                  "absolute left-0 block h-0.5 w-4 bg-foreground transition-all duration-100",
+                  open ? "top-[0.4rem] rotate-45" : "top-2.5"
+                )}
+              />
+            </div>
+          </div>
+          <span className="flex h-8 items-center text-lg leading-none font-medium">
+            Menu
+          </span>
         </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-72 gap-0 p-0">
-        <SheetHeader className="border-b">
-          <SheetTitle>{site.name}</SheetTitle>
-          <SheetDescription className="sr-only">
-            Navigate the Pliant site.
-          </SheetDescription>
-        </SheetHeader>
-        <nav aria-label="Mobile" className="flex flex-col p-2">
-          {site.nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => {
-                setOpen(false)
-              }}
-              className="rounded-md px-3 py-2.5 text-base font-medium outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            >
-              {item.title}
-            </Link>
-          ))}
-          <GitHubLink
-            stars={stars}
-            className="flex items-center gap-2 rounded-md px-3 py-2.5 text-base font-medium outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          />
-        </nav>
-      </SheetContent>
-    </Sheet>
+      </PopoverTrigger>
+      <PopoverContent
+        aria-label="Menu"
+        className="no-scrollbar h-(--radix-popper-available-height) w-(--radix-popper-available-width) overflow-y-auto rounded-none border-none bg-background/90 p-0 shadow-none backdrop-blur duration-100 data-[state=open]:animate-none!"
+        align="start"
+        side="bottom"
+        alignOffset={-16}
+        sideOffset={14}
+      >
+        <div className="flex flex-col gap-12 overflow-auto px-6 py-6">
+          <MobileGroup label="Menu">
+            {items.map((item) => (
+              <MobileLink key={item.href} href={item.href} onNavigate={close}>
+                {item.label}
+              </MobileLink>
+            ))}
+          </MobileGroup>
+          <div className="flex flex-col gap-8">
+            {getDocsGroups(tree).map((group) => (
+              <MobileGroup key={group.id} label={group.name}>
+                {group.pages.map((page) => (
+                  <MobileLink key={page.url} href={page.url} onNavigate={close}>
+                    {page.name}
+                  </MobileLink>
+                ))}
+              </MobileGroup>
+            ))}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function MobileGroup({
+  label,
+  children,
+}: {
+  label: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="text-sm font-medium text-muted-foreground">{label}</div>
+      <div className="flex flex-col gap-3">{children}</div>
+    </div>
+  )
+}
+
+function MobileLink({
+  href,
+  onNavigate,
+  children,
+}: {
+  href: string
+  onNavigate: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className="flex items-center gap-2 text-2xl font-medium"
+    >
+      {children}
+    </Link>
   )
 }
