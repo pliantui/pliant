@@ -6,6 +6,7 @@ export type {
   ApplyOpsOptions,
   OverlayResult,
   PliantStore,
+  ResetNodeResult,
 } from "./pliant-store"
 export type { StorageAdapter, StoredLayers } from "./storage-adapter"
 export type { Overlay, StoredOverlay } from "@pliantui/contract"

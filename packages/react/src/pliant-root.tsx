@@ -25,9 +25,9 @@ export interface PliantRootProps {
   /** Team ids, highest precedence first, as in core's `resolveLayers`. */
   readonly teamOrder?: readonly string[] | undefined
   /**
-   * Called when saving a personal version fails, and when loading the
-   * layers again after a change elsewhere fails, which keeps the layers
-   * shown. A failed version stays pending and is saved again on the next
+   * Called when saving a personal version fails, when loading the layers
+   * again after a change elsewhere fails, which keeps the layers shown, and
+   * when `resetNode` can't remove a version from storage. A failed version stays pending and is saved again on the next
    * flush. A conflict Pliant resolves isn't reported (see `PliantRoot`).
    * Defaults to `console.error`.
    */

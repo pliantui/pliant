@@ -1,9 +1,9 @@
-import type { ValidatedOverlay } from "@pliantui/core"
+import type { Overlay } from "@pliantui/contract"
 
 const coalesceWindow = 1000
 
 interface SaveQueueOptions {
-  readonly write: (overlay: ValidatedOverlay) => void | Promise<void>
+  readonly write: (overlay: Overlay) => void | Promise<void>
   readonly report: (error: unknown) => void
   readonly now: () => number
 }
@@ -13,11 +13,11 @@ interface SaveQueueOptions {
  * The latest change waits `coalesceWindow` for one that replaces it.
  */
 export function createSaveQueue({ write, report, now }: SaveQueueOptions) {
-  const unsaved = new Map<string, ValidatedOverlay>()
+  const unsaved = new Map<string, Overlay>()
   const failures = new Map<string, string>()
   let pending:
     | {
-        readonly overlay: ValidatedOverlay
+        readonly overlay: Overlay
         readonly key: string | undefined
         readonly at: number
       }
@@ -27,7 +27,7 @@ export function createSaveQueue({ write, report, now }: SaveQueueOptions) {
   // A version is retried on every flush, but the same failure (such as
   // newer data that will never be overwritten) is reported once until the
   // version saves or fails differently.
-  function saveFailed(overlay: ValidatedOverlay, error: unknown) {
+  function saveFailed(overlay: Overlay, error: unknown) {
     if (!unsaved.has(overlay.id)) {
       unsaved.set(overlay.id, overlay)
     }
@@ -75,13 +75,13 @@ export function createSaveQueue({ write, report, now }: SaveQueueOptions) {
   }
 
   /** Saves a version at once. */
-  function save(overlay: ValidatedOverlay) {
+  function save(overlay: Overlay) {
     unsaved.set(overlay.id, overlay)
     persist()
   }
 
   /** Saves a version once no change replaces it within the window. */
-  function defer(overlay: ValidatedOverlay, key: string | undefined) {
+  function defer(overlay: Overlay, key: string | undefined) {
     clearTimeout(timer)
     pending = { overlay, key, at: now() }
     timer = setTimeout(flush, coalesceWindow)
