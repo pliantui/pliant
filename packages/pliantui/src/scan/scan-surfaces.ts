@@ -196,49 +196,83 @@ function checkId(
   return true
 }
 
-/**
- * Walks what a node renders. Variables are walked where they are rendered,
- * not where they are declared, so a slots object kept in a `const` is walked
- * once, as slots.
- */
-function walkNode(node: Node, scope: Scope, parent: Parent, walk: Walk) {
-  if (isClaimed(walk, scope, node) || Node.isVariableDeclaration(node)) {
+/** Walks a JSX child: an element, a fragment, or an expression. */
+function walkChild(child: Node, scope: Scope, parent: Parent, walk: Walk) {
+  if (Node.isJsxText(child)) {
     return
   }
-  if (Node.isIdentifier(node)) {
-    renderPendingSlots(node, parent, walk)
-    return
-  }
-  if (Node.isJsxElement(node) || Node.isJsxSelfClosingElement(node)) {
-    walkElement(node, scope, parent, walk)
-    return
-  }
-  if (Node.isJsxExpression(node) || Node.isReturnStatement(node)) {
-    const expression = node.getExpression()
+  if (Node.isJsxExpression(child)) {
+    const expression = child.getExpression()
     if (expression) {
       walkRendered(expression, scope, parent, walk)
     }
     return
   }
-  if (Node.isArrowFunction(node)) {
-    const body = node.getBody()
-    if (!Node.isBlock(body)) {
-      walkRendered(body, scope, parent, walk)
-      return
-    }
-  }
-  node.forEachChild((child) => {
-    walkNode(child, scope, parent, walk)
-  })
+  walkRendered(child, scope, parent, walk)
 }
 
+/** Walks what a function returns: the expressions it renders. */
+function walkReturns(
+  fn: ComponentFunction,
+  scope: Scope,
+  parent: Parent,
+  walk: Walk
+) {
+  const body = fn.getBody()
+  if (!body) {
+    return
+  }
+  if (!Node.isBlock(body)) {
+    walkRendered(body, scope, parent, walk)
+    return
+  }
+  for (const statement of body.getDescendantsOfKind(
+    SyntaxKind.ReturnStatement
+  )) {
+    const expression = statement.getExpression()
+    if (expression && statement.getFirstAncestor(isFunction) === fn) {
+      walkRendered(expression, scope, parent, walk)
+    }
+  }
+}
+
+// Calls over data whose callbacks return what is rendered.
+const listMethods = new Set(["map", "flatMap", "filter"])
+
+/**
+ * Walks an expression the component renders. Only rendering paths are
+ * followed: JSX, conditionals and logical operators, arrays, `.map`,
+ * `.flatMap` and `.filter` callbacks, local variables, render props and
+ * the app's own functions called to render. JSX inside any other call,
+ * such as an effect or an event handler, isn't rendered here.
+ */
 function walkRendered(
   expression: Node,
   scope: Scope,
   parent: Parent,
   walk: Walk
 ) {
+  if (isClaimed(walk, scope, expression)) {
+    return
+  }
+  if (Node.isJsxExpression(expression) || Node.isJsxText(expression)) {
+    walkChild(expression, scope, parent, walk)
+    return
+  }
   const node = unwrapExpression(expression)
+  if (isClaimed(walk, scope, node)) {
+    return
+  }
+  if (Node.isJsxElement(node) || Node.isJsxSelfClosingElement(node)) {
+    walkElement(node, scope, parent, walk)
+    return
+  }
+  if (Node.isJsxFragment(node)) {
+    for (const child of node.getJsxChildren()) {
+      walkChild(child, scope, parent, walk)
+    }
+    return
+  }
   if (Node.isConditionalExpression(node)) {
     walkRendered(node.getWhenTrue(), scope, parent, walk)
     walkRendered(node.getWhenFalse(), scope, parent, walk)
@@ -258,30 +292,103 @@ function walkRendered(
       operator === SyntaxKind.QuestionQuestionToken
     ) {
       walkRendered(node.getRight(), scope, parent, walk)
-      return
     }
+    return
   }
   if (Node.isArrayLiteralExpression(node)) {
     for (const element of node.getElements()) {
-      walkRendered(element, scope, parent, walk)
+      walkRendered(
+        Node.isSpreadElement(element) ? element.getExpression() : element,
+        scope,
+        parent,
+        walk
+      )
+    }
+    return
+  }
+  if (Node.isObjectLiteralExpression(node)) {
+    // A prop such as `items={[{ content: <Panel /> }]}`.
+    for (const property of node.getProperties()) {
+      const value = Node.isPropertyAssignment(property)
+        ? property.getInitializer()
+        : Node.isShorthandPropertyAssignment(property)
+          ? property
+          : Node.isSpreadAssignment(property)
+            ? property.getExpression()
+            : undefined
+      if (value) {
+        walkRendered(value, scope, parent, walk)
+      }
     }
     return
   }
   if (
     Node.isIdentifier(node) ||
     Node.isPropertyAccessExpression(node) ||
+    Node.isElementAccessExpression(node) ||
     Node.isShorthandPropertyAssignment(node)
   ) {
-    follow(node, scope, parent, walk)
+    renderValue(node, parent, walk)
+    if (!Node.isElementAccessExpression(node)) {
+      follow(node, scope, parent, walk)
+    }
     return
   }
-  if (
-    Node.isCallExpression(node) &&
-    callRenderProp(node, scope, parent, walk)
+  if (Node.isCallExpression(node)) {
+    walkCall(node, scope, parent, walk)
+  }
+}
+
+/**
+ * Places the region or table a rendered value reads, unless it only reads
+ * a list's `length`.
+ */
+function renderValue(node: Node, parent: Parent, walk: Walk) {
+  if (Node.isPropertyAccessExpression(node) && node.getName() === "length") {
+    return
+  }
+  let root: Node = node
+  while (
+    Node.isPropertyAccessExpression(root) ||
+    Node.isElementAccessExpression(root)
   ) {
+    root = unwrapExpression(root.getExpression())
+  }
+  if (Node.isIdentifier(root) || Node.isShorthandPropertyAssignment(root)) {
+    renderPendingSlots(root, parent, walk)
+  }
+}
+
+function walkCall(
+  call: CallExpression,
+  scope: Scope,
+  parent: Parent,
+  walk: Walk
+) {
+  const callee = unwrapExpression(call.getExpression())
+  if (
+    Node.isPropertyAccessExpression(callee) &&
+    listMethods.has(callee.getName())
+  ) {
+    renderValue(callee.getExpression(), parent, walk)
+    const [callback] = call.getArguments()
+    const fn = callback && functionIn(callback)
+    if (fn && isFunction(unwrapExpression(callback))) {
+      walkReturns(fn, scope, parent, walk)
+    }
     return
   }
-  walkNode(node, scope, parent, walk)
+  if (callRenderProp(call, scope, parent, walk)) {
+    return
+  }
+  // The app's own function called to render, like `{renderRows()}`.
+  const name = Node.isIdentifier(callee) ? callee.getText() : ""
+  const fn = name && !/^use[A-Z]/.test(name) ? functionIn(callee) : undefined
+  if (fn && !walk.following.has(fn)) {
+    walk.following.add(fn)
+    walkReturns(fn, scope, parent, walk)
+    walk.following.delete(fn)
+  }
 }
 
 /**
@@ -320,10 +427,7 @@ function callRenderProp(
     return true
   }
   claim(walk, value.scope, first)
-  const body = fn.getBody()
-  if (body) {
-    walkRendered(body, value.scope, parent, walk)
-  }
+  walkReturns(fn, value.scope, parent, walk)
   return true
 }
 
@@ -371,38 +475,8 @@ function walkRoutes(
   }
 }
 
-/**
- * Whether a reference is where the component renders its value: in a JSX
- * child expression, or in a prop of a component element, and not inside a
- * callback such as an event handler or an effect.
- */
-function isRendered(reference: Node) {
-  for (
-    let node: Node | undefined = reference.getParent();
-    node;
-    node = node.getParent()
-  ) {
-    if (isFunction(node)) {
-      return false
-    }
-    if (Node.isJsxExpression(node)) {
-      const owner = node.getParent()
-      if (Node.isJsxAttribute(owner)) {
-        const element = owner.getParent().getParent()
-        return (
-          (Node.isJsxOpeningElement(element) ||
-            Node.isJsxSelfClosingElement(element)) &&
-          componentOf(element.getTagNameNode()) !== undefined
-        )
-      }
-      return true
-    }
-  }
-  return false
-}
-
 function renderPendingSlots(node: Node, parent: Parent, walk: Walk) {
-  if (walk.pendingSlots.size === 0 || !isRendered(node)) {
+  if (walk.pendingSlots.size === 0) {
     return
   }
   const usage = usageOf(node)
@@ -424,7 +498,6 @@ function renderPendingSlots(node: Node, parent: Parent, walk: Walk) {
 
 /** Walks the value a rendered prop or variable holds. */
 function follow(node: Node, scope: Scope, parent: Parent, walk: Walk) {
-  renderPendingSlots(node, parent, walk)
   const prop = propOf(node, scope)
   if (prop !== undefined) {
     if (prop === "*") {
@@ -528,9 +601,12 @@ function walkElement(
   }
   const fn = componentOf(tag)
   if (!fn) {
-    element.forEachChild((child) => {
-      walkNode(child, scope, parent, walk)
-    })
+    // An HTML element renders its children; its props don't render.
+    if (Node.isJsxElement(element)) {
+      for (const child of element.getJsxChildren()) {
+        walkChild(child, scope, parent, walk)
+      }
+    }
     return
   }
   const { props, unknownProps } = readJsxProps(element, scope)
@@ -548,13 +624,35 @@ function walkElement(
     )
   }
   // What the component didn't render itself, such as children it passes on
-  // in a spread, belongs where the element is.
-  for (const value of props.values()) {
-    if (value.scope !== scope) {
+  // in a spread, belongs where the element is: props pass values on, and a
+  // function prop is a render prop, except event handlers like `onPick`.
+  for (const [name, value] of props) {
+    if (value.scope !== scope || /^on[A-Z]/.test(name)) {
       continue
     }
     for (const node of value.nodes) {
-      walkNode(node, scope, parent, walk)
+      if (isClaimed(walk, scope, node)) {
+        continue
+      }
+      const fn = isFunction(unwrapExpression(node))
+        ? functionIn(node)
+        : undefined
+      if (fn) {
+        walkReturns(fn, scope, parent, walk)
+      } else if (name === "children") {
+        walkChild(node, scope, parent, walk)
+      } else {
+        walkRendered(node, scope, parent, walk)
+      }
+    }
+  }
+  // `<Grid {...table} />` passes the table on.
+  const opening = Node.isJsxElement(element)
+    ? element.getOpeningElement()
+    : element
+  for (const attribute of opening.getAttributes()) {
+    if (Node.isJsxSpreadAttribute(attribute)) {
+      renderValue(unwrapExpression(attribute.getExpression()), parent, walk)
     }
   }
 }
@@ -620,10 +718,7 @@ function walkComponent(
     ])
     pending.add(key)
   }
-  const body = fn.getBody()
-  if (body) {
-    walkNode(body, scope, holder, walk)
-  }
+  walkReturns(fn, scope, holder, walk)
   // What's still waiting belongs to the surface all the same, but where the
   // component renders it among its other nodes is unknown.
   for (const key of pending) {
@@ -980,7 +1075,7 @@ export function scanSurfaces(
       }
       if (Node.isJsxElement(element)) {
         for (const child of element.getJsxChildren()) {
-          walkNode(child, scope, null, walk)
+          walkChild(child, scope, null, walk)
         }
       }
     }

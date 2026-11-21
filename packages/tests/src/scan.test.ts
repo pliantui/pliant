@@ -319,32 +319,106 @@ describe("pliantui scan", () => {
     expect(help?.baseOrder["nested"]).toEqual(["card", "inner-b"])
   })
 
-  it("doesn't count a use in an effect or an event handler as rendering", async () => {
+  // Each puts a use of both.b before the banner, where it renders only if
+  // the scan counts it.
+  it.each([
+    {
+      name: "JSX made in an effect",
+      statement:
+        "React.useEffect(() => {\n    show(<Peek region={both.b} />)\n  }, [both])",
+      before: "",
+    },
+    {
+      name: "JSX made in an event handler",
+      statement: "",
+      before:
+        '<button type="button" onClick={() => show(<Peek region={both.b} />)} />',
+    },
+    {
+      name: "a prop of an HTML element",
+      statement: "",
+      before: "<div data-region={both.b} />",
+    },
+    {
+      name: "a read of a list's length",
+      statement: "",
+      before: "{both.b.entries.length}",
+    },
+    {
+      name: "an event handler prop of a component",
+      statement: "",
+      before: "<Peek onPick={() => both.b.entries} />",
+    },
+  ])("doesn't count $name as rendering", async ({ statement, before }) => {
     const cwd = await createFixtureDirectory("scan-app")
     await edit(
       cwd,
       "components/two-panel.tsx",
-      "  return (\n    <section>",
-      [
-        "  useEffect(() => {",
-        "    console.log(both.b.entries.length)",
-        "  }, [both])",
-        "  return (",
-        "    <section>",
-        '      <button type="button" onClick={() => console.log(both.b)} />',
-      ].join("\n")
+      "  React.useDebugValue(show)",
+      `  React.useDebugValue(show)\n  ${statement}`
     )
     await edit(
       cwd,
       "components/two-panel.tsx",
-      "import { PliantRegion }",
-      'import { useEffect } from "react"\n\nimport { PliantRegion }'
+      "      <Peek />",
+      `      <Peek />\n      ${before}`
     )
     const { output } = await scanJson(cwd)
     const help = output.inventory["help"]
 
     expect(help?.baseIds.source).toBe("inventory")
     expect(help?.baseOrder["pair"]).toEqual(["two-a", "two-banner", "two-b"])
+  })
+
+  it("counts a spread into a component's props as passing the value on", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await edit(
+      cwd,
+      "components/two-panel.tsx",
+      "      <Peek />",
+      "      <Peek />\n      <Peek {...both.b} />"
+    )
+    const { output } = await scanJson(cwd)
+
+    expect(output.inventory["help"]?.baseOrder["pair"]).toEqual([
+      "two-b",
+      "two-a",
+      "two-banner",
+    ])
+  })
+
+  it("doesn't place a lone region only rendered in an effect", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await edit(
+      cwd,
+      "components/destructured-panel.tsx",
+      "const { entries } = usePliantRegion(",
+      "const region = usePliantRegion("
+    )
+    await edit(
+      cwd,
+      "components/destructured-panel.tsx",
+      "  return (",
+      "  useEffect(() => {\n    console.log(<i>{region.entries.length}</i>, <b>{region.entries}</b>)\n  }, [region])\n  return ("
+    )
+    await edit(
+      cwd,
+      "components/destructured-panel.tsx",
+      "{entries.map(",
+      "{[].map("
+    )
+    await edit(
+      cwd,
+      "components/destructured-panel.tsx",
+      'import { usePliantRegion } from "@pliantui/react"',
+      'import { useEffect } from "react"\n\nimport { usePliantRegion } from "@pliantui/react"'
+    )
+    const { output } = await scanJson(cwd)
+
+    expect(output.inventory["help"]?.baseIds.source).toBe("mounted")
+    expect(output.warnings.map((warning) => warning.message)).toContain(
+      "Where DestructuredPanel renders destructured can't be told, so its place among its other nodes isn't known."
+    )
   })
 
   it("places regions destructured from one hook where each renders", async () => {
@@ -398,7 +472,7 @@ describe("pliantui scan", () => {
     expect(help?.baseParents["b1"]).toBe("two-b")
     expect(output.warnings).toContainEqual({
       file: "components/two-panel.tsx",
-      line: 5,
+      line: 21,
       message:
         "Where TwoPanel renders two-a and two-b can't be told, so their place among its other nodes isn't known.",
     })
@@ -458,7 +532,7 @@ describe("pliantui scan", () => {
     expect(help?.baseParents["b1"]).toBe("two-b")
     expect(output.warnings).toContainEqual({
       file: "components/two-panel.tsx",
-      line: 5,
+      line: 21,
       message:
         "Where TwoPanel renders two-b can't be told, so its place among its other nodes isn't known.",
     })
