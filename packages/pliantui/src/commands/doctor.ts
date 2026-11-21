@@ -5,6 +5,7 @@ import { Command } from "commander"
 import * as z from "zod"
 
 import type { Check, CheckStatus } from "../doctor/check"
+import { checkAiFields } from "../doctor/check-ai-fields"
 import { checkComponents } from "../doctor/check-components"
 import { checkInventory } from "../doctor/check-inventory"
 import { checkManifests } from "../doctor/check-manifests"
@@ -104,7 +105,7 @@ async function checksFor(cwd: string, json: boolean): Promise<Check[]> {
     const message = "Needs a valid components.json."
     return [
       ...checks,
-      ...["components", "pre-paint", "inventory", "manifests"].map(
+      ...["components", "pre-paint", "inventory", "manifests", "ai-fields"].map(
         (name): Check => ({ name, status: "skip", message })
       ),
     ]
@@ -130,6 +131,11 @@ async function checksFor(cwd: string, json: boolean): Promise<Check[]> {
         config.tsx,
         cwd
       ),
+      {
+        name: "ai-fields",
+        status: "warn",
+        message: `${message} So the dataset fields visible to the AI can't be listed.`,
+      },
     ]
   }
   reading?.succeed()
@@ -139,6 +145,7 @@ async function checksFor(cwd: string, json: boolean): Promise<Check[]> {
     checkPrePaint(scanned.sourceFiles, cwd),
     checkInventory(scanned, cwd),
     checkManifests(scanned.outputDirectory, config.tsx, cwd),
+    checkAiFields(scanned.sourceFiles),
   ]
 }
 
@@ -156,14 +163,12 @@ async function runChecks(
   if (!existsSync(cwd)) {
     throw new Error(`The path ${highlighter.info(cwd)} does not exist.`)
   }
+  const relative = <T extends { file: string }>(items: T[]) =>
+    items.map((item) => ({ ...item, file: path.relative(cwd, item.file) }))
   const checks = (await checksFor(cwd, json)).map((check) => ({
     ...check,
-    ...(check.problems && {
-      problems: check.problems.map((problem) => ({
-        ...problem,
-        file: path.relative(cwd, problem.file),
-      })),
-    }),
+    ...(check.problems && { problems: relative(check.problems) }),
+    ...(check.details && { details: relative(check.details) }),
   }))
   const count = (status: CheckStatus) =>
     checks.filter((check) => check.status === status).length
@@ -180,6 +185,13 @@ async function runChecks(
       logger.log(
         highlighter.muted(
           `  ${symbols[problem.status]} ${problem.file}:${String(problem.line)} ${problem.message}`
+        )
+      )
+    }
+    for (const detail of check.details ?? []) {
+      logger.log(
+        highlighter.muted(
+          `  · ${detail.file}:${String(detail.line)} ${detail.message}`
         )
       )
     }
