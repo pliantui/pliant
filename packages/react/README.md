@@ -8,6 +8,7 @@ Each feature has its own entry point, so a page loads only what it uses:
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `@pliantui/react`                | `PliantRoot`, the store, status, preview, surface and node hooks, `usePliantMessages` and `StorageConflictError` |
 | `@pliantui/react/region`         | `usePliantRegion`, `useRegionSlots`, `useRegionItems`, `useSlotContent`, `PliantActivity`                        |
+| `@pliantui/react/form`           | `usePliantForm`, `usePliantFormDefaults`                                                                         |
 | `@pliantui/react/table`          | `usePliantTable`                                                                                                 |
 | `@pliantui/react/local`          | `localAdapter`, which stores personal overlays in the browser                                                    |
 | `@pliantui/react/server-adapter` | `serverAdapter`, which stores overlays through your server                                                       |

@@ -87,4 +87,47 @@ export const inventory = {
       },
     },
   },
+  "/examples/tickets": {
+    baseIds: {
+      ids: [
+        "ticket-form",
+        "ticket-form/fields/cc",
+        "ticket-form/fields/description",
+        "ticket-form/fields/orderId",
+        "ticket-form/fields/priority",
+        "ticket-form/fields/subject",
+      ],
+      source: "inventory",
+    },
+    baseParents: {
+      "ticket-form": null,
+    },
+    baseOrder: {},
+    ids: {
+      "ticket-form": {
+        kind: "pliant:form",
+        hash: "699e992c0abd1832",
+      },
+      "ticket-form/fields/cc": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+      "ticket-form/fields/description": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+      "ticket-form/fields/orderId": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+      "ticket-form/fields/priority": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+      "ticket-form/fields/subject": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+    },
+  },
 } as const

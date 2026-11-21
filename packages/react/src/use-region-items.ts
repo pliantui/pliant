@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useEffectEvent,
   useId,
   useLayoutEffect,
@@ -9,6 +10,8 @@ import {
 import type { RegionEntry } from "@pliantui/core"
 
 type Collapse = NonNullable<RegionEntry["collapsed"]>
+
+const invalid = '[aria-invalid="true"]'
 
 type ClickHandler = (event: MouseEvent<HTMLButtonElement>) => void
 
@@ -104,7 +107,10 @@ function groupsOf(entries: readonly RegionEntry[]) {
  * `usePliantRegion`, or a wrapper's. Each entry keeps its key, and the
  * entries a `collapse` holds follow a trigger in the same parent, so opening
  * and closing them never remounts them. Holds which collapses are open, and
- * moves focus to the trigger when an op collapses the focused entry.
+ * moves focus to the trigger when an op collapses the focused entry. A
+ * collapse opens, and stays open, while a control inside is invalid: while
+ * it has `aria-invalid="true"`, as form libraries set it, or when the
+ * browser's validation fires `invalid` on it.
  *
  * @experimental
  */
@@ -125,7 +131,7 @@ export function useRegionItems(
     })
   }
 
-  const closed: (readonly [string, string])[] = []
+  const closed: (readonly [string, string, string])[] = []
 
   function entryItem(
     entry: RegionEntry,
@@ -182,7 +188,9 @@ export function useRegionItems(
     }
     items.push(...members)
     if (!isOpen) {
-      closed.push(...members.map((member) => [member.props.id, id] as const))
+      closed.push(
+        ...members.map((member) => [member.props.id, id, part.key] as const)
+      )
     }
   }
 
@@ -205,6 +213,46 @@ export function useRegionItems(
 
   useLayoutEffect(() => {
     moveFocusOutOfClosed()
+  }, [closedKey])
+
+  // A collapse opens when a control inside is invalid, so the user sees the
+  // error: a form library marks it with `aria-invalid`, and the browser's
+  // own validation fires `invalid` on it.
+  const watchClosed = useEffectEvent(() =>
+    closed.map(([entryId, , group]) => {
+      const element = document.getElementById(entryId)
+      const openGroup = () => {
+        setOpen((current) => new Set(current).add(group))
+      }
+      const check = () => {
+        if (element?.querySelector(invalid)) {
+          openGroup()
+        }
+      }
+      const observer = new MutationObserver(check)
+      if (element) {
+        observer.observe(element, {
+          subtree: true,
+          childList: true,
+          attributeFilter: ["aria-invalid"],
+        })
+        element.addEventListener("invalid", openGroup, true)
+      }
+      check()
+      return () => {
+        observer.disconnect()
+        element?.removeEventListener("invalid", openGroup, true)
+      }
+    })
+  )
+
+  useEffect(() => {
+    const cleanups = watchClosed()
+    return () => {
+      for (const cleanup of cleanups) {
+        cleanup()
+      }
+    }
   }, [closedKey])
 
   return items

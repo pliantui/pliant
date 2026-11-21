@@ -1,12 +1,17 @@
 [
   {
     "path": "dist/index.js",
-    "limit": "6.5 kB",
+    "limit": "6.65 kB",
     "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
   },
   {
     "path": "dist/region.js",
-    "limit": "1.45 kB",
+    "limit": "1.59 kB",
+    "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
+  },
+  {
+    "path": "dist/form.js",
+    "limit": "900 B",
     "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
   },
   {
@@ -53,7 +58,7 @@
       "dist/table.js",
       "dist/local.js"
     ],
-    "limit": "15.6 kB",
+    "limit": "15.75 kB",
     "ignore": [
       "react",
       "zod",

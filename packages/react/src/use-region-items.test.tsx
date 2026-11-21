@@ -58,6 +58,31 @@ afterEach(() => {
   cleanup()
 })
 
+function InvalidItems({
+  entries,
+  invalid,
+}: {
+  entries: readonly RegionEntry[]
+  invalid: string | undefined
+}) {
+  const items = useRegionItems(entries)
+  return items.map((item) =>
+    item.kind === "trigger" ? (
+      <button key={item.key} {...item.getTriggerProps()}>
+        More fields
+      </button>
+    ) : (
+      <div key={item.key} {...item.props} data-mode={item.mode}>
+        <input
+          aria-label={item.entry.id}
+          aria-invalid={invalid === item.entry.id}
+          required={item.entry.id === "due"}
+        />
+      </div>
+    )
+  )
+}
+
 describe("useRegionItems", () => {
   it("gives each entry its wrapper props and mode", () => {
     render(
@@ -214,4 +239,54 @@ describe("useRegionItems", () => {
       )
     }
   )
+
+  describe("with an invalid control in a collapse", () => {
+    const entries = [
+      slot("title"),
+      slot("cc", { collapsed: more }),
+      slot("due", { collapsed: more }),
+    ]
+    const trigger = () => screen.getByRole("button", { name: "More fields" })
+
+    it("opens when a control inside becomes invalid", async () => {
+      const { rerender } = render(
+        <InvalidItems entries={entries} invalid={undefined} />
+      )
+      expect(trigger().getAttribute("aria-expanded")).toBe("false")
+
+      rerender(<InvalidItems entries={entries} invalid="title" />)
+      await act(async () => {
+        await Promise.resolve()
+      })
+      expect(trigger().getAttribute("aria-expanded")).toBe("false")
+
+      rerender(<InvalidItems entries={entries} invalid="cc" />)
+      await vi.waitFor(() => {
+        expect(trigger().getAttribute("aria-expanded")).toBe("true")
+      })
+      expect(wrapper("cc").getAttribute("data-mode")).toBe("visible")
+    })
+
+    it("opens when collapsed with a control that is already invalid", async () => {
+      const { rerender } = render(
+        <InvalidItems entries={[slot("title"), slot("cc")]} invalid="cc" />
+      )
+      rerender(<InvalidItems entries={entries} invalid="cc" />)
+      await vi.waitFor(() => {
+        expect(trigger().getAttribute("aria-expanded")).toBe("true")
+      })
+    })
+
+    it("opens when the browser's validation finds a control invalid", async () => {
+      render(<InvalidItems entries={entries} invalid={undefined} />)
+      act(() => {
+        screen
+          .getByRole("textbox", { name: "due", hidden: true })
+          .dispatchEvent(new Event("invalid"))
+      })
+      await vi.waitFor(() => {
+        expect(trigger().getAttribute("aria-expanded")).toBe("true")
+      })
+    })
+  })
 })

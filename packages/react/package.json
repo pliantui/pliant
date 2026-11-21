@@ -32,6 +32,10 @@
       "types": "./dist/region.d.ts",
       "default": "./dist/region.js"
     },
+    "./form": {
+      "types": "./dist/form.d.ts",
+      "default": "./dist/form.js"
+    },
     "./table": {
       "types": "./dist/table.d.ts",
       "default": "./dist/table.js"

@@ -30,6 +30,7 @@ import {
 } from "./pliant-data-table-features"
 import { PliantDataTablePagination } from "./pliant-data-table-pagination"
 import { PliantDataTableViewOptions } from "./pliant-data-table-view-options"
+import { PliantForm } from "./pliant-form"
 import { PliantPointMode } from "./pliant-point-mode"
 import { PliantRegion } from "./pliant-region"
 
@@ -66,6 +67,7 @@ const messages: PliantMessages = {
   pointModeOpen: "⟦pointModeOpen⟧",
   pointModeLabel: "⟦pointModeLabel⟧",
   pointModeHelp: "⟦pointModeHelp⟧",
+  formMoreFields: "⟦formMoreFields⟧",
   regionMore: "⟦regionMore⟧",
   regionNodeUnavailable: (label) => `⟦regionNodeUnavailable ${label}⟧`,
   dataTableNoResults: "⟦dataTableNoResults⟧",
@@ -445,6 +447,31 @@ describe("the registry components with every message given", () => {
 
     expect(screen.getByRole("button", { name: "⟦regionMore⟧" })).toBeTruthy()
     expect(screen.getByText("⟦regionNodeUnavailable «Trend»⟧")).toBeTruthy()
+    expect(unmarkedText()).toEqual([])
+  })
+
+  it("show only the root's text and the app's in a form", async () => {
+    render(
+      <PliantRoot surface={surface} storage={storage} messages={messages}>
+        <Page />
+        <PliantForm
+          id="ticket-form"
+          fields={{ subject: <p>«Subject»</p>, cc: <p>«CC»</p> }}
+        />
+      </PliantRoot>
+    )
+    await settle()
+
+    apply({
+      op: "collapse",
+      target: "ticket-form",
+      items: ["cc"],
+      into: "more",
+    })
+
+    expect(
+      screen.getByRole("button", { name: "⟦formMoreFields⟧" })
+    ).toBeTruthy()
     expect(unmarkedText()).toEqual([])
   })
 
