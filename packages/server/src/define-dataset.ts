@@ -1,5 +1,6 @@
 import { itemIdSchema } from "@pliantui/contract"
 
+import type { allRows, DatasetScope } from "./authorize-dataset"
 import {
   checkField,
   defaultCapabilities,
@@ -10,9 +11,11 @@ import {
   type FieldKey,
 } from "./dataset-field"
 import { quote } from "./quote"
-import { isRecord, snapshot } from "./snapshot"
+import { freeze, isRecord, snapshot } from "./snapshot"
 
-type Fields = Readonly<Record<string, DatasetField>>
+export type Fields<TUser = never> = Readonly<
+  Record<string, DatasetField<DatasetFieldType, TUser>>
+>
 
 type KeyType = "id" | "string" | "integer" | "email" | "url"
 
@@ -56,7 +59,13 @@ type RowKeyOption<TFields extends Fields, TKey extends string> =
       }
 
 type TimeZoneOption<TFields extends Fields> = [
-  Extract<TFields[keyof TFields]["type"], "date" | "datetime">,
+  {
+    [K in keyof TFields]: TFields[K] extends {
+      readonly type: "date" | "datetime"
+    }
+      ? K
+      : never
+  }[keyof TFields],
 ] extends [never]
   ? {
       /**
@@ -82,6 +91,7 @@ type TimeZoneOption<TFields extends Fields> = [
 export type DatasetDefinition<
   TFields extends Fields = Fields,
   TKey extends KeyField<TFields> = KeyField<TFields>,
+  TUser = never,
 > = {
   /** The dataset's id, such as `orders`. */
   readonly id: string
@@ -89,6 +99,30 @@ export type DatasetDefinition<
   readonly describe?: string | undefined
   /** The fields, by id, in the order they are listed. */
   readonly fields: TFields & ExactFields<TFields>
+  /**
+   * The rows a user may load, as conditions every query, aggregate and load
+   * must match, such as `(user) => ({ orgId: user.orgId })`. `"public"`
+   * lets every user load every row; a function returns `allRows` to let one
+   * user, such as an administrator, load every row. Anything else, such as
+   * `undefined` or `{}`, throws. Synchronous: look up what it needs, such as
+   * the user's organizations, before calling `authorizeDataset`.
+   */
+  readonly scope: "public" | ((user: TUser) => DatasetScope | typeof allRows)
+  /**
+   * Whether a user may use the dataset at all. Only `true` allows it.
+   * Synchronous, and checked before `scope` runs.
+   */
+  readonly access?: ((user: TUser) => boolean) | undefined
+  readonly privacy?:
+    | {
+        /**
+         * The fewest rows an aggregate may summarize. Aggregates over a
+         * smaller group are suppressed, so single values can't be worked
+         * out from them. Defaults to 1.
+         */
+        readonly minGroupSize?: number | undefined
+      }
+    | undefined
 } & RowKeyOption<TFields, TKey> &
   TimeZoneOption<TFields>
 
@@ -98,7 +132,7 @@ type ResolvedField<TField extends DatasetField> = TField extends unknown
         K in keyof TField as K extends keyof DatasetFieldCapabilities
           ? never
           : K
-      ]: Readonly<TField[K]>
+      ]: K extends "access" ? TField[K] : Readonly<TField[K]>
     } & Required<{
       readonly [K in keyof DatasetFieldCapabilities]-?: Exclude<
         DatasetFieldCapabilities[K],
@@ -110,13 +144,17 @@ type ResolvedField<TField extends DatasetField> = TField extends unknown
 /**
  * A checked dataset. Its fields carry every capability, resolved from their
  * type's defaults and their own overrides, and feed core's
- * `createExpressionChecker` and `createRowEvaluator` as they are.
+ * `createRowEvaluator` as they are. They include fields a user can't read
+ * and fields hidden from the model, so to check a user's or the model's
+ * expressions with `createExpressionChecker`, pass the `fields` of
+ * `describeDataset(dataset, { user, audience })` instead.
  *
  * @experimental
  */
 export interface Dataset<
   TFields extends Fields = Fields,
   TKey extends string = string,
+  TUser = never,
 > {
   readonly id: string
   readonly describe?: string
@@ -124,6 +162,10 @@ export interface Dataset<
   readonly timeZone: string
   readonly rowKey: readonly [TKey, ...TKey[]]
   readonly fields: { readonly [K in keyof TFields]: ResolvedField<TFields[K]> }
+  /** Use `authorizeDataset`, which checks what this returns. */
+  readonly scope: "public" | ((user: TUser) => DatasetScope | typeof allRows)
+  readonly access?: (user: TUser) => boolean
+  readonly privacy: { readonly minGroupSize: number }
 }
 
 type ValueOf<TField extends DatasetField> = TField extends {
@@ -156,7 +198,16 @@ export type InferRow<TDataset extends Dataset> =
 
 const keyTypes = new Set<unknown>(["id", "string", "integer", "email", "url"])
 
-const datasetKeys = new Set(["id", "describe", "timeZone", "fields", "rowKey"])
+const datasetKeys = new Set([
+  "id",
+  "describe",
+  "timeZone",
+  "fields",
+  "rowKey",
+  "scope",
+  "access",
+  "privacy",
+])
 
 // Objects, then fields, then each field, then its format and values.
 const depth = 4
@@ -223,6 +274,14 @@ function checkRowKey(
       report(
         `rowKey field ${quote(key)} must be an id, string, integer, email or url field`
       )
+    } else if (
+      isRecord(fields[key]) &&
+      (fields[key]["access"] !== undefined ||
+        fields[key]["exposeToAI"] === false)
+    ) {
+      // Whoever may read a row, the model included, must be able to tell
+      // rows apart.
+      report(`rowKey field ${quote(key)} can't set access or exposeToAI: false`)
     }
   }
 }
@@ -275,7 +334,22 @@ function check(definition: unknown) {
       report(`unknown option ${quote(key)}`)
     }
   }
-  const { describe, timeZone } = definition
+  const { describe, timeZone, scope, access, privacy } = definition
+  if (scope !== "public" && typeof scope !== "function") {
+    report('scope must be "public" or a function')
+  }
+  if (access !== undefined && typeof access !== "function") {
+    report("access must be a function")
+  }
+  const { minGroupSize = 1, ...rest } = isRecord(privacy) ? privacy : {}
+  if (
+    (privacy !== undefined && !isRecord(privacy)) ||
+    Object.keys(rest).length > 0 ||
+    !Number.isSafeInteger(minGroupSize) ||
+    Number(minGroupSize) < 1
+  ) {
+    report("privacy must be { minGroupSize: n }, a whole number of at least 1")
+  }
   if (describe !== undefined && !isText(describe, 500)) {
     report("describe must be non-empty text of up to 500 characters")
   }
@@ -288,14 +362,6 @@ function check(definition: unknown) {
   return problems
 }
 
-function freeze<T>(value: T): T {
-  if (typeof value === "object" && value !== null) {
-    Object.values(value).forEach(freeze)
-    Object.freeze(value)
-  }
-  return value
-}
-
 function withoutUndefined(field: Readonly<Record<string, unknown>>) {
   return Object.fromEntries(
     Object.entries(field).filter(([, value]) => value !== undefined)
@@ -304,7 +370,8 @@ function withoutUndefined(field: Readonly<Record<string, unknown>>) {
 
 /**
  * Declares a dataset on the server: its fields, their types, units, formats
- * and capabilities, and the row key that identifies each row.
+ * and capabilities, the row key that identifies each row, and who may load
+ * which rows and fields.
  *
  * The definition is read once, as plain data: its own enumerable
  * properties, with getters called once. The dataset keeps its own frozen
@@ -317,17 +384,29 @@ function withoutUndefined(field: Readonly<Record<string, unknown>>) {
  * `enum` fields are groupable. The time zone must be `UTC` or an
  * Area/Location name such as `Asia/Tokyo`, and is kept exactly as written.
  *
+ * Every dataset declares its row `scope`: a function of the user, which
+ * returns conditions or `allRows`, or `"public"`. `access` on the dataset
+ * or a field restricts who may use it, and `exposeToAI: false` keeps a
+ * field from the model. `authorizeDataset` resolves all of them for one
+ * user.
+ *
  * Throws a `TypeError` listing every problem: a bad dataset or field id, an
  * unknown type, unit, currency, time zone or option, text that is empty or
- * too long, a format that doesn't fit its field, bad enum values, or a
- * missing or invalid row key.
+ * too long, a format that doesn't fit its field, bad enum values, a
+ * missing or invalid row key, a row key field that sets `access` or
+ * `exposeToAI: false`, a missing scope, an `access`, on the dataset or a
+ * field, that isn't a function, `privacy` that isn't `{ minGroupSize }` with
+ * a whole number of at least 1, or an `exposeToAI` that isn't a boolean.
  *
  * @experimental
  */
 export function defineDataset<
-  const TFields extends Fields,
+  TUser,
+  const TFields extends Fields<TUser>,
   const TKey extends KeyField<TFields> = "id" & KeyField<TFields>,
->(definition: DatasetDefinition<TFields, TKey>): Dataset<TFields, TKey> {
+>(
+  definition: DatasetDefinition<TFields, TKey, TUser>
+): Dataset<TFields, TKey, TUser> {
   const copy = snapshot(definition, depth, maxItems)
   const problems = check(copy)
   if (problems.length > 0 || !isRecord(copy) || !isRecord(copy["fields"])) {
@@ -341,7 +420,8 @@ export function defineDataset<
     }
     throw new TypeError(`Invalid dataset${name}:\n${shown.join("\n")}`)
   }
-  const { id, describe, timeZone, fields, rowKey } = copy
+  const { id, describe, timeZone, fields, rowKey, scope, access, privacy } =
+    copy
   const resolved = Object.fromEntries(
     Object.entries(fields).map(([fieldId, field]) => [
       fieldId,
@@ -359,5 +439,11 @@ export function defineDataset<
     rowKey:
       rowKey === undefined ? ["id"] : Array.isArray(rowKey) ? rowKey : [rowKey],
     fields: resolved,
-  }) as unknown as Dataset<TFields, TKey>
+    scope,
+    ...(access === undefined ? {} : { access }),
+    privacy: {
+      minGroupSize: 1,
+      ...withoutUndefined(isRecord(privacy) ? privacy : {}),
+    },
+  }) as unknown as Dataset<TFields, TKey, TUser>
 }
