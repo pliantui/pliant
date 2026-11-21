@@ -3,11 +3,10 @@ title: Next.js
 description: Add Pliant to a Next.js app and make one region and one table customizable.
 ---
 
-<Callout type="warn" title="Not installable">
-  The `@pliantui/*` packages aren't published to npm, and the component registry
-  isn't hosted, so the setup commands below don't work outside the Pliant
-  repository. You can try Pliant today from a clone. See the
-  [roadmap](/docs/roadmap).
+<Callout type="warn" title="Not on npm yet">
+  The `@pliantui/*` packages aren't published to npm, so `pnpm add` below
+  doesn't work outside the Pliant repository. You can try Pliant today from a
+  clone.
 </Callout>
 
 ## Try it now
@@ -58,10 +57,11 @@ This copies `pliant-region.tsx` into `components/pliant`. The shadcn CLI also in
 
 ```tsx title="app/orders/page.tsx"
 import { PliantRoot } from "@pliantui/react"
+import { localAdapter } from "@pliantui/react/local"
 
 export default function OrdersPage() {
   return (
-    <PliantRoot surface="/orders">
+    <PliantRoot surface="/orders" storage={localAdapter}>
       {/* your page */}
     </PliantRoot>
   )
@@ -70,7 +70,7 @@ export default function OrdersPage() {
 
 For a dynamic route, pass the route pattern, not the URL. On `app/orders/[id]/page.tsx`, use `surface="/orders/[id]"`, so every order page shares one layout.
 
-Each user's changes are saved in their browser's `localStorage` by default. To keep them on your server, see [Storage](/docs/storage).
+`storage={localAdapter}` saves each user's changes in their browser's `localStorage`. To keep them on your server, see [Storage](/docs/storage).
 
 ### Make a region editable
 
@@ -78,13 +78,14 @@ Replace the element that holds a group of items, such as a row of cards, with `P
 
 ```tsx title="app/orders/page.tsx"
 import { PliantRoot } from "@pliantui/react"
+import { localAdapter } from "@pliantui/react/local"
 
 import { PliantRegion } from "@/components/pliant/pliant-region"
 import { StatCard } from "@/components/stat-card"
 
 export default function OrdersPage() {
   return (
-    <PliantRoot surface="/orders">
+    <PliantRoot surface="/orders" storage={localAdapter}>
       <PliantRegion
         id="key-metrics"
         slots={{

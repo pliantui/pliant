@@ -106,13 +106,14 @@ Render it inside `PliantRoot`, next to the region:
 
 ```tsx title="app/orders/page.tsx"
 import { PliantRoot } from "@pliantui/react"
+import { localAdapter } from "@pliantui/react/local"
 
 import { AskButton } from "@/components/ask-button"
 
 export default function OrdersPage() {
   return (
     <main>
-      <PliantRoot surface="/orders">
+      <PliantRoot surface="/orders" storage={localAdapter}>
         <header className="flex items-center justify-between">
           <h1>Orders</h1>
           <AskButton />

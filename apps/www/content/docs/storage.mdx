@@ -3,7 +3,7 @@ title: Storage
 description: Save each user's changes to your backend instead of the browser.
 ---
 
-`PliantRoot` loads and saves overlays through a storage adapter. The default, `localAdapter()`, keeps each user's personal overlays in their browser's `localStorage`. To keep them on your server, write an adapter and pass it to `PliantRoot`.
+`PliantRoot` loads and saves overlays through the storage adapter you pass as `storage`. `localAdapter` from `@pliantui/react/local` keeps each user's personal overlays in their browser's `localStorage`. To keep them on your server, use `serverAdapter` from `@pliantui/react/server-adapter` with `createStorageHandler` from `@pliantui/server/storage`, or write your own adapter.
 
 ## The adapter
 
@@ -158,7 +158,7 @@ Then use `OrdersRoot` in place of `PliantRoot` in your page.
 
 ## localAdapter
 
-`localAdapter()` stores personal overlays only, and throws for any other layer. Its `load` returns the surface's own personal overlays only, not `@app` overlays. It keeps one `localStorage` key per overlay, `pliant:<surface>:<id>`, holding its stored record as JSON. An entry that isn't a valid record doesn't load and is never overwritten.
+`localAdapter` stores personal overlays only, and throws for any other layer. Its `load` returns the surface's own personal overlays only, not `@app` overlays. It keeps one `localStorage` key per overlay, `pliant:<surface>:<id>`, holding its stored record as JSON. An entry that isn't a valid record doesn't load and is never overwritten.
 
 `remove` leaves a tombstone under the overlay's key and keeps it, so a removed overlay is never stored again under its id. The tombstone holds the removed overlay: to erase it at once, remove the key from `localStorage`, and a late retry of a save from before the removal can then store the overlay again. `history` returns the record under each key, tombstones included: the latest record of every overlay, not earlier versions.
 

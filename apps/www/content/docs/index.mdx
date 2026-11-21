@@ -44,7 +44,7 @@ Overlays live in **layers**. There are four, from lowest to highest:
 | ---------- | ---------------------------- | ------------------------------------------------------- |
 | `org`      | Everyone in an organization  | Your storage                                            |
 | `team`     | Everyone on a team           | Your storage                                            |
-| `personal` | One user                     | Your storage (the browser by default)                   |
+| `personal` | One user                     | Your storage, such as the browser                       |
 | `session`  | One user, in one browser tab | The tab's `sessionStorage`, cleared when the tab closes |
 
 When two layers set the same property, the higher layer wins. That's decided per property, not per page. A team can set a default sort while a user hides a column, and both apply.
