@@ -52,13 +52,21 @@ export interface PliantRootProps {
   /**
    * The surface's layers, loaded on the server while it renders, as
    * `storage.load` returns them. The server render and hydration apply
-   * them, so the first paint shows the user's layout, and storage loads
-   * the layers again after mount without going back to `loading`. Like
-   * `storage`, it is read once, when the surface mounts.
+   * them, and storage loads the layers again after mount without going
+   * back to `loading`. Like `storage`, it is read once, when the surface
+   * mounts.
    *
-   * Loading them makes the route dynamic. Ops that need a container to be
-   * mounted, such as `insert`, `wrap` and `move` into another node, apply
-   * once it mounts.
+   * Load them from the same store `storage` reads, at least as fresh:
+   * storage stays the source of truth, so a personal overlay that its
+   * reload doesn't return is treated as removed and stops applying.
+   *
+   * Loading them makes the route dynamic. Under Next.js `cacheComponents`,
+   * load them inside a `<Suspense>` boundary.
+   *
+   * The server HTML shows reordering, hiding and layout. Ops that need
+   * their container mounted, such as `insert`, `wrap` and `move` into
+   * another node, show the base layout in the server HTML, with no
+   * skeleton, and apply when the page hydrates.
    */
   readonly layers?: StoredLayers | undefined
   readonly children?: ReactNode
@@ -112,7 +120,8 @@ function PliantSurfaceRoot({
  * personal overlays saved to it, and the session layer, kept per tab. It
  * reads storage only after mount, in a layout effect, so the server render
  * resolves only the `layers` it was given, and a synchronous adapter applies
- * before the first client paint. `usePliantStatus` tells when the layers are ready.
+ * before the first client paint. `usePliantStatus` tells when the layers
+ * are ready.
  *
  * Each personal version gets a new id and is stored as a new record, with
  * `ifMatch: null`. Versions made in other tabs and devices have their own
