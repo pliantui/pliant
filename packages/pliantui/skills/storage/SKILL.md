@@ -18,6 +18,24 @@ If the user hasn't said, use `localAdapter` and mention the other. Server storag
 
 The store keeps records and nothing else: the handler checks permissions and assigns every etag, version and timestamp. `memoryOverlayStore()` from `@pliantui/server/storage` is for tests and demos only, because it forgets everything on restart and isn't shared between servers. In production, write a store over the app's database.
 
+If the app uses [Drizzle](https://orm.drizzle.team) with PostgreSQL, don't write a store: use `drizzleOverlayStore` from `@pliantui/server/drizzle`. Export its `pliantOverlays` and `pliantOverlayHistory` tables from the schema the app's migrations are generated from, generate and apply the migration, and pass the app's database:
+
+```ts
+// db/schema.ts
+export { pliantOverlayHistory, pliantOverlays } from "@pliantui/server/drizzle"
+```
+
+```ts
+// lib/overlay-store.ts
+import { drizzleOverlayStore } from "@pliantui/server/drizzle"
+
+import { db } from "@/db" // the app's Drizzle database
+
+export const overlayStore = drizzleOverlayStore(db)
+```
+
+It keeps every rule below. Pass a database connected to the primary, through a driver with transactions, such as `node-postgres`, `postgres-js` or PGlite. The rest of this step is for writing a store over another database or client.
+
 A stored overlay is keyed by `surface`, `layer`, `scope` and `id`. `scope` depends on the layer:
 
 - `personal`: the user's id;
