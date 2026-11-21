@@ -10,6 +10,11 @@
     "ignore": ["zod", "@pliantui/contract", "@pliantui/core"]
   },
   {
+    "path": "dist/drizzle.js",
+    "limit": "1 kB",
+    "ignore": ["drizzle-orm", "drizzle-orm/pg-core"]
+  },
+  {
     "path": "dist/recordings.js",
     "limit": "2 kB",
     "ignore": ["ai", "zod", "node:fs/promises", "node:path"]
