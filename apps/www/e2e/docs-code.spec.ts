@@ -62,3 +62,20 @@ test("folds a folder in a file tree", async ({ page }) => {
   await folder.click()
   await expect(page.getByText("pliant-region.tsx")).toBeHidden()
 })
+
+test("shows an included snippet as a copyable code block", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"])
+  await page.goto("/docs/cli")
+  const block = page
+    .getByRole("figure")
+    .filter({ hasText: "export default function Page()" })
+
+  await block.getByRole("button", { name: "Copy" }).click()
+  const copied = await page.evaluate(() => navigator.clipboard.readText())
+  expect(copied).toMatch(/^import \{ PliantRoot \} from "@pliantui\/react"/)
+  expect(copied).not.toContain("#region")
+  expect(copied).not.toContain("function OrderTotal")
+})
