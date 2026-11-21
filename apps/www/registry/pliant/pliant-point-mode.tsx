@@ -6,9 +6,25 @@ import { SquareDashedMousePointerIcon } from "lucide-react"
 import { Slot } from "radix-ui"
 import { createPortal } from "react-dom"
 
+import { usePliantMessages, type PliantMessages } from "@pliantui/react"
 import { usePointMode } from "@pliantui/react/ask"
 
 import { Button } from "@/components/ui/button"
+
+declare module "@pliantui/react" {
+  interface PliantMessages {
+    pointModeOpen: string
+    pointModeLabel: string
+    pointModeHelp: string
+  }
+}
+
+const pointModeMessages = {
+  pointModeOpen: "Point",
+  pointModeLabel: "Point mode",
+  pointModeHelp:
+    "Pick a part to change. Use Tab or the arrow keys to move, Enter to pick, Escape to leave.",
+} satisfies Partial<PliantMessages>
 
 /** A node users can point at: its id and the label shown on its outline. */
 interface PliantPointTarget {
@@ -48,9 +64,10 @@ function PliantPointMode({
   targets: readonly PliantPointTarget[]
   /** Called with the id of the target the user picked. */
   onPick: (id: string) => void
-  /** The element that toggles point mode. Defaults to a "Point" button. */
+  /** The element that toggles point mode. Defaults to a `pointModeOpen` button. */
   trigger?: React.ReactElement
 }) {
+  const messages = usePliantMessages(pointModeMessages)
   const { mode, boxes, announcement, pick, getTriggerProps, getLayerProps } =
     usePointMode({
       targets,
@@ -71,7 +88,7 @@ function PliantPointMode({
             className="data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
           >
             <SquareDashedMousePointerIcon />
-            Point
+            {messages.pointModeOpen}
           </Button>
         )}
       </Slot.Root>
@@ -82,14 +99,13 @@ function PliantPointMode({
         createPortal(
           <div
             {...getLayerProps()}
-            aria-label="Point mode"
+            aria-label={messages.pointModeLabel}
             aria-describedby={mode === "toggle" ? `${id}-help` : undefined}
             className="pointer-events-auto fixed inset-0 z-40 cursor-crosshair"
           >
             {mode === "toggle" && (
               <p id={`${id}-help`} className="sr-only">
-                Pick a part to change. Use Tab or the arrow keys to move, Enter
-                to pick, Escape to leave.
+                {messages.pointModeHelp}
               </p>
             )}
             {boxes.map((box) => (

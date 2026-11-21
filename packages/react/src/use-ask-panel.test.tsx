@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { memoryStorage } from "../test/storage"
+import type { PliantMessages } from "./pliant-messages"
 import { PliantRoot } from "./pliant-root"
 import type { StorageAdapter } from "./storage-adapter"
 import { useAskPanel, type UseAskPanelOptions } from "./use-ask-panel"
@@ -206,9 +207,13 @@ function Page() {
   )
 }
 
-function page(props: PanelProps = {}, layers: StorageAdapter = storage) {
+function page(
+  props: PanelProps = {},
+  layers: StorageAdapter = storage,
+  messages?: Partial<PliantMessages>
+) {
   return (
-    <PliantRoot surface={surface} storage={layers}>
+    <PliantRoot surface={surface} storage={layers} messages={messages}>
       <Page />
       <Panel defaultOpen {...props} />
     </PliantRoot>
@@ -217,9 +222,10 @@ function page(props: PanelProps = {}, layers: StorageAdapter = storage) {
 
 async function renderPanel(
   props: PanelProps = {},
-  layers: StorageAdapter = storage
+  layers: StorageAdapter = storage,
+  messages?: Partial<PliantMessages>
 ) {
-  const view = render(page(props, layers))
+  const view = render(page(props, layers, messages))
   await settle()
   return view
 }
@@ -444,6 +450,70 @@ describe("useAskPanel", () => {
     await ask()
 
     expect(status()).toBe("Couldn't reach the server. Check your connection.")
+  })
+
+  describe("with the root's messages", () => {
+    const messages: Partial<PliantMessages> = {
+      askNotReady: "La page se charge encore.",
+      askUnreachable: "Serveur injoignable.",
+      askPreviewFailed: (error) => `Aperçu impossible (${error})`,
+      askLockInFailed: () => "Impossible de valider.",
+    }
+
+    it("says the page hasn't loaded yet", async () => {
+      await renderPanel(
+        {},
+        { ...storage, load: () => new Promise(() => undefined) },
+        messages
+      )
+
+      await ask()
+
+      expect(status()).toBe("La page se charge encore.")
+    })
+
+    it("says the server couldn't be reached", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined)
+      await renderPanel({}, storage, messages)
+      send.mockRejectedValueOnce(new TypeError("Failed to fetch"))
+
+      await ask()
+
+      expect(status()).toBe("Serveur injoignable.")
+    })
+
+    it("says why an answer can't be previewed", async () => {
+      await renderPanel({}, storage, messages)
+      answer({ status: "ok", overlay: { v: 1 } })
+
+      await ask()
+
+      expect(status()).toMatch(/^Aperçu impossible \(.+\)$/s)
+    })
+
+    it("says locking in failed", async () => {
+      function LockInWithoutPreview() {
+        const panel = useAskPanel({ targets, send })
+        return (
+          <>
+            <button type="button" onClick={panel.lockIn}>
+              Lock in
+            </button>
+            <p role="status">{statusText(panel.state)}</p>
+          </>
+        )
+      }
+      render(
+        <PliantRoot surface={surface} storage={storage} messages={messages}>
+          <LockInWithoutPreview />
+        </PliantRoot>
+      )
+      await settle()
+
+      fireEvent.click(screen.getByRole("button", { name: "Lock in" }))
+
+      expect(status()).toBe("Impossible de valider.")
+    })
   })
 
   it("logs why sending failed in development", async () => {
