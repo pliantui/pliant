@@ -317,6 +317,39 @@ const resolved = resolveLayers(overlays, {
 
 With the inventory, an op into a node that isn't listed is reported as `missing-container`, since that node doesn't exist anywhere on the surface. `baseParents` tells core which node holds which, so a node flagged `critical` also stays visible when an op would hide a node that holds it. `baseOrder` gives each group's order before any op, so a `destructive` action starts out where it renders relative to the `primary` one.
 
+### Checking it in development
+
+Pass a surface's entry to its `PliantRoot` as `inventory`. It's plain data, so a Server Component can pass it:
+
+```tsx
+import { PliantRoot } from "@pliantui/react"
+import { localAdapter } from "@pliantui/react/local"
+import { PliantPrePaint } from "@pliantui/react/pre-paint"
+
+import { inventory } from "@/lib/pliant/inventory.generated"
+
+const surface = "/examples/orders"
+
+export default function OrdersPage() {
+  return (
+    <PliantRoot
+      surface={surface}
+      storage={localAdapter}
+      inventory={
+        process.env.NODE_ENV === "production"
+          ? undefined
+          : { baseIds: inventory[surface].baseIds }
+      }
+    >
+      <PliantPrePaint surface={surface} />
+      {/* … */}
+    </PliantRoot>
+  )
+}
+```
+
+In development, when a region, slot, table or column mounts and the entry doesn't list its id, the console shows a warning, once per id. Either the inventory is out of date, so run `npx pliantui scan` again, or the command couldn't follow how that node is rendered, as described in [What it reads](#what-it-reads). Production builds don't check it. A Server Component sends its props to the browser, so pass only `baseIds`, and nothing in production, as above, to keep the rest of the inventory out of the page. Columns an op adds to a table aren't in the inventory, and aren't reported.
+
 ### What's reported, not guessed
 
 When the command can't read something as written, it says so, with the file and line, instead of guessing:
@@ -389,6 +422,7 @@ Each check passes, warns, fails or is skipped, and prints how to fix what it fou
 ✔ lib/pliant/inventory.generated.ts is up to date.
 - No lib/pliant/manifests.generated.ts, so none of your own components have manifests.
   Run npx pliantui manifest to describe your own components.
+- No defineDataset from @pliantui/server/data found in this project.
 
 5 checks passed, 1 failed.
 ```
@@ -404,6 +438,7 @@ Each check passes, warns, fails or is skipped, and prints how to fix what it fou
 | `pre-paint`       | Each `PliantRoot` has a `PliantPrePaint` with the same `surface` in its route.                                                       |
 | `inventory`       | The inventory from `pliantui scan` is there and up to date, as `scan --check` checks it.                                             |
 | `manifests`       | Always skipped. It says whether `manifests.generated.ts` is there, but not whether it's up to date.                                  |
+| `ai-fields`       | Every dataset field visible to the AI can be read and none look sensitive. Otherwise it warns. It lists the fields either way.       |
 
 The `pre-paint` check reads your source the way `scan` does, without running it. A `PliantRoot` in a page or layout under the App Router folder needs a `PliantPrePaint` with the same `surface` in the same file or in a `layout` or `template` that renders it: one of a segment above, or of its own segment, where a `layout` renders the `template` and the `template` renders the page. When the check can't tell, it warns instead of passing or failing:
 
@@ -416,11 +451,27 @@ It fails when the `PliantPrePaint` in the route renders another surface, and whe
 
 The `inventory` check fails when the inventory is missing or out of date, or when the scan finds an error. It warns when the scan has warnings, such as a surface that isn't read in full. It's skipped when the app has no `PliantRoot` and no inventory.
 
+The `ai-fields` check finds each `defineDataset` from `@pliantui/server/data` in your source, through renamed imports, re-exports and `const` aliases, and lists the fields of each dataset: the ones the AI is told about, with their types, and the ones that set `exposeToAI: false`. The AI is told a field's name and type, never its values. A field with `access` is listed too, since the AI is told about it for every user its `access` allows. The check warns about a visible field when its type is `email` or its name has one of these words, split at camelCase, `_` and `-`: `email`, `phone`, `ssn`, `salary`, `password`, `token`, `secret`, `address`, `dob`, `birth` or `birthday`. Set `exposeToAI: false` on each field the AI shouldn't see:
+
+```ts
+const people = defineDataset({
+  id: "people",
+  scope: "public",
+  fields: {
+    id: { type: "id" },
+    team: { type: "string" },
+    workEmail: { type: "email", exposeToAI: false },
+  },
+})
+```
+
+It also warns when it can't read a field, like one built by a function, one whose `exposeToAI` isn't `true`, `false` or a `const` set to one, or fields added by a spread or a computed key it can't follow, and counts what it can't read as visible. A spread or computed key it can't follow in the definition itself, outside `fields`, may replace every field, so all of that dataset's fields count as visible. It passes when every field it found is read and none look sensitive, and it's skipped when the app has no datasets. Its warnings don't change the exit code.
+
 Without a valid `components.json`, the checks that need it are skipped.
 
 The command exits with code 1 when a check fails. Warnings and skipped checks don't change the exit code.
 
-Pass `--json` to get the checks as JSON, for scripts and agents. Each check has a `name`, a `status` (`pass`, `warn`, `fail` or `skip`), a `message`, and, where there is one, a `fix` and the `problems` it found, each with a `file`, `line`, `message` and a `status` of `fail` or `warn`. `ok` is `false` when a check fails. When the command can't run at all, like when the `--cwd` folder doesn't exist, it prints `{ "ok": false, "error": "…" }` and exits with code 1.
+Pass `--json` to get the checks as JSON, for scripts and agents. Each check has a `name`, a `status` (`pass`, `warn`, `fail` or `skip`), a `message`, and, where there is one, a `fix` and the `problems` it found, each with a `file`, `line`, `message` and a `status` of `fail` or `warn`. The `ai-fields` check also has `details`: one entry per dataset, with its `file`, `line`, `message`, `dataset` id (`null` when it can't be read) and `fields`, each with a `name`, `type` (`null` when it can't be read), `exposeToAI`, `sensitive` and `line`. A field that can't be read has `exposeToAI: true`. `ok` is `false` when a check fails. When the command can't run at all, like when the `--cwd` folder doesn't exist, it prints `{ "ok": false, "error": "…" }` and exits with code 1.
 
 ## skills
 

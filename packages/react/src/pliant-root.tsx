@@ -1,5 +1,6 @@
 import { use, useLayoutEffect, useState, type ReactNode } from "react"
 
+import { setInventory, type PliantInventory } from "./inventory-check"
 import { createLayerStore } from "./layer-store"
 import { PliantContext } from "./pliant-context"
 import { PliantMessagesContext, type PliantMessages } from "./pliant-messages"
@@ -73,6 +74,14 @@ export interface PliantRootProps {
    * skeleton, and apply when the page hydrates.
    */
   readonly layers?: StoredLayers | undefined
+  /**
+   * The surface's entry of the inventory `pliantui scan` writes, such as
+   * `inventory["/examples/orders"]`. In development, a region, slot, table
+   * or column that mounts but isn't in it is reported with a warning, once
+   * per id: the scan couldn't follow how it's rendered, or the inventory is
+   * out of date. Production builds don't read it.
+   */
+  readonly inventory?: PliantInventory | undefined
   readonly children?: ReactNode
 }
 
@@ -83,6 +92,7 @@ function PliantSurfaceRoot({
   onError,
   lang,
   layers,
+  inventory,
   children,
 }: PliantRootProps) {
   const [store] = useState(() => {
@@ -104,6 +114,10 @@ function PliantSurfaceRoot({
       layers,
     })
   })
+  if (process.env.NODE_ENV !== "production") {
+    // Set while rendering, before what mounts inside checks it.
+    setInventory(store, inventory)
+  }
   useLayoutEffect(() => {
     store.setOnError(onError)
   }, [store, onError])

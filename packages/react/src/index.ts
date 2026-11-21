@@ -1,4 +1,5 @@
 export type { PliantMessages } from "./pliant-messages"
+export type { PliantInventory } from "./inventory-check"
 export { PliantRoot, type PliantRootProps } from "./pliant-root"
 export type { PliantStatus } from "./pliant-status"
 export type {

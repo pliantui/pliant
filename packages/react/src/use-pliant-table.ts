@@ -20,6 +20,7 @@ import {
   type CompileTableStateOptions,
 } from "@pliantui/core"
 
+import { useWarnUnscanned } from "./inventory-check"
 import {
   isLocalSlice,
   splitLocal,
@@ -378,6 +379,15 @@ export function usePliantTable<
     () => store.registerNodes(mounted.split("\n")),
     [store, mounted]
   )
+  if (process.env.NODE_ENV !== "production") {
+    // The scan lists the table and its own columns, not the ones ops add.
+    // The condition is the same on every render, so hooks keep their order.
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useWarnUnscanned(
+      store,
+      [id, ...columns.map((column) => `${id}/columns/${column.id}`)].join("\n")
+    )
+  }
 
   const compile = (resolved: Parameters<typeof cache.table.compile>[0]) => {
     const setup = setupAt(resolved)
