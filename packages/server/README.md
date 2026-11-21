@@ -82,6 +82,29 @@ The database must connect to the primary and its driver must support transaction
 - a `put` that writes only when the stored etag matches, in one statement, and writes the history row, with the author, in the same transaction;
 - reads from the primary, not a replica, so users see their own saves.
 
+## SQL queries (experimental)
+
+`@pliantui/server/sql` exports `compileQuery`, which compiles one page of a dataset's rows for one user to a parameterized Postgres query: the fields the user may read, the rows in their scope that pass the table's filters, in the table's sort with ties broken by the row key.
+
+```ts
+import { authorizeDataset } from "@pliantui/server/data"
+import { compileQuery } from "@pliantui/server/sql"
+
+const grant = authorizeDataset(orders, user)
+if (grant === null) {
+  return new Response(null, { status: 403 })
+}
+const query = await request.json()
+const { text, values } = compileQuery(orders, grant, query, {
+  table: "orders",
+  columns: { createdAt: "created_at", orgId: "org_id" },
+  maxPageSize: 100,
+})
+const { rows } = await pool.query(text, values)
+```
+
+Each field is read from the column named by its id, or by `columns`; scope keys map the same way. Table and column names come only from these options and the dataset, and every value is a parameter. The query is parsed before use, and a query that names a field the user can't read, or sorts or filters in a way the field's capabilities don't allow, throws a `TypeError`. Every query is paged: a page has at most `maxPageSize` rows, whatever the query asks for. It defaults to 100 and can be set up to 1000. Store dates as `date` and datetimes as `timestamptz`; a day in a filter covers that day in the dataset's time zone. Text sorts in the column's collation, so the database's order can differ from the browser's for accents and case; give sort columns an ICU collation, such as `"und-x-icu"`, if the two must match.
+
 ## Recordings
 
 `@pliantui/server/recordings` exports `recordingMiddleware`, an AI SDK middleware for development, tests and demos. In `replay` mode it serves answers from JSON files instead of calling the model, keyed by a hash of the model, the prompt and the tools; `record` mode writes them, including every ask.
