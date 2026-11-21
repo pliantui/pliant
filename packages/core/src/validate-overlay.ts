@@ -64,6 +64,8 @@ export interface ValidateOverlayOptions {
    * When given, the overlay must be for `layers.surface` or `@app`, and these
    * are invalid, exactly as `resolveLayers` would report them: an `insert` or
    * `wrap` whose id is already used on the surface (`id-collision`, at the
+   * id), an `addAggregate` or `addDerived` whose id is a column of its table
+   * that `baseIds` lists, as `<table>/columns/<id>` (`id-collision`, at the
    * id), and a `move … into` a node that doesn't exist or an `insert` or
    * `wrap` into one (`missing-container`, at `to.into` or `target`). A
    * `dormant` op, into a node that mounted `baseIds` don't list yet, isn't
@@ -190,6 +192,15 @@ function layerIssues(
             ? ["ops", index, "target"]
             : ["ops", index, "to", "into"],
         message: `The node ${identityOf(into ?? op.target)} doesn't exist on this surface`,
+      })
+    } else if (
+      reason === "id-collision" &&
+      (op.op === "addAggregate" || op.op === "addDerived")
+    ) {
+      issues.set(index, {
+        code: "custom",
+        path: ["ops", index, "id"],
+        message: `The id ${op.id} is already used by a column of ${identityOf(op.target)}`,
       })
     } else if (
       reason === "id-collision" &&

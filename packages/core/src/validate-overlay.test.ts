@@ -708,6 +708,77 @@ describe("validateOverlay", () => {
       ).toEqual([["ops", 0, "node", "id"]])
     })
 
+    describe("a table item whose id a column has", () => {
+      const columns = ["orders-table", "orders-table/columns/value"]
+      const item = (op: string, id: string, target = "orders-table") =>
+        op === "addAggregate"
+          ? {
+              op,
+              target,
+              id,
+              label: "Sum",
+              expr: { fn: "sum", args: [{ field: "value" }] },
+            }
+          : { op, target, id, label: "Margin", expr: { field: "value" } }
+
+      it.each(["addAggregate", "addDerived"])(
+        "rejects %s as an id collision at the id",
+        (op) => {
+          const issues = validateOverlay(overlay([item(op, "value")]), {
+            layers: { overlays: [], surface, baseIds: columns },
+          }).error?.issues
+          expect(issues).toEqual([
+            {
+              code: "custom",
+              path: ["ops", 0, "id"],
+              message:
+                "The id value is already used by a column of orders-table",
+            },
+          ])
+        }
+      )
+
+      it.each(["addAggregate", "addDerived"])(
+        "accepts %s with an id no column has, or on another table",
+        (op) => {
+          const result = validateOverlay(
+            overlay([item(op, "total"), item(op, "value", "other-table")]),
+            {
+              layers: { overlays: [], surface, baseIds: columns },
+            }
+          )
+          expect(result.success).toBe(true)
+        }
+      )
+
+      it("rejects only the ops that collide, among several", () => {
+        const issues = validateOverlay(
+          overlay([
+            item("addAggregate", "total"),
+            item("addDerived", "value"),
+            item("addAggregate", "total"),
+            item("addAggregate", "value"),
+          ]),
+          { layers: { overlays: [], surface, baseIds: columns } }
+        ).error?.issues.map(({ path }) => path)
+        expect(issues).toEqual([
+          ["ops", 1, "id"],
+          ["ops", 3, "id"],
+        ])
+      })
+
+      it("agrees with resolveLayers", () => {
+        const input = overlay([item("addAggregate", "value")])
+        const resolved = resolveLayers([load(input)], {
+          surface,
+          baseIds: columns,
+        })
+        expect(resolved.unapplied.map(({ reason }) => reason)).toEqual([
+          "id-collision",
+        ])
+      })
+    })
+
     it("names the missing node by its identity", () => {
       expect(
         validateOverlay(

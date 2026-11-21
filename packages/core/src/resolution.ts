@@ -458,6 +458,12 @@ export function applyOp(
     state.created.add(id)
     state.createdIn.set(id, identityOf(op.target))
   }
+  if (
+    (op.op === "addAggregate" || op.op === "addDerived") &&
+    state.base.has(`${identityOf(op.target)}/columns/${op.id}`)
+  ) {
+    return "id-collision"
+  }
   const absent = op.op === "move" ? containerReason(state, op) : undefined
   if (absent) {
     return absent

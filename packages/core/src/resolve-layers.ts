@@ -159,6 +159,8 @@ export type SkippedOp =
  * node, or a node the op itself points at. With `baseIds`, a base node is
  * exactly a listed id; without them, it is approximated as an id an earlier
  * op in the resolution order pointed at before anything created it.
+ * An `addAggregate` or `addDerived` also collides when `baseIds` lists a
+ * column of its table with its id, as `<table>/columns/<id>`.
  * `missing-container` means a `move … into` names a node, or an `insert` or
  * `wrap` targets one, that doesn't exist when it applies: one that was
  * removed, or, with inventory `baseIds`, one that is neither listed,
