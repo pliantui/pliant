@@ -20,7 +20,9 @@ describe("getStarCount", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(() =>
-        Promise.resolve(new Response("rate limited", { status: 403 }))
+        Promise.resolve(
+          Response.json({ stargazers_count: 1234 }, { status: 403 })
+        )
       )
     )
 
