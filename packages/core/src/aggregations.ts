@@ -1,6 +1,7 @@
 import type { FunctionName } from "@pliantui/contract"
 
 import { isFunctionName } from "./check-function-call"
+import { createSum } from "./compensated-sum"
 import { createMoments, type Moments } from "./moments"
 import type { Value } from "./read-value"
 import { compareValues } from "./row-functions"
@@ -33,25 +34,18 @@ const counting =
     }
   }
 
-// Neumaier's compensated summation: its error is bounded by the sum of the
-// absolute values times twice the rounding unit, at any number of values.
 const summing =
   (counts: (args: readonly Value[]) => boolean): CreateAggregation =>
   () => {
-    let sum = 0
-    let compensation = 0
+    const sum = createSum()
     return {
       add: (args) => {
         const [x = null] = args
-        if (!isNumber(x) || !counts(args)) {
-          return
+        if (isNumber(x) && counts(args)) {
+          sum.add(x)
         }
-        const total = sum + x
-        compensation +=
-          Math.abs(sum) >= Math.abs(x) ? sum - total + x : x - total + sum
-        sum = total
       },
-      result: () => sum + compensation,
+      result: sum.total,
     }
   }
 
