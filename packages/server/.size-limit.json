@@ -20,6 +20,11 @@
     "ignore": ["ai", "zod", "node:fs/promises", "node:path"]
   },
   {
+    "path": "dist/sql.js",
+    "limit": "2.4 kB",
+    "ignore": ["zod", "@pliantui/contract"]
+  },
+  {
     "path": "dist/storage.js",
     "limit": "2.6 kB",
     "ignore": ["zod", "@pliantui/contract", "@pliantui/core"]
