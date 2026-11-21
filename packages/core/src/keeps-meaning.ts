@@ -12,7 +12,7 @@ import type { ResolvedOp } from "./resolve-layers"
  * keeps the variant that marks it.
  */
 export function keepsMeaning(
-  op: ResolvedOp,
+  op: Pick<ResolvedOp, "check">,
   manifests: ReadonlyMap<string, Manifest>,
   flags: ReadonlyMap<string, Flags> | undefined
 ): Violation | undefined {

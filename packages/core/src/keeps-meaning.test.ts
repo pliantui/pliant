@@ -211,9 +211,9 @@ describe("semantic variants", () => {
       layers: {
         overlays: [],
         surface,
-        manifests,
         flags: { [remove]: { destructive: true } },
       },
+      manifests,
     })
     expect(result.error?.issues).toEqual([
       {
@@ -230,17 +230,25 @@ describe("semantic variants", () => {
       },
     ])
     expect(() =>
-      validateOverlay(input, {
-        layers: {
-          overlays: [],
-          surface,
-          manifests: { [save]: {} as Manifest },
-        },
-      })
+      validateOverlay(input, { manifests: { [save]: {} as Manifest } })
     ).toThrow(
-      new TypeError(
-        `layers.manifests["${save}"] must be a manifest at an address`
-      )
+      new TypeError(`manifests["${save}"] must be a manifest at an address`)
     )
+  })
+
+  it("rejects a semantic value without the layers below", () => {
+    const input = stored("personal", [
+      setProp(save, "variant", "warning"),
+      setProp(remove, "variant", "outline"),
+    ])
+    expect(validateOverlay(input).success).toBe(true)
+    expect(validateOverlay(input, { manifests }).error?.issues).toEqual([
+      {
+        code: "custom",
+        path: ["ops", 0],
+        message:
+          "The item save can't take variant warning, which only the app assigns",
+      },
+    ])
   })
 })

@@ -105,6 +105,14 @@ describe("shortcut bindings", () => {
     ["Spaces on macOS", "ctrl+arrowleft"],
     ["Force Quit on macOS", "mod+alt+escape"],
     ["a function key", "f5"],
+    ["the next tab on Windows", "ctrl+pagedown"],
+    ["the previous tab on Windows", "ctrl+pageup"],
+    ["closing the tab on Windows", "mod+f4"],
+    ["the Start menu", "mod+escape"],
+    ["the Task Manager", "mod+shift+escape"],
+    ["VoiceOver on macOS", "mod+f5"],
+    ["the previous tab on macOS", "mod+shift+["],
+    ["the next tab on macOS", "mod+shift+]"],
   ])("skips a binding to %s", (_, keys) => {
     const result = resolve([overlay("personal", [bind(exportAction, keys)])])
     expect(shortcutOf(result, exportAction)).toBeUndefined()
@@ -234,7 +242,8 @@ describe("shortcut bindings", () => {
       bind("orders-toolbar/actions/send", "mod+b"),
     ])
     const result = validateOverlay(input, {
-      layers: { overlays: [team], surface, reservedShortcuts: ["mod+k"] },
+      layers: { overlays: [team], surface },
+      reservedShortcuts: ["mod+k"],
     })
     expect(result.error?.issues).toEqual([
       {
@@ -254,14 +263,41 @@ describe("shortcut bindings", () => {
           "The item orders-toolbar/actions/run can't take mod+k, which is reserved",
       },
     ])
-    expect(() =>
-      validateOverlay(input, {
-        layers: { overlays: [], surface, reservedShortcuts: [""] },
-      })
-    ).toThrow(
+    expect(() => validateOverlay(input, { reservedShortcuts: [""] })).toThrow(
       new TypeError(
-        "layers.reservedShortcuts[0] must be keys as bindShortcut takes them"
+        "reservedShortcuts[0] must be keys as bindShortcut takes them"
       )
     )
+  })
+
+  it("rejects reserved keys without the layers below", () => {
+    const input = stored("personal", [
+      bind(printAction, "mod+t"),
+      bind("orders-toolbar/actions/run", "ctrl+k"),
+      bind("orders-toolbar/actions/copy", "mod+b"),
+      bind("orders-toolbar/actions/send", "mod+b"),
+    ])
+    expect(validateOverlay(input).error?.issues).toEqual([
+      {
+        code: "custom",
+        path: ["ops", 0],
+        message: `The item ${printAction} can't take mod+t, which is reserved`,
+      },
+    ])
+    expect(
+      validateOverlay(input, {
+        reservedShortcuts: ["mod+k"],
+      }).error?.issues.map(({ path }) => path)
+    ).toEqual([
+      ["ops", 0],
+      ["ops", 1],
+    ])
+  })
+
+  it("rejects reserved keys in an overlay whose envelope is invalid", () => {
+    const input = { ...stored("personal", [bind(printAction, "mod+t")]), v: 2 }
+    expect(
+      validateOverlay(input).error?.issues.map(({ message }) => message)
+    ).toContain(`The item ${printAction} can't take mod+t, which is reserved`)
   })
 })

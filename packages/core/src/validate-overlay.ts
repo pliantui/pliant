@@ -10,6 +10,8 @@ import {
 } from "@pliantui/contract"
 
 import { checkOp, type OpCheck, type OpContext } from "./check-op"
+import { freeShortcut } from "./free-shortcut"
+import { keepsMeaning } from "./keeps-meaning"
 import { loadOverlay, type LoadedOverlay } from "./load-overlay"
 import { identityOf } from "./node-identity"
 import { ownEntries } from "./own-entries"
@@ -58,10 +60,6 @@ export interface ValidateOverlayLayers {
   readonly baseParents?: Readonly<Record<string, string | null>> | undefined
   /** Each node's children in render order, as in `resolveLayers`. */
   readonly baseOrder?: Readonly<Record<string, readonly string[]>> | undefined
-  /** The manifests of the surface's nodes by address, as in `resolveLayers`. */
-  readonly manifests?: Readonly<Record<string, Manifest>> | undefined
-  /** Keys your app binds itself, as in `resolveLayers`. */
-  readonly reservedShortcuts?: readonly string[] | undefined
 }
 
 /** How `validateOverlay` checks an overlay beyond its own shape. */
@@ -80,11 +78,24 @@ export interface ValidateOverlayOptions {
    * overlay applied last, it is the highest op involved. Throws a
    * `TypeError` when `layers.surface` isn't a string, `layers.baseIds` isn't
    * an array of ids or `{ ids, source }` with an array, or `layers.flags`,
-   * `layers.baseParents`, `layers.baseOrder`, `layers.manifests` or
-   * `layers.reservedShortcuts` aren't valid as in `resolveLayers`, whatever
-   * the input.
+   * `layers.baseParents` or `layers.baseOrder` aren't valid as in
+   * `resolveLayers`, whatever the input.
+   *
+   * Without layers, the rules that need no other op still apply: a
+   * `bindShortcut` to reserved keys, or to `reservedShortcuts`, and a
+   * `setProp` to a value `manifests` marks semantic, are invalid.
    */
   readonly layers?: ValidateOverlayLayers | undefined
+  /**
+   * The manifests of the surface's nodes by address, as in `resolveLayers`.
+   * Throws a `TypeError` when they aren't valid as there.
+   */
+  readonly manifests?: Readonly<Record<string, Manifest>> | undefined
+  /**
+   * Keys your app binds itself, as in `resolveLayers`. Throws a `TypeError`
+   * when they aren't valid as there.
+   */
+  readonly reservedShortcuts?: readonly string[] | undefined
 }
 
 const [overlayVariant] = overlaySchema.out.options
@@ -145,13 +156,17 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
   }
 }
 
+type GuardrailSkip = Extract<SkippedOp, { reason: "guardrail" }>
+
 /** Why a guardrail skips the op, in the words of an issue. */
-function guardrailMessage(skip: Extract<SkippedOp, { reason: "guardrail" }>) {
-  const { op } = skip.check
+function guardrailMessage(
+  op: Op,
+  skip: Pick<GuardrailSkip, "guardrail" | "flag" | "node" | "conflictsWith">
+) {
   const item = `The item ${skip.node}`
   switch (skip.guardrail) {
     case "stays-visible":
-      return `${item} is ${skip.flag}, so it must stay visible`
+      return `${item} is ${String(skip.flag)}, so it must stay visible`
     case "stays-clear":
       return `${item} is destructive, so it can't sit next to or above its group's primary action`
     case "free-shortcut": {
@@ -208,7 +223,7 @@ function layerIssues(
       issues.set(entry.check.index, {
         code: "custom",
         path: ["ops", entry.check.index],
-        message: guardrailMessage(entry),
+        message: guardrailMessage(entry.check.op, entry),
       })
     }
   }
@@ -244,14 +259,42 @@ function layerIssues(
   return [...issues].sort(([a], [b]) => a - b).map(([, issue]) => issue)
 }
 
+/** The issues of the rules that judge an op on its own. */
+function opIssues(checks: readonly OpCheck[], rules: OpRules) {
+  return checks.flatMap((check): z.core.$ZodIssue[] => {
+    if (check.status !== "valid") {
+      return []
+    }
+    const op = { check }
+    const violation =
+      freeShortcut(op, new Map(), rules.reservedShortcuts) ??
+      keepsMeaning(op, rules.manifests, undefined)
+    return violation
+      ? [
+          {
+            code: "custom",
+            path: ["ops", check.index],
+            message: guardrailMessage(check.op, {
+              ...violation,
+              conflictsWith: [],
+            }),
+          },
+        ]
+      : []
+  })
+}
+
 export function validateOverlay(
   input: unknown,
-  { layers }: ValidateOverlayOptions = {}
+  { layers, manifests, reservedShortcuts }: ValidateOverlayOptions = {}
 ): Result<ValidatedOverlay> {
   let flags: ReadFlags | undefined
   let baseParents: ReadonlyMap<string, string | null> | undefined
   let baseOrder: ReadonlyMap<string, readonly string[]> | undefined
-  let rules: OpRules | undefined
+  const rules: OpRules = {
+    manifests: readManifests(manifests),
+    reservedShortcuts: readShortcuts(reservedShortcuts),
+  }
   if (layers) {
     checkSurface(layers.surface)
     const baseIds = readBaseIds(layers.baseIds)
@@ -270,13 +313,6 @@ export function validateOverlay(
       flags,
       "layers.baseOrder"
     )
-    rules = {
-      manifests: readManifests(layers.manifests, "layers.manifests"),
-      reservedShortcuts: readShortcuts(
-        layers.reservedShortcuts,
-        "layers.reservedShortcuts"
-      ),
-    }
   }
   const entries = ownEntries(input)
   const result = overlaySchema.safeParse(entries ?? input)
@@ -304,7 +340,7 @@ export function validateOverlay(
     ...envelopeIssues,
     ...listIssues,
     ...checks.flatMap(issuesOf),
-    ...(result.success && layers && rules
+    ...(result.success && layers
       ? layerIssues(
           { ...result.data, ops: checks },
           layers,
@@ -313,7 +349,7 @@ export function validateOverlay(
           baseOrder,
           rules
         )
-      : []),
+      : opIssues(checks, rules)),
   ]
   if (!result.success || issues.length > 0) {
     return { success: false, error: new z.ZodError(issues) }

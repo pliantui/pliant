@@ -32,15 +32,19 @@ const reserved: Readonly<Record<Platform | "any", Record<string, string>>> = {
     "ctrl+shift": "tab",
   },
   pc: {
-    // Developer tools and clearing browsing data.
-    "mod+shift": "c i j delete",
+    // Switching and closing tabs, the Start menu, developer tools, clearing
+    // browsing data and the Task Manager.
+    ctrl: "pageup pagedown f4",
+    mod: "escape",
+    "mod+shift": "c i j delete escape",
   },
   mac: {
-    // Minimizing, settings, switching windows, Spaces and input sources.
-    mod: "m , `",
+    // Minimizing, settings, switching windows, turning VoiceOver on and off,
+    // Spaces and input sources.
+    mod: "m , ` f5",
     ctrl: `space ${arrows}`,
-    // Screenshots and logging out.
-    "mod+shift": "3 4 5 q",
+    // Screenshots, logging out and switching tabs.
+    "mod+shift": "3 4 5 q [ ]",
     // Developer tools, the Dock and Force Quit.
     "mod+alt": "c d i j escape",
   },

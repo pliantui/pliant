@@ -102,10 +102,10 @@ function baseParentsOf(
  * order. With flags, after each op that can hide or move something, it
  * checks the guardrails on the state so far; after each `bindShortcut` and
  * `setProp`, it checks the rules on shortcuts and variants. It skips the op
- * if it breaks one: every op before it was kept, so the op that completes a violation
- * is the one from the highest layer involved. An op is judged against the ops before
- * it only, so a lower op is skipped even when a higher op would have undone
- * what it did.
+ * if it breaks one: every op before it was kept, so the op that completes a
+ * violation is the one from the highest layer involved. An op is judged
+ * against the ops before it only, so a lower op is skipped even when a
+ * higher op would have undone what it did.
  *
  * Each op that can hide or move something settles the state once, and each
  * skipped op applies the ops kept before it again, so time grows with the

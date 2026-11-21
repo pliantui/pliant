@@ -13,7 +13,7 @@ import type { ResolvedOp, ResolvedProperty } from "./resolve-layers"
  * Command.
  */
 export function freeShortcut(
-  op: ResolvedOp,
+  op: Pick<ResolvedOp, "check">,
   properties: ReadonlyMap<string, ReadonlyMap<OpPropertyKey, ResolvedProperty>>,
   reserved: readonly string[]
 ): Violation | undefined {
