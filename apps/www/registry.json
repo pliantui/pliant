@@ -40,6 +40,21 @@
       ]
     },
     {
+      "name": "pliant-nav",
+      "type": "registry:component",
+      "title": "Pliant Nav",
+      "description": "The links of a sidebar, which users can reorder, hide and collapse into a \"More\" item with Pliant overlays, pick their start page from, and keep open or closed.",
+      "dependencies": ["@pliantui/react", "cn", "lucide-react"],
+      "registryDependencies": ["dropdown-menu", "sidebar"],
+      "files": [
+        {
+          "path": "registry/pliant/pliant-nav.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-nav.tsx"
+        }
+      ]
+    },
+    {
       "name": "pliant-ask-panel",
       "type": "registry:component",
       "title": "Pliant Ask Panel",
