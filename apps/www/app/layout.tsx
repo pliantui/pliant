@@ -11,6 +11,7 @@ import { META_THEME_COLORS, site } from "@/lib/site"
 import "./globals.css"
 
 export const metadata: Metadata = {
+  metadataBase: new URL(site.url),
   title: {
     default: site.name,
     template: `%s - ${site.name}`,

@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import { CheckIcon, ChevronDownIcon, CopyIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -18,6 +17,7 @@ import {
 } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard"
+import { site } from "@/lib/site"
 
 function getPromptUrl(baseURL: string, url: string) {
   return `${baseURL}?q=${encodeURIComponent(
@@ -68,23 +68,9 @@ const menuItems = {
   ),
 }
 
-function subscribe() {
-  return () => undefined
-}
-
-// The page's address comes from the browser, so the links name the site the
-// reader is on.
-function usePageUrl(path: string) {
-  return React.useSyncExternalStore(
-    subscribe,
-    () => new URL(path, window.location.origin).href,
-    () => path
-  )
-}
-
 export function DocsCopyPage({ page, path }: { page: string; path: string }) {
   const { copyToClipboard, isCopied } = useCopyToClipboard()
-  const url = usePageUrl(path)
+  const url = `${site.url}${path}`
 
   const trigger = (
     <Button

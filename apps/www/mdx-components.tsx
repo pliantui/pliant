@@ -8,6 +8,7 @@ import { CodeTabs } from "@/components/code-tabs"
 import { CopyButton } from "@/components/copy-button"
 import { File, FileTree, Folder } from "@/components/file-tree"
 import { getIconForLanguageExtension } from "@/components/icons"
+import { SiteUrl } from "@/components/site-url"
 import { Kbd } from "@/components/ui/kbd"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -190,4 +191,5 @@ export const mdxComponents = {
       {...props}
     />
   ),
+  SiteUrl,
 }

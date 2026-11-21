@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 
 import {
@@ -11,6 +12,10 @@ import { site } from "@/lib/site"
 
 export const dynamic = "force-static"
 export const revalidate = false
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+}
 
 export default function HomePage() {
   return (
