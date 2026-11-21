@@ -1,6 +1,11 @@
 import { realpathSync } from "node:fs"
 import path from "node:path"
-import { Node, SyntaxKind, type CallExpression } from "ts-morph"
+import {
+  Node,
+  SyntaxKind,
+  type CallExpression,
+  type VariableDeclaration,
+} from "ts-morph"
 
 import { getDeclarations, unwrapExpression } from "../utils/read-static"
 import { isImportFromPackage, isOpaqueTag } from "./opaque-tag"
@@ -15,6 +20,17 @@ interface RelevanceOptions {
   /** Whether a node is a whole reference worth resolving. */
   readonly isReference: (node: Node) => boolean
 }
+
+// Methods that put values in an array, a map, a set or an object.
+const mutators = new Set([
+  "push",
+  "unshift",
+  "splice",
+  "fill",
+  "set",
+  "add",
+  "assign",
+])
 
 // Values every script has, with no declaration to resolve.
 const builtIns = new Set(["undefined", "NaN", "Infinity", "globalThis"])
@@ -84,6 +100,11 @@ export function createRelevance({
   const relevantNode = (node: Node): boolean => {
     if (Node.isJsxOpeningElement(node) || Node.isJsxSelfClosingElement(node)) {
       const tag = node.getTagNameNode()
+      // A component passed in, like `<C />` in a wrapper, is checked where
+      // it's passed.
+      if (Node.isIdentifier(tag) && isParameter(getDeclarations(tag)[0])) {
+        return false
+      }
       const fn = componentOf(tag)
       return fn ? relevantFunction(fn) : isOpaqueTag(tag, root)
     }
@@ -151,7 +172,9 @@ export function createRelevance({
       return fromPackage !== true
     }
     if (isPackageFile(declaration)) {
-      return false
+      // A package's member, like `Map.get`, on the app's own object holds
+      // what the object holds.
+      return Node.isPropertyAccessExpression(reference) && relevantValue(base)
     }
     if (declaration.getSourceFile().isDeclarationFile()) {
       return true
@@ -166,7 +189,10 @@ export function createRelevance({
     }
     if (Node.isVariableDeclaration(declaration)) {
       const value = declaration.getInitializer()
-      return value !== undefined && relevantCode(value)
+      return (
+        (value !== undefined && relevantCode(value)) ||
+        relevantWrites(declaration)
+      )
     }
     if (Node.isBindingElement(declaration)) {
       const variable = declaration.getFirstAncestor((ancestor) =>
@@ -206,6 +232,58 @@ export function createRelevance({
     Node.isIdentifier(value) || Node.isShorthandPropertyAssignment(value)
       ? relevantReference(value)
       : relevantCode(value)
+
+  // What is put in a variable after it's made, like `panels.push(panel)`,
+  // `registry.panel = panel` or `Object.assign(registry, …)`.
+  const writes = new Map<Node, boolean>()
+  const relevantWrites = (declaration: VariableDeclaration): boolean => {
+    const name = declaration.getNameNode()
+    if (!Node.isIdentifier(name)) {
+      return false
+    }
+    const cached = writes.get(declaration)
+    if (cached !== undefined) {
+      return cached
+    }
+    writes.set(declaration, false)
+    const result = name.findReferencesAsNodes().some((usage) => {
+      if (usage === name || isPackageFile(usage)) {
+        return false
+      }
+      const parent = usage.getParent()
+      const member =
+        (Node.isPropertyAccessExpression(parent) ||
+          Node.isElementAccessExpression(parent)) &&
+        parent.getExpression() === usage
+          ? parent
+          : undefined
+      const user = member?.getParent()
+      if (
+        Node.isPropertyAccessExpression(member) &&
+        mutators.has(member.getName()) &&
+        Node.isCallExpression(user) &&
+        user.getExpression() === member
+      ) {
+        return user.getArguments().some(relevantCode)
+      }
+      if (
+        member &&
+        Node.isBinaryExpression(user) &&
+        user.getLeft() === member &&
+        user.getOperatorToken().getKind() === SyntaxKind.EqualsToken
+      ) {
+        return relevantCode(user.getRight())
+      }
+      // Passed to a call that may fill it, like `Object.assign`.
+      return (
+        Node.isCallExpression(parent) &&
+        parent.getArguments().includes(usage) &&
+        relevantCode(parent)
+      )
+    })
+    writes.set(declaration, result)
+    return result
+  }
 
   const relevantReference = (reference: Node): boolean => {
     const cached = references.get(reference)

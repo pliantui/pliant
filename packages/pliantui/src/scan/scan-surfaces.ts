@@ -76,7 +76,15 @@ interface Walk {
    * How many functions rendered once per row or item, like a `.map`
    * callback or a column's `cell`, the walk is inside.
    */
-  readonly repeated: Node[]
+  readonly repeated: Repeat[]
+}
+
+/** A callback rendered once per row or item, like a `.map` callback. */
+interface Repeat {
+  /** The `.map` call or column function. */
+  readonly at: Node
+  /** The first element it renders, to name in reports. */
+  first?: JsxElement | JsxSelfClosingElement
 }
 
 /** A region's slots, waiting for the place the component renders them. */
@@ -396,7 +404,7 @@ function walkCall(
     renderValue(callee.getExpression(), parent, walk)
     // An inline callback, or a named one like `rows.map(renderRow)`.
     const [callback] = call.getArguments()
-    walk.repeated.push(call)
+    walk.repeated.push({ at: call })
     walkFunction(callback && follows(callback, walk), scope, parent, walk)
     walk.repeated.pop()
     return
@@ -671,6 +679,10 @@ function walkElement(
 ) {
   walk.visited.add(element)
   walk.surface.consumed.add(element)
+  const repeat = walk.repeated.at(-1)
+  if (repeat && !repeat.first) {
+    repeat.first = element
+  }
   const tag = (
     Node.isJsxElement(element) ? element.getOpeningElement() : element
   ).getTagNameNode()
@@ -764,22 +776,26 @@ function walkComponent(
   // the component renders it.
   const calls = hookCalls(fn)
   // A region or table rendered once per row or item would repeat its id.
-  const [repeatedAt] = walk.repeated
-  if (repeatedAt && calls.length > 0) {
+  const [repeat] = walk.repeated
+  if (repeat && calls.length > 0) {
     for (const { call, site } of calls) {
       walk.visited.add(call)
       walk.surface.consumed.add(call)
       walk.surface.consumed.add(site.getExpression())
     }
-    const what = Node.isJsxElement(element)
-      ? `<${element.getOpeningElement().getTagNameNode().getText()}>`
-      : Node.isJsxSelfClosingElement(element)
-        ? `<${element.getTagNameNode().getText()}>`
-        : (componentName(fn) ?? "A component")
-    // Reported at the `.map` call or column function that repeats it.
+    // Named by what the callback renders, and reported at the `.map` call
+    // or column function that repeats it.
+    const shown =
+      repeat.first ??
+      (Node.isJsxElement(element) || Node.isJsxSelfClosingElement(element)
+        ? element
+        : undefined)
+    const what = shown
+      ? `<${tagOf(shown).getText()}>`
+      : (componentName(fn) ?? "A component")
     warn(
       walk,
-      repeatedAt,
+      repeat.at,
       `${what} renders a region or table once per row or item here, so its id isn't unique and it's left out of ${walk.surface.surface}.`
     )
     walkReturns(fn, scope, parent, walk)
@@ -1019,7 +1035,7 @@ function declareTable(
       for (const fn of defs.getDescendants().filter(isFunction)) {
         const outer = fn.getParentOrThrow().getFirstAncestor(isFunction)
         if (!outer || !defs.containsRange(outer.getPos(), outer.getEnd())) {
-          walk.repeated.push(fn)
+          walk.repeated.push({ at: fn })
           walkFunction(fn, options.scope, id, walk)
           walk.repeated.pop()
         }
@@ -1356,7 +1372,7 @@ function isReference(node: Node) {
     Node.isJsxAttribute(parent) ||
     Node.isJsxNamespacedName(parent) ||
     Node.isExportAssignment(parent) ||
-    Node.isBindingElement(parent) ||
+    (Node.isBindingElement(parent) && parent.getInitializer() !== node) ||
     Node.isShorthandPropertyAssignment(parent) ||
     Node.isImportSpecifier(parent) ||
     Node.isExportSpecifier(parent)

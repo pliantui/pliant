@@ -1307,6 +1307,11 @@ describe("pliantui scan, for what it can't follow", () => {
         "app/context-member-variable/page.tsx UiContext",
       ],
       "create-element": ["app/create-element/page.tsx Banner"],
+      // A default value, a wrapper's own output, and a container filled
+      // after it's made are followed too.
+      "default-prop": ["app/default-prop/page.tsx panel"],
+      "map-registry": ["app/map-registry/page.tsx panels.get"],
+      "wrapper-adds": ["app/wrapper-adds/page.tsx withPanel"],
       // A module typed only by the app's own declaration files, here a
       // `.js` file with a `.d.ts` beside it and `declare module "*.mdx"`
       // reached through two aliases, is the app's code.
@@ -1347,6 +1352,7 @@ describe("pliantui scan, for what it can't follow", () => {
       ],
       "unrendered-variable": [
         "app/unrendered-variable/page.tsx <Banner>",
+        "app/unrendered-variable/page.tsx [banner].map",
         "app/unrendered-variable/page.tsx banner",
       ],
     })

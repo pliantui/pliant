@@ -210,8 +210,12 @@ export function functionIn(
     if (!first) {
       return undefined
     }
-    // The wrapper, like `memo` or `withAuth`, is followed through.
-    seen.add(current.getExpression())
+    // A package's wrapper, like `memo`, is followed through. The app's own,
+    // like `withAuth`, renders its own output, which is checked apart.
+    const wrapper = current.getExpression()
+    if (!functionIn(wrapper, new Set(seen))) {
+      seen.add(wrapper)
+    }
     current = unwrapExpression(first)
   }
   seen.add(current)

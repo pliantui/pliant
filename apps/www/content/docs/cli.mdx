@@ -331,7 +331,7 @@ When the command can't read something as written, it says so, with the file and 
 - a route whose default export can't be read as a component
 - content passed as `children` or as a render prop that the command can't see, like a `PliantRoot` in a provider component outside a layout, whose `children` come from wherever it's used
 
-So the command fails closed: only what it follows keeps a surface's `source` as `"inventory"`. A JSX tag it can't resolve marks the surface as not read in full, with a warning, whether or not a region or table lies behind it, and so does an import or reference it can't follow that may lead to one.
+The command follows your code statically, and fails closed on everything it recognizes it can't follow: only what it follows keeps a surface's `source` as `"inventory"`. A JSX tag it can't resolve marks the surface as not read in full, with a warning, whether or not a region or table lies behind it, and so does an import or a reference it can't follow that may lead to one. Some dynamic patterns can't be seen without running the code, so treat the inventory as what the command could read, not as proof that nothing else renders.
 
 When part of a surface can't be read, the inventory can't claim to be complete, so the surface's `baseIds` use `source: "mounted"` instead of `"inventory"`. Core's `baseIds` know only those two sources. With `"mounted"`, an op into a node that isn't listed is `dormant`: it waits until that node shows up, rather than being dropped as `missing-container`, since the node may be one the command couldn't read. The summary marks the surface as **not read in full**. Fix what the warnings point to and run the command again to get `"inventory"` back.
 
