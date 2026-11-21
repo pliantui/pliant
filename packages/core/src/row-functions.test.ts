@@ -384,6 +384,28 @@ describe("row functions", () => {
       ["contains", ["Hello", ""], true],
       ["startsWith", ["Hello", "He"], true],
       ["startsWith", ["Hello", "he"], false],
+      ["eqI", ["Hello", "hELLO"], true],
+      ["eqI", ["Hello", "Hell"], false],
+      ["eqI", ["", ""], true],
+      ["eqI", ["ÉCOLE", "école"], true],
+      ["eqI", ["STRASSE", "straße"], false],
+      ["eqI", ["ẞ", "ß"], true],
+      ["eqI", ["İ", "i"], false],
+      ["eqI", ["I", "ı"], false],
+      ["containsI", ["Hello", "ELL"], true],
+      ["containsI", ["Hello", "elo"], false],
+      ["containsI", ["Hello", ""], true],
+      ["containsI", ["", ""], true],
+      ["containsI", ["", "a"], false],
+      ["containsI", ["Café", "É"], true],
+      ["containsI", ["İstanbul", "i"], true],
+      ["containsI", ["Straße", "SS"], false],
+      ["startsWithI", ["Hello", "hE"], true],
+      ["startsWithI", ["Hello", "el"], false],
+      ["startsWithI", ["Hello", ""], true],
+      ["startsWithI", ["Élan", "é"], true],
+      ["startsWithI", ["İzmir", "İ"], true],
+      ["startsWithI", ["İzmir", "iz"], false],
       ["left", ["a\u{1F600}bc", 2], "a\u{1F600}"],
       ["left", ["abc", 0], ""],
       ["left", ["abc", -1], ""],
@@ -409,6 +431,51 @@ describe("row functions", () => {
       expect(call("startsWith", [smile, high])).toBe(false)
       expect(call("startsWith", [`${smile}b`, smile])).toBe(true)
       expect(call("startsWith", [`${high}b`, high])).toBe(true)
+      expect(call("containsI", [`A${smile}B`, high])).toBe(false)
+      expect(call("containsI", [`A${smile}B`, `${low}b`])).toBe(false)
+      expect(call("containsI", [`A${smile}B`, `a${smile}b`])).toBe(true)
+      expect(call("startsWithI", [smile, high])).toBe(false)
+      expect(call("startsWithI", [`${smile}B`, `${smile}b`])).toBe(true)
+      expect(call("eqI", [`${smile}A`, `${smile}a`])).toBe(true)
+    })
+
+    it("ignores case as lower does (property)", () => {
+      const next = random(5)
+      const alphabet = [
+        "a",
+        "A",
+        "é",
+        "É",
+        "ß",
+        "ẞ",
+        "İ",
+        "i",
+        "ı",
+        "I",
+        "Σ",
+        "σ",
+        "ς",
+        "\u{1F600}",
+        "\uD800",
+        "\uDC00",
+        "\u{10400}",
+        "\u{10428}",
+      ]
+      const word = () =>
+        Array.from(
+          { length: Math.floor(next() * 5) },
+          () => alphabet[Math.floor(next() * alphabet.length)]
+        ).join("")
+      const lower = (text: string) => fn("lower", value(text))
+      for (let run = 0; run < 2000; run++) {
+        const a = word()
+        const b = word()
+        for (const name of ["eq", "contains", "startsWith"]) {
+          expect(call(`${name}I`, [a, b]), `${name}I(${a}, ${b})`).toBe(
+            call(name, [lower(a), lower(b)])
+          )
+        }
+      }
     })
 
     it("joins null arguments as empty strings and is never null", () => {
@@ -422,7 +489,13 @@ describe("row functions", () => {
       for (const name of ["lower", "upper", "length"]) {
         expect(call(name, [field("s")]), name).toBeNull()
       }
-      for (const name of ["contains", "startsWith"]) {
+      for (const name of [
+        "eqI",
+        "contains",
+        "containsI",
+        "startsWith",
+        "startsWithI",
+      ]) {
         expect(call(name, [field("s"), "a"]), name).toBeNull()
         expect(call(name, ["a", field("s")]), name).toBeNull()
       }
