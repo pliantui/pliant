@@ -36,7 +36,7 @@ Other frameworks and the Next.js Pages Router aren't supported by `init`. In the
 
 `init` doesn't edit your pages. When it finishes, it prints the code to wrap a page with:
 
-```tsx title="app/examples/orders/page.tsx"
+```tsx
 import { PliantRoot } from "@pliantui/react"
 import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
@@ -324,23 +324,31 @@ Pass a surface's entry to its `PliantRoot` as `inventory`. It's plain data, so a
 ```tsx
 import { PliantRoot } from "@pliantui/react"
 import { localAdapter } from "@pliantui/react/local"
+import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
 import { inventory } from "@/lib/pliant/inventory.generated"
+
+const surface = "/examples/orders"
 
 export default function OrdersPage() {
   return (
     <PliantRoot
-      surface="/examples/orders"
+      surface={surface}
       storage={localAdapter}
-      inventory={inventory["/examples/orders"]}
+      inventory={
+        process.env.NODE_ENV === "production"
+          ? undefined
+          : { baseIds: inventory[surface].baseIds }
+      }
     >
+      <PliantPrePaint surface={surface} />
       {/* … */}
     </PliantRoot>
   )
 }
 ```
 
-In development, when a region, slot, table or column mounts and the entry doesn't list its id, the console shows a warning, once per id. Either the inventory is out of date, so run `npx pliantui scan` again, or the command couldn't follow how that node is rendered, as described in [What it reads](#what-it-reads). Production builds don't check it. Columns an op adds to a table aren't in the inventory, and aren't reported.
+In development, when a region, slot, table or column mounts and the entry doesn't list its id, the console shows a warning, once per id. Either the inventory is out of date, so run `npx pliantui scan` again, or the command couldn't follow how that node is rendered, as described in [What it reads](#what-it-reads). Production builds don't check it. A Server Component sends its props to the browser, so pass only `baseIds`, and nothing in production, as above, to keep the rest of the inventory out of the page. Columns an op adds to a table aren't in the inventory, and aren't reported.
 
 ### What's reported, not guessed
 
