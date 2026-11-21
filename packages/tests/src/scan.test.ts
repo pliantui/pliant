@@ -93,6 +93,7 @@ describe("pliantui scan", () => {
     const inventory = await readInventory(cwd)
     expect(Object.keys(inventory)).toEqual([
       "/orders",
+      "app-shell",
       // Its PliantRoot comes from a namespace import.
       "help",
       "reports",
@@ -228,6 +229,46 @@ describe("pliantui scan", () => {
     )
     expect(output.warnings.map((warning) => warning.message)).toContainEqual(
       expect.stringContaining('The field "sub ject" of ticket-form is left out')
+    )
+  })
+
+  it("lists a nav's items as items of the nav", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    const { output, exitCode } = await scanJson(cwd)
+
+    expect(exitCode).toBe(0)
+    const shell = output.inventory["app-shell"]
+    expect(shell?.baseIds).toEqual({
+      ids: [
+        "app-sidebar",
+        "app-sidebar/items/inbox",
+        "app-sidebar/items/reports",
+        "app-sidebar/items/tickets",
+      ],
+      source: "inventory",
+    })
+    expect(shell?.baseParents).toEqual({ "app-sidebar": null })
+    expect(shell?.ids["app-sidebar"]?.kind).toBe("pliant:nav")
+    expect(shell?.ids["app-sidebar/items/inbox"]?.kind).toBe("pliant:nav-item")
+    expect(
+      output.warnings.filter((warning) => warning.file.includes("sidebar"))
+    ).toEqual([])
+  })
+
+  it("reports nav item ids overlays can't address", async () => {
+    const cwd = await createFixtureDirectory("scan-app")
+    await edit(cwd, "components/app-sidebar.tsx", "  inbox:", '  "2fa":')
+    await edit(cwd, "components/app-sidebar.tsx", "  reports:", '  "re ports":')
+    const { output, exitCode } = await scanJson(cwd)
+
+    expect(exitCode).toBe(1)
+    expect(output.errors.map((error) => error.message)).toContainEqual(
+      expect.stringContaining(
+        'The item "2fa" in app-sidebar starts with a digit'
+      )
+    )
+    expect(output.warnings.map((warning) => warning.message)).toContainEqual(
+      expect.stringContaining('The item "re ports" of app-sidebar is left out')
     )
   })
 
@@ -821,6 +862,7 @@ describe("pliantui scan", () => {
     expect(
       Object.values(output.inventory).map(({ baseIds }) => baseIds.source)
     ).toEqual([
+      "mounted",
       "mounted",
       "mounted",
       "mounted",

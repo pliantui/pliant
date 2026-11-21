@@ -110,6 +110,17 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
+    test("the app example's sidebar has no accessibility violations", async ({
+      page,
+    }) => {
+      await page.goto("/examples/app/inbox")
+      await expect(
+        page.locator('[data-pliant-id="app-sidebar"]')
+      ).not.toHaveAttribute("data-pliant-pending")
+      await page.getByRole("button", { name: "Inbox options" }).focus()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
+
     test("the ask panel has no accessibility violations", async ({ page }) => {
       await openPanel(page)
       expect(await violations(page, colorScheme)).toEqual([])

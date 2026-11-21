@@ -31,6 +31,7 @@ import {
 import { PliantDataTablePagination } from "./pliant-data-table-pagination"
 import { PliantDataTableViewOptions } from "./pliant-data-table-view-options"
 import { PliantForm } from "./pliant-form"
+import { PliantNav, PliantSidebarProvider } from "./pliant-nav"
 import { PliantPointMode } from "./pliant-point-mode"
 import { PliantRegion } from "./pliant-region"
 
@@ -68,6 +69,9 @@ const messages: PliantMessages = {
   pointModeLabel: "⟦pointModeLabel⟧",
   pointModeHelp: "⟦pointModeHelp⟧",
   formMoreFields: "⟦formMoreFields⟧",
+  navMore: "⟦navMore⟧",
+  navItemOptions: (title) => `⟦navItemOptions ${title}⟧`,
+  navStartPage: "⟦navStartPage⟧",
   regionMore: "⟦regionMore⟧",
   regionNodeUnavailable: (label) => `⟦regionNodeUnavailable ${label}⟧`,
   dataTableNoResults: "⟦dataTableNoResults⟧",
@@ -471,6 +475,42 @@ describe("the registry components with every message given", () => {
 
     expect(
       screen.getByRole("button", { name: "⟦formMoreFields⟧" })
+    ).toBeTruthy()
+    expect(unmarkedText()).toEqual([])
+  })
+
+  it("show only the root's text and the app's in a nav", async () => {
+    render(
+      <PliantRoot surface={surface} storage={storage} messages={messages}>
+        <Page />
+        <PliantSidebarProvider id="app-sidebar">
+          <PliantNav
+            id="app-sidebar"
+            items={{
+              inbox: { title: "«Inbox»", url: "/inbox" },
+              reports: { title: "«Reports»", url: "/reports" },
+            }}
+          />
+        </PliantSidebarProvider>
+      </PliantRoot>
+    )
+    await settle()
+
+    apply({
+      op: "collapse",
+      target: "app-sidebar",
+      items: ["reports"],
+      into: "more",
+    })
+    expect(screen.getByRole("button", { name: "⟦navMore⟧" })).toBeTruthy()
+    fireEvent.keyDown(
+      screen.getByRole("button", { name: "⟦navItemOptions «Inbox»⟧" }),
+      { key: "Enter" }
+    )
+    await settle()
+
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: "⟦navStartPage⟧" })
     ).toBeTruthy()
     expect(unmarkedText()).toEqual([])
   })
