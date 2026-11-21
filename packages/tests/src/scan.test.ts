@@ -521,8 +521,8 @@ describe("pliantui scan", () => {
     await edit(
       cwd,
       "components/destructured-panel.tsx",
-      'import { usePliantRegion } from "@pliantui/react"',
-      'import { useEffect } from "react"\n\nimport { usePliantRegion } from "@pliantui/react"'
+      'import { usePliantRegion } from "@pliantui/react/region"',
+      'import { useEffect } from "react"\n\nimport { usePliantRegion } from "@pliantui/react/region"'
     )
     const { output } = await scanJson(cwd)
 
@@ -654,7 +654,7 @@ describe("pliantui scan", () => {
     await writeFile(
       path.join(cwd, "hooks/use-hooked-region.tsx"),
       [
-        'import { usePliantRegion } from "@pliantui/react"',
+        'import { usePliantRegion } from "@pliantui/react/region"',
         "",
         'export function useHookedRegion(id = "hooked") {',
         "  return usePliantRegion(id, { one: <p>One</p>, two: <p>Two</p> })",
@@ -1202,8 +1202,8 @@ describe("pliantui scan, for what it can't follow", () => {
     await edit(
       cwd,
       "app/direct/page.tsx",
-      'import { PliantActivity, PliantRoot } from "@pliantui/react"',
-      'import { PliantActivity, PliantRoot } from "@pliantui/react"\nimport { Card } from "unbuilt-ui"'
+      'import { PliantActivity } from "@pliantui/react/region"',
+      'import { PliantActivity } from "@pliantui/react/region"\nimport { Card } from "unbuilt-ui"'
     )
     await edit(
       cwd,

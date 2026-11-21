@@ -105,8 +105,8 @@ function hookOf(call: CallExpression): Hook | undefined {
     return undefined
   }
   if (
-    isPliantExport(callee, "@pliantui/react", "usePliantRegion") ||
-    isPliantExport(callee, "@pliantui/react", "useRegionSlots")
+    isPliantExport(callee, "@pliantui/react/region", "usePliantRegion") ||
+    isPliantExport(callee, "@pliantui/react/region", "useRegionSlots")
   ) {
     return "region"
   }

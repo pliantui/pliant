@@ -1,12 +1,12 @@
 [
   {
     "path": "dist/index.js",
-    "limit": "7.75 kB",
+    "limit": "6.5 kB",
     "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
   },
   {
-    "path": "dist/ask.js",
-    "limit": "4 kB",
+    "path": "dist/region.js",
+    "limit": "1.45 kB",
     "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
   },
   {
@@ -21,13 +21,45 @@
     ]
   },
   {
+    "path": "dist/local.js",
+    "limit": "1 kB",
+    "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
+  },
+  {
     "path": "dist/server-adapter.js",
     "limit": "1 kB",
+    "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
+  },
+  {
+    "path": "dist/ask.js",
+    "limit": "1.95 kB",
+    "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
+  },
+  {
+    "path": "dist/point-mode.js",
+    "limit": "2.6 kB",
     "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
   },
   {
     "path": "dist/pre-paint.js",
     "limit": "990 B",
     "ignore": ["react"]
+  },
+  {
+    "name": "typical page (main, region, table and local)",
+    "path": [
+      "dist/index.js",
+      "dist/region.js",
+      "dist/table.js",
+      "dist/local.js"
+    ],
+    "limit": "15.6 kB",
+    "ignore": [
+      "react",
+      "zod",
+      "@pliantui/contract",
+      "@pliantui/core",
+      "@tanstack/react-table"
+    ]
   }
 ]

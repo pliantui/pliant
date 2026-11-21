@@ -1,7 +1,6 @@
 import { use, useLayoutEffect, useState, type ReactNode } from "react"
 
 import { createLayerStore } from "./layer-store"
-import { localAdapter } from "./local-adapter"
 import { PliantContext } from "./pliant-context"
 import { PliantMessagesContext, type PliantMessages } from "./pliant-messages"
 import type { StorageAdapter, StoredLayers } from "./storage-adapter"
@@ -11,12 +10,17 @@ export interface PliantRootProps {
   /** The surface the layers belong to: a route pattern or a surface id. */
   readonly surface: string
   /**
-   * Where the layers are loaded from and personal overlays saved to.
-   * Defaults to `localAdapter()`. It is read once, when the surface mounts,
-   * and must be created in client code: an object of functions can't be
-   * passed from a Server Component.
+   * Where the layers are loaded from and personal overlays saved to: an
+   * adapter, such as `serverAdapter(options)`, or a function that returns
+   * one, such as `localAdapter` from `@pliantui/react/local`. It is read
+   * once, when the surface mounts.
+   *
+   * A Server Component can pass `localAdapter` itself, not called, because
+   * it is exported from a client module. It can't pass an adapter object,
+   * because React can't serialize functions: create that in client code,
+   * such as the app's providers file.
    */
-  readonly storage?: StorageAdapter | undefined
+  readonly storage: StorageAdapter | (() => StorageAdapter)
   /** Team ids, highest precedence first, as in core's `resolveLayers`. */
   readonly teamOrder?: readonly string[] | undefined
   /**
@@ -84,7 +88,7 @@ function PliantSurfaceRoot({
   const [store] = useState(() =>
     createLayerStore({
       surface,
-      storage: storage ?? localAdapter(),
+      storage: typeof storage === "function" ? storage() : storage,
       teamOrder,
       onError,
       lang,

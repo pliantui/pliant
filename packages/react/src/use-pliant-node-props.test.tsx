@@ -3,6 +3,7 @@ import { renderToString } from "react-dom/server"
 import { afterEach, describe, expect, it } from "vitest"
 
 import { memoryStorage } from "../test/storage"
+import { localAdapter } from "./local-adapter"
 import { PliantRoot } from "./pliant-root"
 import type { StorageAdapter, StoredLayers } from "./storage-adapter"
 import { usePliantNodeProps } from "./use-pliant-node-props"
@@ -45,7 +46,7 @@ describe("usePliantNodeProps", () => {
   it("is pending on the server", () => {
     const container = document.createElement("div")
     container.innerHTML = renderToString(
-      <PliantRoot surface="/orders">
+      <PliantRoot surface="/orders" storage={localAdapter}>
         <Node />
       </PliantRoot>
     )
