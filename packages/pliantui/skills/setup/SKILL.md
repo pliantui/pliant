@@ -29,6 +29,7 @@ Wrap the page's content in `PliantRoot`, add `PliantPrePaint` with the same `sur
 
 ```tsx
 import { PliantRoot } from "@pliantui/react"
+import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
 import { PliantRegion } from "@/components/pliant/pliant-region"
@@ -37,7 +38,7 @@ const surface = "/orders/[id]" // this page's route pattern
 
 export default function Page() {
   return (
-    <PliantRoot surface={surface}>
+    <PliantRoot surface={surface} storage={localAdapter}>
       <PliantPrePaint surface={surface} />
       <PliantRegion
         id="summary"
@@ -54,7 +55,7 @@ Rules that matter:
 - The page can stay a Server Component. Slot content can be Server Components too.
 - A region `id` is kebab-case, starts with a letter, and is unique on the page. Slot ids, the keys of `slots`, are kebab-case too. The key order is the base order.
 - Reuse the page's existing parts as slots: move each existing block into `slots`, keep its markup, and keep the region's spacing in `gap` classes. Don't use `space-*` or `divide-*` on a region, because slots sit in wrapper elements.
-- If you pass `storage` to `PliantRoot`, render `PliantRoot` inside a client component (a file that starts with `"use client"`) that creates the storage, and use that component from the page. Without `storage`, changes are kept in the browser.
+- `storage={localAdapter}` keeps changes in the browser. Pass `localAdapter` itself, not `localAdapter()`: a Server Component can pass it because it comes from a client module. For any other storage, such as `serverAdapter`, render `PliantRoot` inside a client component (a file that starts with `"use client"`) that creates the storage, and use that component from the page.
 
 ## 3. Add a table (optional)
 
@@ -153,7 +154,7 @@ This reads the `cva` and `tailwind-variants` definitions in the ui folder, witho
 - A region or slot id that is not kebab-case, starts with a digit, or is repeated on the page.
 - Two nodes with the same id on one page. Ids are unique across the surface.
 - Importing `PliantRegion` from `@pliantui/react`. It is a component added to the project: import it from `@/components/pliant/pliant-region`, or from wherever the `components` alias in `components.json` points.
-- Passing a `storage` object made in a Server Component to `PliantRoot`.
+- Passing `localAdapter()`, called, or a `storage` object made in a Server Component to `PliantRoot`. From a Server Component, pass `localAdapter` itself.
 - Running `pliantui init` in an agent shell without `--yes`: it exits with an error asking for an interactive terminal.
 - Using `space-y-*` on a region instead of `gap-*`.
 

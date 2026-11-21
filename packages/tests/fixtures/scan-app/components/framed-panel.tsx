@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import * as Pliant from "@pliantui/react"
+import * as Pliant from "@pliantui/react/region"
 
 import { PliantRegion } from "@/components/pliant/pliant-region"
 

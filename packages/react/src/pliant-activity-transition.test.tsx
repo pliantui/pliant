@@ -10,6 +10,7 @@ import { createRoot } from "react-dom/client"
 import { afterEach, expect, it, vi } from "vitest"
 
 import type { LayerStore } from "./layer-store"
+import { localAdapter } from "./local-adapter"
 import { PliantActivity } from "./pliant-activity"
 import { useLayerStore } from "./pliant-context"
 import { PliantRoot } from "./pliant-root"
@@ -46,7 +47,7 @@ function App() {
     setTab = set
   }, [])
   return (
-    <PliantRoot surface="/dashboard">
+    <PliantRoot surface="/dashboard" storage={localAdapter}>
       <Store />
       <ViewTransition>
         <div>

@@ -1,4 +1,4 @@
-import { usePliantRegion } from "@pliantui/react"
+import { usePliantRegion } from "@pliantui/react/region"
 import { usePliantTable } from "@pliantui/react/table"
 
 import { PliantRegion } from "@/components/pliant/pliant-region"

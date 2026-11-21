@@ -2,7 +2,9 @@
 
 import { useState } from "react"
 
-import { PliantActivity, PliantRoot, useRegionSlots } from "@pliantui/react"
+import { PliantRoot } from "@pliantui/react"
+import { localAdapter } from "@pliantui/react/local"
+import { PliantActivity, useRegionSlots } from "@pliantui/react/region"
 
 function Region({ id, label }: { id: string; label: string }) {
   useRegionSlots(id, { [`${id}-title`]: label })
@@ -12,7 +14,7 @@ function Region({ id, label }: { id: string; label: string }) {
 export function Orders() {
   const [tab, setTab] = useState<"open" | "closed">("open")
   return (
-    <PliantRoot surface="/orders">
+    <PliantRoot surface="/orders" storage={localAdapter}>
       <button
         type="button"
         onClick={() => {

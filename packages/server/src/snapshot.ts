@@ -37,3 +37,12 @@ export function isRecord(
 ): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
+
+/** Freezes a value and every object and array in it. Functions are left alone. */
+export function freeze<T>(value: T): T {
+  if (typeof value === "object" && value !== null) {
+    Object.values(value).forEach(freeze)
+    Object.freeze(value)
+  }
+  return value
+}

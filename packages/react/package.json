@@ -28,17 +28,29 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./region": {
+      "types": "./dist/region.d.ts",
+      "default": "./dist/region.js"
+    },
     "./table": {
       "types": "./dist/table.d.ts",
       "default": "./dist/table.js"
+    },
+    "./local": {
+      "types": "./dist/local.d.ts",
+      "default": "./dist/local.js"
+    },
+    "./server-adapter": {
+      "types": "./dist/server-adapter.d.ts",
+      "default": "./dist/server-adapter.js"
     },
     "./ask": {
       "types": "./dist/ask.d.ts",
       "default": "./dist/ask.js"
     },
-    "./server-adapter": {
-      "types": "./dist/server-adapter.d.ts",
-      "default": "./dist/server-adapter.js"
+    "./point-mode": {
+      "types": "./dist/point-mode.d.ts",
+      "default": "./dist/point-mode.js"
     },
     "./pre-paint": {
       "types": "./dist/pre-paint.d.ts",

@@ -38,6 +38,7 @@ Other frameworks and the Next.js Pages Router aren't supported by `init`. In the
 
 ```tsx
 import { PliantRoot } from "@pliantui/react"
+import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
 import { PliantRegion } from "@/components/pliant/pliant-region"
@@ -46,7 +47,7 @@ const surface = "/orders/[id]" // this page's route pattern
 
 export default function Page() {
   return (
-    <PliantRoot surface={surface}>
+    <PliantRoot surface={surface} storage={localAdapter}>
       <PliantPrePaint surface={surface} />
       <PliantRegion
         id="summary"
@@ -57,7 +58,7 @@ export default function Page() {
 }
 ```
 
-The `surface` is the page's route pattern, such as `/orders/[id]`. `PliantRoot` and `PliantPrePaint` must receive the same `surface`. `PliantRegion` is the component `init` added: its `slots` are the parts of the page that users can reorder, hide and resize.
+The `surface` is the page's route pattern, such as `/orders/[id]`. `PliantRoot` and `PliantPrePaint` must receive the same `surface`. `storage={localAdapter}` keeps each user's changes in their browser. `PliantRegion` is the component `init` added: its `slots` are the parts of the page that users can reorder, hide and resize.
 
 `PliantPrePaint` keeps a customized page from flashing its original layout before Pliant applies the user's changes.
 
@@ -230,7 +231,7 @@ Options:
 
 The command reads the files your `tsconfig.json` or `jsconfig.json` includes, skipping tests, stories, type declarations and folders whose names start with a dot, like `.next`. It finds each `PliantRoot` from `@pliantui/react`, reads its `surface`, and follows what it renders, through your own components, across files. Pliant's exports are found through named, renamed and namespace imports (`import * as Pliant from "@pliantui/react"`), and through your own re-exports.
 
-- a call to `usePliantRegion` or `useRegionSlots` is a region. The keys of its slots object are its slots, in order, and each slot holds what it renders. `PliantRegion` calls `usePliantRegion` with its `id` and `slots` props, so `<PliantRegion id="key-metrics" slots={{ revenue: <KpiCard /> }} />` is the region `key-metrics` holding the slot `revenue`. A region rendered as the slot of the same id is that slot.
+- a call to `usePliantRegion` or `useRegionSlots` from `@pliantui/react/region` is a region. The keys of its slots object are its slots, in order, and each slot holds what it renders. `PliantRegion` calls `usePliantRegion` with its `id` and `slots` props, so `<PliantRegion id="key-metrics" slots={{ revenue: <KpiCard /> }} />` is the region `key-metrics` holding the slot `revenue`. A region rendered as the slot of the same id is that slot.
 - a call to `usePliantTable` from `@pliantui/react/table` is a table. Its columns are read as TanStack names them: `id`, else `accessorKey` with dots as underscores, else a string `header`. Arrays of column defs and `columnHelper.columns`, `accessor`, `display` and `group` are read, also inside a `useMemo`. A column is listed by its address, like `orders-table/columns/customer`.
 - a call to one of your own hooks, like a `useOrdersTable` that returns `usePliantTable(…)`, is followed into that hook, also when it's called as `hooks.useOrdersTable()`. The hook's arguments aren't followed, so write the ids and slots inside the hook; an id or slots object that comes from an argument is reported.
 - a component that declares one region or table puts everything else it renders in it, and a slot holds everything rendered in it. A component that declares several, directly or through your own hooks, puts everything else where the component itself sits, since a region or table renders no element of its own.

@@ -36,13 +36,25 @@ export interface DatasetFieldCapabilities {
   readonly groupable?: boolean | undefined
   /** Whether aggregate functions, such as `sum` or `countDistinct`, may read it. */
   readonly aggregatable?: boolean | undefined
+  /**
+   * Whether the model is told about the field. When `false`, the field is
+   * left out of the model's descriptor, so the model can't name it. The
+   * model never sees row values either way.
+   */
+  readonly exposeToAI?: boolean | undefined
 }
 
-interface FieldText extends DatasetFieldCapabilities {
+interface FieldText<TUser> extends DatasetFieldCapabilities {
   /** The field's name as people read it: up to 80 characters. */
   readonly label?: string | undefined
   /** What the field holds, for people and the model: up to 200 characters. */
   readonly describe?: string | undefined
+  /**
+   * Whether a user may read the field. Only `true` allows it. A user who may
+   * not read it gets no trace of it: it is left out of every descriptor and
+   * every load. A row key field can't set it.
+   */
+  readonly access?: ((user: TUser) => boolean) | undefined
 }
 
 type FormatOf<T extends Format["type"]> = Extract<Format, { type: T }>
@@ -90,14 +102,16 @@ type OptionsOf<T extends DatasetFieldType> = T extends keyof FieldOptions
  *
  * @experimental
  */
-export type DatasetField<T extends DatasetFieldType = DatasetFieldType> =
-  T extends DatasetFieldType
-    ? FieldText & { readonly type: T } & OptionsOf<T>
-    : never
+export type DatasetField<
+  T extends DatasetFieldType = DatasetFieldType,
+  TUser = never,
+> = T extends DatasetFieldType
+  ? FieldText<TUser> & { readonly type: T } & OptionsOf<T>
+  : never
 
 /** The options a field of type `T` takes. */
 export type FieldKey<T extends DatasetFieldType> =
-  "type" | keyof FieldText | keyof OptionsOf<T>
+  "type" | keyof FieldText<never> | keyof OptionsOf<T>
 
 type Capabilities = Required<{
   [K in keyof DatasetFieldCapabilities]-?: Exclude<
@@ -152,9 +166,10 @@ const capabilityKeys = [
   "filterable",
   "groupable",
   "aggregatable",
+  "exposeToAI",
 ] as const
 
-const commonKeys = ["type", "label", "describe", ...capabilityKeys]
+const commonKeys = ["type", "label", "describe", "access", ...capabilityKeys]
 
 const extraKeys: Partial<Record<DatasetFieldType, readonly string[]>> = {
   currency: ["currency", "format"],
@@ -174,6 +189,7 @@ export function defaultCapabilities(type: DatasetFieldType): Capabilities {
     filterable: text ? "search" : true,
     groupable: groupableTypes.has(type),
     aggregatable: !text,
+    exposeToAI: true,
   }
 }
 
@@ -283,6 +299,9 @@ export function checkField(
   }
   if (field["describe"] !== undefined && !isText(field["describe"], 200)) {
     at("describe must be non-empty text of up to 200 characters")
+  }
+  if (field["access"] !== undefined && typeof field["access"] !== "function") {
+    at("access must be a function")
   }
   for (const key of capabilityKeys) {
     const value = field[key]
