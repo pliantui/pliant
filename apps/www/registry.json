@@ -1,7 +1,7 @@
 {
   "$schema": "https://ui.shadcn.com/schema/registry.json",
   "name": "pliant",
-  "homepage": "https://pliantui.dev",
+  "homepage": "https://pliantui-www.pliantui-dev.workers.dev",
   "items": [
     {
       "name": "pliant-region",
@@ -36,6 +36,21 @@
           "path": "registry/pliant/pliant-form.tsx",
           "type": "registry:component",
           "target": "@components/pliant/pliant-form.tsx"
+        }
+      ]
+    },
+    {
+      "name": "pliant-nav",
+      "type": "registry:component",
+      "title": "Pliant Nav",
+      "description": "The links of a sidebar, which users can reorder, hide and collapse into a \"More\" item with Pliant overlays, pick their start page from, and keep open or closed.",
+      "dependencies": ["@pliantui/react", "cn", "lucide-react"],
+      "registryDependencies": ["dropdown-menu", "sidebar"],
+      "files": [
+        {
+          "path": "registry/pliant/pliant-nav.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-nav.tsx"
         }
       ]
     },

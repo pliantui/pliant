@@ -55,6 +55,11 @@ export {
   type ResolveFormOptions,
 } from "./resolve-form"
 export {
+  resolveNav,
+  type ResolvedNav,
+  type ResolveNavOptions,
+} from "./resolve-nav"
+export {
   resolveRegion,
   type RegionEntry,
   type RegionLayout,

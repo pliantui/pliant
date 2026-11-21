@@ -17,6 +17,8 @@ interface RelevanceOptions {
   readonly declaresNodes: (fn: ComponentFunction) => boolean
   /** Whether a call is a region or table hook, or the app's hook for one. */
   readonly isRegionHook: (call: CallExpression) => boolean
+  /** Whether a call is one of Pliant's own hooks, which never fill what they're passed. */
+  readonly isPliantHook: (call: CallExpression) => boolean
   /** Whether a node is a whole reference worth resolving. */
   readonly isReference: (node: Node) => boolean
 }
@@ -65,6 +67,7 @@ export function createRelevance({
   root,
   declaresNodes,
   isRegionHook,
+  isPliantHook,
   isReference,
 }: RelevanceOptions) {
   const project = realPath(root)
@@ -321,6 +324,7 @@ export function createRelevance({
       return (
         Node.isCallExpression(parent) &&
         parent.getArguments().includes(usage) &&
+        !isPliantHook(parent) &&
         relevantCode(parent)
       )
     })

@@ -3,10 +3,12 @@ import type { Metadata } from "next"
 import { Provider } from "@/components/provider"
 import { SiteFooter } from "@/components/site-footer"
 import { SiteHeader } from "@/components/site-header"
+import { site } from "@/lib/site"
 
 import "./globals.css"
 
 export const metadata: Metadata = {
+  metadataBase: new URL(site.url),
   title: {
     default: "Pliant",
     template: "%s – Pliant",
