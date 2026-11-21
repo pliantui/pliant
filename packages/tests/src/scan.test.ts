@@ -1312,6 +1312,7 @@ describe("pliantui scan, for what it can't follow", () => {
       "default-prop": ["app/default-prop/page.tsx panel"],
       "map-registry": ["app/map-registry/page.tsx panels.get"],
       "wrapper-adds": ["app/wrapper-adds/page.tsx withPanel"],
+      "wrapper-in-package": ["app/wrapper-in-package/page.tsx <Framed>"],
       // A module typed only by the app's own declaration files, here a
       // `.js` file with a `.d.ts` beside it and `declare module "*.mdx"`
       // reached through two aliases, is the app's code.

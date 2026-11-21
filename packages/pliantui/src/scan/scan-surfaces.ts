@@ -1410,7 +1410,7 @@ function reportUnfollowed(
       )
     )
   }
-  const { relevantFunction, relevantReference } = createRelevance({
+  const { relevantTag, relevantReference } = createRelevance({
     root,
     declaresNodes,
     isRegionHook: (call) => hookOf(call) !== undefined || isAppRegionHook(call),
@@ -1421,12 +1421,11 @@ function reportUnfollowed(
       return
     }
     // JSX the walk didn't render here, like inside a render prop or a
-    // callback, is followed only through components the walk followed on
-    // this surface, or HTML elements and packages' components.
+    // callback, is allowed only when nothing it reaches may render a region
+    // or table, or something the scan can't follow.
     if (Node.isJsxElement(node) || Node.isJsxSelfClosingElement(node)) {
       const tag = tagOf(node)
-      const fn = componentOf(tag)
-      if (fn ? relevantFunction(fn) : isOpaqueTag(tag, root)) {
+      if (relevantTag(tag)) {
         flag(node, `<${tag.getText()}>`)
       }
       return

@@ -105,8 +105,7 @@ export function createRelevance({
       if (Node.isIdentifier(tag) && isParameter(getDeclarations(tag)[0])) {
         return false
       }
-      const fn = componentOf(tag)
-      return fn ? relevantFunction(fn) : isOpaqueTag(tag, root)
+      return relevantTag(tag)
     }
     if (Node.isCallExpression(node)) {
       if (isRegionHook(node)) {
@@ -117,6 +116,50 @@ export function createRelevance({
       }
     }
     return isReference(node) && relevantReference(node)
+  }
+
+  // The app's own wrappers a component is made with, like `withPanel` in
+  // `const Framed = withPanel(Plain)`, render their own output too.
+  const relevantWrappers = (value: Node): boolean => {
+    const seen = new Set<Node>()
+    let current = unwrapExpression(value)
+    while (!seen.has(current)) {
+      seen.add(current)
+      if (
+        Node.isIdentifier(current) ||
+        Node.isPropertyAccessExpression(current)
+      ) {
+        const declaration = getDeclarations(current)[0]
+        const initializer = Node.isVariableDeclaration(declaration)
+          ? declaration.getInitializer()
+          : undefined
+        if (!initializer) {
+          return false
+        }
+        current = unwrapExpression(initializer)
+        continue
+      }
+      if (!Node.isCallExpression(current)) {
+        return false
+      }
+      const wrapper = functionIn(current.getExpression())
+      if (wrapper && relevantFunction(wrapper)) {
+        return true
+      }
+      const [first] = current.getArguments()
+      if (!first) {
+        return false
+      }
+      current = unwrapExpression(first)
+    }
+    return false
+  }
+
+  const relevantTag = (tag: Node): boolean => {
+    const fn = componentOf(tag)
+    return fn
+      ? relevantFunction(fn) || relevantWrappers(tag)
+      : isOpaqueTag(tag, root)
   }
 
   const relevantFunction = (fn: ComponentFunction): boolean => {
@@ -159,7 +202,7 @@ export function createRelevance({
     }
     const fn = functionIn(reference)
     if (fn) {
-      return relevantFunction(fn)
+      return relevantFunction(fn) || relevantWrappers(reference)
     }
     const declaration = getDeclarations(reference)[0]
     if (!declaration) {
@@ -296,5 +339,5 @@ export function createRelevance({
     return result
   }
 
-  return { relevantFunction, relevantReference }
+  return { relevantTag, relevantReference }
 }
