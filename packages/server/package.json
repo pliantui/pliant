@@ -56,37 +56,6 @@
     "check:package": "publint --strict && attw --pack . --profile esm-only",
     "size": "size-limit"
   },
-  "size-limit": [
-    {
-      "path": "dist/index.js",
-      "limit": "5 kB",
-      "ignore": [
-        "ai",
-        "zod",
-        "@pliantui/contract",
-        "@pliantui/core"
-      ]
-    },
-    {
-      "path": "dist/data.js",
-      "limit": "2.5 kB",
-      "ignore": [
-        "zod",
-        "@pliantui/contract",
-        "@pliantui/core"
-      ]
-    },
-    {
-      "path": "dist/recordings.js",
-      "limit": "2 kB",
-      "ignore": [
-        "ai",
-        "zod",
-        "node:fs/promises",
-        "node:path"
-      ]
-    }
-  ],
   "dependencies": {
     "@pliantui/contract": "workspace:*",
     "@pliantui/core": "workspace:*"

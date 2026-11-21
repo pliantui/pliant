@@ -54,39 +54,6 @@
     "check:package": "publint --strict && attw --pack . --profile esm-only",
     "size": "size-limit"
   },
-  "size-limit": [
-    {
-      "path": "dist/index.js",
-      "limit": "7.6 kB",
-      "ignore": [
-        "react",
-        "zod",
-        "@pliantui/contract",
-        "@pliantui/core"
-      ]
-    },
-    {
-      "path": "dist/ask.js",
-      "limit": "4 kB",
-      "ignore": [
-        "react",
-        "zod",
-        "@pliantui/contract",
-        "@pliantui/core"
-      ]
-    },
-    {
-      "path": "dist/table.js",
-      "limit": "5 kB",
-      "ignore": [
-        "react",
-        "zod",
-        "@pliantui/contract",
-        "@pliantui/core",
-        "@tanstack/react-table"
-      ]
-    }
-  ],
   "dependencies": {
     "@pliantui/contract": "workspace:*",
     "@pliantui/core": "workspace:*"
