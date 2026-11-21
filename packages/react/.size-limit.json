@@ -27,7 +27,7 @@
   },
   {
     "path": "dist/pre-paint.js",
-    "limit": "900 B",
+    "limit": "990 B",
     "ignore": ["react"]
   }
 ]

@@ -69,10 +69,22 @@ function card(page: Page, name: string) {
   return page.getByRole("group", { name, exact: true })
 }
 
+function opacityOf(element: Element) {
+  return getComputedStyle(element).opacity
+}
+
 async function hasSkeleton(page: Page) {
   return keyMetrics(page).evaluate(
     (region) => getComputedStyle(region).backgroundColor !== "rgba(0, 0, 0, 0)"
   )
+}
+
+// Runs the page's animations, such as the delay before a skeleton ends, at
+// `rate` times their speed.
+async function speedUpAnimations(page: Page, rate: number) {
+  const session = await page.context().newCDPSession(page)
+  await session.send("Animation.enable")
+  await session.send("Animation.setPlaybackRate", { playbackRate: rate })
 }
 
 test.describe("before the page hydrates", () => {
@@ -96,6 +108,30 @@ test.describe("before the page hydrates", () => {
     await expect(card(page, "Overdue")).toBeHidden()
     expect(await hasSkeleton(page)).toBe(true)
     await expect(page.getByRole("table", { name: "All orders" })).toBeVisible()
+  })
+
+  test("shows the content once the skeleton's time is up", async ({ page }) => {
+    await seed(page, [moveOverdueFirst])
+    await loadUnhydrated(page)
+    await expect(card(page, "Revenue")).toBeHidden()
+    expect(await hasSkeleton(page)).toBe(true)
+
+    await speedUpAnimations(page, 100)
+
+    await expect(card(page, "Revenue")).toBeVisible()
+    await expect(card(page, "Overdue")).toBeVisible()
+    expect(await hasSkeleton(page)).toBe(false)
+    expect(await keyMetrics(page).evaluate(opacityOf)).toBe("1")
+  })
+
+  test("keeps the skeleton until its time is up", async ({ page }) => {
+    await seed(page, [moveOverdueFirst])
+    await loadUnhydrated(page)
+    await page.waitForTimeout(1500)
+
+    await expect(card(page, "Revenue")).toBeHidden()
+    expect(await hasSkeleton(page)).toBe(true)
+    await expect(page.locator("style#pliant-pre-paint")).toHaveCount(1)
   })
 
   test("shows a skeleton in place of a customized table only", async ({
@@ -224,6 +260,16 @@ test("never paints the base order to a customized user", async ({
       "average-order-value",
     ])
   }
+  expect(errors).toEqual([])
+})
+
+test("removes its style once the layers apply", async ({ page, errors }) => {
+  await seed(page, [moveOverdueFirst])
+  await page.goto(surface)
+
+  await expect(keyMetrics(page)).not.toHaveAttribute("data-pliant-pending")
+  await expect(page.locator("style#pliant-pre-paint")).toHaveCount(0)
+  await expect(card(page, "Overdue")).toBeVisible()
   expect(errors).toEqual([])
 })
 

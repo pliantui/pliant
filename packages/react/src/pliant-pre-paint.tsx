@@ -1,3 +1,5 @@
+import { useEffect } from "react"
+
 /** @experimental */
 export interface PliantPrePaintProps {
   /** The surface of the `PliantRoot` whose overlays the script reads. */
@@ -7,12 +9,19 @@ export interface PliantPrePaintProps {
    * and gives it to the `<style>` it adds.
    */
   readonly nonce?: string | undefined
+  /**
+   * How long, in milliseconds, a skeleton can last before the content shows
+   * anyway, whether or not the layers have loaded. It keeps content visible
+   * when hydration or loading fails. Defaults to 4500, well past the time a
+   * slow connection takes to load the layers.
+   */
+  readonly revealAfter?: number | undefined
 }
 
 // Runs as an inline script, from its source text, so it uses nothing from
 // outside its own body.
-function prePaint(surface: string) {
-  const ids = new Set<string>()
+function prePaint(surface: string, revealAfter: string) {
+  const ids: string[] = []
   function field(value: unknown, key: string): unknown {
     return typeof value === "object" && value !== null && key in value
       ? (value as Record<string, unknown>)[key]
@@ -25,8 +34,8 @@ function prePaint(surface: string) {
     const id =
       typeof address === "string" &&
       /^([a-z][a-z0-9]*(?:-[a-z0-9]+)*)(?:\[\])?(?:\/|$)/.exec(address)?.[1]
-    if (id) {
-      ids.add(id)
+    if (id && !ids.includes(id)) {
+      ids.push(id)
     }
   }
   function read(
@@ -67,11 +76,19 @@ function prePaint(surface: string) {
   } catch {
     // Storage is blocked, so no overlays load either.
   }
-  if (ids.size > 0) {
-    const nodes = `:is(${[...ids].map((id) => `[data-pliant-id="${id}"]`).join()})[data-pliant-pending]`
+  if (ids.length > 0) {
+    const nodes = `:is(${ids
+      .map((id) => `[data-pliant-id="${id}"]`)
+      .join()})[data-pliant-pending]`
     const style = document.createElement("style")
-    style.nonce = document.currentScript?.nonce ?? ""
-    style.textContent = `${nodes}{border-radius:var(--radius,.5rem);background:color-mix(in srgb,currentColor 8%,transparent);animation:pliant-pre-paint 2s ease-in-out infinite}${nodes}>*{visibility:hidden}@keyframes pliant-pre-paint{50%{opacity:.5}}@media (prefers-reduced-motion:reduce){${nodes}{animation:none}}`
+    const script = document.currentScript
+    const end = `0s ${revealAfter}ms forwards`
+    // An empty nonce is no nonce, so `||` is the intent.
+    /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
+    style.nonce = script?.nonce || script?.getAttribute("nonce") || ""
+    /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
+    style.id = "pliant-pre-paint"
+    style.textContent = `${nodes}{border-radius:var(--radius,.5rem);background:color-mix(in srgb,currentColor 8%,transparent);animation:pliant-pre-paint 2s ease-in-out infinite,pliant-tint ${end}}${nodes}>*{visibility:hidden;animation:pliant-reveal ${end}}@keyframes pliant-pre-paint{50%{opacity:.5}}@keyframes pliant-tint{to{opacity:1;background:none}}@keyframes pliant-reveal{to{visibility:visible}}@media (prefers-reduced-motion:reduce){${nodes}{animation-duration:0s}}`
     document.head.appendChild(style)
   }
 }
@@ -86,17 +103,48 @@ function prePaint(surface: string) {
  * `data-pliant-pending` (see `usePliantNodeProps`), such as a
  * `PliantRegion`. Every other node, and every node of a user with no
  * overlays, renders as usual. The skeleton ends as the layers apply, before
- * the next paint.
+ * the next paint, and after `revealAfter` at the latest, so content stays
+ * visible if hydration or loading fails.
+ *
+ * The skeleton covers node and region ops: order, visibility, and layout.
+ * Preference ops on `@surface` and `@app`, such as density, text scale, and
+ * motion, still apply after hydration.
+ *
+ * The style matches nodes by id alone. Once no node is pending, the
+ * component removes it, so a node of the same id on another surface, or one
+ * that mounts later, doesn't show a skeleton. Until then, such a node shows
+ * one while its layers load, up to `revealAfter`.
  *
  * Render it in the document before the surface's nodes, such as in the
- * layout's `<head>` or first inside `PliantRoot`. It runs only when the
- * browser parses the page: after a client-side navigation, the layers load
- * before the first paint anyway. With a Content Security Policy, pass its
- * nonce.
+ * layout's `<head>` or first inside `PliantRoot`. The script runs only when
+ * the browser parses the page: after a client-side navigation, the layers
+ * load before the first paint anyway. With a Content Security Policy, pass
+ * its nonce.
  *
  * @experimental
  */
-export function PliantPrePaint({ surface, nonce }: PliantPrePaintProps) {
+export function PliantPrePaint({
+  surface,
+  nonce,
+  revealAfter = 4500,
+}: PliantPrePaintProps) {
+  useEffect(() => {
+    const retire = () => {
+      if (!document.querySelector("[data-pliant-pending]")) {
+        document.getElementById("pliant-pre-paint")?.remove()
+        observer.disconnect()
+      }
+    }
+    const observer = new MutationObserver(retire)
+    observer.observe(document, {
+      attributes: true,
+      subtree: true,
+    })
+    retire()
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
   return (
     <script
       // React runs no script it renders in the browser, and warns about
@@ -105,7 +153,7 @@ export function PliantPrePaint({ surface, nonce }: PliantPrePaintProps) {
       nonce={nonce}
       suppressHydrationWarning
       dangerouslySetInnerHTML={{
-        __html: `(${prePaint.toString()})(${JSON.stringify(surface).replace(/</g, "\\u003c")})`,
+        __html: `(${prePaint.toString()})(${JSON.stringify(surface).replace(/</g, "\\u003c")},"${String(revealAfter | 0)}")`,
       }}
     />
   )
