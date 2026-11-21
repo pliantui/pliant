@@ -75,6 +75,7 @@
       "dependencies": [
         "@pliantui/react",
         "@tanstack/react-table",
+        "cn",
         "lucide-react"
       ],
       "registryDependencies": ["button", "dropdown-menu", "table"],
