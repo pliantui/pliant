@@ -1,4 +1,21 @@
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace NodeJS {
+    interface ProcessEnv {
+      NEXT_PUBLIC_SITE_URL?: string
+    }
+  }
+}
+
 const repository = "https://github.com/pliantui/pliant"
+
+// Inlined when the site is built, so set it in the build environment to serve
+// the site from another address.
+const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL ?? ""
+const url =
+  configuredUrl === ""
+    ? "https://pliantui-www.pliantui-dev.workers.dev"
+    : configuredUrl.replace(/\/+$/, "")
 
 export const site = {
   name: "Pliant",
@@ -6,6 +23,7 @@ export const site = {
   headline: "Build pliant interfaces: apps your users can reshape.",
   summary:
     "Pliant adds per-user and per-team customization to your shadcn app, within the rules you set.",
+  url,
   repository,
   links: {
     getStarted: "/docs",

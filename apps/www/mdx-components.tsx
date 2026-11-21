@@ -5,6 +5,7 @@ import { cn } from "cn"
 import { Callout } from "@/components/callout"
 import { CopyButton } from "@/components/copy-button"
 import { getIconForLanguageExtension } from "@/components/icons"
+import { SiteUrl } from "@/components/site-url"
 
 function HeadingAnchor({
   id,
@@ -100,4 +101,5 @@ export const mdxComponents = {
   },
   Callout,
   Link,
+  SiteUrl,
 }

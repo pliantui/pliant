@@ -16,6 +16,7 @@ import { getOrderStats } from "./stats"
 
 export const metadata: Metadata = {
   title: "Orders",
+  alternates: { canonical: "/examples/orders" },
 }
 
 export default function OrdersPage() {
