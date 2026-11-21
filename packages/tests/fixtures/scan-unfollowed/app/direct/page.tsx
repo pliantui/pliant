@@ -1,4 +1,4 @@
-import { PliantRoot } from "@pliantui/react"
+import { PliantActivity, PliantRoot } from "@pliantui/react"
 
 import { Banner } from "@/components/banner"
 import DefaultBanner, {
@@ -10,7 +10,9 @@ import DefaultBanner, {
 export default function DirectPage() {
   return (
     <PliantRoot surface="direct">
-      <Banner />
+      <PliantActivity mode="visible">
+        <Banner />
+      </PliantActivity>
       {renderBanner()}
       {["x"].map(renderRow)}
       <DefaultBanner />

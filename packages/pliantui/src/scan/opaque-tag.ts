@@ -75,8 +75,9 @@ function isKnownTag(value: Node, seen: Set<Node>): boolean {
   }
   const declaration = getDeclarations(node)[0]
   if (!declaration) {
-    // `Context.Provider` when the package's types aren't installed.
-    return Node.isPropertyAccessExpression(node) && isFromPackage(node)
+    // A package's component, or `Context.Provider`, when the package's
+    // types aren't installed or built.
+    return isFromPackage(node)
   }
   const sourceFile = declaration.getSourceFile()
   if (sourceFile.isInNodeModules() || sourceFile.isDeclarationFile()) {

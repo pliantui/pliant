@@ -1051,6 +1051,39 @@ describe("pliantui scan", () => {
 })
 
 describe("pliantui scan, for what it can't follow", () => {
+  it("treats a component from a package whose types aren't built as the package's", async () => {
+    const cwd = await createFixtureDirectory("scan-unfollowed")
+    await mkdir(path.join(cwd, "node_modules/unbuilt-ui"), { recursive: true })
+    await writeFile(
+      path.join(cwd, "node_modules/unbuilt-ui/package.json"),
+      JSON.stringify({
+        name: "unbuilt-ui",
+        type: "module",
+        exports: {
+          ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
+        },
+      })
+    )
+    await edit(
+      cwd,
+      "app/direct/page.tsx",
+      'import { PliantActivity, PliantRoot } from "@pliantui/react"',
+      'import { PliantActivity, PliantRoot } from "@pliantui/react"\nimport { Card } from "unbuilt-ui"'
+    )
+    await edit(
+      cwd,
+      "app/direct/page.tsx",
+      "<DefaultBanner />",
+      "<Card>\n        <DefaultBanner />\n      </Card>"
+    )
+    const { output } = await scanJson(cwd)
+
+    expect(output.inventory["direct"]?.baseIds).toEqual({
+      ids: ["banner", "message"],
+      source: "inventory",
+    })
+  })
+
   // Each surface renders the banner, a component that renders a region, in
   // its own way. The direct surface renders it plainly, so the banner is
   // reached on some surface either way.
