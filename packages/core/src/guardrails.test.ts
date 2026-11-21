@@ -14,14 +14,8 @@ import {
   type SkippedOp,
 } from "./index"
 
-// Random surfaces and overlays, checked against what the guardrails promise.
-// The checker below reads only the resolved result, the way a renderer
-// would, and knows the page only as the options describe it.
-
 const surface = "/orders"
 
-// The page every run starts from: two regions, two node action groups, an
-// item action group, a form and a notice.
 const tree: Readonly<Record<string, string | null>> = {
   page: null,
   main: "page",
@@ -41,7 +35,6 @@ const tree: Readonly<Record<string, string | null>> = {
   notice: "side",
 }
 
-// Each action group's members in render order.
 const groups: Readonly<Record<string, readonly string[]>> = {
   page: ["main", "side"],
   main: ["actions", "form", "toolbar"],
@@ -54,7 +47,6 @@ const groups: Readonly<Record<string, readonly string[]>> = {
 const fields = ["email", "name"]
 const tools = groups["toolbar/actions"] ?? []
 
-// Nodes ops create, and the node ops address them in.
 const created: Readonly<Record<string, string>> = {
   w: "actions",
   v: "bar",
@@ -94,7 +86,12 @@ function shuffled<T>(list: readonly T[], next: Random): T[] {
   const copy = [...list]
   for (let index = copy.length - 1; index > 0; index--) {
     const swap = Math.floor(next() * (index + 1))
-    ;[copy[index], copy[swap]] = [copy[swap] as T, copy[index] as T]
+    const first = copy[index]
+    const second = copy[swap]
+    if (first !== undefined && second !== undefined) {
+      copy[index] = second
+      copy[swap] = first
+    }
   }
   return copy
 }
@@ -323,13 +320,10 @@ function randomOp(next: Random): unknown {
   )()
 }
 
-let count = 0
-
-function stored(layer: Layer, ops: unknown[], next: Random) {
-  count++
+function stored(layer: Layer, ops: unknown[], next: Random, number: number) {
   return {
     v: 1,
-    id: `01JBQ3V8Z7XKQ2M4N5P6${String(count).padStart(6, "0")}`,
+    id: `01JBQ3V8Z7XKQ2M4N5P6${String(number).padStart(6, "0")}`,
     surface,
     layer,
     ...(layer === "org" && { scope: { org: "acme" } }),
@@ -353,6 +347,7 @@ function load(input: Stored): LoadedOverlay {
 }
 
 function randomStack(next: Random): Stored[] {
+  let number = 0
   return layers.flatMap((layer) =>
     Array.from({ length: Math.floor(next() * 3) }, () =>
       stored(
@@ -360,7 +355,8 @@ function randomStack(next: Random): Stored[] {
         Array.from({ length: 1 + Math.floor(next() * 5) }, () =>
           randomOp(next)
         ),
-        next
+        next,
+        ++number
       )
     )
   )
@@ -524,8 +520,8 @@ function itemOrder(layers: ResolvedLayers, group: string, model: Model) {
   const node = group.slice(0, group.indexOf("/"))
   const members = startOrder(group, model)
   const skipped = new Set(layers.skipped.map(({ check }) => check))
-  const mirrored = layers.overlays.map((loaded) => ({
-    ...stored("personal", [], () => 0),
+  const mirrored = layers.overlays.map((loaded, index) => ({
+    ...stored("personal", [], () => 0, index + 1),
     ops: loaded.ops.flatMap((check): unknown[] => {
       if (skipped.has(check) || check.status !== "valid") {
         return []
@@ -686,108 +682,121 @@ function replay(
 
 describe("guardrails on random surfaces", () => {
   const runs = 250
+  // Far above the local run time, so a loaded runner doesn't time out.
+  const timeout = 20_000
 
-  it("leaves every resolved result within every guardrail", () => {
-    const next = random(20261121)
-    const kinds = { "stays-visible": 0, "stays-clear": 0 }
-    for (let run = 0; run < runs; run++) {
-      const { result, model } = randomRun(next)
-      expect(
-        result.skipped.filter(({ reason }) => reason !== "guardrail")
-      ).toEqual([])
-      expect(violations(result, model)).toEqual({
-        "stays-visible": [],
-        "stays-clear": [],
-      })
-      for (const { guardrail } of guardrailSkips(result)) {
-        kinds[guardrail]++
-      }
-    }
-    // Both rules must have had something to stop.
-    expect(kinds["stays-visible"]).toBeGreaterThan(runs / 3)
-    expect(kinds["stays-clear"]).toBeGreaterThan(runs / 3)
-  })
-
-  it("resolves the same, and skips the same ops, in any input order", () => {
-    const next = random(1121)
-    for (let run = 0; run < runs; run++) {
-      const { page, overlays, result } = randomRun(next)
-      const reordered = resolveLayers(shuffled(overlays, next), {
-        surface,
-        flags: reshuffle(page.flags, next),
-        baseParents: page.baseParents && reshuffle(page.baseParents, next),
-        baseOrder: page.baseOrder && reshuffle(page.baseOrder, next),
-        teamOrder: page.teamOrder,
-      })
-      expect(reordered.skipped.map(keyOf)).toEqual(result.skipped.map(keyOf))
-      expect(reordered.placements).toEqual(result.placements)
-      expect(reordered.properties).toEqual(result.properties)
-    }
-  })
-
-  it("skips only ops that break their guardrail, given the ops kept before them", () => {
-    const next = random(2111)
-    for (let run = 0; run < runs; run++) {
-      const current = randomRun(next)
-      const { result, model } = current
-      const skips = guardrailSkips(result)
-      const order = result.overlays.flatMap((overlay) =>
-        overlay.ops.map((check) => ({ overlay, index: check.index }))
-      )
-      for (const skip of skips) {
-        const at = order.findIndex(
-          ({ overlay, index }) =>
-            overlay === skip.overlay && index === skip.check.index
-        )
-        const before = new Set(
-          order
-            .slice(0, at)
-            .filter(
-              ({ overlay, index }) =>
-                !skips.some(
-                  (other) =>
-                    other.overlay === overlay && other.check.index === index
-                )
-            )
-            .map(({ overlay, index }) => `${overlay.id} ${String(index)}`)
-        )
-        const kept = (overlay: LoadedOverlay, index: number) =>
-          before.has(`${overlay.id} ${String(index)}`)
-        expect(violations(replay(current, kept), model)).toEqual({
+  it(
+    "leaves every resolved result within every guardrail",
+    () => {
+      const next = random(20261121)
+      const kinds = { "stays-visible": 0, "stays-clear": 0 }
+      for (let run = 0; run < runs; run++) {
+        const { result, model } = randomRun(next)
+        expect(
+          result.skipped.filter(({ reason }) => reason !== "guardrail")
+        ).toEqual([])
+        expect(violations(result, model)).toEqual({
           "stays-visible": [],
           "stays-clear": [],
         })
-        const added = replay(
-          current,
-          (overlay, index) =>
-            kept(overlay, index) ||
-            (overlay.id === skip.overlay.id && index === skip.check.index)
-        )
-        expect(violations(added, model)[skip.guardrail]).toContain(skip.node)
+        for (const { guardrail } of guardrailSkips(result)) {
+          kinds[guardrail]++
+        }
       }
+      // Both rules must have had something to stop.
+      expect(kinds["stays-visible"]).toBeGreaterThan(runs / 3)
+      expect(kinds["stays-clear"]).toBeGreaterThan(runs / 3)
+    },
+    timeout
+  )
 
-      // validateOverlay rejects exactly the top overlay's skipped ops.
-      const top = result.overlays.at(-1)
-      const input = current.inputs.find(({ id }) => id === top?.id)
-      if (top && input) {
-        const validated = validateOverlay(input, {
-          layers: {
-            overlays: current.inputs.filter((other) => other !== input),
-            surface,
-            ...current.page,
-          },
+  it(
+    "resolves the same, and skips the same ops, in any input order",
+    () => {
+      const next = random(1121)
+      for (let run = 0; run < runs; run++) {
+        const { page, overlays, result } = randomRun(next)
+        const reordered = resolveLayers(shuffled(overlays, next), {
+          surface,
+          flags: reshuffle(page.flags, next),
+          baseParents: page.baseParents && reshuffle(page.baseParents, next),
+          baseOrder: page.baseOrder && reshuffle(page.baseOrder, next),
+          teamOrder: page.teamOrder,
         })
-        const rejected = validated.success
-          ? []
-          : validated.error.issues
-              .filter(({ message }) => message.startsWith("The item "))
-              .map(({ path }) => path[1])
-        expect(rejected).toEqual(
-          skips
-            .filter(({ overlay }) => overlay === top)
-            .map(({ check }) => check.index)
-        )
+        expect(reordered.skipped.map(keyOf)).toEqual(result.skipped.map(keyOf))
+        expect(reordered.placements).toEqual(result.placements)
+        expect(reordered.properties).toEqual(result.properties)
       }
-    }
-  })
+    },
+    timeout
+  )
+
+  it(
+    "skips only ops that break their guardrail, given the ops kept before them",
+    () => {
+      const next = random(2111)
+      for (let run = 0; run < runs; run++) {
+        const current = randomRun(next)
+        const { result, model } = current
+        const skips = guardrailSkips(result)
+        const order = result.overlays.flatMap((overlay) =>
+          overlay.ops.map((check) => ({ overlay, index: check.index }))
+        )
+        for (const skip of skips) {
+          const at = order.findIndex(
+            ({ overlay, index }) =>
+              overlay === skip.overlay && index === skip.check.index
+          )
+          const before = new Set(
+            order
+              .slice(0, at)
+              .filter(
+                ({ overlay, index }) =>
+                  !skips.some(
+                    (other) =>
+                      other.overlay === overlay && other.check.index === index
+                  )
+              )
+              .map(({ overlay, index }) => `${overlay.id} ${String(index)}`)
+          )
+          const kept = (overlay: LoadedOverlay, index: number) =>
+            before.has(`${overlay.id} ${String(index)}`)
+          expect(violations(replay(current, kept), model)).toEqual({
+            "stays-visible": [],
+            "stays-clear": [],
+          })
+          const added = replay(
+            current,
+            (overlay, index) =>
+              kept(overlay, index) ||
+              (overlay.id === skip.overlay.id && index === skip.check.index)
+          )
+          expect(violations(added, model)[skip.guardrail]).toContain(skip.node)
+        }
+
+        const top = result.overlays.at(-1)
+        const input = current.inputs.find(({ id }) => id === top?.id)
+        if (top && input) {
+          const validated = validateOverlay(input, {
+            layers: {
+              overlays: current.inputs.filter((other) => other !== input),
+              surface,
+              ...current.page,
+            },
+          })
+          const rejected = validated.success
+            ? []
+            : validated.error.issues
+                .filter(({ message }) => message.startsWith("The item "))
+                .map(({ path }) => path[1])
+          expect(rejected).toEqual(
+            skips
+              .filter(({ overlay }) => overlay === top)
+              .map(({ check }) => check.index)
+          )
+        }
+      }
+    },
+    timeout
+  )
 })
