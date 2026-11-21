@@ -1,4 +1,10 @@
 export {
+  createAggregateEvaluator,
+  type AggregateEvaluator,
+  type AggregateEvaluatorOptions,
+  type AggregateExpression,
+} from "./aggregate-evaluator"
+export {
   checkExpression,
   createExpressionChecker,
   type CheckExpressionOptions,
