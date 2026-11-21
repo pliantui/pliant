@@ -6,6 +6,7 @@ import {
   render,
   renderHook,
   screen,
+  within,
 } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -61,13 +62,15 @@ afterEach(() => {
 function InvalidItems({
   entries,
   invalid,
+  name = "Ticket",
 }: {
   entries: readonly RegionEntry[]
   invalid: readonly string[]
+  name?: string
 }) {
   const items = useRegionItems(entries)
   return (
-    <form aria-label="Ticket">
+    <form aria-label={name}>
       {items.map((item) =>
         item.kind === "trigger" ? (
           <button key={item.key} {...item.getTriggerProps()}>
@@ -249,6 +252,7 @@ describe("useRegionItems", () => {
       slot("title"),
       slot("cc", { collapsed: more }),
       slot("due", { collapsed: more }),
+      slot("notes"),
     ]
     const trigger = () => screen.getByRole("button", { name: "More fields" })
 
@@ -265,8 +269,14 @@ describe("useRegionItems", () => {
       }
     }
 
-    function submit() {
-      fireEvent.submit(screen.getByRole("form", { name: "Ticket" }))
+    function submit(name = "Ticket") {
+      fireEvent.submit(screen.getByRole("form", { name }))
+    }
+
+    async function settle() {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve))
+      })
     }
 
     function type(name: string) {
@@ -282,21 +292,29 @@ describe("useRegionItems", () => {
       await mark(["title"])
       expect(trigger().getAttribute("aria-expanded")).toBe("false")
 
-      await mark(["title", "cc"])
+      await mark(["cc"])
       expect(trigger().getAttribute("aria-expanded")).toBe("true")
       expect(wrapper("cc").getAttribute("data-mode")).toBe("visible")
       expect(document.activeElement).toBe(textbox("cc"))
     })
 
-    it("leaves focus on an invalid control that has it", async () => {
+    it("focuses the form's first invalid control", async () => {
       const mark = setup()
-      await mark(["title"])
-      textbox("title").focus()
-
       submit()
-      await mark(["title", "cc"])
+      await mark(["title", "due"])
       expect(trigger().getAttribute("aria-expanded")).toBe("true")
       expect(document.activeElement).toBe(textbox("title"))
+    })
+
+    it("leaves focus on an invalid control that has it", async () => {
+      const mark = setup()
+      await mark(["notes"])
+      textbox("notes").focus()
+
+      submit()
+      await mark(["notes", "cc"])
+      expect(trigger().getAttribute("aria-expanded")).toBe("true")
+      expect(document.activeElement).toBe(textbox("notes"))
     })
 
     it("stays closed when a control inside becomes invalid as the user types", async () => {
@@ -305,6 +323,7 @@ describe("useRegionItems", () => {
 
       type("title")
       await mark(["cc"])
+      await settle()
       expect(trigger().getAttribute("aria-expanded")).toBe("false")
       expect(document.activeElement).toBe(textbox("title"))
     })
@@ -317,11 +336,12 @@ describe("useRegionItems", () => {
 
       type("title")
       await mark(["title", "cc"])
+      await settle()
       expect(trigger().getAttribute("aria-expanded")).toBe("false")
       expect(document.activeElement).toBe(textbox("title"))
     })
 
-    it("lets the user close it, and opens it again only when a submit finds a newly invalid control", async () => {
+    it("lets the user close it, and opens it again when a submit finds a control inside still invalid", async () => {
       const mark = setup()
       submit()
       await mark(["cc"])
@@ -330,16 +350,36 @@ describe("useRegionItems", () => {
       fireEvent.click(trigger())
       expect(trigger().getAttribute("aria-expanded")).toBe("false")
       await mark(["cc", "due"])
+      await settle()
       expect(trigger().getAttribute("aria-expanded")).toBe("false")
 
       submit()
-      await mark(["cc"])
-      expect(trigger().getAttribute("aria-expanded")).toBe("false")
-
-      submit()
-      await mark(["cc", "due"])
+      await settle()
       expect(trigger().getAttribute("aria-expanded")).toBe("true")
-      expect(document.activeElement).toBe(textbox("due"))
+      expect(document.activeElement).toBe(textbox("cc"))
+    })
+
+    it("opens only the collapses of the form submitted", async () => {
+      function Forms({ invalid }: { invalid: readonly string[] }) {
+        return (
+          <>
+            <InvalidItems entries={entries} invalid={[]} name="Ticket" />
+            <InvalidItems entries={entries} invalid={invalid} name="Other" />
+          </>
+        )
+      }
+      const view = render(<Forms invalid={["cc"]} />)
+      const other = within(screen.getByRole("form", { name: "Other" }))
+
+      submit()
+      view.rerender(<Forms invalid={["cc", "due"]} />)
+      await settle()
+      expect(
+        other
+          .getByRole("button", { name: "More fields" })
+          .getAttribute("aria-expanded")
+      ).toBe("false")
+      expect(document.activeElement).toBe(document.body)
     })
 
     it("opens before the browser reports a control its validation finds invalid", () => {
