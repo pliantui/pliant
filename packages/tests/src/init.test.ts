@@ -5,12 +5,17 @@ import { afterAll, describe, expect, it } from "vitest"
 
 import { runCli, tempDirectory } from "./helpers"
 
+const projects: string[] = []
+
 afterAll(async () => {
-  await rm(tempDirectory, { recursive: true, force: true })
+  await Promise.all(
+    projects.map((project) => rm(project, { recursive: true, force: true }))
+  )
 })
 
 async function createProject(files: Record<string, string>) {
   const directory = path.join(tempDirectory, `init-${randomUUID()}`)
+  projects.push(directory)
   for (const [file, content] of Object.entries(files)) {
     await mkdir(path.dirname(path.join(directory, file)), { recursive: true })
     await writeFile(path.join(directory, file), content)
