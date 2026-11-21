@@ -12,7 +12,6 @@ import {
   compareCodePoints,
   createAggregateEvaluator,
   formatError,
-  identityOf,
   type AggregateExpression,
   type ExpressionField,
   type ResolvedLayers,
@@ -45,13 +44,16 @@ export function aggregatesOf(
   resolved: ResolvedLayers,
   table: string
 ): TableAggregate[] {
-  const properties = resolved.properties.get(identityOf(table))
+  // A node's identity is its bare id: the part after its last `/slots/`.
+  const properties = resolved.properties.get(
+    table.split("/slots/").slice(-1).join()
+  )
   if (!properties) {
     return []
   }
-  return Array.from(properties, ([key, { winner }]) => {
+  return Array.from(properties.values(), ({ winner }) => {
     const { op } = winner.check
-    return key.startsWith("aggregate.") && op.op === "addAggregate"
+    return op.op === "addAggregate"
       ? [
           {
             id: op.id,
@@ -98,7 +100,7 @@ function inDisplayOrder(
       }
       order ||= compare(a, b, id)
       if (order !== 0) {
-        return (desc ? -order : order) * (invertSorting ? -1 : 1)
+        return desc === !invertSorting ? -order : order
       }
     }
     return compareCodePoints(keyOf(a), keyOf(b))
