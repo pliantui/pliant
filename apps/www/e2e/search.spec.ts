@@ -4,15 +4,13 @@ test("finds a docs page from the search dialog", async ({ page, errors }) => {
   await page.goto("/docs")
   await page.getByRole("button", { name: /^Search/ }).click()
   const dialog = page.getByRole("dialog", { name: "Search" })
-  await dialog
-    .getByRole("combobox", { name: "Search" })
-    .fill("early development")
+  await dialog.getByRole("combobox", { name: "Search" }).fill("built once")
 
   await expect(
-    dialog.getByRole("option", { name: "Docs Introduction" })
+    dialog.getByRole("option", { name: /Introduction$/ })
   ).toBeVisible()
   await expect(
-    dialog.getByRole("option", { name: "Pliant is in early development." })
+    dialog.getByRole("option", { name: "Pliant is that layer, built once." })
   ).toBeVisible()
   expect(errors).toEqual([])
 })

@@ -1,0 +1,165 @@
+---
+title: Storage
+description: Save each user's changes to your backend instead of the browser.
+---
+
+`PliantRoot` loads and saves overlays through the storage adapter you pass as `storage`. `localAdapter` from `@pliantui/react/local` keeps each user's personal overlays in their browser's `localStorage`. To keep them on your server, use `serverAdapter` from `@pliantui/react/server-adapter` with `createStorageHandler` from `@pliantui/server/storage`, or write your own adapter.
+
+## The adapter
+
+An adapter is an object of functions. Any of them except `subscribe` may return a Promise.
+
+| Method                                | Required | What it does                                                                 |
+| ------------------------------------- | -------- | ---------------------------------------------------------------------------- |
+| `load(surface)`                       | Yes      | Returns the surface's live stored records, by layer.                         |
+| `save(surface, overlay, { ifMatch })` | Yes      | Stores an overlay and returns its stored record.                             |
+| `subscribe(surface, onChange)`        | No       | Calls `onChange` when another tab or device changes the surface.             |
+| `remove(surface, id, { ifMatch })`    | No       | Removes a stored overlay by storing a tombstone, for example on a reset.     |
+| `list(layer)`                         | No       | Lists the stored records of a layer on every surface, for example to export. |
+| `history(surface, id?)`               | No       | Returns the stored records of a surface or overlay, tombstones included.     |
+
+`PliantRoot` calls only `load`, `save` and `subscribe`. `remove`, `list` and `history` are there for your own code, such as resetting, exporting or erasing a user's data, or showing an audit trail.
+
+### Stored records
+
+An adapter stores and returns each overlay as a record:
+
+```ts
+type StoredOverlay = {
+  overlay: Overlay
+  etag: string
+  version: number
+  updatedAt: string
+  deletedAt?: string
+}
+```
+
+- `overlay` is the overlay itself. Keep every op and unknown field unchanged.
+- `etag` is an opaque string. Every successful save must give the record an etag it has never had before, even when it stores the same overlay again.
+- `version` starts at 1 when a record is created, and each save of that record increases it.
+- `updatedAt` is an RFC 3339 date-time with an offset.
+- `deletedAt` has the same format and the same value as `updatedAt`. A record that has it is a tombstone.
+
+### Load
+
+`load` returns the live stored records of the surface in every layer the user can read, without tombstones. Your adapter also returns the overlays of the `@app` surface with them, because those apply to every surface. Pliant resolves them together with the surface's own overlays:
+
+```ts
+{ org?: StoredOverlay[], team?: StoredOverlay[], personal?: StoredOverlay[] }
+```
+
+Pliant validates each overlay and skips any that don't load. If `load` fails, `usePliantStatus()` (from `@pliantui/react`) reports the error and no stored overlays apply.
+
+A load must see every save that finished before it started, including the caller's own. Read from your primary database, not a replica, and fetch with `cache: "no-store"`. A load that misses a finished save hides that version until the next load that includes it.
+
+### Save and conflicts
+
+`save` stores the overlay in the layer and scope it names and returns the new record. `ifMatch` is the etag of the record it replaces, or `null` to create a new one. When the stored record has a different etag, `save` must throw or reject with a `StorageConflictError`, so that two tabs or devices never overwrite each other's changes unseen.
+
+`PliantRoot` gives each personal version a new id and saves it as a new record with `ifMatch: null`. Two tabs therefore don't collide: each saves its own records, and personal overlays resolve in `createdAt` order, so the later change wins on a property both write and changes to different properties both apply. A conflict on a create-only save means a record with that id already exists. If it is the version Pliant was saving, an earlier attempt stored it though the answer was lost, and Pliant counts it as saved. Any other conflict is reported and saved again on the next flush, like any failed save.
+
+Pliant recognizes a conflict by its shape: any `Error` named `"StorageConflictError"` with a `current` property counts, where `current` is the stored record, or `undefined` when there is none. You can turn an HTTP 412 into one without importing the class.
+
+Pliant also saves while the page unloads, so an adapter that sends saves over the network must use `fetch` with `keepalive: true` or `navigator.sendBeacon`.
+
+A save under a tombstone's id is a conflict whose `current` is the tombstone, whatever `ifMatch` is, so a removed overlay's id is never reused while its tombstone is kept. When a save's answer is lost and the version is removed elsewhere before the retry, the retry's conflict carries the tombstone, and Pliant drops the version instead of storing it again.
+
+### Remove, tombstones and erasure
+
+`remove` stores a tombstone in place of the record: the same overlay with `deletedAt` set, a new etag and the next version. It takes the etag of the record it removes and throws a `StorageConflictError` when that isn't the stored one. Removing an overlay that isn't stored, or is already removed, does nothing. `load` never returns a tombstone, and a tombstone is never applied.
+
+Keep tombstones as long as the app might retry a save, and at least 30 days. After that they may be purged, and a retry of a save from before the removal can then store the overlay again.
+
+A tombstone keeps the removed overlay until it is purged. To erase it at once, such as when a user asks for their data to be erased, purge the tombstone too, and accept that a late retry could store it again.
+
+### History
+
+`history(surface, id?)` returns the stored records of a surface, or of the overlay with that id, tombstones included, oldest first. It returns what the adapter keeps: an adapter that keeps only the latest record of each overlay returns that. Pliant doesn't call it. Use it to show an audit trail, or to undo a removal by saving the removed overlay under a new id.
+
+### Subscribe
+
+When the adapter implements `subscribe`, changes stored from another tab or device show as they arrive: the surface loads again without going back to `loading`, and personal versions this tab hasn't saved yet stay. Calling `onChange` for this tab's own saves too is harmless, because the latest load wins. `subscribe` returns a function that stops it.
+
+## Write a server adapter
+
+This adapter keeps overlays behind your own `/api/layers` route and turns a 412 response into a conflict:
+
+```ts title="lib/pliant-storage.ts"
+import type { StorageAdapter, StoredLayers } from "@pliantui/react"
+
+type StoredOverlay = Awaited<ReturnType<StorageAdapter["save"]>>
+
+function conflict(current: StoredOverlay | undefined) {
+  const error = new Error("The stored overlay doesn't match ifMatch")
+  error.name = "StorageConflictError"
+  return Object.assign(error, { current })
+}
+
+export const pliantStorage: StorageAdapter = {
+  async load(surface) {
+    const response = await fetch(
+      `/api/layers?surface=${encodeURIComponent(surface)}`,
+      { cache: "no-store" }
+    )
+    if (!response.ok) {
+      throw new Error(`Loading layers failed: ${String(response.status)}`)
+    }
+    return (await response.json()) as StoredLayers
+  },
+  async save(surface, overlay, { ifMatch }) {
+    const response = await fetch(
+      `/api/layers?surface=${encodeURIComponent(surface)}`,
+      {
+        method: "PUT",
+        headers: ifMatch === null ? { "If-None-Match": "*" } : { "If-Match": ifMatch },
+        body: JSON.stringify(overlay),
+        keepalive: true,
+      }
+    )
+    if (response.status === 412) {
+      // The route answers with the stored record, or nothing when there is none.
+      const current = (await response.json().catch(() => undefined)) as
+        | StoredOverlay
+        | undefined
+      throw conflict(current)
+    }
+    if (!response.ok) {
+      throw new Error(`Saving an overlay failed: ${String(response.status)}`)
+    }
+    return (await response.json()) as StoredOverlay
+  },
+}
+```
+
+The `/api/layers` route is yours. It must make the save conditional on the etag, in one step with the write, and answer 412 when it doesn't match.
+
+## Pass it to PliantRoot
+
+The adapter is an object of functions, which a Server Component can't pass to a client component. Render `PliantRoot` from a client component instead:
+
+```tsx title="components/orders-root.tsx"
+"use client"
+
+import type { ReactNode } from "react"
+import { PliantRoot } from "@pliantui/react"
+
+import { pliantStorage } from "@/lib/pliant-storage"
+
+export function OrdersRoot({ children }: { children: ReactNode }) {
+  return (
+    <PliantRoot surface="/orders" storage={pliantStorage}>
+      {children}
+    </PliantRoot>
+  )
+}
+```
+
+Then use `OrdersRoot` in place of `PliantRoot` in your page.
+
+## localAdapter
+
+`localAdapter` stores personal overlays only, and throws for any other layer. Its `load` returns the surface's own personal overlays only, not `@app` overlays. It keeps one `localStorage` key per overlay, `pliant:<surface>:<id>`, holding its stored record as JSON. An entry that isn't a valid record doesn't load and is never overwritten.
+
+`remove` leaves a tombstone under the overlay's key and keeps it, so a removed overlay is never stored again under its id. The tombstone holds the removed overlay: to erase it at once, remove the key from `localStorage`, and a late retry of a save from before the removal can then store the overlay again. `history` returns the record under each key, tombstones included: the latest record of every overlay, not earlier versions.
+
+Its `subscribe` tells every `PliantRoot` of the same browser when a surface changes, whether the change was saved in another tab or in the same page.
