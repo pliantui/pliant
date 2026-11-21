@@ -63,7 +63,8 @@ function FormFields({
     ) : (
       // A closed "More fields" section only hides its fields: unlike a
       // hidden activity, it keeps their effects running, so a form library
-      // still validates them and marks them invalid, which opens it.
+      // still validates them and marks them invalid, which opens it on
+      // submit.
       <PliantActivity
         key={item.key}
         mode={item.entry.visible ? "visible" : "hidden"}
@@ -85,8 +86,11 @@ function FormFields({
  * place of `FieldGroup`. Each field is rendered inside a `display: contents`
  * wrapper with `data-pliant-id`, always in this same element, so hiding,
  * moving or collapsing a field never remounts it: it keeps its state and
- * its value. A collapsed section opens when a field inside becomes invalid,
- * and focus moves to that field.
+ * its value. A collapsed section opens when the form's `submit` event finds
+ * a field inside invalid, and focus moves to the first invalid field. Submit
+ * through the `<form>`, as a submit button or `form.requestSubmit()` for
+ * autosave does: calling the form library's submit handler from a button
+ * outside a `<form>` doesn't open it.
  */
 function PliantForm({
   id,

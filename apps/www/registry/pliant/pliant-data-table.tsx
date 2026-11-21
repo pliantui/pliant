@@ -1,11 +1,21 @@
 "use client"
 
-import type { ComponentProps, CSSProperties } from "react"
+import type { ComponentProps, CSSProperties, ReactNode } from "react"
 import type { Column, ReactTable, RowData } from "@tanstack/react-table"
 import { cn } from "cn"
-import { ChevronRight } from "lucide-react"
+import {
+  ChevronRight,
+  CircleAlert,
+  CircleCheck,
+  Star,
+  TriangleAlert,
+} from "lucide-react"
 
 import { usePliantMessages, type PliantMessages } from "@pliantui/react"
+import {
+  getPliantHighlights,
+  type PliantHighlight,
+} from "@pliantui/react/table"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -29,13 +39,67 @@ declare module "@pliantui/react" {
   interface PliantMessages {
     dataTableNoResults: string
     dataTableTotals: string
+    dataTableHighlighted: (names: string[]) => string
+    dataTableHighlightEmphasis: string
+    dataTableHighlightSuccess: string
+    dataTableHighlightWarning: string
+    dataTableHighlightDanger: string
   }
 }
 
 const tableMessages = {
   dataTableNoResults: "No results.",
   dataTableTotals: "All rows",
+  dataTableHighlighted: (names) => `Highlighted: ${names.join(", ")}`,
+  dataTableHighlightEmphasis: "Emphasis",
+  dataTableHighlightSuccess: "Success",
+  dataTableHighlightWarning: "Warning",
+  dataTableHighlightDanger: "Danger",
 } satisfies Partial<PliantMessages>
+
+type Tone = PliantHighlight["tone"]
+
+const toneMessages = {
+  emphasis: "dataTableHighlightEmphasis",
+  success: "dataTableHighlightSuccess",
+  warning: "dataTableHighlightWarning",
+  danger: "dataTableHighlightDanger",
+} as const satisfies Record<Tone, keyof typeof tableMessages>
+
+// A highlighted row is tinted with its tone, and its first cell gets the
+// tone's icon, so the highlight doesn't rest on color alone. The tint is an
+// image over each cell's background, so the row's hover and a pinned cell's
+// solid background still show under it.
+const tones = {
+  emphasis: {
+    row: "[&>td]:bg-linear-to-r [&>td]:from-primary/8 [&>td]:to-primary/8",
+    icon: <Star aria-hidden className="size-4 shrink-0 text-primary" />,
+  },
+  success: {
+    row: "[&>td]:bg-linear-to-r [&>td]:from-emerald-500/14 [&>td]:to-emerald-500/14",
+    icon: (
+      <CircleCheck
+        aria-hidden
+        className="size-4 shrink-0 text-emerald-700 dark:text-emerald-400"
+      />
+    ),
+  },
+  warning: {
+    row: "[&>td]:bg-linear-to-r [&>td]:from-amber-500/16 [&>td]:to-amber-500/16",
+    icon: (
+      <TriangleAlert
+        aria-hidden
+        className="size-4 shrink-0 text-amber-700 dark:text-amber-400"
+      />
+    ),
+  },
+  danger: {
+    row: "[&>td]:bg-linear-to-r [&>td]:from-destructive/12 [&>td]:to-destructive/12",
+    icon: (
+      <CircleAlert aria-hidden className="size-4 shrink-0 text-destructive" />
+    ),
+  },
+} satisfies Record<Tone, { row: string; icon: ReactNode }>
 
 const ariaSort = { asc: "ascending", desc: "descending" } as const
 
@@ -48,6 +112,21 @@ const defaultNumber = new Intl.NumberFormat("en")
 
 function defaultFormatNumber(value: number) {
   return defaultNumber.format(value)
+}
+
+function PliantDataTableHighlight({
+  tone,
+  label,
+}: {
+  tone: Tone
+  label: string
+}) {
+  return (
+    <>
+      {tones[tone].icon}
+      <span className="sr-only">{label}</span>
+    </>
+  )
 }
 
 function defaultFormatAggregate(
@@ -111,6 +190,11 @@ function getColumnStyles<TData extends RowData>(
  * their `format`.
  * Pinned columns stay in place while the table scrolls sideways.
  *
+ * A row with highlights (`addHighlight` ops whose condition is true for it)
+ * is tinted with the tone of the one applied last, and its first cell shows
+ * that tone's icon, with text for screen readers that names every highlight
+ * it has, by `formatHighlight`.
+ *
  * The table scrolls inside a focusable region, so keyboard users can scroll
  * it. Name it with `aria-labelledby` or `aria-label`; other props go to the
  * region. Put the title, the
@@ -121,6 +205,7 @@ function PliantDataTable<TData extends RowData>({
   table,
   formatAggregate = defaultFormatAggregate,
   formatNumber = defaultFormatNumber,
+  formatHighlight,
   className,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
@@ -146,12 +231,19 @@ function PliantDataTable<TData extends RowData>({
     ) => string
     /** Formats the number of rows in a group. */
     formatNumber?: (value: number) => string
+    /**
+     * Names a highlight for screen readers, as in "Highlighted: Overdue".
+     * Defaults to its tone, such as "Warning".
+     */
+    formatHighlight?: (highlight: PliantHighlight) => string
   }) {
   const messages = usePliantMessages(tableMessages)
   const rows = table.getRowModel().rows
   const leafColumns = table.getVisibleLeafColumns()
   const hasAggregates = leafColumns.some(isAggregate)
   const totalsIndex = leafColumns.findIndex((column) => !isAggregate(column))
+  const nameHighlight = (highlight: PliantHighlight) =>
+    formatHighlight?.(highlight) ?? messages[toneMessages[highlight.tone]]
 
   return (
     // The region scrolls instead of the table's own container, so it can
@@ -211,16 +303,17 @@ function PliantDataTable<TData extends RowData>({
         </TableHeader>
         <TableBody>
           {rows.length ? (
-            rows.map((row) => (
-              <TableRow key={row.id} className="border-border">
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell
-                    key={cell.id}
-                    data-pinned={cell.column.getIsPinned() || undefined}
-                    className={pinnedClassName}
-                    style={getColumnStyles(cell.column)}
-                  >
-                    {cell.getIsGrouped() ? (
+            rows.map((row) => {
+              const highlights = getPliantHighlights(row)
+              const tone = highlights.at(-1)?.tone
+              return (
+                <TableRow
+                  key={row.id}
+                  data-highlight={tone}
+                  className={cn("border-border", tone && tones[tone].row)}
+                >
+                  {row.getVisibleCells().map((cell, index) => {
+                    const content = cell.getIsGrouped() ? (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -258,12 +351,34 @@ function PliantDataTable<TData extends RowData>({
                       </div>
                     ) : (
                       <table.FlexRender cell={cell} />
-                    )}
-                  </TableCell>
-                ))}
-                <TableCell aria-hidden className="p-0" />
-              </TableRow>
-            ))
+                    )
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        data-pinned={cell.column.getIsPinned() || undefined}
+                        className={pinnedClassName}
+                        style={getColumnStyles(cell.column)}
+                      >
+                        {index === 0 && tone ? (
+                          <div className="flex items-center gap-2">
+                            <div className="min-w-0 flex-1">{content}</div>
+                            <PliantDataTableHighlight
+                              tone={tone}
+                              label={messages.dataTableHighlighted([
+                                ...new Set(highlights.map(nameHighlight)),
+                              ])}
+                            />
+                          </div>
+                        ) : (
+                          content
+                        )}
+                      </TableCell>
+                    )
+                  })}
+                  <TableCell aria-hidden className="p-0" />
+                </TableRow>
+              )
+            })
           ) : (
             <TableRow>
               <TableCell
