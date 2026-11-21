@@ -29,7 +29,7 @@ export function checkAiFields(sourceFiles: readonly SourceFile[]): Check {
       name: "ai-fields",
       status: "skip",
       message:
-        "No defineDataset from @pliantui/server/data found, so no dataset fields are visible to the AI.",
+        "No defineDataset from @pliantui/server/data found in this project.",
     }
   }
 

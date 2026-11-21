@@ -485,7 +485,7 @@ describe("pliantui doctor", () => {
       })
     })
 
-    it("finds datasets through renamed imports, re-exports and namespaces", async () => {
+    it("finds datasets through renamed imports, re-exports, namespaces and const aliases", async () => {
       const cwd = await scannedApp()
       await writeFile(
         path.join(cwd, "lib/server.ts"),
@@ -501,6 +501,8 @@ describe("pliantui doctor", () => {
           'export const a = dataset({ id: "a", scope: "public", fields: { id: { type: "id" }, phone: { type: "string" } } })',
           'export const b = data.defineDataset({ id: "b", scope: "public", fields: { id: { type: "id" } } })',
           'export const c = define({ id: "c", scope: "public", fields: { id: { type: "id" } } })',
+          "const alias = define",
+          'export const d = alias({ id: "d", scope: "public", fields: { id: { type: "id" } } })',
           "",
           "function defineDataset(definition: unknown) {",
           "  return definition",
@@ -515,6 +517,7 @@ describe("pliantui doctor", () => {
         "a",
         "b",
         "c",
+        "d",
       ])
       expect(check.problems).toEqual([
         expect.objectContaining({
@@ -579,6 +582,46 @@ describe("pliantui doctor", () => {
           exposeToAI: true,
         }),
         expect.objectContaining({ name: "region", exposeToAI: true }),
+      ])
+    })
+
+    it("counts every field as visible when the definition has a spread it can't read", async () => {
+      const cwd = await withDatasets([
+        'import { defineDataset } from "@pliantui/server/data"',
+        'import { overrides } from "./overrides"',
+        "",
+        "export const orders = defineDataset({",
+        '  id: "orders",',
+        '  scope: "public",',
+        "  fields: {",
+        '    id: { type: "id" },',
+        '    note: { type: "string", exposeToAI: false },',
+        "  },",
+        "  ...overrides,",
+        "})",
+        "",
+      ])
+      await writeFile(
+        path.join(cwd, "lib/overrides.ts"),
+        "export let overrides = {}\n"
+      )
+      const result = await doctor(cwd)
+      const check = result.check("ai-fields")
+      expect(check).toMatchObject({
+        status: "warn",
+        problems: [
+          {
+            file: path.normalize("lib/datasets.ts"),
+            line: 11,
+            message:
+              'The definition of dataset "orders" includes the spread ...overrides, which can\'t be read and may replace its fields, so they all count as visible to the AI.',
+            status: "warn",
+          },
+        ],
+      })
+      expect(check.details?.[0]?.fields).toEqual([
+        expect.objectContaining({ name: "id", exposeToAI: true }),
+        expect.objectContaining({ name: "note", exposeToAI: true }),
       ])
     })
 

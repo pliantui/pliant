@@ -99,9 +99,22 @@ function readDataset(call: Node, definition: Node | undefined): DatasetReport {
       )
     )
   }
+  // A spread or computed key in the definition may replace its fields, so
+  // none of them can be trusted to stay hidden.
+  const replaceable = object?.problems ?? []
+  for (const { node, reason } of replaceable) {
+    report.unreadable.push(
+      createDiagnostic(
+        node,
+        `The definition of ${dataset} includes ${reason}, which can't be read and may replace its fields, so they all count as visible to the AI.`
+      )
+    )
+  }
   for (const [name, value] of fields.entries) {
     const { field, unreadable } = readField(name, value, dataset)
-    report.fields.push(field)
+    report.fields.push(
+      replaceable.length > 0 ? { ...field, exposeToAI: true } : field
+    )
     if (unreadable) {
       report.unreadable.push(unreadable)
     }
@@ -111,20 +124,20 @@ function readDataset(call: Node, definition: Node | undefined): DatasetReport {
 
 /**
  * Finds each `defineDataset` call from `@pliantui/server/data`, through
- * renamed imports and re-exports, and reads which of its fields the model
+ * renamed imports, re-exports and const aliases, and reads which of its fields the model
  * is told about, without running anything.
  */
 export function readDatasets(sourceFiles: readonly SourceFile[]) {
   return sourceFiles.flatMap((sourceFile) =>
     sourceFile
       .getDescendantsOfKind(SyntaxKind.CallExpression)
-      .filter((call) =>
-        isPliantExport(
-          call.getExpression(),
-          "@pliantui/server/data",
-          "defineDataset"
+      .filter((call) => {
+        const callee = call.getExpression()
+        // Also through a const alias, such as `const define = defineDataset`.
+        return [callee, resolveExpression(callee)].some((node) =>
+          isPliantExport(node, "@pliantui/server/data", "defineDataset")
         )
-      )
+      })
       .map((call) => readDataset(call, call.getArguments()[0]))
   )
 }
