@@ -1,0 +1,39 @@
+import { site } from "@/lib/site"
+
+const repositoryApi = site.repository.replace(
+  "https://github.com/",
+  "https://api.github.com/repos/"
+)
+
+// Read on the server and cached for an hour, so visitors never reach GitHub's
+// rate limit. Returns null when GitHub can't be reached, and the page then
+// shows no count.
+export async function getStarCount(): Promise<number | null> {
+  try {
+    const response = await fetch(repositoryApi, {
+      headers: { Accept: "application/vnd.github+json" },
+      next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!response.ok) return null
+    const repository: unknown = await response.json()
+    if (
+      typeof repository === "object" &&
+      repository !== null &&
+      "stargazers_count" in repository &&
+      typeof repository.stargazers_count === "number"
+    ) {
+      return repository.stargazers_count
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+export function formatStarCount(count: number): string {
+  return new Intl.NumberFormat("en", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(count)
+}

@@ -6,6 +6,7 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: [
       "app/**/*.test.ts",
+      "lib/**/*.test.ts",
       "registry/**/*.test.tsx",
       "scripts/**/*.test.ts",
     ],
