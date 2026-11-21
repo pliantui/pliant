@@ -24,6 +24,8 @@ export type ComponentFunction =
 export interface Route {
   readonly fn: ComponentFunction
   readonly props: ReadonlyMap<string, readonly Route[]>
+  /** The references the route's default export was followed through. */
+  readonly trail: ReadonlySet<Node>
 }
 
 /** A prop as written where the component is rendered. */
@@ -195,6 +197,7 @@ export function readObjectLiteral(
  */
 export function functionIn(
   value: Node,
+  /** Collects every node it passes through, such as `Inner` in `memo(Inner)`. */
   seen = new Set<Node>()
 ): ComponentFunction | undefined {
   if (seen.has(value)) {
@@ -209,12 +212,14 @@ export function functionIn(
     }
     current = unwrapExpression(first)
   }
+  seen.add(current)
   if (isFunction(current)) {
     return current
   }
   if (
     !Node.isIdentifier(current) &&
-    !Node.isPropertyAccessExpression(current)
+    !Node.isPropertyAccessExpression(current) &&
+    !Node.isShorthandPropertyAssignment(current)
   ) {
     return undefined
   }

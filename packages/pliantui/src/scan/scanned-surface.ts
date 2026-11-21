@@ -40,6 +40,16 @@ export interface ScannedSurface {
   fromLayout: boolean
   /** The files of the components the surface renders. */
   readonly files: Set<string>
+  /**
+   * The code the scan read for the surface: the functions it walked, and
+   * the values it followed into.
+   */
+  readonly entered: Set<Node>
+  /**
+   * What the scan followed there: the JSX elements and hook calls it
+   * walked, and the references it followed to a component or function.
+   */
+  readonly consumed: Set<Node>
 }
 
 export interface ScanReport {

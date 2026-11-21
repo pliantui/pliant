@@ -50,7 +50,9 @@ export function isPliantExport(node: Node, module: string, name: string) {
 function isNamespaceOf(node: Node, module: string) {
   return (node.getSymbol()?.getDeclarations() ?? []).some(
     (declaration) =>
-      Node.isNamespaceImport(declaration) &&
+      // `import * as React` or a default import like `import React`.
+      (Node.isNamespaceImport(declaration) ||
+        Node.isImportClause(declaration)) &&
       declaration
         .getFirstAncestorByKind(SyntaxKind.ImportDeclaration)
         ?.getModuleSpecifierValue() === module

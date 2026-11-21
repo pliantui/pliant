@@ -105,6 +105,8 @@ interface HookCall {
   readonly caller: ComponentFunction
   /** The call in the component that leads to the hook. */
   readonly site: CallExpression
+  /** The calls of the app's own hooks on the way to it. */
+  readonly through: readonly CallExpression[]
   /** Where the region or table sits in the value `site` returns. */
   readonly path: MemberPath | undefined
 }
@@ -124,7 +126,7 @@ function hookCalls(
     .flatMap((call): HookCall[] => {
       const hook = hookOf(call)
       if (hook) {
-        return [{ call, hook, caller: fn, site: call, path: [] }]
+        return [{ call, hook, caller: fn, site: call, path: [], through: [] }]
       }
       // The app's own hook, called as `useX()` or `hooks.useX()`.
       const callee = call.getExpression()
@@ -141,6 +143,7 @@ function hookCalls(
               ...found,
               site: call,
               path: outer && found.path && [...outer, ...found.path],
+              through: [call, ...found.through],
             }
           })
         : []
@@ -218,6 +221,7 @@ function walkReturns(
   parent: Parent,
   walk: Walk
 ) {
+  walk.surface.entered.add(fn)
   const body = fn.getBody()
   if (!body) {
     return
@@ -373,7 +377,7 @@ function walkCall(
     renderValue(callee.getExpression(), parent, walk)
     // An inline callback, or a named one like `rows.map(renderRow)`.
     const [callback] = call.getArguments()
-    walkFunction(callback && functionIn(callback), scope, parent, walk)
+    walkFunction(callback && follows(callback, walk), scope, parent, walk)
     return
   }
   // `useMemo(() => <Panel />, deps)` renders what its callback returns.
@@ -382,7 +386,7 @@ function walkCall(
     isPliantExport(callee, "react", "useMemo")
   ) {
     const [factory] = call.getArguments()
-    walkFunction(factory && functionIn(factory), scope, parent, walk)
+    walkFunction(factory && follows(factory, walk), scope, parent, walk)
     return
   }
   // A portal moves where the DOM goes, not where its content sits.
@@ -401,8 +405,23 @@ function walkCall(
   }
   // The app's own function called to render, like `{renderRows()}`.
   const name = Node.isIdentifier(callee) ? callee.getText() : ""
-  const fn = name && !/^use[A-Z]/.test(name) ? functionIn(callee) : undefined
+  const fn = name && !/^use[A-Z]/.test(name) ? follows(callee, walk) : undefined
   walkFunction(fn, scope, parent, walk)
+}
+
+/**
+ * The function a reference holds, recording the reference, and every node
+ * on the way, as followed for the surface.
+ */
+function follows(value: Node, walk: Walk) {
+  const trail = new Set<Node>()
+  const fn = functionIn(value, trail)
+  if (fn) {
+    for (const node of trail) {
+      walk.surface.consumed.add(node)
+    }
+  }
+  return fn
 }
 
 function walkFunction(
@@ -453,6 +472,8 @@ function callRenderProp(
     unfollowed(walk, call, prop)
     return true
   }
+  walk.surface.consumed.add(first)
+  walk.surface.consumed.add(resolved)
   claim(walk, value.scope, first)
   walkReturns(fn, value.scope, parent, walk)
   return true
@@ -480,6 +501,9 @@ function walkRoutes(
   walk: Walk
 ) {
   for (const route of routes) {
+    for (const node of route.trail) {
+      walk.surface.consumed.add(node)
+    }
     if (scope.rendering.has(route.fn)) {
       continue
     }
@@ -556,6 +580,8 @@ function follow(node: Node, scope: Scope, parent: Parent, walk: Walk) {
     return
   }
   walk.following.add(initializer)
+  walk.surface.consumed.add(node)
+  walk.surface.entered.add(initializer)
   walkRendered(initializer, scope, parent, walk)
   walk.following.delete(initializer)
 }
@@ -620,13 +646,17 @@ function walkElement(
   walk: Walk
 ) {
   walk.visited.add(element)
+  walk.surface.consumed.add(element)
   const tag = (
     Node.isJsxElement(element) ? element.getOpeningElement() : element
   ).getTagNameNode()
   if (isPliantExport(tag, "@pliantui/react", "PliantRoot")) {
     return
   }
-  const fn = componentOf(tag)
+  const fn =
+    Node.isIdentifier(tag) && /^[a-z]/.test(tag.getText())
+      ? undefined
+      : follows(tag, walk)
   if (!fn) {
     // An HTML element renders its children; its props don't render.
     if (Node.isJsxElement(element)) {
@@ -662,7 +692,7 @@ function walkElement(
         continue
       }
       const fn = isFunction(unwrapExpression(node))
-        ? functionIn(node)
+        ? follows(node, walk)
         : undefined
       if (fn) {
         walkReturns(fn, scope, parent, walk)
@@ -691,6 +721,7 @@ function walkComponent(
   walk: Walk
 ) {
   walk.surface.files.add(fn.getSourceFile().getFilePath())
+  walk.surface.entered.add(fn)
   // A lone region or table holds everything its component renders. With
   // several, which render no element of their own, the rest belongs where
   // the component sits, and each takes its place, parent and order, where
@@ -699,8 +730,19 @@ function walkComponent(
   const several = calls.length > 1
   let holder = parent
   const pending = new Set<Node>()
-  for (const { call, hook, caller, site, path } of calls) {
+  for (const {
+    call,
+    hook,
+    caller,
+    site,
+    path,
+    through: hookThrough,
+  } of calls) {
     walk.visited.add(call)
+    walk.surface.consumed.add(call)
+    for (const through of [site, ...hookThrough]) {
+      walk.surface.consumed.add(through.getExpression())
+    }
     walk.surface.files.add(caller.getSourceFile().getFilePath())
     // The app's own hook can't read the component's props, and its
     // arguments aren't followed.
@@ -830,6 +872,7 @@ function declareRegion(
     return { id, record, renderSlots: () => undefined }
   }
   claim(walk, slots.scope, slots.value)
+  walk.surface.entered.add(slots.value)
   const object = readObject(slots.value)
   for (const { node, reason } of object?.problems ?? []) {
     warn(walk, node, `A slot of ${name} can't be read: ${reason}.`)
@@ -909,6 +952,8 @@ function declareTable(
   if (!columnsNode || !options || !("value" in options)) {
     warn(walk, call, `The columns of ${id} can't be read.`)
   } else {
+    walk.surface.entered.add(columnsNode)
+    walk.surface.entered.add(resolveExpression(columnsNode))
     const columns = readColumns(columnsNode, options.scope)
     for (const { node, reason } of columns.problems) {
       warn(walk, node, `A column of ${id} can't be read: ${reason}.`)
@@ -1074,6 +1119,8 @@ export function scanSurfaces(
         incomplete: false,
         fromLayout: false,
         files: new Set(),
+        entered: new Set(),
+        consumed: new Set(),
       }
       surface.fromLayout ||= fromLayout
       surface.files.add(sourceFile.getFilePath())
@@ -1100,6 +1147,8 @@ export function scanSurfaces(
           )
         }
       }
+      surface.entered.add(element)
+      surface.consumed.add(element)
       if (Node.isJsxElement(element)) {
         for (const child of element.getJsxChildren()) {
           walkChild(child, scope, null, walk)
@@ -1108,7 +1157,17 @@ export function scanSurfaces(
     }
   }
 
-  reportUnreached(sourceFiles, visited, report, [...surfaces.values()])
+  const declares = declaringFunctions()
+  for (const surface of surfaces.values()) {
+    reportUnfollowed(surface, declares, report)
+  }
+  reportUnreached(
+    sourceFiles,
+    visited,
+    report,
+    [...surfaces.values()],
+    declares
+  )
   return {
     surfaces: [...surfaces.values()],
     report: {
@@ -1119,26 +1178,18 @@ export function scanSurfaces(
 }
 
 /**
- * Regions and tables no `PliantRoot` reaches, as far as the scan can
- * follow, belong to no surface's inventory. A surface that renders their
- * file may still render them, so it isn't read in full; when no surface
- * does, any may, through code the scan can't follow.
+ * Whether a function declares a region or table, itself, through the app's
+ * own hooks, or through the components it renders, so a wrapper like a
+ * Banner that renders a PliantRegion counts too.
  */
-function reportUnreached(
-  sourceFiles: readonly SourceFile[],
-  visited: ReadonlySet<Node>,
-  report: ScanReport,
-  surfaces: readonly ScannedSurface[]
-) {
-  // Whether a component declares a region or table, itself or through the
-  // components it renders, so a wrapper like a Banner that renders a
-  // PliantRegion counts too.
+function declaringFunctions() {
   const declares = new Map<ComponentFunction, boolean>()
   const declaresNodes = (fn: ComponentFunction): boolean => {
     const cached = declares.get(fn)
     if (cached !== undefined) {
       return cached
     }
+    // A component that renders itself is decided by its other output.
     declares.set(fn, false)
     const result =
       hookCalls(fn).length > 0 ||
@@ -1152,6 +1203,222 @@ function reportUnreached(
     declares.set(fn, result)
     return result
   }
+  return declaresNodes
+}
+
+// Whether a value holds a function that declares regions or tables: the
+// function itself, or an object, array or conditional that holds one.
+function holdsDeclaring(
+  value: Node,
+  declaresNodes: (fn: ComponentFunction) => boolean,
+  seen = new Set<Node>()
+): boolean {
+  if (seen.has(value)) {
+    return false
+  }
+  seen.add(value)
+  const fn = functionIn(value)
+  if (fn) {
+    return declaresNodes(fn)
+  }
+  const node = unwrapExpression(value)
+  if (Node.isElementAccessExpression(node)) {
+    return holdsDeclaring(node.getExpression(), declaresNodes, seen)
+  }
+  if (Node.isConditionalExpression(node)) {
+    return [node.getWhenTrue(), node.getWhenFalse()].some((branch) =>
+      holdsDeclaring(branch, declaresNodes, seen)
+    )
+  }
+  const resolved = resolveExpression(node)
+  if (resolved !== node) {
+    return holdsDeclaring(resolved, declaresNodes, seen)
+  }
+  if (Node.isArrayLiteralExpression(node)) {
+    return node
+      .getElements()
+      .some((element) => holdsDeclaring(element, declaresNodes, seen))
+  }
+  if (Node.isObjectLiteralExpression(node)) {
+    return node.getProperties().some((property) => {
+      const item = Node.isPropertyAssignment(property)
+        ? property.getInitializer()
+        : Node.isShorthandPropertyAssignment(property)
+          ? property
+          : undefined
+      return item !== undefined && holdsDeclaring(item, declaresNodes, seen)
+    })
+  }
+  return false
+}
+
+// A reference worth checking: a whole identifier or property access in an
+// expression, not a name it declares, a JSX tag, an export or a type.
+function isReference(node: Node) {
+  const parent = node.getParent()
+  if (!parent) {
+    return false
+  }
+  if (Node.isShorthandPropertyAssignment(node)) {
+    return true
+  }
+  if (!Node.isIdentifier(node) && !Node.isPropertyAccessExpression(node)) {
+    return false
+  }
+  if (
+    Node.isPropertyAccessExpression(parent) &&
+    (parent.getExpression() === node || parent.getNameNode() === node)
+  ) {
+    return false
+  }
+  if (
+    (Node.isJsxOpeningElement(parent) ||
+      Node.isJsxSelfClosingElement(parent) ||
+      Node.isJsxClosingElement(parent)) &&
+    parent.getTagNameNode() === node
+  ) {
+    return false
+  }
+  if (
+    Node.isExportAssignment(parent) ||
+    Node.isBindingElement(parent) ||
+    Node.isShorthandPropertyAssignment(parent) ||
+    Node.isImportSpecifier(parent) ||
+    Node.isExportSpecifier(parent)
+  ) {
+    return false
+  }
+  return !(
+    (Node.hasName(parent) || Node.isNameable(parent)) &&
+    parent.getNameNode() === node
+  )
+}
+
+/**
+ * Makes sure every region or table a surface may render is placed or
+ * reported. In the code the walk read for the surface (each function it
+ * walked, each value it followed, and the module-level code of their
+ * files), any JSX element, hook call or reference that leads to a region
+ * or table and that the walk didn't follow, such as
+ * `createElement(Banner)`, `as={Banner}`, a registry of components or a
+ * dynamic import, is reported, and the surface is marked as not read in
+ * full.
+ */
+function reportUnfollowed(
+  surface: ScannedSurface,
+  declaresNodes: (fn: ComponentFunction) => boolean,
+  report: ScanReport
+) {
+  const flag = (node: Node, what: string) => {
+    surface.incomplete = true
+    report.warnings.push(
+      createDiagnostic(
+        node,
+        `${what} may render a region or table the scan doesn't follow there, so ${surface.surface} isn't read in full.`
+      )
+    )
+  }
+  const check = (node: Node) => {
+    if (surface.consumed.has(node)) {
+      return
+    }
+    if (Node.isJsxElement(node) || Node.isJsxSelfClosingElement(node)) {
+      const fn = componentOf(tagOf(node))
+      if (fn && declaresNodes(fn)) {
+        flag(node, `<${tagOf(node).getText()}>`)
+      }
+      return
+    }
+    if (Node.isCallExpression(node)) {
+      if (hookOf(node)) {
+        flag(node, describeExpression(node))
+      } else if (node.getExpression().getKind() === SyntaxKind.ImportKeyword) {
+        const module = node
+          .getType()
+          .getTypeArguments()[0]
+          ?.getSymbol()
+          ?.getDeclarations()[0]
+        const exported = Node.isSourceFile(module)
+          ? [...module.getExportedDeclarations().values()].flat()
+          : undefined
+        if (
+          !exported ||
+          exported.some((declaration) => {
+            const fn = isFunction(declaration)
+              ? declaration
+              : Node.isVariableDeclaration(declaration)
+                ? functionIn(declaration.getNameNode())
+                : undefined
+            return fn !== undefined && declaresNodes(fn)
+          })
+        ) {
+          flag(node, describeExpression(node))
+        }
+      }
+      return
+    }
+    if (isReference(node) && holdsDeclaring(node, declaresNodes)) {
+      flag(node, describeExpression(node))
+    }
+  }
+  const seen = new Set<Node>()
+  const visit = (start: Node, moduleLevel: boolean) => {
+    const inspect = (node: Node) => {
+      if (seen.has(node)) {
+        return false
+      }
+      seen.add(node)
+      if (Node.isTypeNode(node) || Node.isImportDeclaration(node)) {
+        return false
+      }
+      if (moduleLevel && isFunction(node)) {
+        return false
+      }
+      // Another surface's root holds its own content.
+      if (
+        node !== start &&
+        (Node.isJsxElement(node) || Node.isJsxSelfClosingElement(node)) &&
+        isPliantExport(tagOf(node), "@pliantui/react", "PliantRoot")
+      ) {
+        return false
+      }
+      check(node)
+      return true
+    }
+    if (!inspect(start)) {
+      return
+    }
+    start.forEachDescendant((node, traversal) => {
+      if (!inspect(node)) {
+        traversal.skip()
+      }
+    })
+  }
+  const files = new Set<SourceFile>()
+  for (const node of surface.entered) {
+    files.add(node.getSourceFile())
+  }
+  for (const node of surface.entered) {
+    visit(node, false)
+  }
+  for (const file of files) {
+    visit(file, true)
+  }
+}
+
+/**
+ * Regions and tables no `PliantRoot` reaches, as far as the scan can
+ * follow, belong to no surface's inventory. A surface that renders their
+ * file may still render them, so it isn't read in full; when no surface
+ * does, any may, through code the scan can't follow.
+ */
+function reportUnreached(
+  sourceFiles: readonly SourceFile[],
+  visited: ReadonlySet<Node>,
+  report: ScanReport,
+  surfaces: readonly ScannedSurface[],
+  declaresNodes: (fn: ComponentFunction) => boolean
+) {
   const unreached = (node: Node, what: string) => {
     const file = node.getSourceFile().getFilePath()
     const rendering = surfaces.filter((surface) => surface.files.has(file))

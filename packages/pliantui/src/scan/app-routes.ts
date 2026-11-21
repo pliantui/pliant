@@ -22,17 +22,17 @@ function routeFilesIn(
     .map(([, sourceFile]) => sourceFile)
 }
 
-function defaultComponent(sourceFile: SourceFile) {
+function defaultComponent(sourceFile: SourceFile, trail: Set<Node>) {
   const declaration = sourceFile.getDefaultExportSymbol()?.getDeclarations()[0]
   if (declaration && isFunction(declaration)) {
     return declaration
   }
   if (Node.isExportAssignment(declaration)) {
-    return functionIn(declaration.getExpression())
+    return functionIn(declaration.getExpression(), trail)
   }
   // `export { Page as default }`
   return Node.isExportSpecifier(declaration)
-    ? functionIn(declaration.getNameNode())
+    ? functionIn(declaration.getNameNode(), trail)
     : undefined
 }
 
@@ -91,12 +91,13 @@ export function appRoutes(
     sourceFile: SourceFile,
     props: Map<string, Route[]>
   ): Route[] => {
-    const fn = defaultComponent(sourceFile)
+    const trail = new Set<Node>()
+    const fn = defaultComponent(sourceFile, trail)
     if (!fn) {
       unreadable.push(sourceFile)
       return []
     }
-    return [{ fn, props }]
+    return [{ fn, props, trail }]
   }
   const routesIn = (directory: string): Route[] => {
     const routes = routeFilesIn(files, directory, ["page", "default"]).flatMap(
