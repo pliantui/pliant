@@ -1,5 +1,7 @@
 import { createColumnHelper } from "@tanstack/react-table"
 
+import { RowActions } from "@/components/row-actions"
+
 interface Order {
   id: string
   customer: { name: string }
@@ -20,5 +22,5 @@ export const columns = columnHelper.columns([
     header: "Cents",
   }),
   columnHelper.accessor("2fa", { header: "2FA" }),
-  columnHelper.display({ id: "actions", cell: () => <button>Open</button> }),
+  columnHelper.display({ id: "actions", cell: () => <RowActions /> }),
 ])

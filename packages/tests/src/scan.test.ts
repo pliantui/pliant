@@ -933,7 +933,7 @@ describe("pliantui scan", () => {
       )
     ).toEqual([
       "components/providers.tsx:6 Content passed as children isn't followed, so the nodes in it are in no inventory.",
-      'app/orders/columns.tsx:22 The column "2fa" of orders-table is left out: overlays can only address column ids that start with a letter and contain only letters, digits, - and _.',
+      'app/orders/columns.tsx:24 The column "2fa" of orders-table is left out: overlays can only address column ids that start with a letter and contain only letters, digits, - and _.',
       "app/reports/page.tsx:38 A slot of overview can't be read: the computed key [`${prefix}-total`].",
       "app/reports/page.tsx:39 A slot of overview can't be read: the spread ...extra.",
       "app/reports/page.tsx:44 The id of a region can't be read: regionId().",
@@ -1098,6 +1098,8 @@ describe("pliantui scan, for what it can't follow", () => {
     expect(placed).toEqual([
       // `export default () => <Banner />`.
       ["anonymous-default", ["banner", "message"]],
+      // Rendered through a component's `{children}`.
+      ["children-frame", ["banner", "message"]],
       // `R.useMemo` under a default import.
       ["default-import-memo", ["banner", "message"]],
       ["direct", ["banner", "message"]],
@@ -1132,6 +1134,16 @@ describe("pliantui scan, for what it can't follow", () => {
       "context-value": ["app/context-value/page.tsx renderBanner"],
       // A member of what `useContext()` returns is the app's own data.
       "context-member": ["app/context-member/page.tsx <ui.Banner>"],
+      // JSX in a function the walk doesn't render, like a render prop of a
+      // package's component or a context's Consumer, is checked too.
+      "context-consumer": ["app/context-consumer/page.tsx <ui.Banner>"],
+      "package-render-prop": [
+        "app/package-render-prop/page.tsx <grid.meta.Banner>",
+      ],
+      "package-render-prop-component": [
+        "app/package-render-prop-component/page.tsx <MetaBanner>",
+      ],
+      "render-prop-context": ["app/render-prop-context/page.tsx <ui.Banner>"],
       "context-member-variable": [
         "app/context-member-variable/page.tsx <Picked>",
       ],

@@ -6,6 +6,7 @@ import DefaultBanner, {
   renderRow,
   Tree,
 } from "@/components/helpers"
+import { MetaBanner } from "@/components/meta-banner"
 
 export default function DirectPage() {
   return (
@@ -17,6 +18,7 @@ export default function DirectPage() {
       {["x"].map(renderRow)}
       <DefaultBanner />
       <Tree depth={1} />
+      <MetaBanner table />
     </PliantRoot>
   )
 }

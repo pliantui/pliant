@@ -566,8 +566,9 @@ function follow(node: Node, scope: Scope, parent: Parent, walk: Walk) {
     }
     walkRoutes(value.routes ?? [], value.scope, parent, walk)
     for (const item of value.nodes) {
-      claim(walk, value.scope, item)
       walkRendered(item, value.scope, parent, walk)
+      // Rendered here, so not again where the element is.
+      claim(walk, value.scope, item)
     }
     return
   }
@@ -966,6 +967,16 @@ function declareTable(
   } else {
     walk.surface.entered.add(columnsNode)
     walk.surface.entered.add(resolveExpression(columnsNode))
+    // The table renders what its column defs' functions return, like a
+    // `cell` or `header`, in place of the table.
+    for (const defs of new Set([columnsNode, resolveExpression(columnsNode)])) {
+      for (const fn of defs.getDescendants().filter(isFunction)) {
+        const outer = fn.getParentOrThrow().getFirstAncestor(isFunction)
+        if (!outer || !defs.containsRange(outer.getPos(), outer.getEnd())) {
+          walkFunction(fn, options.scope, id, walk)
+        }
+      }
+    }
     const columns = readColumns(columnsNode, options.scope)
     for (const { node, reason } of columns.problems) {
       warn(walk, node, `A column of ${id} can't be read: ${reason}.`)
@@ -1172,7 +1183,7 @@ export function scanSurfaces(
 
   const declares = declaringFunctions()
   for (const surface of surfaces.values()) {
-    reportUnfollowed(surface, declares, report)
+    reportUnfollowed(surface, declares, report, root)
   }
   reportUnreached(
     sourceFiles,
@@ -1320,7 +1331,8 @@ function isReference(node: Node) {
 function reportUnfollowed(
   surface: ScannedSurface,
   declaresNodes: (fn: ComponentFunction) => boolean,
-  report: ScanReport
+  report: ScanReport,
+  root: string
 ) {
   const flag = (node: Node, what: string) => {
     surface.incomplete = true
@@ -1335,10 +1347,14 @@ function reportUnfollowed(
     if (surface.consumed.has(node)) {
       return
     }
+    // JSX the walk didn't render here, like inside a render prop or a
+    // callback, is followed only through components the walk followed on
+    // this surface, or HTML elements and packages' components.
     if (Node.isJsxElement(node) || Node.isJsxSelfClosingElement(node)) {
-      const fn = componentOf(tagOf(node))
-      if (fn && declaresNodes(fn)) {
-        flag(node, `<${tagOf(node).getText()}>`)
+      const tag = tagOf(node)
+      const fn = componentOf(tag)
+      if (fn ? !surface.entered.has(fn) : isOpaqueTag(tag, root)) {
+        flag(node, `<${tag.getText()}>`)
       }
       return
     }
