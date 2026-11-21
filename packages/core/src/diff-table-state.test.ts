@@ -783,11 +783,12 @@ describe("diffTableState on wide tables", () => {
   }
 
   // Each of these takes about 1 to 15 ms on a dev machine. The bound leaves
-  // room for slow CI runners while catching a search that grows much faster
-  // than the table, as the greedy one did (9 s to reverse 60 columns).
-  // Stryker's mutation testing instruments every branch, which slows the
-  // search several times over, so the bound is looser there.
-  const frame = mutating ? 500 : 50
+  // room for slow, busy CI runners, where a garbage collection pause alone
+  // can pass 50 ms, while catching a search that grows much faster than the
+  // table, as the greedy one did (9 s to reverse 60 columns). Stryker's
+  // mutation testing instruments every branch, which slows the search
+  // several times over, so the bound is looser there.
+  const frame = mutating ? 1000 : 200
 
   const chained = (ids: readonly string[]) =>
     ids.slice(1).map((id, index) => ({
