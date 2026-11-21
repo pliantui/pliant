@@ -11,6 +11,7 @@ export default defineConfig({
     "src/table.ts",
     "src/ask.ts",
     "src/server-adapter.ts",
+    "src/pre-paint.ts",
   ],
   format: ["esm"],
   dts: true,

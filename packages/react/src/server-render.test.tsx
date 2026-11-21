@@ -3,6 +3,7 @@ import { renderToString } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
 
 import { memoryStorage, stored } from "../test/storage"
+import { PliantPrePaint } from "./pliant-pre-paint"
 import { PliantRoot } from "./pliant-root"
 import type { StorageAdapter } from "./storage-adapter"
 import { useMountedNodes } from "./use-mounted-nodes"
@@ -97,5 +98,23 @@ describe("PliantRoot on the server", () => {
         </PliantRoot>
       )
     ).toBe("<output>overdue,revenue</output>")
+  })
+})
+
+describe("PliantPrePaint on the server", () => {
+  it("renders a script that runs, with the nonce", () => {
+    const html = renderToString(
+      <PliantPrePaint surface="/orders" nonce="n0nce" />
+    )
+
+    expect(html).toMatch(/^<script nonce="n0nce">/)
+  })
+
+  it("keeps a surface that closes the script inside it", () => {
+    const html = renderToString(
+      <PliantPrePaint surface="</script><script>alert(1)</script>" />
+    )
+
+    expect(html.match(/<\/script>/gi)).toHaveLength(1)
   })
 })
