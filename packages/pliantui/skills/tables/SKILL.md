@@ -98,8 +98,8 @@ export function InvoicesTable({ data }: { data: Invoice[] }) {
 ```
 
 - The `id` option is the table node's id. It is kebab-case, starts with a letter and is unique on the page. Pass the same id to `usePliantNodeProps`, and spread the result on the table's wrapper element.
-- Pass `features: pliantDataTableFeatures`. It already holds the sorting, grouping, pinning, sizing, visibility and pagination features and their row models. Pliant adds the others it needs.
-- Don't pass your own `state` or `onSortingChange`-style handlers for sorting, visibility, order, sizing, pinning, filters, grouping or pagination: Pliant controls them. Your values are the table's starting state, which users' changes then replace.
+- Pass `features: pliantDataTableFeatures`. It already holds the sorting, grouping, column ordering, pinning, sizing, visibility, row expanding, aggregation and pagination features, and the sorted, grouped, expanded and paginated row models. Pliant adds the others it needs, such as filtering.
+- You can still pass `state` and `on…Change` for the slices Pliant manages (sorting, visibility, order, sizing, pinning, filters, grouping, pagination), for example to keep the sorting in the URL. The values from your first render, and your `initialState`, are the base the saved layers are applied on top of. Pliant keeps your `state` in sync with the table, comparing it as data, so state rebuilt on every render is fine. It calls your `on…Change` with each new value, one render after the table gets it, including values that come from ops applied elsewhere, such as the ask panel. Your own changes to the state, such as pushing a new sorting from the URL, become ops and are saved like a click on a header.
 - Name the table with `aria-labelledby` or `aria-label`.
 - Define `columns` outside the component, or memoize them.
 
@@ -187,7 +187,7 @@ export function GroupByStatus({
 Render it inside the table's component with `node="invoices-table"` and `grouped={table.state.grouping.length > 0}`.
 
 - `target` is the table's node id. `fields` are field ids from `dataset.fields`, and they are column ids too. `setGroupBy` replaces the whole list.
-- An aggregate's `id` and `label` are yours. Its `expr` uses functions such as `sum`, `count` and `mean` over `{ field }` references: [Expressions](https://pliantui.dev/docs/concepts/expressions) lists them. An aggregate whose expression doesn't check against `dataset.fields`, or whose `id` is a column's id, is saved but not shown.
+- An aggregate's `id` and `label` are yours. Its `expr` uses functions such as `sum`, `count` and `mean` over `{ field }` references: [Expressions](https://pliantui.dev/docs/concepts/expressions) lists them. An aggregate whose expression doesn't check against `dataset.fields`, or whose `id` is a column's id, is saved but not shown, and an error is reported to `PliantRoot`'s `onError` (to `console.error` when there is none).
 - `removeUserItem` removes an aggregate by id. Always read the returned result: `success` is `false` with an `error` when an op is rejected, which otherwise fails silently. An aggregate's `id` must not be a column's id.
 - To show an aggregate's value your way, pass `formatAggregate` to `PliantDataTable`.
 
@@ -205,7 +205,6 @@ Render it inside the table's component with `node="invoices-table"` and `grouped
 - Changing a column's id, or building ids from something that changes, such as an index or a translated label.
 - Two tables on one page with the same `id`, or an `id` that is not kebab-case.
 - Calling `usePliantTable` outside `PliantRoot`, or in a Server Component.
-- Passing `state` for sorting, visibility and the other slices Pliant controls, and wondering why users' changes don't stick.
 - Expecting `table.setPageIndex(…)` or filters to be saved. They are per tab, and filters need `persistFilters` to be saved.
 - Aggregates or grouping without `dataset`, or `fields` that name a field missing from `dataset.fields`.
 - Fetching rows page by page and giving the table one page of data. The table groups, sorts and filters only the rows it has.

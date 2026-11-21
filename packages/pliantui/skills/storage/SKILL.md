@@ -30,6 +30,35 @@ Rules the store must keep:
 - `put` stores the record only when the current etag is `ifMatch` (or, when `ifMatch` is `null`, only when there is no row), and returns whether it did. The check and the write are one statement judged by the rows written: `INSERT … ON CONFLICT DO NOTHING` or `UPDATE … WHERE etag = $ifMatch`. A read followed by a write is a race.
 - A store with `history` writes every record it stores, with `by` (the user's id), in the same transaction as the record.
 - `get`, `list` and `history` read from the primary database, never a replica, so users see their own saves.
+- `list` and `history` return nothing for a query with no `scopes`, and must not build invalid SQL for it.
+
+This Postgres sketch needs two tables. The `on conflict do nothing` create below relies on the primary key of `pliant_overlays`: without it, two creates of the same overlay would both succeed.
+
+```sql
+create table pliant_overlays (
+  surface text not null,
+  layer text not null,
+  scope text not null,
+  id text not null,
+  etag text not null,
+  record jsonb not null,
+  primary key (surface, layer, scope, id)
+);
+create index pliant_overlays_scope on pliant_overlays (layer, scope, surface);
+
+create table pliant_overlay_history (
+  surface text not null,
+  layer text not null,
+  scope text not null,
+  id text not null,
+  version int not null,
+  record jsonb not null,
+  by text,
+  updated_at timestamptz not null,
+  primary key (surface, layer, scope, id, version)
+);
+create index pliant_overlay_history_scope on pliant_overlay_history (layer, scope, surface);
+```
 
 ```ts
 import type { StoredOverlay } from "@pliantui/react"
@@ -86,14 +115,17 @@ export const overlayStore: OverlayStore = {
         return false
       }
       await tx.query(
-        "insert into pliant_overlay_history (surface, layer, scope, id, version, record, by) values ($1, $2, $3, $4, $7, $6, $8)",
-        [...params, record.version, by]
+        "insert into pliant_overlay_history (surface, layer, scope, id, version, record, by, updated_at) values ($1, $2, $3, $4, $7, $6, $8, $9)",
+        [...params, record.version, by, record.updatedAt]
       )
       return true
     })
   },
 
   async list(query) {
+    if (query.scopes.length === 0) {
+      return []
+    }
     const params: unknown[] = []
     const { rows } = await db.query<{ record: StoredOverlay }>(
       `select record from pliant_overlays where ${where(query, params)}`,
@@ -103,9 +135,12 @@ export const overlayStore: OverlayStore = {
   },
 
   async history(query) {
+    if (query.scopes.length === 0) {
+      return []
+    }
     const params: unknown[] = []
     const { rows } = await db.query<{ record: StoredOverlay; by: string }>(
-      `select record, by from pliant_overlay_history where ${where(query, params)} order by record->>'updatedAt', (record->>'version')::int, id`,
+      `select record, by from pliant_overlay_history where ${where(query, params)} order by updated_at, version, id`,
       params
     )
     return rows
@@ -113,9 +148,41 @@ export const overlayStore: OverlayStore = {
 }
 ```
 
-This is a Postgres sketch: adapt the SQL, the column types and the `db` client to the project. `record` is a `jsonb` column, and `history` returns each row as `{ record, by }`.
+This is a Postgres sketch: adapt the SQL, the column types and the `db` client to the project. `history` returns each row as `{ record, by }`, ordered by the time each version was stored.
 
 ## 2. Serve the handler
+
+Turn the session into a Pliant user in one function, and use it everywhere: in the handler's `getUser` and in the server render in step 4. The scopes a user reads are derived from it too, mirroring the handler: the personal scope always, and team and org scopes only when the user has an org.
+
+```ts
+// lib/pliant-user.ts
+import type { OverlayScope, StorageUser } from "@pliantui/server/storage"
+
+export function pliantUserOf(session: {
+  userId: string
+  orgId?: string
+  teamIds: string[]
+  roles: string[]
+}) {
+  return {
+    id: session.userId,
+    org: session.orgId,
+    teams: session.teamIds,
+    roles: session.roles,
+  }
+}
+
+export function readableScopes(user: StorageUser): OverlayScope[] {
+  const scopes: OverlayScope[] = [{ layer: "personal", scope: user.id }]
+  if (user.org !== undefined) {
+    for (const team of user.teams ?? []) {
+      scopes.push({ layer: "team", scope: JSON.stringify([user.org, team]) })
+    }
+    scopes.push({ layer: "org", scope: user.org })
+  }
+  return scopes
+}
+```
 
 ```ts
 // app/api/pliant/storage/route.ts
@@ -123,32 +190,32 @@ import { createStorageHandler } from "@pliantui/server/storage"
 
 import { auth } from "@/lib/auth" // your session lookup
 import { overlayStore } from "@/lib/overlay-store"
+import { pliantUserOf } from "@/lib/pliant-user"
 
 const handler = createStorageHandler({
   store: overlayStore,
   getUser: async (request) => {
     const session = await auth(request)
-    return (
-      session && {
-        id: session.userId,
-        org: session.orgId,
-        teams: session.teamIds,
-        roles: session.roles,
-      }
-    )
+    if (!session) {
+      return null
+    }
+    return pliantUserOf(session)
   },
-  canPublish: (user, target) =>
-    target.layer === "team" || user.roles.includes("admin"),
+  // The app's policy: only admins publish defaults, to teams and to the org.
+  canPublish: (user) => user.roles.includes("admin"),
+  onError: (error) => console.error("Pliant storage", error),
 })
 
 export { handler as GET, handler as PUT, handler as DELETE }
 ```
 
-- `getUser` returns the signed-in user, or `null` for a 401. `org` is the user's org and `teams` are the ids of the teams of that org they belong to. Add whatever `canPublish` needs, such as `roles`.
-- Users read their own personal overlays, those of the teams they belong to, and their org's. Reading is by membership only.
-- `canPublish(user, target)` decides who may save or remove team and org overlays. `target` is `{ layer: "team", org, team }` or `{ layer: "org", org }`. Without `canPublish`, nobody can publish: the handler answers 403. It is asked only about the user's own org and teams they belong to.
+- `getUser` returns the signed-in user, or `null` for a 401. Return `null` itself: the handler checks for `null`, and `undefined` makes it answer 500. `org` is the user's org and `teams` are the ids of the teams of that org they belong to. Add whatever `canPublish` needs, such as `roles`.
+- Users read their own personal overlays, those of the teams they belong to, and their org's. Reading is by membership only. A user with no org reads no team or org overlays.
+- `canPublish(user, target)` decides who may save or remove team and org overlays. `target` is `{ layer: "team", org, team }` or `{ layer: "org", org }`. Without `canPublish`, nobody can publish: the handler answers 403. It is asked only about the user's own org and teams they belong to. Who may publish is the app's policy, so ask the user: the example lets only admins do it for both layers, and a rule such as "any team member may publish team defaults" is a choice to make on purpose, because it changes what every other member of the team sees.
+- `onError` receives the errors the handler hides behind a 500, so you can log them.
 - The handler accepts GET, PUT and DELETE only, and bodies up to 256 KB that nest no deeper than 64 levels. It rejects session overlays, and answers 412 with the current record on a conflict.
 - It has no quota or rate limit. Add your own before exposing it.
+- Don't enable CORS with credentials on this route. Saves and removals need a JSON content type and an `If-Match` header, which make a cross-origin request preflight, and the route doesn't answer preflights. That is what keeps other sites from sending cookie-authenticated PUT and DELETE requests.
 
 A personal overlay is always stored under the signed-in user's id. The `createdBy` an overlay carries comes from the client and isn't trusted: the store records the signed-in user as the author of each version.
 
@@ -190,21 +257,16 @@ Without `layers`, the server HTML shows the page as you wrote it and the user's 
 ```tsx
 // app/orders/page.tsx
 import { OrdersRoot } from "@/components/orders-root"
-import { currentUser } from "@/lib/auth" // your session lookup
+import { currentSession } from "@/lib/auth" // your session lookup, without a request
 import { overlayStore } from "@/lib/overlay-store"
+import { pliantUserOf, readableScopes } from "@/lib/pliant-user"
 
 export default async function Page() {
-  const user = await currentUser()
+  const session = await currentSession()
+  const user = session && pliantUserOf(session)
   const records = user
     ? await overlayStore.list({
-        scopes: [
-          { layer: "personal", scope: user.id },
-          ...user.teamIds.map((team) => ({
-            layer: "team" as const,
-            scope: JSON.stringify([user.orgId, team]),
-          })),
-          { layer: "org", scope: user.orgId },
-        ],
+        scopes: readableScopes(user),
         surfaces: ["/orders", "@app"],
       })
     : []
@@ -223,10 +285,10 @@ export default async function Page() {
 }
 ```
 
-- Use the same scopes the handler reads, the same store, and tombstones left out. Storage stays the source of truth: when its reload doesn't return a personal overlay, Pliant treats that overlay as removed and stops applying it.
+- Use the same session-to-user function and scopes as the handler, the same store, and tombstones left out. Storage stays the source of truth: when its reload doesn't return a personal overlay, Pliant treats that overlay as removed and stops applying it.
 - The server HTML shows reordering, hiding and layout. Ops that need their container mounted, such as `insert`, `wrap` and `move` into another node, show the base layout in the server HTML and apply when the page hydrates. There is no skeleton for them.
 - Loading per user makes the route dynamic. Under Next.js `cacheComponents`, load inside a `<Suspense>` boundary.
-- `PliantPrePaint` reads only what `localAdapter` stored in this browser, so with server storage it hides nothing. Rendering `layers` is what avoids the flash of the original layout.
+- `PliantPrePaint` reads only what `localAdapter` stored in this browser. With server storage it hides nothing, except for personal changes an earlier `localAdapter` left in that browser. Rendering `layers` is what avoids the flash of the original layout.
 
 ## 5. Verify
 
