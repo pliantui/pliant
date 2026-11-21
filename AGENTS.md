@@ -64,7 +64,7 @@ Docs teach people to use Pliant. They follow [Diátaxis](https://diataxis.fr), t
 - Define a term in plain words the first time a page uses it.
 - Write link text that names the destination, never "here".
 - Make each page stand on its own, for people and agents alike: give it clear headings and don't write "as mentioned above".
-- Make pages scannable with the MDX components registered in `apps/www/components/mdx.tsx`, and prefer a short list or table to a long paragraph.
+- Make pages scannable with the MDX components registered in `apps/www/mdx-components.tsx`, and prefer a short list or table to a long paragraph.
 - Every code sample must work. Take samples from files that the checks build or test.
 
 ## Tests
