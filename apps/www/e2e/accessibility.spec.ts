@@ -7,7 +7,13 @@ const surface = "/examples/orders"
 
 type ColorScheme = "light" | "dark"
 
-async function violations(page: Page, colorScheme: ColorScheme) {
+// `include` scans only the matching elements, such as an open menu, whose
+// modal leaves the rest of the page hidden from assistive technology.
+async function violations(
+  page: Page,
+  colorScheme: ColorScheme,
+  include?: string
+) {
   await expect(page.locator("html")).toHaveCSS("color-scheme", colorScheme)
   // Scan once the entrance animations have ended: colors mid-fade fail contrast.
   await page.evaluate(() =>
@@ -21,7 +27,11 @@ async function violations(page: Page, colorScheme: ColorScheme) {
         .map((animation) => animation.finished.catch(() => undefined))
     )
   )
-  const results = await new AxeBuilder({ page })
+  const builder = new AxeBuilder({ page })
+  if (include) {
+    builder.include(include)
+  }
+  const results = await builder
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze()
   return results.violations.map(({ id, impact, help, nodes }) => ({
@@ -108,6 +118,26 @@ for (const colorScheme of ["light", "dark"] as const) {
         await expect(page.getByRole("menu")).toBeHidden()
       }
       await expect(page.getByText(/^Highlighted: /).first()).toBeAttached()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
+
+    test("the table toolbar has no accessibility violations", async ({
+      page,
+    }) => {
+      await loadOrders(page)
+      await page.getByRole("searchbox", { name: "Customer" }).fill("a")
+      await page
+        .getByRole("button", { name: "Status", expanded: false })
+        .click()
+      await page.getByRole("menuitemcheckbox", { name: /^Overdue/ }).click()
+      await expect(
+        page.getByRole("menuitemcheckbox", { name: /^Overdue/ })
+      ).toBeChecked()
+      expect(await violations(page, colorScheme, '[role="menu"]')).toEqual([])
+      await page.keyboard.press("Escape")
+      await expect(
+        page.getByRole("button", { name: "Reset", exact: true })
+      ).toBeVisible()
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
