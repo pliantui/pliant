@@ -3,6 +3,12 @@
 A CLI for adding Pliant to your shadcn app.
 
 ```bash
+npx pliantui init
+```
+
+Adds `@pliantui/react` and the `pliant-region` component to a Next.js App Router project that already uses shadcn/ui. It asks before each step and prints the next step when it finishes.
+
+```bash
 npx pliantui manifest
 ```
 
