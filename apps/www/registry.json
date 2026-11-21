@@ -66,6 +66,51 @@
           "target": "@components/pliant/pliant-point-mode.tsx"
         }
       ]
+    },
+    {
+      "name": "pliant-data-table",
+      "type": "registry:component",
+      "title": "Pliant Data Table",
+      "description": "A data table for usePliantTable with sortable headers, grouped rows that expand, aggregate totals, derived columns, a column menu and pagination.",
+      "dependencies": [
+        "@pliantui/react",
+        "@tanstack/react-table",
+        "cn",
+        "lucide-react"
+      ],
+      "registryDependencies": ["button", "dropdown-menu", "table"],
+      "files": [
+        {
+          "path": "registry/pliant/pliant-data-table.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-data-table.tsx"
+        },
+        {
+          "path": "registry/pliant/pliant-data-table-column-header.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-data-table-column-header.tsx"
+        },
+        {
+          "path": "registry/pliant/pliant-data-table-view-options.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-data-table-view-options.tsx"
+        },
+        {
+          "path": "registry/pliant/pliant-data-table-pagination.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-data-table-pagination.tsx"
+        },
+        {
+          "path": "registry/pliant/pliant-data-table-features.ts",
+          "type": "registry:lib",
+          "target": "@components/pliant/pliant-data-table-features.ts"
+        },
+        {
+          "path": "registry/pliant/pliant-data-table-format.ts",
+          "type": "registry:lib",
+          "target": "@components/pliant/pliant-data-table-format.ts"
+        }
+      ]
     }
   ]
 }

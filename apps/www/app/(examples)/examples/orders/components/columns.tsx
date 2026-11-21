@@ -3,11 +3,11 @@
 import { createColumnHelper } from "@tanstack/react-table"
 
 import { Badge } from "@/components/ui/badge"
+import { PliantDataTableColumnHeader } from "@/registry/pliant/pliant-data-table-column-header"
+import type { PliantDataTableFeatures } from "@/registry/pliant/pliant-data-table-features"
 
 import type { Order, OrderStatus } from "../data"
 import { formatCurrency, formatDate } from "../format"
-import { DataTableColumnHeader } from "./data-table-column-header"
-import type { DataTableFeatures } from "./data-table-features"
 
 const statusVariants = {
   paid: "secondary",
@@ -16,13 +16,13 @@ const statusVariants = {
   refunded: "outline",
 } as const satisfies Record<OrderStatus, string>
 
-const columnHelper = createColumnHelper<DataTableFeatures, Order>()
+const columnHelper = createColumnHelper<PliantDataTableFeatures, Order>()
 
 export const columns = columnHelper.columns([
   columnHelper.accessor("id", {
     size: 110,
     meta: { label: "Order" },
-    header: ({ column }) => <DataTableColumnHeader column={column} />,
+    header: ({ column }) => <PliantDataTableColumnHeader column={column} />,
     cell: ({ row }) => (
       <span className="font-medium">{row.getValue("id")}</span>
     ),
@@ -30,17 +30,17 @@ export const columns = columnHelper.columns([
   columnHelper.accessor("customer", {
     size: 190,
     meta: { label: "Customer" },
-    header: ({ column }) => <DataTableColumnHeader column={column} />,
+    header: ({ column }) => <PliantDataTableColumnHeader column={column} />,
   }),
   columnHelper.accessor("region", {
     size: 100,
     meta: { label: "Region" },
-    header: ({ column }) => <DataTableColumnHeader column={column} />,
+    header: ({ column }) => <PliantDataTableColumnHeader column={column} />,
   }),
   columnHelper.accessor("status", {
     size: 110,
     meta: { label: "Status" },
-    header: ({ column }) => <DataTableColumnHeader column={column} />,
+    header: ({ column }) => <PliantDataTableColumnHeader column={column} />,
     cell: ({ row }) => {
       const status = row.original.status
       return (
@@ -55,7 +55,7 @@ export const columns = columnHelper.columns([
     meta: { label: "Value" },
     header: ({ column }) => (
       <div className="-mr-2.5 flex justify-end pr-4">
-        <DataTableColumnHeader column={column} />
+        <PliantDataTableColumnHeader column={column} />
       </div>
     ),
     cell: ({ row }) => (
@@ -67,14 +67,14 @@ export const columns = columnHelper.columns([
   columnHelper.accessor("createdAt", {
     size: 130,
     meta: { label: "Created" },
-    header: ({ column }) => <DataTableColumnHeader column={column} />,
+    header: ({ column }) => <PliantDataTableColumnHeader column={column} />,
     cell: ({ row }) => formatDate(row.original.createdAt),
   }),
   columnHelper.accessor("notes", {
     size: 220,
     meta: { label: "Notes" },
     enableSorting: false,
-    header: ({ column }) => column.columnDef.meta?.label,
+    header: ({ column }) => <PliantDataTableColumnHeader column={column} />,
     cell: ({ row }) =>
       row.original.notes ? (
         <div className="truncate" title={row.original.notes}>

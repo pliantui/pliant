@@ -1,4 +1,10 @@
 export {
+  createAggregateEvaluator,
+  type AggregateEvaluator,
+  type AggregateEvaluatorOptions,
+  type AggregateExpression,
+} from "./aggregate-evaluator"
+export {
   checkExpression,
   createExpressionChecker,
   type CheckExpressionOptions,
@@ -21,6 +27,7 @@ export {
   type DiffTableStateOptions,
   type TableStateDiff,
 } from "./diff-table-state"
+export { compareCodePoints } from "./compare-code-points"
 export { formatError, type FormatErrorOptions } from "./format-error"
 export { loadOverlay, type LoadedOverlay } from "./load-overlay"
 export {
@@ -64,3 +71,10 @@ export {
   type ValidateOverlayOptions,
   type ValidatedOverlay,
 } from "./validate-overlay"
+export {
+  createWindowEvaluator,
+  type WindowEvaluator,
+  type WindowEvaluatorOptions,
+  type WindowExpression,
+  type WindowPartitionOptions,
+} from "./window-evaluator"

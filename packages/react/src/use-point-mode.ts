@@ -9,6 +9,7 @@ import {
 } from "react"
 
 import { composeHandler, composeRef } from "./compose-props"
+import type { PliantMessages } from "./pliant-messages"
 import {
   measureBoxes,
   sameBoxes,
@@ -21,6 +22,13 @@ import {
   isShortcut,
   makeOthersInert,
 } from "./point-mode-layers"
+import { usePliantMessages } from "./use-pliant-messages"
+
+const pointModeMessages: Pick<PliantMessages, "pointModeOn" | "pointModeOff"> =
+  {
+    pointModeOn: "Point mode on. Click the part you want to change.",
+    pointModeOff: "Point mode off.",
+  }
 
 // Long enough that Alt pressed as part of a shortcut never lights the page up.
 const holdDelay = 250
@@ -85,6 +93,7 @@ export function usePointMode({
   const [mode, setMode] = useState<"hold" | "toggle" | null>(null)
   const [boxes, setBoxes] = useState<readonly PointModeBox[]>([])
   const [announcement, setAnnouncement] = useState("")
+  const messages = usePliantMessages(pointModeMessages)
   const layerRef = useRef<HTMLElement>(null)
   const returnFocus = useRef<HTMLElement | null>(null)
   const focusOnShow = useRef(false)
@@ -102,14 +111,12 @@ export function usePointMode({
     setMode(next)
     // The page holding the live region is inert in toggle mode, where the
     // dialog and the focus moving in and out of it say the same.
-    setAnnouncement(
-      next === "hold" ? "Point mode on. Click the part you want to change." : ""
-    )
+    setAnnouncement(next === "hold" ? messages.pointModeOn : "")
   }
 
   function exit() {
     setMode(null)
-    setAnnouncement(mode === "hold" ? "Point mode off." : "")
+    setAnnouncement(mode === "hold" ? messages.pointModeOff : "")
   }
 
   function pick(id: string) {

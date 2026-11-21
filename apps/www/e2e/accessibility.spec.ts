@@ -67,7 +67,18 @@ for (const colorScheme of ["light", "dark"] as const) {
     test("the home page has no accessibility violations", async ({ page }) => {
       await page.goto("/")
       await expect(
-        page.getByRole("heading", { level: 1, name: "Pliant" })
+        page.getByRole("heading", {
+          level: 1,
+          name: /^Build pliant interfaces/,
+        })
+      ).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
+
+    test("the 404 page has no accessibility violations", async ({ page }) => {
+      await page.goto("/no-such-page")
+      await expect(
+        page.getByRole("heading", { level: 1, name: "Page not found" })
       ).toBeVisible()
       expect(await violations(page, colorScheme)).toEqual([])
     })

@@ -15,7 +15,9 @@ import type { Op } from "@pliantui/contract"
 
 import { composeHandler, composeRef } from "./compose-props"
 import { isDevelopment } from "./is-development"
+import type { PliantMessages } from "./pliant-messages"
 import { revealTarget } from "./reveal-target"
+import { usePliantMessages } from "./use-pliant-messages"
 import { usePliantStatus } from "./use-pliant-status"
 import { usePliantStore } from "./use-pliant-store"
 import { usePliantSurface } from "./use-pliant-surface"
@@ -26,6 +28,16 @@ type AskAnswer =
   | { readonly status: "clarify"; readonly question: string }
   | { readonly status: "unavailable"; readonly reason: string }
   | { readonly status: "error"; readonly message: string }
+
+const askPanelMessages: Pick<
+  PliantMessages,
+  "askNotReady" | "askUnreachable" | "askPreviewFailed" | "askLockInFailed"
+> = {
+  askNotReady: "The page is still loading. Try again in a moment.",
+  askUnreachable: "Couldn't reach the server. Check your connection.",
+  askPreviewFailed: (error) => `The answer couldn't be previewed: ${error}`,
+  askLockInFailed: (error) => error,
+}
 
 /**
  * Where an ask stands: nothing yet, in progress, answered with a question,
@@ -121,6 +133,7 @@ export function useAskPanel<TTarget extends { readonly id: string }>({
   const surface = usePliantSurface()
   const ready = usePliantStatus().status === "ready"
   const preview = usePreview()
+  const messages = usePliantMessages(askPanelMessages)
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen)
   const [uncontrolledTarget, setUncontrolledTarget] = useState(defaultTarget)
   const [prompt, setPromptText] = useState("")
@@ -230,7 +243,7 @@ export function useAskPanel<TTarget extends { readonly id: string }>({
     if (!ready) {
       setState({
         status: "failed",
-        message: "The page is still loading. Try again in a moment.",
+        message: messages.askNotReady,
       })
       return
     }
@@ -248,7 +261,7 @@ export function useAskPanel<TTarget extends { readonly id: string }>({
       }
       answer = {
         status: "error",
-        message: "Couldn't reach the server. Check your connection.",
+        message: messages.askUnreachable,
       }
     }
     if (controller.signal.aborted) {
@@ -265,7 +278,7 @@ export function useAskPanel<TTarget extends { readonly id: string }>({
           ? { status: "idle" }
           : {
               status: "failed",
-              message: `The answer couldn't be previewed: ${result.error}`,
+              message: messages.askPreviewFailed(result.error),
             }
       )
     } else if (answer.status === "clarify") {
@@ -293,7 +306,7 @@ export function useAskPanel<TTarget extends { readonly id: string }>({
     setState(
       result.success
         ? { status: "locked", keptInSession: result.keptInSession }
-        : { status: "failed", message: result.error }
+        : { status: "failed", message: messages.askLockInFailed(result.error) }
     )
     promptRef.current?.focus()
   }

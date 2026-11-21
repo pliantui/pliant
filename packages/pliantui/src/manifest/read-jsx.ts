@@ -1,17 +1,17 @@
 import { Node, SyntaxKind, type JsxAttributeLike } from "ts-morph"
 
 import {
+  getDeclarations,
+  readLiteral,
+  readObject,
+  unwrapExpression,
+} from "../utils/read-static"
+import {
   getBinding,
   isCallTo,
   isPropsObject,
   type Component,
 } from "./component"
-import {
-  getDeclarations,
-  readLiteral,
-  readObject,
-  unwrapExpression,
-} from "./read-static"
 
 function getProvidedContext(tag: Node) {
   const base = Node.isPropertyAccessExpression(tag)

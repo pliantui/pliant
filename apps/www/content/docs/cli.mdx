@@ -1,7 +1,69 @@
 ---
 title: CLI
-description: Use the pliantui CLI to describe the components you already have.
+description: Use the pliantui CLI to add Pliant to your project, describe the components and surfaces you already have, and give your coding agent the skills to work with Pliant.
 ---
+
+## init
+
+Use the `init` command to add Pliant to a Next.js App Router project that already uses shadcn/ui.
+
+```bash
+npx pliantui init
+```
+
+The command installs the `@pliantui/react` package with your package manager, found from your lockfile or, without one, the `packageManager` field in `package.json` (pnpm, npm, yarn or bun), and adds the `pliant-region` component to your project with `shadcn add`. It asks before each step and shows the command it will run. If you answer no, it prints that command so you can run it yourself.
+
+```txt
+Usage: pliantui init [options]
+
+add Pliant to your Next.js and shadcn project
+
+Options:
+  -y, --yes             skip confirmation prompts. (default: false)
+  -c, --cwd <cwd>       the working directory. defaults to the current
+                        directory. (default: "/home/you/my-app")
+  -r, --registry <url>  the registry to install components from. (default:
+                        "https://pliantui.dev/r")
+  -h, --help            display help for command
+```
+
+Your project needs:
+
+- Next.js with an `app` or `src/app` folder
+- a `components.json` file. If it's missing, run `npx shadcn@latest init`, then run `pliantui init` again.
+
+Other frameworks and the Next.js Pages Router aren't supported by `init`. In these cases the command exits with an error and changes nothing.
+
+`init` doesn't edit your pages. When it finishes, it prints the code to wrap a page with:
+
+```tsx
+import { PliantRoot } from "@pliantui/react"
+import { PliantPrePaint } from "@pliantui/react/pre-paint"
+
+import { PliantRegion } from "@/components/pliant/pliant-region"
+
+const surface = "/orders/[id]" // this page's route pattern
+
+export default function Page() {
+  return (
+    <PliantRoot surface={surface}>
+      <PliantPrePaint surface={surface} />
+      <PliantRegion
+        id="summary"
+        slots={{ total: <OrderTotal />, status: <OrderStatus /> }}
+      />
+    </PliantRoot>
+  )
+}
+```
+
+The `surface` is the page's route pattern, such as `/orders/[id]`. `PliantRoot` and `PliantPrePaint` must receive the same `surface`. `PliantRegion` is the component `init` added: its `slots` are the parts of the page that users can reorder, hide and resize.
+
+`PliantPrePaint` keeps a customized page from flashing its original layout before Pliant applies the user's changes.
+
+Run `init` again at any time. It skips what is already installed, and says so when there's nothing left to do.
+
+Pass `--yes` to skip the questions, for example in a script. Pass `--registry` to install the components from your own registry; the component files are read from `<url>/pliant-region.json`. The URL must use `http` or `https` and can't contain a query string, a fragment or credentials.
 
 ## manifest
 
@@ -139,3 +201,198 @@ When the command can't read something as written, it says so and leaves it out i
 - a default state whose type can't be stored, like `string[]`
 
 Each report gives the file and line.
+
+## scan
+
+Use the `scan` command to list the node ids on each surface of your app: its regions, their slots, its tables and their columns, and which node holds which. Core uses this inventory to tell a node that doesn't exist from one that just isn't on screen yet.
+
+```bash
+npx pliantui scan
+```
+
+Like `manifest`, it reads your source code and never runs it.
+
+```txt
+Usage: pliantui scan [options]
+
+list the node ids on each surface of your app
+
+Options:
+  --check          fail when the saved inventory is out of date, without writing
+                   it. (default: false)
+  --json           print the result as JSON. (default: false)
+  -c, --cwd <cwd>  the working directory. defaults to the current directory.
+                   (default: "/home/you/my-app")
+  -h, --help       display help for command
+```
+
+### What it reads
+
+The command reads the files your `tsconfig.json` or `jsconfig.json` includes, skipping tests, stories, type declarations and folders whose names start with a dot, like `.next`. It finds each `PliantRoot` from `@pliantui/react`, reads its `surface`, and follows what it renders, through your own components, across files. Pliant's exports are found through named, renamed and namespace imports (`import * as Pliant from "@pliantui/react"`), and through your own re-exports.
+
+- a call to `usePliantRegion` or `useRegionSlots` is a region. The keys of its slots object are its slots, in order, and each slot holds what it renders. `PliantRegion` calls `usePliantRegion` with its `id` and `slots` props, so `<PliantRegion id="key-metrics" slots={{ revenue: <KpiCard /> }} />` is the region `key-metrics` holding the slot `revenue`. A region rendered as the slot of the same id is that slot.
+- a call to `usePliantTable` from `@pliantui/react/table` is a table. Its columns are read as TanStack names them: `id`, else `accessorKey` with dots as underscores, else a string `header`. Arrays of column defs and `columnHelper.columns`, `accessor`, `display` and `group` are read, also inside a `useMemo`. A column is listed by its address, like `orders-table/columns/customer`.
+- a call to one of your own hooks, like a `useOrdersTable` that returns `usePliantTable(…)`, is followed into that hook, also when it's called as `hooks.useOrdersTable()`. The hook's arguments aren't followed, so write the ids and slots inside the hook; an id or slots object that comes from an argument is reported.
+- a component that declares one region or table puts everything else it renders in it, and a slot holds everything rendered in it. A component that declares several, directly or through your own hooks, puts everything else where the component itself sits, since a region or table renders no element of its own.
+- a render prop, like `renderItem={(item) => …}`, is followed to where the component calls it.
+- what a component renders is what its returned JSX reaches: nested JSX children, the props of component elements, `.map`, `.flatMap` and `.filter` callbacks, inline or named (`rows.map(renderRow)`), conditionals and logical operators, local variables that hold JSX, `useMemo` callbacks, render props, and your own functions called to render, like `{renderRows()}`. What a portal renders, the first argument of `createPortal` from `react-dom`, counts too, where the component renders the portal, like anything else it renders: a portal moves where the DOM goes, not where its content sits in the tree. JSX made anywhere else, like in an effect, an event handler or a function passed to another call, isn't rendered there, and neither are the props of HTML elements or event handler props like `onPick` on a component.
+- a region or table a component declares is placed where the component first renders it, as above: where its value, a member of it, or an item of it is a JSX child (`{region.entries.map(…)}`, `{region.entries[0]}`, `{region}`), or is passed to a component as a prop or in a spread (`<DataTable table={table} />`, `<DataTable {...table} />`). Reading a list's `length`, like `{region.entries.length}`, doesn't count. That place gives the slots of a lone region their order among the component's other nodes, and gives each of several regions and tables its parent and order. The value can be the variable that holds the hook's result, a value destructured from the call or from that variable (`const { entries } = …`), or, for one of your hooks that returns several as an object, that one's own member (`both.a`). When the command finds no such place for a region, or for one of several tables, as with regions a hook returns in an array, the nodes are still listed, last, with a warning, and the surface is marked as not read in full. A lone table holds the rest of its component's output, so it's listed where the component is.
+
+A `PliantRoot` in an App Router layout (`app/**/layout.tsx`) that renders `{children}` holds the pages under that layout: the page of its own segment, and the pages of nested segments, each inside the nested layouts between. Route groups like `(shop)` and dynamic segments like `[id]` are followed like any other segment. A parallel route folder, like `@modal`, holds what the layout renders as the prop of the same name, `{modal}`, through the folder's own `layout` if it has one. An `@children` folder adds to the layout's `children`. A page's default export can be wrapped in a call, like `export default withAuth(function Page() { … })`. Private folders (`_components`) and intercepting routes aren't followed, since they don't render as the layout's props. Only `layout` files in the project's App Router folder count: `app`, or `src/app` when there's no `app`, as Next.js picks it.
+
+Ids can be written inline, kept in a `const` or imported, or passed down as props, as `PliantRegion` passes its own. Content rendered conditionally, like `{open && <PliantRegion … />}` or either side of a ternary, is listed too: the inventory is every node that can exist, not the ones on screen now.
+
+### Output
+
+The command writes `inventory.generated.ts` to the `pliant` folder inside your `lib` alias, next to the manifests, or `.js` if `components.json` sets `tsx: false`. It's a module rather than JSON, so your app imports it like any other file. Don't edit it by hand; run the command again instead, and commit it.
+
+It exports `inventory`, keyed by surface. Each surface has:
+
+- `baseIds`: the surface's ids, sorted, as `{ ids, source }`.
+- `baseParents`: each node id mapped to the id of the node that holds it, or `null` at the top of the surface. Columns aren't nodes, so they aren't in it; their address names their table. Its key order carries no meaning.
+- `baseOrder`: each node that holds other nodes, mapped to those nodes in the order they render, such as a region's slots in key order. Columns aren't listed; a table's columns keep TanStack's order.
+- `ids`: what each id is, as `{ kind, hash }`. The kind is `pliant:region`, `pliant:table` or `pliant:column`, or for a slot, the kind of the component it renders. A slot that renders a component with a manifest from `pliantui manifest` takes that manifest's kind, like `app:badge`; any other slot is `pliant:slot`. The hash covers the kind and the manifest, so it changes when either does.
+
+The kinds and hashes come from the manifests, so run `scan` again after `pliantui manifest`.
+
+```ts title="lib/pliant/inventory.generated.ts"
+export const inventory = {
+  "/examples/orders": {
+    baseIds: {
+      ids: [
+        "average-order-value",
+        "key-metrics",
+        "orders",
+        "orders-table",
+        "orders-table/columns/createdAt",
+        "orders-table/columns/customer",
+        "orders-table/columns/id",
+        "orders-table/columns/notes",
+        "orders-table/columns/region",
+        "orders-table/columns/status",
+        "orders-table/columns/value",
+        "overdue",
+        "revenue",
+      ],
+      source: "inventory",
+    },
+    baseParents: {
+      "average-order-value": "key-metrics",
+      "key-metrics": null,
+      orders: "key-metrics",
+      "orders-table": null,
+      overdue: "key-metrics",
+      revenue: "key-metrics",
+    },
+    baseOrder: {
+      "key-metrics": ["revenue", "orders", "average-order-value", "overdue"],
+    },
+    ids: {
+      "average-order-value": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      // … one entry per id
+    },
+  },
+} as const
+```
+
+`baseIds`, `baseParents` and `baseOrder` have the shape core's `resolveLayers` and `validateOverlay` take, so you can pass a surface's entry as it is:
+
+```ts
+import { resolveLayers } from "@pliantui/core"
+
+import { inventory } from "@/lib/pliant/inventory.generated"
+
+const { baseIds, baseParents, baseOrder } = inventory["/examples/orders"]
+const resolved = resolveLayers(overlays, {
+  surface: "/examples/orders",
+  baseIds,
+  baseParents,
+  baseOrder,
+})
+```
+
+With the inventory, an op into a node that isn't listed is reported as `missing-container`, since that node doesn't exist anywhere on the surface. `baseParents` tells core which node holds which, so a node flagged `critical` also stays visible when an op would hide a node that holds it. `baseOrder` gives each group's order before any op, so a `destructive` action starts out where it renders relative to the `primary` one.
+
+### What's reported, not guessed
+
+When the command can't read something as written, it says so, with the file and line, instead of guessing:
+
+- a computed id, like `id={regionId()}` or an id that comes from `.map`
+- a computed slot key, like ``[`${prefix}-total`]: …``
+- a spread in a slots object that isn't a plain object in a `const`, like `...extra`
+- columns built at runtime, like `fields.map(...)`
+- a `PliantRoot` whose `surface` can't be read
+- a region or table rendered once per row or item, in a `.map`, `.flatMap` or `.filter` callback or in a table's `cell` or other column function: its id would repeat, so it's left out
+- on each surface, anything the command can't follow while it walks that surface. A JSX tag that isn't an HTML element, a component from a package, or one of your function components it can resolve, like a class component, a component from a parameter, a hook or a function's result, one picked from an object or by a condition, or one from a module typed only by your own declaration files, like an `.mdx` file typed by `declare module "*.mdx"` or a `.js` file with a `.d.ts` beside it. An import counts as a package's when it resolves into `node_modules` or outside the project, or, when it doesn't resolve, when it can't name a path of the project: it isn't relative or absolute, isn't a `#` subpath import, matches no `paths` in your `tsconfig.json`, and isn't a path under its `baseUrl` that exists. A member tag counts as a package's only as `Context.Provider` or `Context.Consumer` of a context made by `createContext()`, or as a member a package declares on a parameter, like `table.FlexRender` on a table prop. A member of what a call returns, like `useContext(UiContext).Banner`, is one the command can't follow. A dynamic `import()` or `lazy` import of one of your modules that may render a region or table, or whose exports it can't read. And a region or table, or a component or function that renders one, that the surface's code reaches in a way it doesn't follow: `createElement(Banner)`, a prop like `as={Banner}`, `Array.from(rows, renderRow)`, a value passed through context, or JSX that is made but not rendered. It checks every function it walked for the surface, every value it followed, and the module-level code of their files, including the render props, callbacks and other functions inside them that it didn't walk: there, every JSX tag must be an HTML element, a package's component, or one of your components that renders no region or table and nothing the command can't follow, like a skeleton in a `Suspense` fallback or an input in a form library's `render` prop. The functions in a table's column defs, like `cell` and `header`, are walked as what the table renders. Each of these marks that surface as not read in full, even when another surface renders the same component plainly.
+- code that renders a region or table, or a component that renders one, that no `PliantRoot` renders as far as the command can follow, anywhere in your app. Every surface that renders its file is marked as not read in full, or every surface when none does.
+- a route whose default export can't be read as a component
+- content passed as `children` or as a render prop that the command can't see, like a `PliantRoot` in a provider component outside a layout, whose `children` come from wherever it's used
+
+The command follows your code statically, and fails closed on everything it recognizes it can't follow: only what it follows keeps a surface's `source` as `"inventory"`. A JSX tag it can't resolve marks the surface as not read in full, with a warning, whether or not a region or table lies behind it, and so does an import or a reference it can't follow that may lead to one. Some dynamic patterns can't be seen without running the code, so treat the inventory as what the command could read, not as proof that nothing else renders.
+
+When part of a surface can't be read, the inventory can't claim to be complete, so the surface's `baseIds` use `source: "mounted"` instead of `"inventory"`. Core's `baseIds` know only those two sources. With `"mounted"`, an op into a node that isn't listed is `dormant`: it waits until that node shows up, rather than being dropped as `missing-container`, since the node may be one the command couldn't read. The summary marks the surface as **not read in full**. Fix what the warnings point to and run the command again to get `"inventory"` back.
+
+A column whose id isn't one overlays can address, like `2fa`, is left out with a warning: column ids must start with a letter and contain only letters, digits, `-` and `_`.
+
+### Errors
+
+These stop the command, and nothing is written:
+
+- a slot id that starts with a digit, like `"2024"`. JavaScript moves integer-like keys before every other key of an object, so the slots would render out of order.
+- a region or table id that isn't kebab-case or doesn't start with a letter.
+- a node id used twice on a surface, in two different places or as two different things.
+
+### In CI
+
+Run `scan` with `--check` in CI. It exits with code 1 when the committed inventory is missing or out of date, or when the scan finds an error, and writes nothing:
+
+```bash
+npx pliantui scan --check
+```
+
+Pass `--json` to get the inventory, errors and warnings as JSON, for scripts and agents. Without `--check`, it still writes the file, as a plain run does.
+
+## skills
+
+Use the `skills` command to add Pliant's skills for coding agents to your project. A skill is a folder with a `SKILL.md` file, in the open format that Claude Code, Codex, Cursor, GitHub Copilot and other coding agents read. The agent loads a skill when your request matches its description.
+
+```bash
+npx pliantui skills add
+```
+
+The command copies the skills that come with `pliantui` into your project. Pass the names of the skills to add only those, like `npx pliantui skills add setup`.
+
+```txt
+Usage: pliantui skills add [options] [names...]
+
+add pliantui's skills for coding agents to your project
+
+Arguments:
+  names             the skills to add. defaults to all of them.
+
+Options:
+  -y, --yes         overwrite changed skill files without asking. (default:
+                    false)
+  -c, --cwd <cwd>   the working directory. defaults to the current directory.
+                    (default: "/home/you/my-app")
+  -d, --dir <path>  the folder to put skills in. defaults to .claude/skills if
+                    the project has a .claude folder, otherwise .agents/skills.
+  -h, --help        display help for command
+```
+
+Skills go in `.claude/skills/<name>` when the project has a `.claude` folder, because Claude Code reads only that folder. Otherwise they go in `.agents/skills/<name>`, the folder most other coding agents read. Pass `--dir` to choose another folder: GitHub Copilot reads `.github/skills`, so use `--dir .github/skills` for it. A relative path is resolved from the working directory.
+
+Run the command again at any time, for example after you update `pliantui`. It skips skills that are already up to date. If you changed a skill's files, it asks before it overwrites them, in an interactive terminal. In a script, pass `--yes` to overwrite them, or the command exits with an error and writes nothing. Files you added to a skill's folder are left alone.
+
+Use `npx pliantui skills list` to see the skills that come with the package and what each one is for.
+
+### The skills
+
+| Skill     | Use it to                                                                                                                                                                                     |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `setup`   | Add Pliant to a Next.js App Router app with shadcn/ui: run `init`, wrap a route in `PliantRoot` and `PliantPrePaint`, add a `PliantRegion`, make a table reshapeable, and check it works      |
+| `tables`  | Make a data table customizable with `usePliantTable` and `pliant-data-table`: column ids and labels, what users can change and how it is saved, grouping and aggregates                       |
+| `storage` | Choose where users' changes are stored and set up server storage: `createStorageHandler`, an `OverlayStore`, `serverAdapter`, team and org defaults, and rendering saved layers on the server |
