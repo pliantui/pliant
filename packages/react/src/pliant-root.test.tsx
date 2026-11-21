@@ -176,6 +176,17 @@ describe("PliantRoot", () => {
     expect(createStorage.mock.calls.length).toBe(calls)
   })
 
+  it("names the fix when storage is missing", () => {
+    expect(() =>
+      renderToString(
+        // @ts-expect-error JavaScript callers can leave storage out
+        <PliantRoot surface={surface}>
+          <Width />
+        </PliantRoot>
+      )
+    ).toThrow("PliantRoot needs `storage`")
+  })
+
   it("renders and hydrates the layers loaded on the server", async () => {
     const loaded = personalOverlay("01KAB0000000000000000000P1", 240)
     const memory = memoryAdapter([loaded]).storage

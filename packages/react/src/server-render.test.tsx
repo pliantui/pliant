@@ -39,7 +39,7 @@ describe("PliantRoot on the server", () => {
     expect(load).not.toHaveBeenCalled()
   })
 
-  it("renders with the default adapter", () => {
+  it("renders with localAdapter passed uncalled", () => {
     expect(
       renderToString(
         <PliantRoot surface="/orders" storage={localAdapter}>

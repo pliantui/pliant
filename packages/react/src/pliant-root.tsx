@@ -85,16 +85,25 @@ function PliantSurfaceRoot({
   layers,
   children,
 }: PliantRootProps) {
-  const [store] = useState(() =>
-    createLayerStore({
+  const [store] = useState(() => {
+    // JavaScript callers, and code that ignores the type error, get a fix
+    // instead of a crash deep in the store.
+    const given: unknown = storage
+    if (given === undefined || given === null) {
+      throw new TypeError(
+        "PliantRoot needs `storage`: pass `localAdapter` from `@pliantui/react/local`, or another storage adapter."
+      )
+    }
+    const adapter = typeof storage === "function" ? storage() : storage
+    return createLayerStore({
       surface,
-      storage: typeof storage === "function" ? storage() : storage,
+      storage: adapter,
       teamOrder,
       onError,
       lang,
       layers,
     })
-  )
+  })
   useLayoutEffect(() => {
     store.setOnError(onError)
   }, [store, onError])
