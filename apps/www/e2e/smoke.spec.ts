@@ -11,7 +11,7 @@ test("renders the home page", async ({ page, errors }) => {
     })
   ).toBeVisible()
   await expect(
-    page.getByRole("main").getByRole("link", { name: "Get Started" })
+    page.getByRole("main").getByRole("link", { name: "Get started" })
   ).toBeVisible()
   expect(errors).toEqual([])
 })
