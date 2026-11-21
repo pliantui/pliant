@@ -425,10 +425,10 @@ export function createLayerStore({
     const identity = identityOf(target)
     const changed = personal.flatMap((input) => resetOf(input, identity) ?? [])
     if (changed.length > 0 && !storage.remove) {
-      return {
-        success: false,
-        error: `The storage adapter of ${surface} can't remove overlays`,
-      }
+      const error = `The storage adapter of ${surface} can't remove overlays`
+      // A setup error, so the app hears of it whichever component asked.
+      report(new Error(error))
+      return { success: false, error }
     }
     session = session.flatMap((input) => {
       const reset = resetOf(input, identity)

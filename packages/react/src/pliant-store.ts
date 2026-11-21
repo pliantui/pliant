@@ -144,7 +144,9 @@ export interface PliantStore {
    * A personal version with such ops is removed from storage with the
    * adapter's `remove`, and its other ops are saved as a new version dated
    * the same, so they keep applying in the same order. It is rejected
-   * when the adapter has no `remove`, or until the layers are `ready`.
+   * until the layers are `ready`, and when the adapter has no `remove`,
+   * which is also passed to `PliantRoot`'s `onError`. A removal that fails
+   * is passed to `onError` too.
    */
   readonly resetNode: (target: string) => ResetNodeResult
 }

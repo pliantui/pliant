@@ -1196,14 +1196,35 @@ describe("createLayerStore", () => {
       ).toBe(true)
     })
 
+    it("reports a removal that fails", async () => {
+      const { storage } = memoryStorage({ personal: [mine] })
+      const failure = new Error("offline")
+      const onError = vi.fn()
+      const store = createLayerStore({
+        surface,
+        storage: { ...storage, remove: () => Promise.reject(failure) },
+        onError,
+      })
+      store.connect()
+
+      expect(store.actions.resetNode("orders-table")).toEqual({
+        success: true,
+      })
+      await vi.waitFor(() => {
+        expect(onError).toHaveBeenCalledWith(failure)
+      })
+    })
+
     it("is rejected when the adapter can't remove overlays", () => {
       const { storage } = memoryStorage({ personal: [mine] })
+      const onError = vi.fn()
       const store = createLayerStore({
         surface,
         storage: {
           load: (...args) => storage.load(...args),
           save: (...args) => storage.save(...args),
         },
+        onError,
       })
       store.connect()
 
@@ -1211,6 +1232,9 @@ describe("createLayerStore", () => {
         success: false,
         error: "The storage adapter of /orders can't remove overlays",
       })
+      expect(onError).toHaveBeenCalledWith(
+        new Error("The storage adapter of /orders can't remove overlays")
+      )
       expect(winner(store.getResolved(), "orders-table", "sort")).toEqual({
         layer: "personal",
         op: "setSort",
