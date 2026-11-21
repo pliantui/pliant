@@ -1,11 +1,16 @@
+import * as z from "zod"
+
 import { expect, test } from "./fixtures"
 
 test("renders the home page", async ({ page, errors }) => {
   await page.goto("/")
   await expect(
-    page.getByRole("heading", { level: 1, name: "Pliant" })
+    page.getByRole("heading", {
+      level: 1,
+      name: "Build pliant interfaces: apps your users can reshape.",
+    })
   ).toBeVisible()
-  await expect(page.getByRole("link", { name: "Read the docs" })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Get started" })).toBeVisible()
   expect(errors).toEqual([])
 })
 
@@ -20,6 +25,33 @@ test("renders a docs page", async ({ page, errors }) => {
 test("serves the registry index", async ({ request }) => {
   const response = await request.get("/r/registry.json")
   expect(response.status()).toBe(200)
+})
+
+const registryIndex = z.object({
+  items: z.array(z.object({ name: z.string() })),
+})
+const registryItem = z.object({
+  name: z.string(),
+  files: z.array(z.object({ path: z.string() })),
+})
+
+test("lists and serves the data table registry item", async ({ request }) => {
+  const index = registryIndex.parse(
+    await (await request.get("/r/registry.json")).json()
+  )
+  expect(index.items.map((item) => item.name)).toContain("pliant-data-table")
+
+  const response = await request.get("/r/pliant-data-table.json")
+  expect(response.status()).toBe(200)
+  const item = registryItem.parse(await response.json())
+  expect(item.name).toBe("pliant-data-table")
+  expect(item.files.map((file) => file.path).sort()).toEqual([
+    "registry/pliant/pliant-data-table-column-header.tsx",
+    "registry/pliant/pliant-data-table-features.ts",
+    "registry/pliant/pliant-data-table-pagination.tsx",
+    "registry/pliant/pliant-data-table-view-options.tsx",
+    "registry/pliant/pliant-data-table.tsx",
+  ])
 })
 
 const conceptPages = [

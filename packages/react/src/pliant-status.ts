@@ -1,7 +1,8 @@
 /**
  * Whether the surface's layers have loaded from the storage adapter. Until
  * they are `ready`, nothing can change them, and the server render and the
- * first client render resolve no overlays.
+ * first client render resolve no overlays, unless `PliantRoot` was given
+ * `layers`.
  *
  * @experimental
  */

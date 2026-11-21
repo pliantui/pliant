@@ -1,7 +1,69 @@
 ---
 title: CLI
-description: Use the pliantui CLI to describe the components and surfaces you already have.
+description: Use the pliantui CLI to add Pliant to your project, describe the components and surfaces you already have, and give your coding agent the skills to work with Pliant.
 ---
+
+## init
+
+Use the `init` command to add Pliant to a Next.js App Router project that already uses shadcn/ui.
+
+```bash
+npx pliantui init
+```
+
+The command installs the `@pliantui/react` package with your package manager, found from your lockfile or, without one, the `packageManager` field in `package.json` (pnpm, npm, yarn or bun), and adds the `pliant-region` component to your project with `shadcn add`. It asks before each step and shows the command it will run. If you answer no, it prints that command so you can run it yourself.
+
+```txt
+Usage: pliantui init [options]
+
+add Pliant to your Next.js and shadcn project
+
+Options:
+  -y, --yes             skip confirmation prompts. (default: false)
+  -c, --cwd <cwd>       the working directory. defaults to the current
+                        directory. (default: "/home/you/my-app")
+  -r, --registry <url>  the registry to install components from. (default:
+                        "https://pliantui.dev/r")
+  -h, --help            display help for command
+```
+
+Your project needs:
+
+- Next.js with an `app` or `src/app` folder
+- a `components.json` file. If it's missing, run `npx shadcn@latest init`, then run `pliantui init` again.
+
+Other frameworks and the Next.js Pages Router aren't supported by `init`. In these cases the command exits with an error and changes nothing.
+
+`init` doesn't edit your pages. When it finishes, it prints the code to wrap a page with:
+
+```tsx
+import { PliantRoot } from "@pliantui/react"
+import { PliantPrePaint } from "@pliantui/react/pre-paint"
+
+import { PliantRegion } from "@/components/pliant/pliant-region"
+
+const surface = "/orders/[id]" // this page's route pattern
+
+export default function Page() {
+  return (
+    <PliantRoot surface={surface}>
+      <PliantPrePaint surface={surface} />
+      <PliantRegion
+        id="summary"
+        slots={{ total: <OrderTotal />, status: <OrderStatus /> }}
+      />
+    </PliantRoot>
+  )
+}
+```
+
+The `surface` is the page's route pattern, such as `/orders/[id]`. `PliantRoot` and `PliantPrePaint` must receive the same `surface`. `PliantRegion` is the component `init` added: its `slots` are the parts of the page that users can reorder, hide and resize.
+
+`PliantPrePaint` keeps a customized page from flashing its original layout before Pliant applies the user's changes.
+
+Run `init` again at any time. It skips what is already installed, and says so when there's nothing left to do.
+
+Pass `--yes` to skip the questions, for example in a script. Pass `--registry` to install the components from your own registry; the component files are read from `<url>/pliant-region.json`. The URL must use `http` or `https` and can't contain a query string, a fragment or credentials.
 
 ## manifest
 
@@ -288,3 +350,45 @@ npx pliantui scan --check
 ```
 
 Pass `--json` to get the inventory, errors and warnings as JSON, for scripts and agents. Without `--check`, it still writes the file, as a plain run does.
+
+## skills
+
+Use the `skills` command to add Pliant's skills for coding agents to your project. A skill is a folder with a `SKILL.md` file, in the open format that Claude Code, Codex, Cursor, GitHub Copilot and other coding agents read. The agent loads a skill when your request matches its description.
+
+```bash
+npx pliantui skills add
+```
+
+The command copies the skills that come with `pliantui` into your project. Pass the names of the skills to add only those, like `npx pliantui skills add setup`.
+
+```txt
+Usage: pliantui skills add [options] [names...]
+
+add pliantui's skills for coding agents to your project
+
+Arguments:
+  names             the skills to add. defaults to all of them.
+
+Options:
+  -y, --yes         overwrite changed skill files without asking. (default:
+                    false)
+  -c, --cwd <cwd>   the working directory. defaults to the current directory.
+                    (default: "/home/you/my-app")
+  -d, --dir <path>  the folder to put skills in. defaults to .claude/skills if
+                    the project has a .claude folder, otherwise .agents/skills.
+  -h, --help        display help for command
+```
+
+Skills go in `.claude/skills/<name>` when the project has a `.claude` folder, because Claude Code reads only that folder. Otherwise they go in `.agents/skills/<name>`, the folder most other coding agents read. Pass `--dir` to choose another folder: GitHub Copilot reads `.github/skills`, so use `--dir .github/skills` for it. A relative path is resolved from the working directory.
+
+Run the command again at any time, for example after you update `pliantui`. It skips skills that are already up to date. If you changed a skill's files, it asks before it overwrites them, in an interactive terminal. In a script, pass `--yes` to overwrite them, or the command exits with an error and writes nothing. Files you added to a skill's folder are left alone.
+
+Use `npx pliantui skills list` to see the skills that come with the package and what each one is for.
+
+### The skills
+
+| Skill     | Use it to                                                                                                                                                                                     |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `setup`   | Add Pliant to a Next.js App Router app with shadcn/ui: run `init`, wrap a route in `PliantRoot` and `PliantPrePaint`, add a `PliantRegion`, make a table reshapeable, and check it works      |
+| `tables`  | Make a data table customizable with `usePliantTable` and `pliant-data-table`: column ids and labels, what users can change and how it is saved, grouping and aggregates                       |
+| `storage` | Choose where users' changes are stored and set up server storage: `createStorageHandler`, an `OverlayStore`, `serverAdapter`, team and org defaults, and rendering saved layers on the server |

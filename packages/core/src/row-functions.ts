@@ -24,7 +24,7 @@ const textual =
     compute(stringAt(args, 0), stringAt(args, 1))
 
 /** Orders two values of one comparable type: by code point for strings. */
-function compareValues(a: Value, b: Value): number {
+export function compareValues(a: Value, b: Value): number {
   return typeof a === "string" && typeof b === "string"
     ? compareCodePoints(a, b)
     : Number(a) - Number(b)

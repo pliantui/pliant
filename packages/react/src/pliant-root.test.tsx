@@ -14,7 +14,15 @@ import {
 } from "@testing-library/react"
 import { createRoot, hydrateRoot } from "react-dom/client"
 import { renderToString } from "react-dom/server"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest"
 
 import {
   opSchema,
@@ -48,6 +56,20 @@ function widthOf({ properties }: ResolvedLayers) {
   const op = properties.get("orders-table/columns/total")?.get("width")?.winner
     .check.op
   return op?.op === "setColumnWidth" ? op.width : undefined
+}
+
+function personalOverlay(id: string, value: number) {
+  return {
+    v: 1,
+    id,
+    surface,
+    layer: "personal",
+    ops: [width(value)],
+    basis: { contract: 1, core: "0.0.0", manifests: {} },
+    source: "manual",
+    createdBy: "local",
+    createdAt: "2026-11-19T00:00:00.000Z",
+  }
 }
 
 function memoryAdapter(personal: unknown[] = []) {
@@ -130,6 +152,70 @@ describe("PliantRoot", () => {
       root.unmount()
     })
     container.remove()
+  })
+
+  it("renders and hydrates the layers loaded on the server", async () => {
+    const loaded = personalOverlay("01KAB0000000000000000000P1", 240)
+    const memory = memoryAdapter([loaded]).storage
+    const storage: StorageAdapter = {
+      ...memory,
+      load: (surface) => Promise.resolve(memory.load(surface)),
+    }
+    const rendered: string[] = []
+    function Probe() {
+      const status = usePliantStatus().status
+      const shown = `${status}:${String(widthOf(useResolved()) ?? "base")}`
+      rendered.push(shown)
+      return <output>{shown}</output>
+    }
+    const app = (
+      <PliantRoot
+        surface={surface}
+        storage={storage}
+        layers={{ personal: stored(loaded) }}
+      >
+        <Probe />
+      </PliantRoot>
+    )
+    const container = document.createElement("div")
+    container.innerHTML = renderToString(app)
+    document.body.append(container)
+    expect(container.textContent).toBe("ready:240")
+    const recoverableErrors = vi.fn()
+
+    const root = await act(() =>
+      hydrateRoot(container, app, { onRecoverableError: recoverableErrors })
+    )
+    onTestFinished(() => {
+      act(() => {
+        root.unmount()
+      })
+      container.remove()
+    })
+
+    expect(new Set(rendered)).toEqual(new Set(["ready:240"]))
+    expect(recoverableErrors).not.toHaveBeenCalled()
+  })
+
+  it("loads storage again after mounting with server layers", async () => {
+    const { storage } = memoryAdapter([
+      personalOverlay("01KAB0000000000000000000P2", 300),
+    ])
+
+    render(
+      <PliantRoot
+        surface={surface}
+        storage={storage}
+        layers={{
+          personal: stored(personalOverlay("01KAB0000000000000000000P1", 240)),
+        }}
+      >
+        <Width />
+      </PliantRoot>
+    )
+
+    await act(() => Promise.resolve())
+    expect(screen.getByRole("status").textContent).toBe("300")
   })
 
   it("renders the base when storage holds corrupt data", () => {

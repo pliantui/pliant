@@ -45,7 +45,7 @@ When you describe a target to the ask route, its manifest lists the target's cap
 
 Every op validates and resolves. Pliant's components render these:
 
-- **Tables** (`usePliantTable`): `setSort`, `setFilter`, `clearFilter`, `setGroupBy`, `setPage` and `setColumnWidth`, plus `hide`, `show`, `move` and `pin` on columns.
+- **Tables** (`usePliantTable`): `setSort`, `setFilter`, `clearFilter`, `setGroupBy`, `addAggregate`, `setPage` and `setColumnWidth`, plus `hide`, `show`, `move` and `pin` on columns. Each `addAggregate` adds a column with a value on every group's row and in the column's total, and the column ops apply to it like any column. Pass the table's `dataset` (its `fields` and `timeZone`) to `usePliantTable` so it can compute aggregates.
 - **Regions** (`PliantRegion`): `hide`, `show`, `move`, `pin`, `collapse`, `setLayout`, `span`, `wrap` and `remove`. A node added with `insert` renders as a placeholder.
 
 The other ops are part of the format: overlays that contain them load, save and resolve, and no component renders their effect.

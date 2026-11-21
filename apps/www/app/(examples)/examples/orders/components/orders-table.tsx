@@ -1,72 +1,32 @@
 "use client"
 
-import { useId, type CSSProperties } from "react"
-import { useTable, type Column } from "@tanstack/react-table"
-import { ChevronDown } from "lucide-react"
+import { useId } from "react"
+import { useTable } from "@tanstack/react-table"
 
 import { usePliantNodeProps } from "@pliantui/react"
 import { usePliantTable } from "@pliantui/react/table"
 
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { PliantDataTable } from "@/registry/pliant/pliant-data-table"
+import { pliantDataTableFeatures } from "@/registry/pliant/pliant-data-table-features"
+import { PliantDataTablePagination } from "@/registry/pliant/pliant-data-table-pagination"
+import { PliantDataTableViewOptions } from "@/registry/pliant/pliant-data-table-view-options"
 
 import type { Order } from "../data"
-import { formatNumber } from "../format"
+import { ordersDataset } from "../dataset"
+import { formatAggregate, formatNumber } from "../format"
 import { columns } from "./columns"
-import { features, type DataTableFeatures } from "./data-table-features"
-
-const ariaSort = { asc: "ascending", desc: "descending" } as const
-
-// Pinned cells need a solid background to cover what scrolls under them,
-// with the row's hover tint layered on top so hovered rows stay even.
-const pinnedClassName =
-  "data-pinned:bg-background [tr:hover>&]:data-pinned:bg-linear-to-r [tr:hover>&]:data-pinned:from-muted/50 [tr:hover>&]:data-pinned:to-muted/50"
-
-function getColumnStyles(
-  column: Column<DataTableFeatures, Order>
-): CSSProperties {
-  const pinned = column.getIsPinned()
-  const isLastStart = pinned === "start" && column.getIsLastColumn("start")
-  const isFirstEnd = pinned === "end" && column.getIsFirstColumn("end")
-  return {
-    position: pinned ? "sticky" : undefined,
-    left: pinned === "start" ? column.getStart("start") : undefined,
-    right: pinned === "end" ? column.getAfter("end") : undefined,
-    zIndex: pinned ? 1 : undefined,
-    boxShadow: isLastStart
-      ? "inset -1px 0 var(--border)"
-      : isFirstEnd
-        ? "inset 1px 0 var(--border)"
-        : undefined,
-    width: column.getSize(),
-  }
-}
+import { DataTableGroupMenu } from "./data-table-group-menu"
 
 const nodeId = "orders-table"
 
 export function OrdersTable({ data }: { data: Order[] }) {
   const titleId = useId()
   const node = usePliantNodeProps(nodeId)
-  const options = usePliantTable({ features, data, columns }, { id: nodeId })
+  const options = usePliantTable(
+    { features: pliantDataTableFeatures, data, columns },
+    { id: nodeId, dataset: ordersDataset }
+  )
   const table = useTable(options)
-  const { pageIndex, pageSize } = table.state.pagination
-  const rowCount = table.getRowCount()
-  const range = rowCount
-    ? `${formatNumber(pageIndex * pageSize + 1)}–${formatNumber(Math.min((pageIndex + 1) * pageSize, rowCount))} of ${formatNumber(rowCount)}`
-    : "0 of 0"
 
   return (
     <div {...node} className="flex flex-col gap-4">
@@ -74,126 +34,24 @@ export function OrdersTable({ data }: { data: Order[] }) {
         <h2 id={titleId} className="text-lg font-semibold">
           All orders
         </h2>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
-              Columns <ChevronDown />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => (
-                <DropdownMenuCheckboxItem
-                  key={column.id}
-                  checked={column.getIsVisible()}
-                  onCheckedChange={(value) => {
-                    column.toggleVisibility(value)
-                  }}
-                >
-                  {column.columnDef.meta?.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      {/* The region scrolls instead of the table's own container, so it can
-      take focus and scroll from the keyboard. */}
-      <div
-        role="region"
-        aria-labelledby={titleId}
-        tabIndex={0}
-        className="overflow-x-auto rounded-lg border border-border outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_[data-slot=table-container]]:overflow-visible"
-      >
-        {/* Every column keeps its size, and an empty filler cell at the end
-        of each row takes the room left over, so the table fills its
-        container. */}
-        <Table
-          aria-labelledby={titleId}
-          className="table-fixed"
-          style={{ minWidth: table.getTotalSize() }}
-        >
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="border-border">
-                {headerGroup.headers.map((header) => {
-                  const sorted = header.column.getIsSorted()
-                  return (
-                    <TableHead
-                      key={header.id}
-                      aria-sort={sorted ? ariaSort[sorted] : undefined}
-                      data-pinned={header.column.getIsPinned() || undefined}
-                      className={pinnedClassName}
-                      style={getColumnStyles(header.column)}
-                    >
-                      {header.isPlaceholder ? null : (
-                        <table.FlexRender header={header} />
-                      )}
-                    </TableHead>
-                  )
-                })}
-                <TableHead aria-hidden className="p-0" />
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="border-border">
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      data-pinned={cell.column.getIsPinned() || undefined}
-                      className={pinnedClassName}
-                      style={getColumnStyles(cell.column)}
-                    >
-                      <table.FlexRender cell={cell} />
-                    </TableCell>
-                  ))}
-                  <TableCell aria-hidden className="p-0" />
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={table.getVisibleLeafColumns().length + 1}
-                  className="h-24 text-center"
-                >
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground" aria-live="polite">
-          {range} orders
-        </p>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              table.previousPage()
-            }}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              table.nextPage()
-            }}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
+          <DataTableGroupMenu
+            node={nodeId}
+            value={table.state.grouping[0] ?? "none"}
+          />
+          <PliantDataTableViewOptions table={table} />
         </div>
       </div>
+      <PliantDataTable
+        table={table}
+        aria-labelledby={titleId}
+        formatAggregate={formatAggregate}
+      />
+      <PliantDataTablePagination
+        table={table}
+        rows="orders"
+        formatNumber={formatNumber}
+      />
     </div>
   )
 }

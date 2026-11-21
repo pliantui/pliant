@@ -40,6 +40,8 @@ export interface LayerStoreOptions {
   readonly onError?: ((error: unknown) => void) | undefined
   /** The UI language, as `PliantRoot`'s `lang` prop. */
   readonly lang?: string | undefined
+  /** The layers loaded during the server render, as `PliantRoot`'s `layers`. */
+  readonly layers?: StoredLayers | undefined
   readonly now?: (() => number) | undefined
   readonly generateId?: ((time: number) => string) | undefined
   /** Whether changes replace earlier ones; off only to test that it's exact. */
@@ -54,6 +56,7 @@ export interface LayerStore {
   readonly getServerResolved: () => ResolvedLayers
   readonly getPreview: () => LoadedOverlay | null
   readonly getStatus: () => PliantStatus
+  readonly getServerStatus: () => PliantStatus
   readonly registerNodes: (ids: readonly string[]) => () => void
   readonly slots: SlotRegistry
   readonly retention: Retention
@@ -72,6 +75,7 @@ export function createLayerStore({
   teamOrder: initialTeamOrder = [],
   onError: initialOnError,
   lang: initialLang,
+  layers: initialLayers,
   now = Date.now,
   generateId = ulid,
   coalesce = true,
@@ -575,7 +579,7 @@ export function createLayerStore({
   }
 
   function getServerResolved() {
-    serverSnapshot ??= resolve([])
+    serverSnapshot ??= resolve(initial)
     return serverSnapshot
   }
 
@@ -626,7 +630,7 @@ export function createLayerStore({
         })
       }
     })
-    reload()
+    fetchLayers(status === readyStatus)
 
     function onVisibilityChange() {
       if (document.visibilityState === "hidden") {
@@ -645,6 +649,13 @@ export function createLayerStore({
     }
   }
 
+  if (initialLayers) {
+    currentLoad = {}
+    hydrate(currentLoad, initialLayers, new Set())
+  }
+  const initial = [...org, ...team, ...personal]
+  const serverStatus = status
+
   return {
     surface,
     actions: { applyOps, preview, lockIn, discard, reload },
@@ -662,6 +673,7 @@ export function createLayerStore({
     getStatus() {
       return status
     },
+    getServerStatus: () => serverStatus,
     registerNodes: register,
     slots: createSlotRegistry(),
     retention: createRetention(),

@@ -8,8 +8,9 @@ Some ops carry a calculation: a derived column, an aggregate, or the condition f
 <Callout>
   Pliant checks that an expression is well formed when it checks the op. To
   type-check one against your dataset's fields, call `checkExpression` from
-  `@pliantui/core`. `usePliantTable` doesn't compute derived columns, aggregates
-  or highlights, so the ops that carry them don't change what renders.
+  `@pliantui/core`. `usePliantTable` computes aggregates when you pass it the
+  table's `dataset`, but not derived columns or highlights, so the ops that
+  carry those don't change what renders.
 </Callout>
 
 ## Nodes
