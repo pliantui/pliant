@@ -1,5 +1,6 @@
 import { use, useLayoutEffect, useMemo, useState, type ReactNode } from "react"
 
+import { useWarnUnscanned } from "./inventory-check"
 import { useLayerStore } from "./pliant-context"
 import { RetainScopeContext } from "./retain-scope-context"
 import { useMountedNodes } from "./use-mounted-nodes"
@@ -27,6 +28,11 @@ export function useRegionSlots(
   const key = [id, ...Object.keys(slots)].join("\n")
   const ids = useMemo(() => key.split("\n"), [key])
   useMountedNodes(ids)
+  if (process.env.NODE_ENV !== "production") {
+    // The condition is the same on every render, so hooks keep their order.
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useWarnUnscanned(store, key)
+  }
   useLayoutEffect(() => {
     const undeclare = store.slots.declare(owner, id, slots)
     return () => {
