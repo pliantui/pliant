@@ -10,6 +10,7 @@ import {
 } from "@pliantui/contract"
 
 import { checkOp, type OpCheck, type OpContext } from "./check-op"
+import type { FieldSchema } from "./field-schema"
 import { freeShortcut } from "./free-shortcut"
 import { keepsMeaning } from "./keeps-meaning"
 import { loadOverlay, type LoadedOverlay } from "./load-overlay"
@@ -17,6 +18,7 @@ import { identityOf } from "./node-identity"
 import { ownEntries } from "./own-entries"
 import { readBaseOrder } from "./read-base-order"
 import { readBaseParents } from "./read-base-parents"
+import { readFields } from "./read-fields"
 import { readFlags, type ReadFlags } from "./read-flags"
 import { readManifests } from "./read-manifests"
 import { readShortcuts } from "./read-shortcuts"
@@ -24,7 +26,9 @@ import { readBaseIds } from "./resolution"
 import type { SkippedOp } from "./resolve-layers"
 import { resolveOrdered, type OpRules } from "./resolve-ordered"
 import type { Result } from "./result"
+import { staysInPlace } from "./stays-in-place"
 import { checkSurface, surfaceOrder } from "./surface-order"
+import { validDefault } from "./valid-default"
 import type { WithOps } from "./with-ops"
 
 export type ValidatedOverlay = WithOps<Op>
@@ -83,7 +87,9 @@ export interface ValidateOverlayOptions {
    *
    * Without layers, the rules that need no other op still apply: a
    * `bindShortcut` to reserved keys, or to `reservedShortcuts`, and a
-   * `setProp` to a value `manifests` marks semantic, are invalid.
+   * `setProp` to a value `manifests` marks semantic, a `setDefault`
+   * that a field's schema in `fields` rejects, and a `wrap` that takes a
+   * field `fields` names, are invalid.
    */
   readonly layers?: ValidateOverlayLayers | undefined
   /**
@@ -96,6 +102,12 @@ export interface ValidateOverlayOptions {
    * when they aren't valid as there.
    */
   readonly reservedShortcuts?: readonly string[] | undefined
+  /**
+   * The schemas of the surface's form fields, as in `resolveLayers`. Throws
+   * a `TypeError` when they aren't valid as there, and when a field's schema
+   * validates asynchronously.
+   */
+  readonly fields?: Readonly<Record<string, FieldSchema>> | undefined
 }
 
 const [overlayVariant] = overlaySchema.out.options
@@ -182,6 +194,10 @@ function guardrailMessage(
         ? `${item} is destructive, so its ${String(prop)} can't change`
         : `${item} can't take ${String(prop)} ${String(value)}, which only the app assigns`
     }
+    case "valid-default":
+      return `${item} doesn't accept this default`
+    case "stays-in-place":
+      return `${item} is a form field, so it can't move into a new parent`
   }
 }
 
@@ -268,7 +284,9 @@ function opIssues(checks: readonly OpCheck[], rules: OpRules) {
     const op = { check }
     const violation =
       freeShortcut(op, new Map(), rules.reservedShortcuts) ??
-      keepsMeaning(op, rules.manifests, undefined)
+      keepsMeaning(op, rules.manifests, undefined) ??
+      validDefault(op, rules.fields) ??
+      staysInPlace(op, new Set(rules.fields.keys()))
     return violation
       ? [
           {
@@ -286,7 +304,7 @@ function opIssues(checks: readonly OpCheck[], rules: OpRules) {
 
 export function validateOverlay(
   input: unknown,
-  { layers, manifests, reservedShortcuts }: ValidateOverlayOptions = {}
+  { layers, manifests, reservedShortcuts, fields }: ValidateOverlayOptions = {}
 ): Result<ValidatedOverlay> {
   let flags: ReadFlags | undefined
   let baseParents: ReadonlyMap<string, string | null> | undefined
@@ -294,6 +312,7 @@ export function validateOverlay(
   const rules: OpRules = {
     manifests: readManifests(manifests),
     reservedShortcuts: readShortcuts(reservedShortcuts),
+    fields: readFields(fields),
   }
   if (layers) {
     checkSurface(layers.surface)

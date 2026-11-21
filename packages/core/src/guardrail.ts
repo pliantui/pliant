@@ -63,5 +63,10 @@ export type Violation =
       readonly node: string
       readonly ops: readonly ResolvedOp[]
     }
+  | {
+      readonly guardrail: "valid-default" | "stays-in-place"
+      readonly node: string
+      readonly ops: readonly ResolvedOp[]
+    }
 
 export type Guardrail = (input: GuardrailInput) => Violation[]

@@ -1,11 +1,13 @@
 import type { Breakpoint, Flags, Manifest } from "@pliantui/contract"
 
 import type { OpCheck } from "./check-op"
+import type { FieldSchema } from "./field-schema"
 import type { LoadedOverlay } from "./load-overlay"
 import type { OpPropertyKey } from "./op-property"
 import type { ResolvedPlacement } from "./placement"
 import { readBaseOrder } from "./read-base-order"
 import { readBaseParents } from "./read-base-parents"
+import { readFields } from "./read-fields"
 import { readFlags } from "./read-flags"
 import { readManifests } from "./read-manifests"
 import { readShortcuts } from "./read-shortcuts"
@@ -88,7 +90,7 @@ export interface ResolvedProperty {
  * that ties with it on every sort key but has other contents,
  * `surface-mismatch` when the overlay is for another surface, or
  * `guardrail` when the valid op would break a guardrail (see `flags`,
- * `manifests` and `reservedShortcuts` in `ResolveLayersOptions`).
+ * `manifests`, `reservedShortcuts` and `fields` in `ResolveLayersOptions`).
  */
 export type SkippedOp =
   | {
@@ -152,6 +154,16 @@ export type SkippedOp =
             readonly guardrail: "keeps-meaning"
             readonly flag?: "destructive"
           }
+        | {
+            /**
+             * `valid-default` keeps a `setDefault` on a form field to values
+             * the field's schema accepts; `stays-in-place` keeps a `wrap`
+             * from taking form fields into a new parent. `node` is the
+             * field.
+             */
+            readonly guardrail: "valid-default" | "stays-in-place"
+            readonly flag?: undefined
+          }
       ))
 
 interface GuardrailSkip {
@@ -171,7 +183,7 @@ interface GuardrailSkip {
    * the space between them (a `hide`, `collapse`, `remove`, move out or
    * reorder), even when this op alone completes the violation. For
    * `free-shortcut`, the other actions' bindings that take the same keys;
-   * empty when the keys are reserved. Empty for `keeps-meaning`.
+   * empty when the keys are reserved. Empty for the other rules.
    */
   readonly conflictsWith: readonly ResolvedOp[]
 }
@@ -403,6 +415,24 @@ export interface ResolveLayersOptions {
    * A binding on an action that is hidden or removed still takes its keys.
    */
   readonly reservedShortcuts?: readonly string[] | undefined
+  /**
+   * The schemas of the surface's form fields, by field address, such as
+   * `{ "page/slots/ticket-form/fields/priority": z.enum(["low", "high"]) }`:
+   * any schema that implements Standard Schema and validates synchronously.
+   * Addresses of the same field can't give it two schemas.
+   *
+   * A form field's default is valid data: a `setDefault` on a field whose
+   * value its schema rejects is skipped with guardrail `valid-default`. A
+   * field with no schema isn't checked.
+   *
+   * Form fields never change parent, since a new parent remounts a field and
+   * loses its focus, its local state and possibly its value: a `wrap` that
+   * takes a field of the form it targets is skipped with guardrail
+   * `stays-in-place`. The fields are those named here, in `flags`, and in
+   * `baseOrder` under `<form>/fields`. A `collapse` keeps fields where they
+   * are, and a field can't `move` into another node.
+   */
+  readonly fields?: Readonly<Record<string, FieldSchema>> | undefined
 }
 
 /** The result of `resolveLayers`. */
@@ -470,7 +500,10 @@ export interface ResolvedLayers {
  * twice or in another parent, names a node `baseParents` doesn't, or makes
  * a cycle of parents, `manifests` isn't a plain object that maps addresses
  * to valid manifests or gives a node two manifests, or `reservedShortcuts`
- * isn't an array of keys in `bindShortcut`'s form.
+ * isn't an array of keys in `bindShortcut`'s form, or `fields` isn't a
+ * plain object that maps field addresses to schemas or gives a field two
+ * schemas. Also throws a `TypeError` when a field's schema validates a
+ * `setDefault` asynchronously.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],
@@ -483,6 +516,7 @@ export function resolveLayers(
     baseOrder,
     manifests,
     reservedShortcuts,
+    fields,
   }: ResolveLayersOptions
 ): ResolvedLayers {
   const read = readBaseIds(baseIds)
@@ -503,6 +537,7 @@ export function resolveLayers(
       {
         manifests: readManifests(manifests),
         reservedShortcuts: readShortcuts(reservedShortcuts),
+        fields: readFields(fields),
       }
     ),
     overlays: ordered.map(({ overlay }) => overlay),
