@@ -35,6 +35,10 @@
     "./ask": {
       "types": "./dist/ask.d.ts",
       "default": "./dist/ask.js"
+    },
+    "./server-adapter": {
+      "types": "./dist/server-adapter.d.ts",
+      "default": "./dist/server-adapter.js"
     }
   },
   "files": [

@@ -6,7 +6,7 @@ const { version } = JSON.parse(
 ) as { version: string }
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/data.ts", "src/recordings.ts"],
+  entry: ["src/index.ts", "src/data.ts", "src/recordings.ts", "src/storage.ts"],
   format: ["esm"],
   dts: true,
   clean: true,

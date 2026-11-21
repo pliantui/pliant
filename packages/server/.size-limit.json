@@ -13,5 +13,10 @@
     "path": "dist/recordings.js",
     "limit": "2 kB",
     "ignore": ["ai", "zod", "node:fs/promises", "node:path"]
+  },
+  {
+    "path": "dist/storage.js",
+    "limit": "2.6 kB",
+    "ignore": ["zod", "@pliantui/contract", "@pliantui/core"]
   }
 ]

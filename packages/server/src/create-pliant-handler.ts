@@ -7,6 +7,7 @@ import { askRequestSchema } from "./ask-request"
 import type { AskResponse } from "./ask-response"
 import { MissingRecordingError } from "./missing-recording-error"
 import { isOutOfScope, outOfScopeMessage } from "./out-of-scope"
+import { isJson, readBody } from "./read-body"
 import { ulid } from "./ulid"
 
 declare const __PLIANT_CORE_VERSION__: string
@@ -46,25 +47,6 @@ function error(message: string, status: number) {
   return respond({ status: "error", message }, status)
 }
 
-async function readBody(body: ReadableStream<Uint8Array>) {
-  const reader = body.getReader()
-  const decoder = new TextDecoder()
-  let size = 0
-  let text = ""
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) {
-      return text + decoder.decode()
-    }
-    size += value.byteLength
-    if (size > maxBodyBytes) {
-      await reader.cancel()
-      return undefined
-    }
-    text += decoder.decode(value, { stream: true })
-  }
-}
-
 async function readJson(
   request: Request
 ): Promise<
@@ -72,20 +54,13 @@ async function readJson(
 > {
   // Requiring JSON keeps cross-site form posts, which skip the CORS preflight,
   // from spending a signed-in user's model budget.
-  const type = request.headers.get("content-type") ?? ""
-  if (!/^application\/json\s*(?:;|$)/i.test(type)) {
+  if (!isJson(request)) {
     return {
       success: false,
       response: error("The body must be application/json", 415),
     }
   }
-  const length = Number(request.headers.get("content-length") ?? 0)
-  const text =
-    length > maxBodyBytes
-      ? undefined
-      : request.body
-        ? await readBody(request.body)
-        : ""
+  const text = await readBody(request, maxBodyBytes)
   if (text === undefined) {
     return { success: false, response: error("The request is too large", 413) }
   }
