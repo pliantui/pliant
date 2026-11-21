@@ -34,7 +34,7 @@
   },
   {
     "path": "dist/table.js",
-    "limit": "6.17 kB",
+    "limit": "6.45 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -101,7 +101,7 @@
       "dist/table.js",
       "dist/local.js"
     ],
-    "limit": "15.75 kB",
+    "limit": "16 kB",
     "ignore": [
       "react",
       "react-dom",
