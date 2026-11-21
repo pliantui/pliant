@@ -176,7 +176,8 @@ function compare(cell: unknown, value: Scalar): number | undefined {
 }
 
 // Lower-cased without the viewer's locale, so a filter matches the same
-// rows for everyone, as SQL's `lower` does.
+// rows for everyone, as SQL's `lower` and the function catalog's
+// case-insensitive functions do.
 function text(cell: unknown) {
   return typeof cell === "string" || typeof cell === "number"
     ? String(cell).toLowerCase()
@@ -191,7 +192,9 @@ function text(cell: unknown) {
  *   does by default. Values that don't compare (words with a number, for
  *   example) are never equal, so `neq` keeps them.
  * - `contains` and `startsWith` match text case-insensitively, as most
- *   search boxes do; a number matches as its digits.
+ *   search boxes do. They lowercase both sides with the same folding as
+ *   the `containsI` and `startsWithI` functions; a number matches as its
+ *   digits.
  * - `gt`, `gte`, `lt`, `lte` and `between` (inclusive) keep only values that
  *   compare.
  * - `custom` filters belong to the column's own `filterFn`, so every value
