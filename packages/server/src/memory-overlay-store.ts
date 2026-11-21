@@ -25,9 +25,9 @@ function matches({ key }: Entry, { scopes, surfaces, id }: OverlayQuery) {
 
 /**
  * Keeps stored overlays in memory, every version of each one and who
- * stored it, for tests,
- * demos and examples. They are lost when the process exits, and each
- * server instance has its own, so use a database in production.
+ * stored it, for tests, demos and examples. They are lost when the process
+ * exits, and each server instance has its own, so use a database in
+ * production.
  *
  * @experimental
  */

@@ -71,6 +71,7 @@ async function conflict(response: Response) {
  * origin. Saves send `If-Match` or `If-None-Match: *`, and an HTTP 412
  * rejects with a `StorageConflictError` that carries the current record.
  * `list` returns tombstones too, so an export includes removed overlays.
+ * `load`, `list` and `history` drop any record that isn't valid.
  *
  * It has no `subscribe`, because the handler doesn't push changes: a
  * surface reloads when it mounts. To reload on changes from other tabs or

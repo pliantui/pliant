@@ -161,6 +161,9 @@ describe("createStorageHandler", () => {
     expect(
       (await handler(new Request(`${url}?layer=team&surface=%2Forders`))).status
     ).toBe(400)
+    expect(
+      (await handler(new Request(`${url}?layer=team&history`))).status
+    ).toBe(400)
   })
 
   it("keeps a team overlay of another org from members of a team with its id", async () => {
@@ -248,12 +251,121 @@ describe("createStorageHandler", () => {
     expect(response.status).toBe(403)
   })
 
-  it("asks canPublish with the user, layer and scope", async () => {
+  it("asks canPublish about the team or org with its org resolved", async () => {
     const canPublish = vi.fn(() => true)
-    await handlerFor({ canPublish })(
-      put(overlay({ layer: "team", scope: { team: "ops" } }))
+    const handler = handlerFor({ canPublish })
+    const team = await stored(
+      await handler(put(overlay({ layer: "team", scope: { team: "ops" } })))
     )
-    expect(canPublish).toHaveBeenCalledWith(ana, "team", { team: "ops" })
+    expect(canPublish).toHaveBeenLastCalledWith(ana, {
+      layer: "team",
+      org: "acme",
+      team: "ops",
+    })
+    await handler(
+      put(
+        overlay({
+          id: "01KAB0000000000000000000P2",
+          layer: "org",
+          scope: { org: "acme" },
+        })
+      )
+    )
+    expect(canPublish).toHaveBeenLastCalledWith(ana, {
+      layer: "org",
+      org: "acme",
+    })
+    canPublish.mockClear()
+    await handler(remove({ "if-match": `"${team.etag}"` }))
+    expect(canPublish).toHaveBeenCalledExactlyOnceWith(ana, {
+      layer: "team",
+      org: "acme",
+      team: "ops",
+    })
+  })
+
+  it("answers 400 to an overlay nested more than 64 levels deep", async () => {
+    const handler = handlerFor()
+    // The overlay, `ops` and the op are the first three levels.
+    const nested = (levels: number): unknown =>
+      levels === 0 ? 1 : [nested(levels - 1)]
+    const deep = (depth: number) =>
+      overlay({
+        ops: [{ op: "hide", target: "orders-table", value: nested(depth - 3) }],
+      })
+    expect((await handler(put(deep(65)))).status).toBe(400)
+    const levels = 100_000
+    const huge = JSON.stringify(deep(4)).replace(
+      "[1]",
+      `${"[".repeat(levels)}1${"]".repeat(levels)}`
+    )
+    expect((await handler(put(huge))).status).toBe(400)
+    const load = await handler(new Request(`${url}?surface=%2Forders`))
+    expect(load.status).toBe(200)
+    expect((await handler(put(deep(64)))).status).toBe(201)
+    expect(
+      (await handler(new Request(`${url}?surface=%2Forders`))).status
+    ).toBe(200)
+  })
+
+  it("doesn't count brackets inside strings as nesting", async () => {
+    const response = await handlerFor()(
+      put(overlay({ explain: [`"[{${"[".repeat(100)}\\`] }))
+    )
+    expect(response.status).toBe(201)
+  })
+
+  it("answers 400 to an overlay for another surface", async () => {
+    const response = await handlerFor()(
+      put(overlay({ surface: "/users" }), { "if-none-match": "*" }, "/orders")
+    )
+    expect(response.status).toBe(400)
+  })
+
+  it("never returns another org's overlays, even from a store that does", async () => {
+    const base = memoryOverlayStore()
+    const globex = handlerFor({
+      store: base,
+      getUser: () => ({ id: "cy", org: "globex", teams: ["ops"] }),
+    })
+    await globex(
+      put(overlay({ layer: "team", scope: { team: "ops", org: "globex" } }))
+    )
+    await globex(
+      put(
+        overlay({
+          id: "01KAB0000000000000000000P2",
+          layer: "org",
+          scope: { org: "globex" },
+        })
+      )
+    )
+    const everything = {
+      scopes: [
+        { layer: "team", scope: JSON.stringify(["globex", "ops"]) },
+        { layer: "org", scope: "globex" },
+      ],
+    } as const
+    const leaky: OverlayStore = {
+      get: (key) => base.get(key),
+      put: (key, record, ifMatch, options) =>
+        base.put(key, record, ifMatch, options),
+      list: (query) => base.list({ ...query, ...everything }),
+      history: (query) =>
+        base.history?.({ ...query, ...everything }) ?? Promise.resolve([]),
+    }
+    const acme = handlerFor({ store: leaky })
+    for (const path of [
+      "?surface=%2Forders",
+      "?surface=%2Forders&history",
+      "?layer=team",
+      "?layer=org",
+    ]) {
+      const body = JSON.stringify(
+        await (await acme(new Request(`${url}${path}`))).json()
+      )
+      expect(body).not.toContain("globex")
+    }
   })
 
   it("does nothing when another removal wins the race", async () => {

@@ -7,6 +7,7 @@ import {
 import { formatError } from "@pliantui/core"
 
 import { byTime } from "./by-time"
+import { isTooDeep } from "./json-depth"
 import type { OverlayKey, OverlayScope, OverlayStore } from "./overlay-store"
 import { isJson, readBody } from "./read-body"
 import { ulid } from "./ulid"
@@ -14,9 +15,18 @@ import { ulid } from "./ulid"
 const maxBodyBytes = 262_144
 const ulidPattern = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/
 const etagPattern = /^\s*"([\x21\x23-\x7e]{1,256})"\s*$/
+const maxDepth = 64
 const layers = ["org", "team", "personal"] as const
 
-type SharedLayer = "org" | "team"
+/**
+ * The team or org layer a user publishes to, with the org resolved: a team
+ * overlay without `scope.org` belongs to the user's org.
+ *
+ * @experimental
+ */
+export type PublishTarget =
+  | { readonly layer: "team"; readonly org: string; readonly team: string }
+  | { readonly layer: "org"; readonly org: string }
 
 /**
  * The signed-in user, as `getUser` returns it: their id, the org they
@@ -43,18 +53,10 @@ export interface StorageHandlerConfig<User extends StorageUser = StorageUser> {
   getUser: (request: Request) => User | null | Promise<User | null>
   /**
    * Whether the user may save and remove overlays in this team or org
-   * layer. `scope` is the overlay's scope. It is only asked about a team
-   * the user is a member of, or the user's own org. Without it, nobody
-   * can.
+   * layer. It is only asked about a team of the user's org that the user is
+   * a member of, or about the user's own org. Without it, nobody can.
    */
-  canPublish?: (
-    user: User,
-    layer: SharedLayer,
-    scope: {
-      readonly org?: string | undefined
-      readonly team?: string | undefined
-    }
-  ) => boolean | Promise<boolean>
+  canPublish?: (user: User, target: PublishTarget) => boolean | Promise<boolean>
   /** The clock used for `updatedAt` and etags. Defaults to the system clock. */
   now?: () => Date
   /** Called with the errors the response hides, so they can be logged. */
@@ -185,6 +187,22 @@ function keyOf(user: StorageUser, overlay: Overlay): OverlayKey | undefined {
   }
 }
 
+function targetOf(
+  user: StorageUser,
+  overlay: Overlay
+): PublishTarget | undefined {
+  switch (overlay.layer) {
+    case "team": {
+      const { team, org = user.org } = overlay.scope
+      return org === undefined ? undefined : { layer: "team", org, team }
+    }
+    case "org":
+      return { layer: "org", org: overlay.scope.org }
+    default:
+      return undefined
+  }
+}
+
 async function readOverlay(request: Request) {
   if (!isJson(request)) {
     throw new HttpError("The body must be application/json", 415)
@@ -192,6 +210,12 @@ async function readOverlay(request: Request) {
   const text = await readBody(request, maxBodyBytes)
   if (text === undefined) {
     throw new HttpError("The request is too large", 413)
+  }
+  if (isTooDeep(text, maxDepth)) {
+    throw new HttpError(
+      `The body must not nest more than ${String(maxDepth)} levels deep`,
+      400
+    )
   }
   let body: unknown
   try {
@@ -211,7 +235,10 @@ async function readOverlay(request: Request) {
  * `@pliantui/react/server-adapter`. Each user reads their own personal
  * overlays, their teams' and their org's, and saves to a team or org layer
  * only when `canPublish` allows it. The handler validates every overlay
- * and assigns every etag, version and timestamp itself. It uses only Web
+ * and assigns every etag, version and timestamp itself. An overlay's
+ * `createdBy` comes from the client and is stored as sent; the store's
+ * `by` is the trusted author. The handler has no quota or rate limit, so
+ * add your own. It uses only Web
  * APIs, so it works anywhere a Web `Request` handler does:
  *
  * ```ts
@@ -219,7 +246,13 @@ async function readOverlay(request: Request) {
  *   store: memoryOverlayStore(),
  *   getUser: async (request) => {
  *     const session = await auth(request)
- *     return session && { id: session.userId, teams: session.teamIds }
+ *     return (
+ *       session && {
+ *         id: session.userId,
+ *         org: session.orgId,
+ *         teams: session.teamIds,
+ *       }
+ *     )
  *   },
  * })
  *
@@ -240,10 +273,11 @@ export function createStorageHandler<User extends StorageUser>(
   } = config
 
   async function assertCanWrite(user: User, overlay: Overlay) {
-    if (
-      (overlay.layer === "team" || overlay.layer === "org") &&
-      !(await canPublish(user, overlay.layer, overlay.scope))
-    ) {
+    if (overlay.layer === "personal") {
+      return
+    }
+    const target = targetOf(user, overlay)
+    if (!target || !(await canPublish(user, target))) {
       throw new HttpError(`You can't publish to this ${overlay.layer}`, 403)
     }
   }
@@ -268,7 +302,11 @@ export function createStorageHandler<User extends StorageUser>(
     const scopes = readableScopes(user)
     const layer = params.get("layer")
     if (layer !== null) {
-      if (params.has("surface") || !layers.some((name) => name === layer)) {
+      if (
+        params.has("surface") ||
+        params.has("history") ||
+        !layers.some((name) => name === layer)
+      ) {
         throw new HttpError("layer must be org, team or personal", 400)
       }
       const records = await store.list({

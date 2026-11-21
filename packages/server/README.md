@@ -46,7 +46,8 @@ const handler = createStorageHandler({
       }
     )
   },
-  canPublish: (user, layer) => layer === "team" || user.roles.includes("admin"),
+  canPublish: (user, target) =>
+    target.layer === "team" || user.roles.includes("admin"),
 })
 
 export { handler as GET, handler as PUT, handler as DELETE }
@@ -58,9 +59,13 @@ import { serverAdapter } from "@pliantui/react/server-adapter"
 const storage = serverAdapter({ endpoint: "/api/pliant/storage" })
 ```
 
-Pass `storage` to `PliantRoot`. Users read their own personal overlays and those of their `org` and of their `teams` in that org. Saving or removing a team or org overlay also needs `canPublish`; without it, nobody can. The handler validates every overlay and assigns every etag, version and timestamp. A conflict answers 412 with the current record, and a removal stores a tombstone. `list` returns tombstones too, so an export includes removed overlays.
+Pass `storage` to `PliantRoot`. Users read their own personal overlays and those of their `org` and of their `teams` in that org. Saving or removing a team or org overlay also needs `canPublish`, which gets the team or org with its org resolved; without it, nobody can. The handler validates every overlay and assigns every etag, version and timestamp. An overlay's `createdBy` comes from the client and isn't trusted; the store records the signed-in user as the author of each version. The handler has no quota or rate limit, so add your own before exposing it. A conflict answers 412 with the current record, and a removal stores a tombstone. `list` returns tombstones too, so an export includes removed overlays.
 
-`memoryOverlayStore` is for tests and demos. In production, implement `OverlayStore` over your database: one row per `(surface, layer, scope, id)`, a `put` that writes only when the stored etag matches, in one statement, and the id of the user who wrote each row.
+`memoryOverlayStore` is for tests and demos. In production, implement `OverlayStore` over your database:
+
+- one row per `(surface, layer, scope, id)`, where `scope` is the user id, `JSON.stringify([orgId, teamId])` or the org id;
+- a `put` that writes only when the stored etag matches, in one statement, and writes the history row, with the author, in the same transaction;
+- reads from the primary, not a replica, so users see their own saves.
 
 ## Recordings
 

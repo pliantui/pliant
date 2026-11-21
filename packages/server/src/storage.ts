@@ -1,5 +1,6 @@
 export {
   createStorageHandler,
+  type PublishTarget,
   type StorageHandlerConfig,
   type StorageUser,
 } from "./create-storage-handler"

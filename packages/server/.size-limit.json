@@ -16,7 +16,7 @@
   },
   {
     "path": "dist/storage.js",
-    "limit": "2.5 kB",
+    "limit": "2.6 kB",
     "ignore": ["zod", "@pliantui/contract", "@pliantui/core"]
   }
 ]

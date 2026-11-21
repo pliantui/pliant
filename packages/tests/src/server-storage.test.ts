@@ -56,10 +56,10 @@ function setup() {
   const handler = createStorageHandler<User>({
     store: memoryOverlayStore(),
     getUser: (request) => users[request.headers.get("x-user") ?? ""] ?? null,
-    canPublish: (user, layer, scope) =>
-      layer === "org"
+    canPublish: (user, target) =>
+      target.layer === "org"
         ? user.admin === true
-        : scope.team !== undefined && (user.leads ?? []).includes(scope.team),
+        : (user.leads ?? []).includes(target.team),
     now: () => new Date((time += 1000)),
   })
   function as(user: string) {

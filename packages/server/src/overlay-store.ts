@@ -2,8 +2,12 @@ import type { StoredOverlay } from "@pliantui/contract"
 
 /**
  * One group of stored overlays: a user's personal overlays, one team's, or
- * one org's. `scope` is the user id, `JSON.stringify([orgId, teamId])` or
- * the org id, so a team id only needs to be unique within its org.
+ * one org's. `scope` depends on the layer:
+ *
+ * - `personal`: the user's id;
+ * - `team`: `JSON.stringify([orgId, teamId])`, so a team id only needs to
+ *   be unique within its org;
+ * - `org`: the org's id.
  *
  * @experimental
  */
@@ -56,6 +60,10 @@ export interface OverlayVersion {
  * A record with `deletedAt` is a tombstone. A store keeps it like any other
  * record, and returns it from `get`, `list` and `history`.
  *
+ * `get` and `list` must read from the primary database, not a replica, so
+ * that a client sees its own writes and conflicts are checked against the
+ * latest record.
+ *
  * @experimental
  */
 export interface OverlayStore {
@@ -69,7 +77,8 @@ export interface OverlayStore {
    * such as an `INSERT … ON CONFLICT DO NOTHING` or an
    * `UPDATE … WHERE etag = $ifMatch`, judged by the number of rows written.
    * `by` is the id of the user who stores it. A store with `history` also
-   * keeps every record it stores, with `by`.
+   * keeps every record it stores, with `by`, written in the same
+   * transaction as the record.
    */
   put(
     key: OverlayKey,
