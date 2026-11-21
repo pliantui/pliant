@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, type ComponentProps, type ReactNode } from "react"
+import { useMemo, useRef, type ComponentProps, type ReactNode } from "react"
 import type { Column, ReactTable, RowData } from "@tanstack/react-table"
 import { cn } from "cn"
 import { ChevronDown, X } from "lucide-react"
@@ -8,7 +8,6 @@ import { ChevronDown, X } from "lucide-react"
 import type { Op } from "@pliantui/contract"
 import {
   usePliantMessages,
-  usePliantNodeChanged,
   usePliantStore,
   useResolved,
   type PliantMessages,
@@ -77,6 +76,32 @@ function read(source: unknown, key: string): unknown {
 // A node's identity is its bare id: the part after its last `/slots/`.
 function identityOf(node: string) {
   return node.split("/slots/").at(-1) ?? node
+}
+
+// A node's span, visibility and insertion belong to its container, which
+// `resetNode` leaves alone.
+const containerProperties = ["span", "visible", "inserted"]
+
+// Whether the user's personal or session layer changes the node or its
+// items, as `resetNode` drops. Moving between pages doesn't count, though
+// Reset drops it too: only a `setPage` that sets the rows per page does.
+function changesNode(
+  resolved: ReturnType<typeof useResolved>,
+  identity: string
+) {
+  return Array.from(resolved.properties).some(
+    ([address, properties]) =>
+      (address === identity || address.startsWith(`${identity}/`)) &&
+      Array.from(properties).some(([property, { winner }]) => {
+        const { op } = winner.check
+        return (
+          (winner.overlay.layer === "personal" ||
+            winner.overlay.layer === "session") &&
+          !(address === identity && containerProperties.includes(property)) &&
+          !(op.op === "setPage" && op.size === undefined)
+        )
+      })
+  )
 }
 
 // The items a list and ops both give: an op's item replaces the listed one
@@ -220,7 +245,7 @@ function PliantDataTableChoice({
  * picking a preset replaces the filters, and the sort when it has one.
  *
  * Reset shows while the user has changed the table: its sort, filters,
- * grouping, page, columns, or the items they added. It drops those changes
+ * grouping, rows per page, columns, or the items they added. It drops those changes
  * with `resetNode`, so the table shows as the team and org layers, and then
  * your own setup, have it, and moves focus to the first filter or button.
  */
@@ -256,11 +281,15 @@ function PliantDataTableToolbar<TData extends RowData>({
   const messages = usePliantMessages(toolbarMessages)
   const store = usePliantStore()
   const resolved = useResolved()
-  const changed = usePliantNodeChanged(node)
+  const identity = identityOf(node)
+  const changed = useMemo(
+    () => changesNode(resolved, identity),
+    [resolved, identity]
+  )
   const toolbar = useRef<HTMLDivElement>(null)
   const added = <Name extends Op["op"]>(name: Name) =>
     Array.from(
-      resolved.properties.get(identityOf(node))?.values() ?? [],
+      resolved.properties.get(identity)?.values() ?? [],
       ({ winner }) => winner.check.op
     ).filter((op): op is Extract<Op, { op: Name }> => op.op === name)
 
@@ -289,9 +318,8 @@ function PliantDataTableToolbar<TData extends RowData>({
   const filtering = filtersKey(table.state.columnFilters)
 
   function reset(button: HTMLElement) {
-    const result = store.resetNode(node)
-    if (!result.success) {
-      console.error(result.error)
+    // A rejection reaches `PliantRoot`'s `onError` from the store.
+    if (!store.resetNode(node).success) {
       return
     }
     table.resetExpanded()
@@ -300,7 +328,11 @@ function PliantDataTableToolbar<TData extends RowData>({
     Array.from(
       toolbar.current?.querySelectorAll<HTMLElement>("input, button") ?? []
     )
-      .find((control) => control !== button)
+      .find(
+        (control) =>
+          control !== button &&
+          !control.matches(":disabled, [hidden], [hidden] *, [inert] *")
+      )
       ?.focus()
   }
 

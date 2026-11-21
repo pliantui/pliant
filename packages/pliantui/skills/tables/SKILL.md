@@ -168,7 +168,7 @@ Render it with the table's id:
 - `search` is a text box that filters as `contains`. `multi-select` and `select` are menus of the column's values with the number of rows for each, filtering as `in` or `eq`. `toggle` is a button that filters for `true`. Other controls aren't shown.
 - Ops add to these lists: `addFilterControl`, `addSortOption` and `addPreset` ops on the table show in the toolbar after yours, and one with the id of yours replaces it. `removeUserItem` removes one by id.
 - Pass `formatValue` to name the values in the `select` and `multi-select` menus, such as capitalized statuses. Your own buttons, such as a group-by menu, go in `children`, before the columns menu.
-- Reset shows while the user has changed the table: its sort, filters, grouping, page size or columns, or the items they added. It drops those changes with `usePliantStore().resetNode(node)`, so the table shows as the team and org layers, and then your own setup, have it. It needs a storage adapter with `remove`, which `localAdapter` and `serverAdapter` have.
+- Reset shows while the user has changed the table: its sort, filters, grouping, page size or columns, or the items they added. Moving to another page doesn't count. It drops those changes, and the page, with `usePliantStore().resetNode(node)`, so the table shows as the team and org layers, and then your own setup, have it. It needs a storage adapter with `remove`, which `localAdapter` and `serverAdapter` have.
 - Filters stay in the session layer, unless the table has `persistFilters: true`, and a sort option saves its sort like a header click.
 
 ## 5. Grouping and aggregates (optional)

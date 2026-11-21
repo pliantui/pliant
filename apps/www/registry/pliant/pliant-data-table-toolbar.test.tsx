@@ -9,7 +9,7 @@ import {
   screen,
   within,
 } from "@testing-library/react"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { Op, Overlay } from "@pliantui/contract"
 import {
@@ -146,9 +146,12 @@ function Orders(props: ToolbarProps) {
   )
 }
 
-async function renderOrders(props: ToolbarProps = {}) {
+async function renderOrders(
+  props: ToolbarProps = {},
+  root: Partial<React.ComponentProps<typeof PliantRoot>> = {}
+) {
   render(
-    <PliantRoot surface="/orders" storage={storage}>
+    <PliantRoot surface="/orders" storage={storage} {...root}>
       <Orders {...props} />
     </PliantRoot>
   )
@@ -472,5 +475,67 @@ describe("PliantDataTableToolbar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reset" }))
     await settle()
     expect(screen.getByText("1–10 of 12 orders")).toBeTruthy()
+  })
+
+  it("doesn't show Reset for moving to another page, but resets the page", async () => {
+    await renderOrders()
+    fireEvent.click(screen.getByRole("button", { name: "Next" }))
+    await settle()
+    expect(screen.getByText("11–12 of 12 orders")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull()
+
+    apply({ op: "hide", target: "orders-table/columns/flagged" })
+    expect(screen.getByText("11–12 of 12 orders")).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }))
+    await settle()
+
+    expect(screen.getByText("1–10 of 12 orders")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull()
+  })
+
+  it("moves focus past disabled and hidden buttons after a reset", async () => {
+    await renderOrders({
+      children: (
+        <>
+          <button type="button" disabled>
+            Group
+          </button>
+          <span hidden>
+            <button type="button">Hidden</button>
+          </span>
+        </>
+      ),
+    })
+    apply({ op: "hide", target: "orders-table/columns/flagged" })
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }))
+    await settle()
+
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Columns" })
+    )
+  })
+
+  it("reports a reset the storage adapter can't carry out to onError", async () => {
+    const onError = vi.fn()
+    await renderOrders(
+      {},
+      {
+        storage: {
+          load: (...args) => storage.load(...args),
+          save: (...args) => storage.save(...args),
+        },
+        onError,
+      }
+    )
+    apply({ op: "hide", target: "orders-table/columns/flagged" })
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }))
+    await settle()
+
+    expect(onError).toHaveBeenCalledWith(
+      new Error("The storage adapter of /orders can't remove overlays")
+    )
+    expect(screen.getByRole("button", { name: "Reset" })).toBeTruthy()
   })
 })

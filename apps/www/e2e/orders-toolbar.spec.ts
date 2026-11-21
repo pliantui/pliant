@@ -259,10 +259,23 @@ test("shows the filters ops add", async ({ page, errors }) => {
 
 test("shows a chosen number of rows per page", async ({ page, errors }) => {
   await load(page)
+  const reset = page.getByRole("button", { name: "Reset", exact: true })
+  await page.getByRole("button", { name: "Next" }).click()
+  await expect(
+    page.getByText(new RegExp(`^11–20 of ${formatNumber(orders.length)} `))
+  ).toBeVisible()
+  // Moving between pages isn't a change to reset.
+  await expect(reset).toBeHidden()
+
   await page.getByRole("combobox", { name: "Rows per page" }).click()
   await page.getByRole("option", { name: "20" }).click()
   await expect(range(page, orders.length, 20)).toBeVisible()
   await expect(table(page).locator("tbody tr")).toHaveCount(20)
+  await expect(reset).toBeVisible()
+
+  await reset.click()
+  await expect(range(page, orders.length)).toBeVisible()
+  await expect(reset).toBeHidden()
   expect(errors).toEqual([])
 })
 
