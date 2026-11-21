@@ -60,16 +60,16 @@ type TimeZoneOption<TFields extends Fields> = [
 ] extends [never]
   ? {
       /**
-       * The region-based IANA time zone dates and datetimes are read in, or
-       * `UTC`, kept as written. Defaults to `UTC`.
+       * The time zone dates and datetimes are read in: `UTC` or an
+       * Area/Location name, kept as written. Defaults to `UTC`.
        */
       readonly timeZone?: string | undefined
     }
   : {
       /**
-       * The region-based IANA time zone dates and datetimes are read in,
-       * such as `Asia/Tokyo`, or `UTC`, kept as written. Required with a
-       * date or datetime field.
+       * The time zone dates and datetimes are read in: `UTC` or an
+       * Area/Location name such as `Asia/Tokyo`, kept as written. Required
+       * with a date or datetime field.
        */
       readonly timeZone: string
     }
@@ -168,27 +168,32 @@ const maxProblems = 20
 
 const maxRowKey = 10
 
-// Offsets and the zones that only stand for one: Etc/*, GMT and its
-// variants, the other names of UTC, and EST, MST and HST, which never
-// change. UTC itself is accepted.
-const offsetZone =
-  /^(?:[+-]|etc\/|gmt|(?:uct|zulu|universal|greenwich|est|mst|hst)$)/i
+// Runtimes accept abbreviations such as `BST` and `IST`, which name
+// different zones in different places, so only `UTC` and Area/Location
+// names are allowed. `Etc/` and `SystemV/` names are fixed offsets, which
+// mislead wherever clocks change.
+const nonRegionArea = /^(?:etc|systemv)\//i
 
 /**
- * Whether `Intl` accepts a time zone that is a region-based IANA name, or
- * UTC. The name is kept as written, not replaced by the one `Intl` resolves
- * it to, which depends on the runtime's time zone data: some resolve
- * `Asia/Kolkata` to its older name `Asia/Calcutta`.
+ * Whether a time zone is `UTC`, in any case, or an Area/Location name, such
+ * as `Asia/Tokyo`, that `Intl` accepts. The name is kept as written, not
+ * replaced by the one `Intl` resolves it to, which depends on the runtime's
+ * time zone data: some resolve `Asia/Kolkata` to its older name
+ * `Asia/Calcutta`.
  */
 function isTimeZoneName(timeZone: unknown): timeZone is string {
-  if (typeof timeZone !== "string" || offsetZone.test(timeZone)) {
+  if (typeof timeZone !== "string") {
+    return false
+  }
+  if (timeZone.toUpperCase() === "UTC") {
+    return true
+  }
+  if (!timeZone.includes("/") || nonRegionArea.test(timeZone)) {
     return false
   }
   try {
-    const resolved = new Intl.DateTimeFormat("en", {
-      timeZone,
-    }).resolvedOptions().timeZone
-    return !/^[+-]/.test(resolved)
+    new Intl.DateTimeFormat("en", { timeZone })
+    return true
   } catch {
     return false
   }
@@ -276,7 +281,7 @@ function check(definition: unknown) {
   }
   if (timeZone !== undefined && !isTimeZoneName(timeZone)) {
     report(
-      `timeZone ${quote(timeZone)} must be a region-based IANA time zone name, such as "Asia/Tokyo", or "UTC"`
+      `timeZone ${quote(timeZone)} must be "UTC" or an Area/Location time zone name, such as "Asia/Tokyo"`
     )
   }
   checkFields(definition, report)
@@ -309,8 +314,8 @@ function withoutUndefined(field: Readonly<Record<string, unknown>>) {
  * default by type and can be overridden per field: every field is sortable,
  * filterable and readable by aggregate functions except `text` fields,
  * which are filterable by search only; `string`, `boolean`, `date` and
- * `enum` fields are groupable. The time zone must be a region-based IANA
- * name, such as `Asia/Tokyo`, or `UTC`, and is kept exactly as written.
+ * `enum` fields are groupable. The time zone must be `UTC` or an
+ * Area/Location name such as `Asia/Tokyo`, and is kept exactly as written.
  *
  * Throws a `TypeError` listing every problem: a bad dataset or field id, an
  * unknown type, unit, currency, time zone or option, text that is empty or

@@ -155,7 +155,7 @@ describe("defineDataset", () => {
     expect(lines.rowKey).toEqual(["orderId", "line"])
   })
 
-  it("checks every entry of a long row key", () => {
+  it("rejects a row key of more than 10 fields", () => {
     const fields = Object.fromEntries(
       Array.from({ length: 200 }, (_, index) => [
         `k${String(index)}`,
@@ -207,42 +207,35 @@ describe("defineDataset", () => {
       expect(undated.timeZone).toBe("UTC")
     })
 
-    it("keeps the name exactly as written", () => {
+    it("accepts UTC and Area/Location names, kept exactly as written", () => {
       for (const timeZone of [
-        "Asia/Kolkata",
-        "Asia/Calcutta",
-        "Europe/Kyiv",
-        "europe/paris",
         "UTC",
         "utc",
+        "America/New_York",
+        "US/Pacific",
+        "Asia/Kolkata",
+        "asia/kolkata",
+        "Europe/Kyiv",
       ]) {
         expect(zoneOf(timeZone)).toBe(timeZone)
       }
     })
 
-    it("rejects offsets, zones that stand for one, and unknown zones", () => {
-      for (const timeZone of [
-        "+05:30",
-        "-08:00",
-        "UTC+1",
-        "Etc/GMT+5",
-        "etc/gmt-14",
-        "Etc/UTC",
-        "Etc/GMT0",
-        "GMT",
-        "GMT0",
-        "GMT+0",
-        "gmt-0",
-        "Zulu",
-        "Greenwich",
-        "EST",
-        "Mars/Olympus",
-        "",
-      ]) {
+    it.each([
+      [
+        "abbreviations",
+        ["PST", "BST", "IST", "EST", "GMT", "Japan", "EST5EDT"],
+      ],
+      ["offsets", ["+05:30", "-08:00", "UTC+1"]],
+      ["Etc/ zones", ["Etc/UTC", "etc/gmt-14"]],
+      ["SystemV/ zones", ["SystemV/EST5", "systemv/est5"]],
+      ["unknown zones", ["Mars/Olympus", "", " UTC"]],
+    ])("rejects %s", (_, timeZones) => {
+      for (const timeZone of timeZones) {
         expect(
           problemsOf({ ...withField({ type: "date" }), timeZone })
         ).toContain(
-          `timeZone ${JSON.stringify(timeZone)} must be a region-based IANA time zone name, such as "Asia/Tokyo", or "UTC"`
+          `timeZone ${JSON.stringify(timeZone)} must be "UTC" or an Area/Location time zone name, such as "Asia/Tokyo"`
         )
       }
     })
@@ -720,7 +713,7 @@ describe("defineDataset", () => {
       [
         "a time zone that isn't text",
         { ...valid, timeZone: 5 },
-        "timeZone 5 must be a region-based IANA time zone name",
+        'timeZone 5 must be "UTC" or an Area/Location time zone name',
       ],
     ])("for %s", (_, definition, message) => {
       expect(problemsOf(definition)).toContain(message)
