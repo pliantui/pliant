@@ -1,16 +1,11 @@
 import { existsSync } from "node:fs"
-import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { Command } from "commander"
-import { Project } from "ts-morph"
 import * as z from "zod"
 
-import { buildInventory } from "../scan/build-inventory"
-import { readManifests } from "../scan/read-manifests"
-import { renderInventory } from "../scan/render-inventory"
-import { scanSurfaces } from "../scan/scan-surfaces"
+import { scanProject } from "../scan/scan-project"
 import type { Diagnostic } from "../utils/diagnostic"
-import { isSourceFile } from "../utils/find-source-files"
 import { getConfig } from "../utils/get-config"
 import { handleError } from "../utils/handle-error"
 import { highlighter } from "../utils/highlighter"
@@ -73,47 +68,26 @@ async function scanApp(
       `No ${highlighter.info("components.json")} found in ${highlighter.info(cwd)}. Run ${highlighter.info("npx shadcn@latest init")} to create one, then try again.`
     )
   }
-  const { ui, lib } = config.resolvedPaths
-  const outputDirectory = path.join(lib, "pliant")
-  const extension = config.tsx ? "ts" : "js"
-  const inventoryFile = path.join(
-    outputDirectory,
-    `inventory.generated.${extension}`
-  )
-
   const reading = json ? undefined : spinner("Scanning your app.").start()
-  let scanned: ReturnType<typeof scanSurfaces>
+  let scanned: Awaited<ReturnType<typeof scanProject>>
   try {
-    const project = new Project({ tsConfigFilePath: config.tsConfigFilePath })
-    const sourceFiles = project.getSourceFiles().filter((sourceFile) => {
-      const file = sourceFile.getFilePath()
-      return (
-        isSourceFile(file) &&
-        !path
-          .relative(cwd, file)
-          .split(path.sep)
-          .some((part) => part.startsWith(".")) &&
-        path.dirname(file) !== outputDirectory
-      )
-    })
-    const manifests = readManifests(
-      project,
-      path.join(outputDirectory, `manifests.generated.${extension}`)
-    )
-    scanned = scanSurfaces(sourceFiles, { manifests, ui, root: cwd })
+    scanned = await scanProject(cwd, config)
   } catch (error) {
     reading?.fail()
     throw error
   }
   reading?.succeed()
 
-  const { surfaces, report } = scanned
-  const inventory = buildInventory(surfaces)
-  const rendered = renderInventory(inventory, config.tsx)
-  const saved = existsSync(inventoryFile)
-    ? await readFile(inventoryFile, "utf8")
-    : undefined
-  const upToDate = saved === rendered
+  const {
+    surfaces,
+    report,
+    inventory,
+    inventoryFile,
+    outputDirectory,
+    rendered,
+    saved,
+    upToDate,
+  } = scanned
   const failed = report.errors.length > 0 || (check && !upToDate)
   const written = !check && report.errors.length === 0 && !upToDate
 
