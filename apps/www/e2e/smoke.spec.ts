@@ -3,9 +3,12 @@ import { expect, test } from "./fixtures"
 test("renders the home page", async ({ page, errors }) => {
   await page.goto("/")
   await expect(
-    page.getByRole("heading", { level: 1, name: "Pliant" })
+    page.getByRole("heading", {
+      level: 1,
+      name: "Build pliant interfaces: apps your users can reshape.",
+    })
   ).toBeVisible()
-  await expect(page.getByRole("link", { name: "Read the docs" })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Get started" })).toBeVisible()
   expect(errors).toEqual([])
 })
 

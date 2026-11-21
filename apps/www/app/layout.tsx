@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
 
 import { Provider } from "@/components/provider"
+import { SiteFooter } from "@/components/site-footer"
+import { SiteHeader } from "@/components/site-header"
 
 import "./globals.css"
 
@@ -16,7 +18,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="flex min-h-screen flex-col">
-        <Provider>{children}</Provider>
+        <Provider>
+          <SiteHeader />
+          {children}
+          <SiteFooter />
+        </Provider>
       </body>
     </html>
   )
