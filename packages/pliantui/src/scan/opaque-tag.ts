@@ -1,40 +1,101 @@
-import { Node, type ImportDeclaration } from "ts-morph"
+import { existsSync, realpathSync } from "node:fs"
+import path from "node:path"
+import { Node, type ImportDeclaration, type SourceFile } from "ts-morph"
 
 import { getDeclarations, unwrapExpression } from "../utils/read-static"
 
-function isExternalImport(declaration: ImportDeclaration) {
+function realPath(file: string) {
+  try {
+    return realpathSync(file)
+  } catch {
+    return file
+  }
+}
+
+function isInside(file: string, directory: string) {
+  const relative = path.relative(realPath(directory), realPath(file))
+  return !relative.startsWith("..") && !path.isAbsolute(relative)
+}
+
+// Whether a specifier that doesn't resolve could still name the app's own
+// code: a relative or absolute path, a subpath import, or a path the
+// tsconfig maps, through `paths` or `baseUrl`.
+function mayBeAppPath(specifier: string, sourceFile: SourceFile) {
+  if (/^(?:\.|\/|#)/.test(specifier)) {
+    return true
+  }
+  const options = sourceFile.getProject().getCompilerOptions()
+  for (const pattern of Object.keys(options.paths ?? {})) {
+    const star = pattern.indexOf("*")
+    if (
+      star === -1
+        ? specifier === pattern
+        : specifier.startsWith(pattern.slice(0, star)) &&
+          specifier.endsWith(pattern.slice(star + 1))
+    ) {
+      return true
+    }
+  }
+  // TypeScript 6 deprecates baseUrl, but projects on TypeScript 5 still
+  // resolve bare paths against it.
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
+  const baseUrl = options.baseUrl
+  const [first] = specifier.split("/")
+  return (
+    baseUrl !== undefined &&
+    first !== undefined &&
+    existsSync(path.join(baseUrl, first))
+  )
+}
+
+/**
+ * Whether an import comes from a package, decided by its specifier: it
+ * resolves into `node_modules` or outside the project, or, when it doesn't
+ * resolve, it can't name a path of the project. Modules typed only by the
+ * app's own declaration files, like `declare module "*.mdx"`, are the app's.
+ */
+function isPackageImport(declaration: ImportDeclaration, root: string) {
   const target = declaration.getModuleSpecifierSourceFile()
   if (target) {
-    return target.isInNodeModules() || target.isDeclarationFile()
+    return target.isInNodeModules() || !isInside(target.getFilePath(), root)
   }
-  // A package that isn't installed has none of the app's components; a
-  // path or alias that doesn't resolve might.
-  return !/^(?:\.|\/|~\/|@\/|#)/.test(declaration.getModuleSpecifierValue())
+  return !mayBeAppPath(
+    declaration.getModuleSpecifierValue(),
+    declaration.getSourceFile()
+  )
 }
 
-function rootOf(node: Node): Node {
-  let root = unwrapExpression(node)
-  while (Node.isPropertyAccessExpression(root) || Node.isCallExpression(root)) {
-    root = unwrapExpression(root.getExpression())
-  }
-  return root
+function importOf(identifier: Node) {
+  return identifier
+    .getSymbol()
+    ?.getDeclarations()[0]
+    ?.getFirstAncestor((ancestor): ancestor is ImportDeclaration =>
+      Node.isImportDeclaration(ancestor)
+    )
 }
 
-// Whether a member's object comes from a package: imported from one, or
-// made by calling one, like `createContext()`.
-function isFromPackage(node: Node, seen = new Set<Node>()): boolean {
-  const root = rootOf(node)
-  if (!Node.isIdentifier(root) || seen.has(root)) {
+// Whether a value comes from a package: imported from one, or made by
+// calling one, like `createContext()`.
+function isFromPackage(value: Node, root: string, seen: Set<Node>): boolean {
+  let base = unwrapExpression(value)
+  while (Node.isPropertyAccessExpression(base) || Node.isCallExpression(base)) {
+    base = unwrapExpression(base.getExpression())
+  }
+  if (!Node.isIdentifier(base) || seen.has(base)) {
     return false
   }
-  seen.add(root)
-  const declaration = root.getSymbol()?.getDeclarations()[0]
-  const importDeclaration = declaration?.getFirstAncestor(
-    (ancestor): ancestor is ImportDeclaration =>
-      Node.isImportDeclaration(ancestor)
-  )
-  if (importDeclaration) {
-    return isExternalImport(importDeclaration)
+  seen.add(base)
+  const imported = importOf(base)
+  if (imported) {
+    return isPackageImport(imported, root)
+  }
+  const declaration = base.getSymbol()?.getDeclarations()[0]
+  if (!declaration) {
+    return false
+  }
+  const file = declaration.getSourceFile()
+  if (file.isInNodeModules() || !isInside(file.getFilePath(), root)) {
+    return true
   }
   const initializer = Node.isVariableDeclaration(declaration)
     ? declaration.getInitializer()
@@ -42,7 +103,7 @@ function isFromPackage(node: Node, seen = new Set<Node>()): boolean {
   return (
     initializer !== undefined &&
     Node.isCallExpression(unwrapExpression(initializer)) &&
-    isFromPackage(initializer, seen)
+    isFromPackage(initializer, root, seen)
   )
 }
 
@@ -50,9 +111,10 @@ function isFromPackage(node: Node, seen = new Set<Node>()): boolean {
  * Whether what a JSX tag can render is known without following it as one
  * of the app's function components: an HTML element, a string tag, or a
  * component from a package. A tag that holds anything else, such as a
- * class component, a parameter, or the result of a call, is opaque.
+ * class component, a parameter, the result of a call, or a module typed
+ * only by the app's own declaration files, is opaque.
  */
-function isKnownTag(value: Node, seen: Set<Node>): boolean {
+function isKnownTag(value: Node, root: string, seen: Set<Node>): boolean {
   const node = unwrapExpression(value)
   if (seen.has(node)) {
     return false
@@ -66,45 +128,50 @@ function isKnownTag(value: Node, seen: Set<Node>): boolean {
   }
   if (Node.isConditionalExpression(node)) {
     return (
-      isKnownTag(node.getWhenTrue(), seen) &&
-      isKnownTag(node.getWhenFalse(), seen)
+      isKnownTag(node.getWhenTrue(), root, seen) &&
+      isKnownTag(node.getWhenFalse(), root, seen)
     )
   }
   if (!Node.isIdentifier(node) && !Node.isPropertyAccessExpression(node)) {
     return false
   }
+  let base: Node = node
+  while (Node.isPropertyAccessExpression(base)) {
+    base = unwrapExpression(base.getExpression())
+  }
+  // An import is a package's by its specifier, whatever types it has.
+  const imported = Node.isIdentifier(base) ? importOf(base) : undefined
+  if (imported) {
+    return isPackageImport(imported, root)
+  }
+  if (Node.isIdentifier(node)) {
+    const declaration = node.getSymbol()?.getDeclarations()[0]
+    if (Node.isVariableDeclaration(declaration)) {
+      const initializer = declaration.getInitializer()
+      return initializer !== undefined && isKnownTag(initializer, root, seen)
+    }
+  }
+  // A member a package declares, like `table.FlexRender` on a parameter
+  // typed by the package.
   const declaration = getDeclarations(node)[0]
-  if (!declaration) {
-    // A package's component, or `Context.Provider`, when the package's
-    // types aren't installed or built.
-    return isFromPackage(node)
+  if (declaration) {
+    const file = declaration.getSourceFile()
+    if (file.isInNodeModules() || !isInside(file.getFilePath(), root)) {
+      return true
+    }
   }
-  const sourceFile = declaration.getSourceFile()
-  if (sourceFile.isInNodeModules() || sourceFile.isDeclarationFile()) {
-    return true
-  }
-  const importDeclaration = declaration.getFirstAncestor(
-    (ancestor): ancestor is ImportDeclaration =>
-      Node.isImportDeclaration(ancestor)
-  )
-  if (importDeclaration) {
-    return isExternalImport(importDeclaration)
-  }
-  if (Node.isVariableDeclaration(declaration)) {
-    const initializer = declaration.getInitializer()
-    return initializer !== undefined && isKnownTag(initializer, seen)
-  }
-  return false
+  return isFromPackage(node, root, new Set())
 }
 
 /**
  * Whether a JSX tag renders something the scan can't follow: not an HTML
  * element, not a component from a package, and not one of the app's
- * function components, which the caller has already tried.
+ * function components, which the caller has already tried. `root` is the
+ * project's folder.
  */
-export function isOpaqueTag(tag: Node) {
+export function isOpaqueTag(tag: Node, root: string) {
   if (Node.isIdentifier(tag) && /^[a-z]/.test(tag.getText())) {
     return false
   }
-  return !isKnownTag(tag, new Set())
+  return !isKnownTag(tag, root, new Set())
 }

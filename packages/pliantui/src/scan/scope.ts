@@ -236,9 +236,12 @@ export function functionIn(
   if (Node.isFunctionDeclaration(declaration)) {
     return declaration
   }
+  // An anonymous default export, like `export default () => <Panel />`.
   const initializer = Node.isVariableDeclaration(declaration)
     ? declaration.getInitializer()
-    : undefined
+    : Node.isExportAssignment(declaration)
+      ? declaration.getExpression()
+      : undefined
   return initializer && functionIn(initializer, seen)
 }
 

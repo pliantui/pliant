@@ -69,6 +69,8 @@ interface Walk {
    * so they take their place where the component renders the region.
    */
   readonly pendingSlots: Map<Node, PendingSlots[]>
+  /** The project's folder, where its own code is. */
+  readonly root: string
 }
 
 /** A region's slots, waiting for the place the component renders them. */
@@ -661,7 +663,7 @@ function walkElement(
   if (!fn) {
     // Fail closed: a tag the scan can't follow, like a class component or
     // a component picked at runtime, may render anything.
-    if (isOpaqueTag(tag)) {
+    if (isOpaqueTag(tag, walk.root)) {
       warn(
         walk,
         element,
@@ -1143,6 +1145,7 @@ export function scanSurfaces(
         visited,
         kindOf,
         pendingSlots: new Map(),
+        root,
       }
       if (fromLayout) {
         const routes = appRoutes(sourceFile.getFilePath(), files)

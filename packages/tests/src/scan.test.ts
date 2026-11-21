@@ -1096,6 +1096,8 @@ describe("pliantui scan, for what it can't follow", () => {
       .filter(([, { baseIds }]) => baseIds.source === "inventory")
       .map(([surface, { baseIds }]) => [surface, baseIds.ids])
     expect(placed).toEqual([
+      // `export default () => <Banner />`.
+      ["anonymous-default", ["banner", "message"]],
       // `R.useMemo` under a default import.
       ["default-import-memo", ["banner", "message"]],
       ["direct", ["banner", "message"]],
@@ -1129,6 +1131,12 @@ describe("pliantui scan, for what it can't follow", () => {
       ],
       "context-value": ["app/context-value/page.tsx renderBanner"],
       "create-element": ["app/create-element/page.tsx Banner"],
+      // A module typed only by the app's own declaration files, here a
+      // `.js` file with a `.d.ts` beside it and `declare module "*.mdx"`
+      // reached through two aliases, is the app's code.
+      "declared-js": ["app/declared-js/page.tsx <Legacy>"],
+      "mdx-alias": ["app/mdx-alias/page.tsx <Notes>"],
+      "mdx-module": ["app/mdx-module/page.tsx <Notes>"],
       // A component taken from what a function returns.
       "destructured-call": ["app/destructured-call/page.tsx <Picked>"],
       "dynamic-tag": [
