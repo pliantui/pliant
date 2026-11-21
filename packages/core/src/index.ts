@@ -27,8 +27,10 @@ export {
   type DiffTableStateOptions,
   type TableStateDiff,
 } from "./diff-table-state"
+export { compareCodePoints } from "./compare-code-points"
 export { formatError, type FormatErrorOptions } from "./format-error"
 export { loadOverlay, type LoadedOverlay } from "./load-overlay"
+export { identityOf } from "./node-identity"
 export {
   opProperties,
   type OpProperty,

@@ -30,7 +30,7 @@ interface Order {
   id: string
   customer: string
   status: string
-  value: number
+  value?: number
 }
 
 const data: Order[] = [
@@ -74,8 +74,15 @@ const columns = helper.columns([
   helper.accessor("value", {}),
 ])
 
+interface SetupConfig {
+  dataset?: PliantTableDataset | undefined
+  rows?: Order[]
+  columns?: typeof columns
+  getRowId?: (row: Order) => string
+}
+
 function setup(
-  config: { dataset?: PliantTableDataset | undefined } = { dataset },
+  config: SetupConfig = { dataset },
   onError?: (error: unknown) => void
 ) {
   const { storage } = memoryStorage()
@@ -84,7 +91,12 @@ function setup(
   function Table() {
     const current = useTable(
       usePliantTable(
-        { features, data, columns },
+        {
+          features,
+          data: config.rows ?? data,
+          columns: config.columns ?? columns,
+          ...(config.getRowId && { getRowId: config.getRowId }),
+        },
         { id: tableId, dataset: config.dataset }
       )
     )
@@ -101,6 +113,10 @@ function setup(
     </PliantRoot>
   )
   return {
+    get store() {
+      if (!store) throw new Error("No store yet")
+      return store
+    },
     get table() {
       if (!table) throw new Error("No table yet")
       return table
@@ -115,7 +131,7 @@ function setup(
 }
 
 const sum = (rows: readonly Order[]) =>
-  rows.reduce((total, order) => total + order.value, 0)
+  rows.reduce((total, order) => total + (order.value ?? 0), 0)
 
 const field = (id: string): Expression => ({ field: id })
 const call = (fn: string, ...args: Expression[]): Expression => ({ fn, args })
@@ -375,16 +391,69 @@ describe("usePliantTable aggregates", () => {
     })
   })
 
-  it("breaks ties by the order of the data", () => {
-    const t = setup()
-    t.apply(
+  describe("order of first and last", () => {
+    const unordered: Order[] = [
+      { id: "b", customer: "Acme", status: "paid", value: 1 },
+      { id: "c", customer: "Acme", status: "open", value: 2 },
+      { id: "a", customer: "Acme", status: "open", value: 3 },
+      { id: "d", customer: "Acme", status: "paid", value: 4 },
+    ]
+    const firstAndLast = [
       aggregate("first", "First", call("first", field("id"))),
+      aggregate("last", "Last", call("last", field("id"))),
       groupBy("customer"),
-      sortBy("status", "asc")
-    )
-    expect(groupValue(t.table, "Acme", "first")).toBe("o03")
-    t.apply(sortBy("status", "desc"))
-    expect(groupValue(t.table, "Acme", "first")).toBe("o01")
+    ]
+    const ends = (t: ReturnType<typeof setup>) => [
+      groupValue(t.table, "Acme", "first"),
+      groupValue(t.table, "Acme", "last"),
+    ]
+
+    it("breaks ties by the row key, not the order of the data", () => {
+      const t = setup({ dataset, rows: unordered })
+      t.apply(...firstAndLast, sortBy("status", "asc"))
+      expect(ends(t)).toEqual(["a", "d"])
+      t.apply(sortBy("status", "desc"))
+      expect(ends(t)).toEqual(["b", "c"])
+    })
+
+    it("orders an unsorted table by the row key", () => {
+      const t = setup({ dataset, rows: unordered })
+      t.apply(...firstAndLast)
+      expect(ends(t)).toEqual(["a", "d"])
+    })
+
+    it("takes the row key from getRowId when the table has one", () => {
+      const keys: Record<string, string> = { a: "3", b: "2", c: "1", d: "0" }
+      const t = setup({
+        dataset,
+        rows: unordered,
+        getRowId: (row) => keys[row.id] ?? row.id,
+      })
+      t.apply(...firstAndLast)
+      expect(ends(t)).toEqual(["d", "a"])
+    })
+
+    it("places missing values by the column's sortUndefined", () => {
+      const sparse: Order[] = [
+        { id: "x1", customer: "Acme", status: "open" },
+        { id: "x2", customer: "Acme", status: "open", value: 5 },
+        { id: "x3", customer: "Acme", status: "open", value: 3 },
+      ]
+      const t = setup({
+        dataset,
+        rows: sparse,
+        columns: helper.columns([
+          helper.accessor("id", {}),
+          helper.accessor("customer", {}),
+          helper.accessor("status", {}),
+          helper.accessor("value", { sortUndefined: "last" }),
+        ]),
+      })
+      t.apply(...firstAndLast, sortBy("value", "asc"))
+      expect(ends(t)).toEqual(["x3", "x1"])
+      t.apply(sortBy("value", "desc"))
+      expect(ends(t)).toEqual(["x2", "x1"])
+    })
   })
 
   it("follows the sort in the whole table's first and last too", () => {
@@ -472,5 +541,78 @@ describe("usePliantTable aggregates", () => {
     t.apply(total)
     expect(t.table.getColumn("total")).toBeUndefined()
     expect(String(onError.mock.calls[0]?.[0])).toContain("dataset")
+  })
+})
+
+describe("usePliantTable dropped aggregates", () => {
+  it("doesn't take ops for an aggregate it left out", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    const t = setup({ dataset }, vi.fn())
+    t.apply(
+      aggregate("bad", "Bad", call("sum", field("missing"))),
+      { op: "hide", target: `${tableId}/columns/bad` },
+      { op: "move", target: `${tableId}/columns/bad`, to: { before: "id" } }
+    )
+    expect(t.table.state.columnOrder).toEqual([
+      "id",
+      "customer",
+      "status",
+      "value",
+    ])
+    expect(t.table.state.columnVisibility).toEqual({})
+  })
+})
+
+describe("usePliantTable time zones", () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllEnvs()
+  })
+
+  it("reads today in the viewer's time zone for a personal aggregate", () => {
+    vi.stubEnv("TZ", "Pacific/Kiritimati")
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date("2026-03-10T23:30:00Z"))
+    const t = setup()
+    t.apply(aggregate("today", "Today", call("max", call("today"))))
+    expect(t.table.getColumn("today")?.getAggregationValue()).toBe("2026-03-11")
+  })
+})
+
+describe("usePliantTable sorting", () => {
+  it("keeps the columns of aggregates that don't read the order", () => {
+    const t = setup()
+    t.apply(total, groupBy("customer"))
+    const column = t.table.getColumn("total")
+    t.apply(sortBy("value", "asc"))
+    expect(t.table.getColumn("total")).toBe(column)
+  })
+
+  it("follows the sort for an aggregate that refers to first or last", () => {
+    const t = setup()
+    t.apply(
+      aggregate("first", "First", call("first", field("id"))),
+      aggregate("again", "Again", { ref: "first" }),
+      groupBy("customer")
+    )
+    expect(groupValue(t.table, "Acme", "again")).toBe("o01")
+    t.apply(sortBy("value", "asc"))
+    expect(groupValue(t.table, "Acme", "again")).toBe("o03")
+  })
+
+  it("keeps a group expanded when the sort changes", async () => {
+    const t = setup()
+    t.apply(
+      aggregate("first", "First", call("first", field("id"))),
+      groupBy("customer")
+    )
+    act(() => {
+      groups(t.table)[0]?.toggleExpanded(true)
+    })
+    const shown = () => t.table.getRowModel().rows.length
+    expect(shown()).toBe(3 + 3)
+    t.apply(sortBy("value", "desc"))
+    await act(() => Promise.resolve())
+    expect(shown()).toBe(3 + 3)
   })
 })

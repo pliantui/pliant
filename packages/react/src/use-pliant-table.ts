@@ -32,17 +32,14 @@ import { withPliantFeatures } from "./pliant-table-features"
 import { propertiesOf } from "./property-keys"
 import { isSameState } from "./same-state"
 import {
+  acceptedAggregates,
   aggregateColumns,
   aggregatesOf,
   type PliantTableDataset,
   type TableAggregate,
 } from "./table-aggregates"
 import { createDerived, createTableCache } from "./table-cache"
-import {
-  aggregateTableColumn,
-  tableColumnsOf,
-  type TableColumn,
-} from "./table-columns"
+import { tableColumnsOf, type TableColumn } from "./table-columns"
 import { filtersToSave, presentFilters, type RawFilter } from "./table-filters"
 import { usePliantStatus } from "./use-pliant-status"
 
@@ -117,13 +114,9 @@ interface CompileSetup {
 
 function compileSetupOf(
   table: string,
-  all: readonly TableColumn[],
+  columns: readonly Pick<TableColumn, "id" | "limits" | "size">[],
   base: Partial<CompiledTableState>
 ): CompileSetup {
-  // A column keeps its id over an aggregate that has the same one.
-  const columns = all.filter(
-    (column, index) => all.findIndex(({ id }) => id === column.id) === index
-  )
   const compileOptions = {
     table,
     columns: columns.map((column) => column.id),
@@ -213,8 +206,9 @@ function baseOf(options: object): Partial<CompiledTableState> {
  *   of `{ label, pliant: { type, unit } }`, the type and unit of its
  *   values. It has no value on a data row. A group's row, and
  *   `column.getAggregationValue()` for the filtered rows as a whole, hold
- *   it, computed over those rows in the order the table shows them, which
- *   `first` and `last` read. Aggregates need the `dataset` option, and an
+ *   it, computed over those rows in the table's sort order, with ties
+ *   and an unsorted table in ascending order of the row key (`getRowId`, else
+ *   the field named `id`), which `first` and `last` read. Aggregates need the `dataset` option, and an
  *   aggregate that can't be computed, or whose id a column already has, is
  *   reported to `onError` and left out. Ops hide, move and pin it like any
  *   column.
@@ -260,8 +254,8 @@ export function usePliantTable<
     filters: createDerived<ReturnType<typeof presentFilters>>(),
     shown: createDerived<CompiledTableState>(),
     aggregates: createDerived<TableAggregate[]>(),
-    built: createDerived<ReturnType<typeof aggregateColumns>>(),
-    options: createDerived<CompileSetup>(),
+    accepted: createDerived<ReturnType<typeof acceptedAggregates>>(),
+    built: createDerived<readonly unknown[]>(),
     dataset: createDerived<PliantTableDataset | undefined>(),
   }))
   const [rawFilters, setRawFilters] = useState<ReadonlyMap<string, RawFilter>>(
@@ -293,27 +287,38 @@ export function usePliantTable<
 
   // Aggregates are columns of the table too, so they share its id space: an
   // aggregate whose id a column already has isn't added.
-  const aggregatesAt = (resolved: Parameters<typeof cache.table.compile>[0]) =>
-    cache.aggregates([resolved], () => aggregatesOf(resolved, id))
-  const aggregates = useSyncExternalStore(
-    store.subscribe,
-    () => aggregatesAt(store.getResolved()),
-    () => aggregatesAt(store.getServerResolved())
-  )
-  const setupAt = (list: readonly TableAggregate[]) =>
-    cache.options([columns, list, base], () =>
-      compileSetupOf(
-        id,
-        [
-          ...columns,
-          ...list.map(({ id: aggregate }) => aggregateTableColumn(aggregate)),
-        ],
-        base
+  const columnIds = allColumns.map((column) => column.id).join("\n")
+  const stableDataset = cache.dataset([dataset], () => dataset)
+  const acceptedAt = (resolved: Parameters<typeof cache.table.compile>[0]) => {
+    const aggregates = cache.aggregates([resolved], () =>
+      aggregatesOf(resolved, id)
+    )
+    return cache.accepted([aggregates, stableDataset, columnIds], () =>
+      acceptedAggregates(
+        aggregates,
+        stableDataset,
+        new Set(columnIds.split("\n"))
       )
     )
-  const { compileOptions } = setupAt(aggregates)
-  const stableDataset = cache.dataset([dataset], () => dataset)
-  const columnIds = allColumns.map((column) => column.id).join("\n")
+  }
+  const setupAt = (resolved: Parameters<typeof cache.table.compile>[0]) =>
+    compileSetupOf(
+      id,
+      [
+        ...columns,
+        ...acceptedAt(resolved).accepted.map(({ id }) => ({
+          id,
+          size: 150,
+          limits: {},
+        })),
+      ],
+      base
+    )
+  const { accepted, issues } = useSyncExternalStore(
+    store.subscribe,
+    () => acceptedAt(store.getResolved()),
+    () => acceptedAt(store.getServerResolved())
+  )
   const ownFilters = JSON.stringify(
     allColumns.map((column) => [
       column.id,
@@ -324,7 +329,7 @@ export function usePliantTable<
 
   const mounted = [
     id,
-    ...compileOptions.columns.map((column) => `${id}/columns/${column}`),
+    ...[...columns, ...accepted].map((column) => `${id}/columns/${column.id}`),
   ].join("\n")
   useLayoutEffect(
     () => store.registerNodes(mounted.split("\n")),
@@ -332,7 +337,7 @@ export function usePliantTable<
   )
 
   const compile = (resolved: Parameters<typeof cache.table.compile>[0]) => {
-    const setup = setupAt(aggregatesAt(resolved))
+    const setup = setupAt(resolved)
     return cache.table.compile(resolved, setup.compileOptions, setup.key)
   }
   const compiled = useSyncExternalStore(
@@ -353,17 +358,15 @@ export function usePliantTable<
 
   // TanStack computes an aggregate by its rows, so a group's `first` and
   // `last` would keep the order of the sort they were computed under. New
-  // columns when the sort changes make it compute them again, for tables
-  // with aggregates only.
+  // columns when the sort changes make it compute them again; aggregates
+  // that don't read the order keep their columns.
   const built = cache.built(
-    [aggregates, stableDataset, shown.sorting, options.columns, columnIds],
-    () =>
-      aggregateColumns(
-        aggregates,
-        stableDataset,
-        options.columns,
-        new Set(columnIds.split("\n"))
-      )
+    [
+      accepted,
+      options.columns,
+      accepted.some(({ ordered }) => ordered) ? shown.sorting : undefined,
+    ],
+    () => aggregateColumns(accepted, options.columns)
   )
 
   // While a preview writes a property, a personal change to it would stay
@@ -416,7 +419,7 @@ export function usePliantTable<
     const { ops } = diffTableState(
       resolved,
       { [slice]: saved },
-      { ...setupAt(aggregatesAt(resolved)).compileOptions, previous }
+      { ...setupAt(resolved).compileOptions, previous }
     )
     for (const [layer, layerOps] of layersOf(slice, ops)) {
       if (layerOps.length > 0) {
@@ -450,7 +453,7 @@ export function usePliantTable<
         )
       }
     }
-    for (const issue of built.issues) {
+    for (const issue of issues) {
       const text = `Pliant: ${id} has no aggregate ${issue}`
       if (!warned.has(text)) {
         warned.add(text)
@@ -524,10 +527,7 @@ export function usePliantTable<
     [options.features]
   )
   const defaultColumn = useMemo(
-    () => ({
-      filterFn: pliantFilterFn,
-      ...options.defaultColumn,
-    }),
+    () => ({ filterFn: pliantFilterFn, ...options.defaultColumn }),
     [options.defaultColumn]
   )
   const handlers = Object.fromEntries(
@@ -543,7 +543,7 @@ export function usePliantTable<
   // features Pliant adds, and their state and handlers, aren't in the type.
   const tableOptions = Object.assign({}, options, handlers, {
     features,
-    columns: built.columns,
+    columns: built,
     defaultColumn,
     state: { ...objectOf(read(options, "state")), ...shown },
   })

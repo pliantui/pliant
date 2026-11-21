@@ -1,6 +1,5 @@
 import {
   sortFn_basic,
-  type AggregationFnDef,
   type ColumnDef,
   type Row,
   type RowData,
@@ -10,12 +9,13 @@ import {
 
 import type { Expression, Layer } from "@pliantui/contract"
 import {
+  compareCodePoints,
   createAggregateEvaluator,
   formatError,
+  identityOf,
   type AggregateExpression,
   type ExpressionField,
   type ResolvedLayers,
-  type RowValue,
 } from "@pliantui/core"
 
 /**
@@ -39,13 +39,6 @@ export interface TableAggregate {
 
 type AnyTable = Table<TableFeatures, RowData>
 type AnyRow = Row<TableFeatures, RowData>
-
-// The bare id of a node from its address, as `page/slots/orders-table` is
-// `orders-table`.
-function identityOf(address: string) {
-  const slots = address.lastIndexOf("/slots/")
-  return slots < 0 ? address : address.slice(slots + "/slots/".length)
-}
 
 /** The aggregates of a table node, in the order their ops applied. */
 export function aggregatesOf(
@@ -71,81 +64,83 @@ export function aggregatesOf(
   }).flat()
 }
 
-interface SortEntry {
-  readonly desc: boolean
-  readonly invert: boolean
-  readonly id: string
-  readonly compare: (a: AnyRow, b: AnyRow, id: string) => number
-}
-
-// The rows of a group in the order the table shows them: by its sort, with
-// ties in the order of the data, as the sorted row model breaks them. A
-// sort by an aggregate leaves rows tied, since only groups have its value.
+// The rows of a group in the order the table shows them: by its sort, as the
+// sorted row model compares them, with ties and an unsorted table in
+// ascending order of the row key. A sort by an aggregate leaves rows tied,
+// since only groups have its value.
 function inDisplayOrder(
   rows: readonly AnyRow[],
   table: AnyTable
 ): readonly AnyRow[] {
-  const entries = table.atoms.sorting
-    .get()
-    .flatMap(({ id, desc }): SortEntry[] => {
-      const column = table.getAllFlatColumns().find((other) => other.id === id)
-      return column?.getCanSort()
-        ? [
-            {
-              desc,
-              invert: column.columnDef.invertSorting === true,
-              id,
-              compare: column.getSortFn(),
-            },
-          ]
-        : []
-    })
-  if (entries.length === 0) {
-    return rows
-  }
+  const sorts = table.atoms.sorting.get().flatMap(({ id, desc }) => {
+    const column = table.getColumn(id)
+    return column?.getCanSort()
+      ? [{ id, desc, column, compare: column.getSortFn() }]
+      : []
+  })
+  const keyOf = (row: AnyRow) =>
+    String(table.options.getRowId ? row.id : Reflect.get(row.original, "id"))
   return rows.toSorted((a, b) => {
-    for (const { desc, invert, id, compare } of entries) {
-      const order = compare(a, b, id)
+    for (const { id, desc, column, compare } of sorts) {
+      const { sortUndefined, invertSorting } = column.columnDef
+      let order = 0
+      if (sortUndefined) {
+        const [x, y] = [a, b].map((row) => row.getValue(id) === undefined)
+        if (x && y) {
+          continue
+        }
+        if (x || y) {
+          if (typeof sortUndefined === "string") {
+            return (sortUndefined === "first") === x ? -1 : 1
+          }
+          order = x ? sortUndefined : -sortUndefined
+        }
+      }
+      order ||= compare(a, b, id)
       if (order !== 0) {
-        return (desc ? -order : order) * (invert ? -1 : 1)
+        return (desc ? -order : order) * (invertSorting ? -1 : 1)
       }
     }
-    return a.index - b.index
+    return compareCodePoints(keyOf(a), keyOf(b))
   })
 }
 
-function valuesOf(rows: readonly AnyRow[]) {
-  return rows.map((row) => row.original)
+// Whether an aggregate expression that checks, so has no reference cycle,
+// reads the order of a group's rows, itself or through the aggregates it
+// refers to.
+function readsOrder(
+  expression: Expression,
+  aggregates: ReadonlyMap<string, Expression>
+): boolean {
+  if ("fn" in expression) {
+    return (
+      expression.fn === "first" ||
+      expression.fn === "last" ||
+      expression.args.some((arg) => readsOrder(arg, aggregates))
+    )
+  }
+  const target =
+    "ref" in expression ? aggregates.get(expression.ref) : undefined
+  return target !== undefined && readsOrder(target, aggregates)
 }
 
-function definitionOf(
-  expression: AggregateExpression
-): AggregationFnDef<TableFeatures, RowData, unknown, RowValue> {
-  return {
-    aggregate: ({ rows, table }) =>
-      expression.aggregate(valuesOf(inDisplayOrder(rows, table))),
-  }
+/** An aggregate that can be a column, accepted to compute. */
+export interface AcceptedAggregate extends TableAggregate {
+  readonly expression: AggregateExpression
+  /** Whether it reads the order of a group's rows, as `first` and `last` do. */
+  readonly ordered: boolean
 }
 
 /**
- * The table columns of aggregates, in the order given, and the aggregates
- * that can't be columns, each with its reason. An aggregate is a column with
- * no value on a data row: a group's row, and the column's total, hold its
- * value.
+ * The aggregates that can be columns, and each that can't with its reason:
+ * no dataset, an expression that fails its check, or an id a column has.
  */
-export function aggregateColumns(
+export function acceptedAggregates(
   aggregates: readonly TableAggregate[],
   dataset: PliantTableDataset | undefined,
-  columns: readonly unknown[],
   taken: ReadonlySet<string>
-): {
-  readonly columns: readonly unknown[]
-  readonly issues: string[]
-} {
+): { readonly accepted: AcceptedAggregate[]; readonly issues: string[] } {
   const issues: string[] = []
-  if (aggregates.length === 0) {
-    return { columns, issues }
-  }
   try {
     if (!dataset) {
       throw new TypeError("pass the table's dataset to usePliantTable")
@@ -158,13 +153,15 @@ export function aggregateColumns(
           : []
       )
     )
+    const expressions = new Map(aggregates.map((a) => [a.id, a.expr]))
     const evaluate = createAggregateEvaluator({
       fields: dataset.fields,
       timeZone: dataset.timeZone,
-      aggregates: Object.fromEntries(aggregates.map((a) => [a.id, a.expr])),
+      aggregates: Object.fromEntries(expressions),
       aggregateTodayTimeZones: zones,
     })
-    const added = aggregates.flatMap(({ id, label, expr }) => {
+    const accepted = aggregates.flatMap((aggregate): AcceptedAggregate[] => {
+      const { id, expr } = aggregate
       if (taken.has(id)) {
         issues.push(`${id}: a column has its id`)
         return []
@@ -174,27 +171,61 @@ export function aggregateColumns(
         issues.push(`${id}: ${formatError(result.error)}`)
         return []
       }
-      const { type, unit } = result.data
-      const column: ColumnDef<TableFeatures, RowData> = {
-        id,
-        header: label,
-        accessorFn: () => undefined,
-        enableColumnFilter: false,
-        enableGrouping: false,
-        sortFn: sortFn_basic,
-        meta: { label, pliant: { type, unit } },
-        aggregationFn: definitionOf(result.data),
-      }
-      return [column]
+      return [
+        {
+          ...aggregate,
+          expression: result.data,
+          ordered: readsOrder(expr, expressions),
+        },
+      ]
     })
-    return { columns: [...columns, ...added], issues }
+    return { accepted, issues }
   } catch (error) {
     return {
-      columns,
+      accepted: [],
       issues: aggregates.map(
         ({ id }) =>
           `${id}: ${error instanceof Error ? error.message : String(error)}`
       ),
     }
   }
+}
+
+/**
+ * The table's columns and one for each aggregate. An aggregate is a column
+ * with no value on a data row: a group's row, and the column's total, hold
+ * its value.
+ */
+export function aggregateColumns(
+  accepted: readonly AcceptedAggregate[],
+  columns: readonly unknown[]
+): readonly unknown[] {
+  return accepted.length === 0
+    ? columns
+    : [
+        ...columns,
+        ...accepted.map(
+          ({ id, label, expression, ordered }) =>
+            ({
+              id,
+              header: label,
+              accessorFn: () => undefined,
+              enableColumnFilter: false,
+              enableGrouping: false,
+              sortFn: sortFn_basic,
+              meta: {
+                label,
+                pliant: { type: expression.type, unit: expression.unit },
+              },
+              aggregationFn: {
+                aggregate: ({ rows, table }) =>
+                  expression.aggregate(
+                    (ordered ? inDisplayOrder(rows, table) : rows).map(
+                      (row) => row.original
+                    )
+                  ),
+              },
+            }) satisfies ColumnDef<TableFeatures, RowData>
+        ),
+      ]
 }
