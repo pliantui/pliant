@@ -1,10 +1,15 @@
 import {
+  columnFacetingFeature,
+  columnFilteringFeature,
   columnGroupingFeature,
   columnOrderingFeature,
   columnPinningFeature,
   columnSizingFeature,
   columnVisibilityFeature,
   createExpandedRowModel,
+  createFacetedRowModel,
+  createFacetedUniqueValues,
+  createFilteredRowModel,
   createGroupedRowModel,
   createPaginatedRowModel,
   createSortedRowModel,
@@ -29,6 +34,8 @@ import type { PliantDataTableFormat } from "./pliant-data-table-format"
  * keeps these.
  */
 export const pliantDataTableFeatures = tableFeatures({
+  columnFacetingFeature,
+  columnFilteringFeature,
   columnGroupingFeature,
   columnOrderingFeature,
   columnPinningFeature,
@@ -39,6 +46,9 @@ export const pliantDataTableFeatures = tableFeatures({
   rowPaginationFeature,
   rowSortingFeature,
   expandedRowModel: createExpandedRowModel(),
+  facetedRowModel: createFacetedRowModel(),
+  facetedUniqueValues: createFacetedUniqueValues(),
+  filteredRowModel: createFilteredRowModel(),
   groupedRowModel: createGroupedRowModel(),
   paginatedRowModel: createPaginatedRowModel(),
   sortedRowModel: createSortedRowModel(),
