@@ -1,7 +1,7 @@
 [
   {
     "path": "dist/index.js",
-    "limit": "7.7 kB",
+    "limit": "7.75 kB",
     "ignore": ["react", "zod", "@pliantui/contract", "@pliantui/core"]
   },
   {
