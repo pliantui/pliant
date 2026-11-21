@@ -1,7 +1,7 @@
 {
   "$schema": "https://ui.shadcn.com/schema/registry.json",
   "name": "pliant",
-  "homepage": "https://pliantui.dev",
+  "homepage": "https://pliantui-www.pliantui-dev.workers.dev",
   "items": [
     {
       "name": "pliant-region",
