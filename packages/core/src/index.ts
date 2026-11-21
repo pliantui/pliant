@@ -49,6 +49,11 @@ export {
   type UnappliedReason,
 } from "./resolve-layers"
 export {
+  resolveForm,
+  type ResolvedForm,
+  type ResolveFormOptions,
+} from "./resolve-form"
+export {
   resolveRegion,
   type RegionEntry,
   type RegionLayout,
