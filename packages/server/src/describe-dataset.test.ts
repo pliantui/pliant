@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { createExpressionChecker } from "@pliantui/core"
 
+import { allRows } from "./authorize-dataset"
 import { defineDataset } from "./define-dataset"
 import { describeDataset } from "./describe-dataset"
 
@@ -198,6 +199,36 @@ describe("describeDataset", () => {
     it("keeps fields with exposeToAI: false from the model only", () => {
       expect(fieldsFor(finance, "ai")).toEqual(["id", "name", "margin"])
       expect(fieldsFor(sales, "ai")).toEqual(["id", "name"])
+    })
+
+    it("describes a user whose scope returns allRows as a public dataset does", () => {
+      const fields = {
+        id: { type: "id" },
+        margin: {
+          type: "percent",
+          access: (user: User) => user.roles.includes("finance"),
+        },
+        notes: { type: "text", exposeToAI: false },
+      } as const
+      const admins = defineDataset({
+        id: "accounts",
+        scope: (user: User) =>
+          user.roles.includes("admin") ? allRows : { orgId: user.orgId },
+        fields,
+      })
+      const everyone = defineDataset<User, typeof fields>({
+        id: "accounts",
+        scope: "public",
+        fields,
+      })
+      const admin: User = { orgId: "acme", roles: ["admin"] }
+      for (const audience of ["client", "ai"] as const) {
+        const descriptor = describeDataset(admins, { audience, user: admin })
+        expect(descriptor).not.toBeNull()
+        expect(descriptor).toEqual(
+          describeDataset(everyone, { audience, user: admin })
+        )
+      }
     })
 
     it("returns null for a user the dataset's access doesn't allow", () => {

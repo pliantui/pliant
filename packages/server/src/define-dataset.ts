@@ -1,6 +1,6 @@
 import { itemIdSchema } from "@pliantui/contract"
 
-import type { DatasetScope } from "./authorize-dataset"
+import type { allRows, DatasetScope } from "./authorize-dataset"
 import {
   checkField,
   defaultCapabilities,
@@ -102,10 +102,12 @@ export type DatasetDefinition<
   /**
    * The rows a user may load, as conditions every query, aggregate and load
    * must match, such as `(user) => ({ orgId: user.orgId })`. `"public"`
-   * lets every user load every row. Synchronous: look up what it needs, such
-   * as the user's organizations, before calling `authorizeDataset`.
+   * lets every user load every row; a function returns `allRows` to let one
+   * user, such as an administrator, load every row. Anything else, such as
+   * `undefined` or `{}`, throws. Synchronous: look up what it needs, such as
+   * the user's organizations, before calling `authorizeDataset`.
    */
-  readonly scope: "public" | ((user: TUser) => DatasetScope)
+  readonly scope: "public" | ((user: TUser) => DatasetScope | typeof allRows)
   /**
    * Whether a user may use the dataset at all. Only `true` allows it.
    * Synchronous, and checked before `scope` runs.
@@ -161,7 +163,7 @@ export interface Dataset<
   readonly rowKey: readonly [TKey, ...TKey[]]
   readonly fields: { readonly [K in keyof TFields]: ResolvedField<TFields[K]> }
   /** Use `authorizeDataset`, which checks what this returns. */
-  readonly scope: "public" | ((user: TUser) => DatasetScope)
+  readonly scope: "public" | ((user: TUser) => DatasetScope | typeof allRows)
   readonly access?: (user: TUser) => boolean
   readonly privacy: { readonly minGroupSize: number }
 }
@@ -334,7 +336,7 @@ function check(definition: unknown) {
   }
   const { describe, timeZone, scope, access, privacy } = definition
   if (scope !== "public" && typeof scope !== "function") {
-    report('scope must be a function of the user, or "public"')
+    report('scope must be "public" or a function')
   }
   if (access !== undefined && typeof access !== "function") {
     report("access must be a function")
@@ -346,7 +348,7 @@ function check(definition: unknown) {
     !Number.isSafeInteger(minGroupSize) ||
     Number(minGroupSize) < 1
   ) {
-    report("privacy must be { minGroupSize }, a whole number of at least 1")
+    report("privacy must be { minGroupSize: n }, a whole number of at least 1")
   }
   if (describe !== undefined && !isText(describe, 500)) {
     report("describe must be non-empty text of up to 500 characters")
@@ -382,10 +384,11 @@ function withoutUndefined(field: Readonly<Record<string, unknown>>) {
  * `enum` fields are groupable. The time zone must be `UTC` or an
  * Area/Location name such as `Asia/Tokyo`, and is kept exactly as written.
  *
- * Every dataset declares its row `scope`: a function of the user, or
- * `"public"`. `access` on the dataset or a field restricts who may use it,
- * and `exposeToAI: false` keeps a field from the model. `authorizeDataset`
- * resolves all of them for one user.
+ * Every dataset declares its row `scope`: a function of the user, which
+ * returns conditions or `allRows`, or `"public"`. `access` on the dataset
+ * or a field restricts who may use it, and `exposeToAI: false` keeps a
+ * field from the model. `authorizeDataset` resolves all of them for one
+ * user.
  *
  * Throws a `TypeError` listing every problem: a bad dataset or field id, an
  * unknown type, unit, currency, time zone or option, text that is empty or

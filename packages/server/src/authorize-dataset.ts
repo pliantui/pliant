@@ -20,6 +20,18 @@ export type DatasetScope = Readonly<
 >
 
 /**
+ * What a dataset's `scope(user)` returns to let that user load every row,
+ * such as an administrator: `(user) => user.admin ? allRows : { orgId:
+ * user.orgId }`. It is a symbol only this export holds, so a scope grants
+ * every row only by returning it on purpose: no value read from a
+ * database, a request or JSON can be it, and a missing value, `{}` or
+ * anything else still throws.
+ *
+ * @experimental
+ */
+export const allRows: unique symbol = Symbol("allRows")
+
+/**
  * What one user may load from a dataset. Whatever loads rows for the user
  * applies all of it, on every query, aggregate and load.
  *
@@ -28,10 +40,11 @@ export type DatasetScope = Readonly<
 export interface DatasetGrant {
   /**
    * The conditions every row loaded must match, ANDed with the query's own,
-   * or `"public"` when the dataset lets every user load every row. A frozen
-   * copy of plain JSON, so it can be part of a cache key.
+   * or `"all"` when the user may load every row: the dataset's scope is
+   * `"public"`, or `scope(user)` returned `allRows`. A frozen copy of plain
+   * JSON, so it can be part of a cache key.
    */
-  readonly scope: DatasetScope | "public"
+  readonly scope: DatasetScope | "all"
   /** The fields the user may read, in the dataset's order. Load no others. */
   readonly fields: readonly string[]
   /** The fewest rows an aggregate may summarize; suppress smaller groups. */
@@ -51,9 +64,12 @@ function isScopeValue(value: unknown) {
 // conditions is an error. So is a scope that hides some of its conditions
 // from the copy: a class instance's getters, symbol keys and non-enumerable
 // properties.
-function copyScope(scope: unknown, id: string) {
+function copyScope(scope: unknown, id: string): DatasetGrant["scope"] {
+  if (scope === allRows) {
+    return "all"
+  }
   const copy = snapshot(scope, 2, Infinity)
-  const entries = isRecord(copy) ? Object.entries(copy) : []
+  const entries = Object.entries(Object(copy) as object)
   if (
     !isRecord(scope) ||
     ![Object.prototype, null].includes(Reflect.getPrototypeOf(scope)) ||
@@ -69,7 +85,7 @@ function copyScope(scope: unknown, id: string) {
     })
   ) {
     throw new TypeError(
-      `Dataset ${quote(id)}: scope(user) must return a plain object of conditions, each named by an id and a string, finite number, boolean or non-empty list of them`
+      `Dataset ${quote(id)}: scope(user) must return allRows or conditions by id, each a string, finite number, boolean or non-empty list of them`
     )
   }
   // Checked above: every condition is a scope value or a list of them.
@@ -92,11 +108,13 @@ function allows<TUser>(
  *
  * Only `true` from an `access` function allows, and `access` is checked
  * before `scope` runs. Both are synchronous: look up what they need, such
- * as the user's organizations, before calling. Throws a `TypeError` when
- * `scope` returns anything but a plain object of one or more conditions,
- * each named by an id and a string, finite number, boolean or non-empty
- * list of them, so a missing value or a condition a copy would lose can't
- * widen the scope. Errors thrown by `scope` or `access` are passed on.
+ * as the user's organizations, before calling. The grant's scope is `"all"`
+ * for a `"public"` dataset and when `scope` returns `allRows`. Throws a
+ * `TypeError` when `scope` returns anything but `allRows` or a plain object
+ * of one or more conditions, each named by an id and a string, finite
+ * number, boolean or non-empty list of them, so a missing value, an empty
+ * object or a condition a copy would lose can't widen the scope. Errors
+ * thrown by `scope` or `access` are passed on.
  *
  * @experimental
  */
@@ -109,7 +127,7 @@ export function authorizeDataset<TUser>(
     return null
   }
   return freeze({
-    scope: scope === "public" ? scope : copyScope(scope(user), id),
+    scope: scope === "public" ? "all" : copyScope(scope(user), id),
     fields: Object.keys(fields).filter((field) =>
       // `defineDataset` typed each field's `access` with the dataset's user.
       allows(

@@ -1,4 +1,5 @@
 export {
+  allRows,
   authorizeDataset,
   type DatasetGrant,
   type DatasetScope,

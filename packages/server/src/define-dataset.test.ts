@@ -522,12 +522,12 @@ describe("defineDataset", () => {
       [
         "no scope",
         { ...valid, scope: undefined },
-        'scope must be a function of the user, or "public"',
+        'scope must be "public" or a function',
       ],
       [
         "a scope that is neither a function nor public",
         { ...valid, scope: { orgId: 1 } },
-        'scope must be a function of the user, or "public"',
+        'scope must be "public" or a function',
       ],
       [
         "an access that isn't a function",
@@ -537,17 +537,17 @@ describe("defineDataset", () => {
       [
         "an unknown privacy option",
         { ...valid, privacy: { minGroup: 5 } },
-        "privacy must be { minGroupSize }, a whole number of at least 1",
+        "privacy must be { minGroupSize: n }, a whole number of at least 1",
       ],
       [
         "a minimum group size below 1",
         { ...valid, privacy: { minGroupSize: 0 } },
-        "privacy must be { minGroupSize }, a whole number of at least 1",
+        "privacy must be { minGroupSize: n }, a whole number of at least 1",
       ],
       [
         "a fractional minimum group size",
         { ...valid, privacy: { minGroupSize: 2.5 } },
-        "privacy must be { minGroupSize }, a whole number of at least 1",
+        "privacy must be { minGroupSize: n }, a whole number of at least 1",
       ],
       [
         "a field access that isn't a function",

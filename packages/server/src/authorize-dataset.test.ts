@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest"
 
-import { authorizeDataset } from "./authorize-dataset"
+import { allRows, authorizeDataset } from "./authorize-dataset"
 import { defineDataset, type InferRow } from "./define-dataset"
 
 interface User {
@@ -28,7 +28,7 @@ const orders = defineDataset({
 })
 
 const scopeError = new TypeError(
-  'Dataset "orders": scope(user) must return a plain object of conditions, each named by an id and a string, finite number, boolean or non-empty list of them'
+  'Dataset "orders": scope(user) must return allRows or conditions by id, each a string, finite number, boolean or non-empty list of them'
 )
 
 function withScope(scope: (user: User) => unknown) {
@@ -96,7 +96,7 @@ describe("authorizeDataset", () => {
     )
   })
 
-  it('returns "public" for a dataset any user may load in full', () => {
+  it('grants every row of a "public" dataset as "all"', () => {
     const regions = defineDataset({
       id: "regions",
       scope: "public",
@@ -104,9 +104,75 @@ describe("authorizeDataset", () => {
       fields: { id: { type: "id" } },
     })
     expect(authorizeDataset(regions, null)).toEqual({
-      scope: "public",
+      scope: "all",
       fields: ["id"],
       minGroupSize: 5,
+    })
+  })
+
+  describe("allRows", () => {
+    const accounts = defineDataset({
+      id: "orders",
+      scope: (user: User) =>
+        user.roles.includes("admin")
+          ? allRows
+          : { orgId: user.orgId as string },
+      privacy: { minGroupSize: 3 },
+      fields: {
+        id: { type: "id" },
+        cost: {
+          type: "number",
+          access: (user) => user.roles.includes("finance"),
+        },
+      },
+    })
+    const admin: User = { id: "root", roles: ["admin"] }
+
+    it("grants every row to the user whose scope returns it", () => {
+      const grant = authorizeDataset(accounts, admin)
+      expect(grant).toStrictEqual({
+        scope: "all",
+        fields: ["id"],
+        minGroupSize: 3,
+      })
+      expect(JSON.parse(JSON.stringify(grant))).toEqual(grant)
+      expect(authorizeDataset(accounts, alice)?.scope).toEqual({
+        orgId: "acme",
+      })
+    })
+
+    it("keeps an object that looks like the grant a condition", () => {
+      expect(
+        authorizeDataset(
+          withScope(() => ({ scope: "all" })),
+          alice
+        )?.scope
+      ).toEqual({ scope: "all" })
+    })
+
+    it.each([
+      ["undefined", undefined],
+      ["null", null],
+      ["no conditions", {}],
+      ['the text "all"', "all"],
+      ['the text "public"', "public"],
+      ["the marker's name", "allRows"],
+      ["the marker as text", String(allRows)],
+      ["a symbol with the same name", Symbol("allRows")],
+      ["a registered symbol with the same name", Symbol.for("allRows")],
+      ["an object holding the marker", { allRows }],
+      ["an object keyed by the marker", { [allRows]: true }],
+      ["a list holding the marker", [allRows]],
+      ["a condition set to the marker", { orgId: allRows }],
+      ["a promise of the marker", Promise.resolve(allRows)],
+      ["the marker parsed from JSON", JSON.parse(JSON.stringify({ allRows }))],
+    ])("doesn't grant every row for %s", (_, scope) => {
+      expect(() =>
+        authorizeDataset(
+          withScope(() => scope),
+          alice
+        )
+      ).toThrow(scopeError)
     })
   })
 
@@ -294,9 +360,15 @@ describe("authorizeDataset", () => {
       scope: (user: { orgIds: string[] }) => ({ orgId: user.orgIds }),
       fields: { id: { type: "id" } },
     })
+    defineDataset({
+      id: "orders",
+      // @ts-expect-error only the allRows marker grants every row
+      scope: () => Symbol("allRows"),
+      fields: { id: { type: "id" } },
+    })
     expect(() =>
       // @ts-expect-error every dataset declares its scope
       defineDataset({ id: "orders", fields: { id: { type: "id" } } })
-    ).toThrow('scope must be a function of the user, or "public"')
+    ).toThrow('scope must be "public" or a function')
   })
 })
