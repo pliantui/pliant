@@ -41,6 +41,12 @@ export const doctor = new Command()
       })
       succeeded = await runChecks(options)
     } catch (error) {
+      if (opts["json"] === true) {
+        logger.log(
+          JSON.stringify({ ok: false, error: errorMessage(error) }, null, 2)
+        )
+        process.exit(1)
+      }
       handleError(error)
     }
     if (!succeeded) {
@@ -126,7 +132,7 @@ async function checksFor(cwd: string, json: boolean): Promise<Check[]> {
       ),
     ]
   }
-  reading?.stop()
+  reading?.succeed()
 
   return [
     ...checks,
@@ -173,7 +179,7 @@ async function runChecks(
     for (const problem of check.problems ?? []) {
       logger.log(
         highlighter.muted(
-          `    ${problem.file}:${String(problem.line)} ${problem.message}`
+          `  ${symbols[problem.status]} ${problem.file}:${String(problem.line)} ${problem.message}`
         )
       )
     }

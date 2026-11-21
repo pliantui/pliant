@@ -12,10 +12,21 @@ import { isPliantExport } from "../scan/pliant-export"
 import { isFunction, readString } from "../scan/scope"
 import { createDiagnostic, type Diagnostic } from "../utils/diagnostic"
 import { pluralize } from "../utils/pluralize"
-import type { Check } from "./check"
+import { problemsOf, type Check } from "./check"
 
 const routeFile = /^(page|layout|template|default)\.[cm]?[jt]sx?$/
-const wrapperFile = /^(layout|template)\.[cm]?[jt]sx?$/
+
+// A segment's layout renders its template, which renders its page.
+const rank: Record<string, number> = {
+  layout: 0,
+  template: 1,
+  page: 2,
+  default: 2,
+}
+
+function rankOf(file: string) {
+  return rank[path.basename(file).split(".")[0] ?? ""] ?? 2
+}
 
 interface Rendered {
   element: JsxElement | JsxSelfClosingElement
@@ -46,40 +57,37 @@ function surfaceOf(element: JsxElement | JsxSelfClosingElement) {
   return "value" in read ? read.value : undefined
 }
 
+function isUnder(file: string, directory: string) {
+  const relative = path.relative(directory, file)
+  return !relative.startsWith("..") && !path.isAbsolute(relative)
+}
+
 /**
- * The files whose output a route file renders in: the file itself, and the
- * layouts and templates of its segment and the segments above it.
+ * Whether a route file renders inside `file`: it's in the same segment and
+ * rendered by it, or in a segment below.
  */
-function routeChain(file: string, app: string, files: ReadonlySet<string>) {
-  const chain = [file]
-  for (
-    let directory = path.dirname(file);
-    !path.relative(app, directory).startsWith("..");
-    directory = path.dirname(directory)
-  ) {
-    for (const candidate of files) {
-      if (
-        candidate !== file &&
-        path.dirname(candidate) === directory &&
-        wrapperFile.test(path.basename(candidate))
-      ) {
-        chain.push(candidate)
-      }
-    }
-    if (directory === app) {
-      break
-    }
+function isBelow(other: string, file: string) {
+  const directory = path.dirname(file)
+  return path.dirname(other) === directory
+    ? rankOf(other) > rankOf(file)
+    : isUnder(other, directory)
+}
+
+/**
+ * Whether a route file renders `file` inside it: it's a layout or template
+ * of the same segment above it, or of a segment above.
+ */
+function isAbove(other: string, file: string) {
+  if (other === file || rankOf(other) === 2) {
+    return false
   }
-  return chain
+  return path.dirname(other) === path.dirname(file)
+    ? rankOf(other) < rankOf(file)
+    : isUnder(file, path.dirname(other))
 }
 
 function isRouteFile(file: string, app: string) {
-  const relative = path.relative(app, file)
-  return (
-    routeFile.test(path.basename(file)) &&
-    !relative.startsWith("..") &&
-    !path.isAbsolute(relative)
-  )
+  return routeFile.test(path.basename(file)) && isUnder(file, app)
 }
 
 const fix =
@@ -122,7 +130,7 @@ export function checkPrePaint(
 
   const failures: Diagnostic[] = []
   const warnings: Diagnostic[] = []
-  const fileNames = new Set(files.keys())
+  const relative = (file: string) => path.relative(root, file)
   for (const { element, file, surface } of roots) {
     if (surface === undefined) {
       warnings.push(
@@ -133,51 +141,87 @@ export function checkPrePaint(
       )
       continue
     }
+    const fits = (prePaint: Rendered) =>
+      prePaint.surface === surface || prePaint.surface === undefined
+    const describe = (prePaint: Rendered) =>
+      prePaint.surface === undefined
+        ? `a PliantPrePaint whose surface can't be read is in ${relative(prePaint.file)}`
+        : `its PliantPrePaint is in ${relative(prePaint.file)}`
     const route = isRouteFile(file, app)
-    const chain = new Set(route ? routeChain(file, app, fileNames) : [file])
-    const nearby = prePaints.filter((prePaint) => chain.has(prePaint.file))
+    const nearby = prePaints.filter(
+      (prePaint) =>
+        prePaint.file === file || (route && isAbove(prePaint.file, file))
+    )
     if (nearby.some((prePaint) => prePaint.surface === surface)) {
       continue
     }
-    const unreadable = (list: Rendered[]) =>
-      list.some((prePaint) => prePaint.surface === undefined)
-    if (route) {
-      if (unreadable(nearby)) {
+    const outside = prePaints.filter(
+      (prePaint) => !isRouteFile(prePaint.file, app) && fits(prePaint)
+    )
+    const unreadable = nearby.find(fits)
+    if (unreadable) {
+      warnings.push(
+        createDiagnostic(
+          element,
+          `PliantRoot renders ${surface}, and ${describe(unreadable)}, so they can't be matched.`
+        )
+      )
+      continue
+    }
+    if (!route) {
+      const [found = prePaints.find(fits)] = outside.filter(
+        (prePaint) => prePaint.file !== file
+      )
+      if (found) {
         warnings.push(
           createDiagnostic(
             element,
-            `A PliantPrePaint in this route has a surface that can't be read, so it can't be matched with ${surface}.`
+            `This PliantRoot for ${surface} isn't in a page or layout, and ${describe(found)}, so whether each route that renders it also renders that PliantPrePaint can't be told.`
           )
         )
         continue
       }
-      const others = [
-        ...new Set(nearby.map((prePaint) => prePaint.surface ?? "")),
-      ]
       failures.push(
-        createDiagnostic(
-          element,
-          others.length > 0
-            ? `PliantRoot renders ${surface}, but the PliantPrePaint in this route renders ${others.join(", ")}.`
-            : `PliantRoot renders ${surface} with no PliantPrePaint in this route.`
-        )
+        createDiagnostic(element, `No PliantPrePaint renders ${surface}.`)
       )
       continue
     }
-    if (
-      unreadable(prePaints) ||
-      prePaints.some((prePaint) => prePaint.surface === surface)
-    ) {
+    const [below] = prePaints.filter(
+      (prePaint) =>
+        isRouteFile(prePaint.file, app) &&
+        isBelow(prePaint.file, file) &&
+        fits(prePaint)
+    )
+    if (below) {
       warnings.push(
         createDiagnostic(
           element,
-          `This PliantRoot for ${surface} isn't in a page or layout, so whether each route that renders it also renders its PliantPrePaint can't be told.`
+          `PliantRoot renders ${surface} here, and ${describe(below)}, which renders inside this file, so whether every route under it renders one can't be told.`
         )
       )
       continue
     }
+    const [component] = outside
+    if (component) {
+      warnings.push(
+        createDiagnostic(
+          element,
+          `PliantRoot renders ${surface}, and ${describe(component)}, which isn't a page or layout, so whether this route renders it can't be told.`
+        )
+      )
+      continue
+    }
+    const [mismatched] = nearby
+    const [elsewhere] = prePaints.filter(fits)
     failures.push(
-      createDiagnostic(element, `No PliantPrePaint renders ${surface}.`)
+      createDiagnostic(
+        element,
+        mismatched
+          ? `PliantRoot renders ${surface}, but the PliantPrePaint in ${relative(mismatched.file)} renders ${mismatched.surface ?? ""}.`
+          : elsewhere
+            ? `PliantRoot renders ${surface} with no PliantPrePaint in this route. The one in ${relative(elsewhere.file)} is in another route.`
+            : `PliantRoot renders ${surface} with no PliantPrePaint in this route.`
+      )
     )
   }
 
@@ -187,7 +231,10 @@ export function checkPrePaint(
       status: "fail",
       message: `${pluralize(failures.length, "PliantRoot")} ${failures.length === 1 ? "has" : "have"} no PliantPrePaint with the same surface.`,
       fix,
-      problems: [...failures, ...warnings],
+      problems: [
+        ...problemsOf("fail", failures),
+        ...problemsOf("warn", warnings),
+      ],
     }
   }
   if (warnings.length > 0) {
@@ -196,7 +243,7 @@ export function checkPrePaint(
       status: "warn",
       message: `${pluralize(warnings.length, "PliantRoot")} can't be matched with a PliantPrePaint.`,
       fix: "Render PliantRoot and PliantPrePaint in the route's page or layout, with the surface as a string or a const.",
-      problems: warnings,
+      problems: problemsOf("warn", warnings),
     }
   }
   return {

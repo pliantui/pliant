@@ -168,13 +168,15 @@ describe("pliantui doctor", () => {
       expect(result.check("pre-paint").problems).toEqual([
         expect.objectContaining({
           message:
-            "PliantRoot renders /orders, but the PliantPrePaint in this route renders /order.",
+            "PliantRoot renders /orders, but the PliantPrePaint in app/orders/page.tsx renders /order.",
+          status: "fail",
         }),
       ])
     })
 
     it("finds PliantPrePaint in a layout above the page", async () => {
       const cwd = await scannedApp()
+      expect((await doctor(cwd)).check("pre-paint").status).toBe("pass")
       await edit(
         cwd,
         "app/reports/layout.tsx",
@@ -188,6 +190,98 @@ describe("pliantui doctor", () => {
           expect.objectContaining({
             file: path.normalize("app/reports/page.tsx"),
           }),
+        ],
+      })
+    })
+
+    it("warns when PliantPrePaint is in a page below a layout's PliantRoot", async () => {
+      const cwd = await scannedApp()
+      await writeFile(
+        path.join(cwd, "app/reports/layout.tsx"),
+        [
+          'import { PliantRoot } from "@pliantui/react"',
+          "",
+          "export default function ReportsLayout({",
+          "  children,",
+          "}: {",
+          "  children: React.ReactNode",
+          "}) {",
+          '  return <PliantRoot surface="/reports">{children}</PliantRoot>',
+          "}",
+          "",
+        ].join("\n")
+      )
+      await writeFile(
+        path.join(cwd, "app/reports/page.tsx"),
+        [
+          'import { PliantPrePaint } from "@pliantui/react/pre-paint"',
+          "",
+          "export default function ReportsPage() {",
+          '  return <PliantPrePaint surface="/reports" />',
+          "}",
+          "",
+        ].join("\n")
+      )
+      const result = await doctor(cwd)
+      expect(result.check("pre-paint")).toMatchObject({
+        status: "warn",
+        problems: [
+          {
+            file: path.normalize("app/reports/layout.tsx"),
+            line: 8,
+            status: "warn",
+            message: expect.stringContaining(
+              path.normalize("app/reports/page.tsx")
+            ) as unknown,
+          },
+        ],
+      })
+    })
+
+    it("warns when PliantPrePaint is in one of the app's components", async () => {
+      const cwd = await scannedApp()
+      await writeFile(
+        path.join(cwd, "components/reports-head.tsx"),
+        [
+          'import { PliantPrePaint } from "@pliantui/react/pre-paint"',
+          "",
+          "export function ReportsHead() {",
+          '  return <PliantPrePaint surface="/reports" />',
+          "}",
+          "",
+        ].join("\n")
+      )
+      await writeFile(
+        path.join(cwd, "app/reports/layout.tsx"),
+        [
+          'import { ReportsHead } from "@/components/reports-head"',
+          "",
+          "export default function ReportsLayout({",
+          "  children,",
+          "}: {",
+          "  children: React.ReactNode",
+          "}) {",
+          "  return (",
+          "    <>",
+          "      <ReportsHead />",
+          "      {children}",
+          "    </>",
+          "  )",
+          "}",
+          "",
+        ].join("\n")
+      )
+      const result = await doctor(cwd)
+      expect(result.check("pre-paint")).toMatchObject({
+        status: "warn",
+        problems: [
+          {
+            file: path.normalize("app/reports/page.tsx"),
+            status: "warn",
+            message: expect.stringContaining(
+              path.normalize("components/reports-head.tsx")
+            ) as unknown,
+          },
         ],
       })
     })
@@ -270,6 +364,21 @@ describe("pliantui doctor", () => {
           }),
         ],
       })
+    })
+  })
+
+  it("prints an error as JSON with --json", async () => {
+    const cwd = await createFixtureDirectory("doctor-app")
+    const { stdout, exitCode } = await runCli(cwd, [
+      "doctor",
+      "--json",
+      "--cwd",
+      "missing",
+    ])
+    expect(exitCode).toBe(1)
+    expect(JSON.parse(stdout)).toEqual({
+      ok: false,
+      error: expect.stringContaining("does not exist") as unknown,
     })
   })
 

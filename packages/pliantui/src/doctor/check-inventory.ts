@@ -2,7 +2,7 @@ import path from "node:path"
 
 import type { scanProject } from "../scan/scan-project"
 import { pluralize } from "../utils/pluralize"
-import type { Check } from "./check"
+import { problemsOf, type Check } from "./check"
 
 /** Whether the saved inventory is there and matches the app, as `scan --check`. */
 export function checkInventory(
@@ -17,7 +17,10 @@ export function checkInventory(
       status: "fail",
       message: `The scan found ${pluralize(report.errors.length, "error")}, so ${file} can't be checked.`,
       fix: "Fix the errors and run npx pliantui scan.",
-      problems: report.errors,
+      problems: [
+        ...problemsOf("fail", report.errors),
+        ...problemsOf("warn", report.warnings),
+      ],
     }
   }
   if (surfaces.length === 0 && saved === undefined) {
@@ -47,7 +50,7 @@ export function checkInventory(
           ? `${file} is up to date, but ${pluralize(partial.length, "surface")} ${partial.length === 1 ? "isn't" : "aren't"} read in full: ${partial.join(", ")}.`
           : `${file} is up to date, but the scan has ${pluralize(report.warnings.length, "warning")}.`,
       fix: "Fix what the warnings point to and run npx pliantui scan.",
-      problems: report.warnings,
+      problems: problemsOf("warn", report.warnings),
     }
   }
   return {
