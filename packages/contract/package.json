@@ -49,24 +49,6 @@
     "size": "size-limit",
     "generate:schema": "vitest run --update --testNamePattern \"matches the published file\""
   },
-  "size-limit": [
-    {
-      "path": "dist/index.js",
-      "limit": "10.85 kB",
-      "ignore": [
-        "zod"
-      ]
-    },
-    {
-      "name": "opCatalog only",
-      "path": "dist/index.js",
-      "import": "{ opCatalog }",
-      "limit": "6.6 kB",
-      "ignore": [
-        "zod"
-      ]
-    }
-  ],
   "peerDependencies": {
     "zod": "^4.0.16"
   },

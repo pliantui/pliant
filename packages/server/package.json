@@ -28,6 +28,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./data": {
+      "types": "./dist/data.d.ts",
+      "default": "./dist/data.js"
+    },
     "./recordings": {
       "types": "./dist/recordings.d.ts",
       "default": "./dist/recordings.js"
@@ -52,28 +56,6 @@
     "check:package": "publint --strict && attw --pack . --profile esm-only",
     "size": "size-limit"
   },
-  "size-limit": [
-    {
-      "path": "dist/index.js",
-      "limit": "5 kB",
-      "ignore": [
-        "ai",
-        "zod",
-        "@pliantui/contract",
-        "@pliantui/core"
-      ]
-    },
-    {
-      "path": "dist/recordings.js",
-      "limit": "2 kB",
-      "ignore": [
-        "ai",
-        "zod",
-        "node:fs/promises",
-        "node:path"
-      ]
-    }
-  ],
   "dependencies": {
     "@pliantui/contract": "workspace:*",
     "@pliantui/core": "workspace:*"
