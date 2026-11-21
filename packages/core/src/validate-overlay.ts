@@ -10,11 +10,13 @@ import {
 } from "@pliantui/contract"
 
 import { checkOp, type OpCheck, type OpContext } from "./check-op"
+import type { FieldSchema } from "./field-schema"
 import { loadOverlay, type LoadedOverlay } from "./load-overlay"
 import { identityOf } from "./node-identity"
 import { ownEntries } from "./own-entries"
 import { readBaseOrder } from "./read-base-order"
 import { readBaseParents } from "./read-base-parents"
+import { readFields } from "./read-fields"
 import { readFlags, type ReadFlags } from "./read-flags"
 import { readManifests } from "./read-manifests"
 import { readShortcuts } from "./read-shortcuts"
@@ -62,6 +64,8 @@ export interface ValidateOverlayLayers {
   readonly manifests?: Readonly<Record<string, Manifest>> | undefined
   /** Keys your app binds itself, as in `resolveLayers`. */
   readonly reservedShortcuts?: readonly string[] | undefined
+  /** The schemas of the surface's form fields, as in `resolveLayers`. */
+  readonly fields?: Readonly<Record<string, FieldSchema>> | undefined
 }
 
 /** How `validateOverlay` checks an overlay beyond its own shape. */
@@ -80,9 +84,10 @@ export interface ValidateOverlayOptions {
    * overlay applied last, it is the highest op involved. Throws a
    * `TypeError` when `layers.surface` isn't a string, `layers.baseIds` isn't
    * an array of ids or `{ ids, source }` with an array, or `layers.flags`,
-   * `layers.baseParents`, `layers.baseOrder`, `layers.manifests` or
-   * `layers.reservedShortcuts` aren't valid as in `resolveLayers`, whatever
-   * the input.
+   * `layers.baseParents`, `layers.baseOrder`, `layers.manifests`,
+   * `layers.reservedShortcuts` or `layers.fields` aren't valid as in
+   * `resolveLayers`, whatever the input, and when a field's schema
+   * validates asynchronously.
    */
   readonly layers?: ValidateOverlayLayers | undefined
 }
@@ -167,6 +172,10 @@ function guardrailMessage(skip: Extract<SkippedOp, { reason: "guardrail" }>) {
         ? `${item} is destructive, so its ${String(prop)} can't change`
         : `${item} can't take ${String(prop)} ${String(value)}, which only the app assigns`
     }
+    case "valid-default":
+      return `${item} doesn't accept this default`
+    case "stays-in-place":
+      return `${item} is a form field, so it can't move into a new parent`
   }
 }
 
@@ -276,6 +285,7 @@ export function validateOverlay(
         layers.reservedShortcuts,
         "layers.reservedShortcuts"
       ),
+      fields: readFields(layers.fields, "layers.fields"),
     }
   }
   const entries = ownEntries(input)

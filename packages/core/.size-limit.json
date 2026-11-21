@@ -1,7 +1,7 @@
 [
   {
     "path": "dist/index.js",
-    "limit": "29.3 kB",
+    "limit": "29.6 kB",
     "ignore": ["zod"]
   }
 ]

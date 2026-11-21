@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import * as z from "zod"
 
 import type { Flags, Layer, Manifest, Op } from "@pliantui/contract"
 
@@ -145,6 +146,7 @@ interface Surface {
   readonly teamOrder?: readonly string[]
   readonly manifests: Record<string, Manifest>
   readonly reservedShortcuts?: readonly string[]
+  readonly fields: Record<string, z.ZodType>
 }
 
 const actionManifest: Manifest = {
@@ -251,6 +253,7 @@ function randomSurface(next: Random): Surface {
       tools.map((id) => [addressOf(`toolbar/actions/${id}`), actionManifest])
     ),
     ...(reservedShortcuts && { reservedShortcuts }),
+    fields: { [addressOf("form/fields/name")]: z.string().min(2) },
     ...(baseParents && { baseParents }),
     ...(baseOrder && { baseOrder }),
     ...(teamOrder && { teamOrder }),
@@ -355,6 +358,18 @@ function randomOp(next: Random): unknown {
         op: "bindShortcut",
         target: tool,
         keys: pick(shortcutKeys, next),
+      }),
+      () => ({
+        op: "setDefault",
+        target: `form/fields/${pick(fields, next)}`,
+        value: pick<unknown>(["Ada", "A", 3, null], next),
+      }),
+      () => ({
+        op: "wrap",
+        target: slot("form"),
+        id: pick(["w", "v"], next),
+        items: pick([fields, ["name", "notice"], ["notice", "help"]], next),
+        mode: "stack",
       }),
       () =>
         next() < 0.5
@@ -720,12 +735,40 @@ function lostMeaning(layers: ResolvedLayers, model: Model): string[] {
     })
 }
 
+/** The fields given a default their schema rejects. */
+function invalidDefaults(layers: ResolvedLayers): string[] {
+  const id = "form/fields/name"
+  const op = opOf(layers, id, "default")
+  return op?.op === "setDefault" &&
+    !(typeof op.value === "string" && op.value.length >= 2)
+    ? [id]
+    : []
+}
+
+/** The known form fields a live wrapper took out of their form. */
+function rehomed(layers: ResolvedLayers, model: Model): string[] {
+  const known = new Set([
+    "form/fields/name",
+    ...[...model.flags.keys()].filter((id) => id.startsWith("form/fields/")),
+  ])
+  return ["w", "v"].flatMap((id) => {
+    const op = opOf(layers, id, "inserted")
+    return op?.op === "wrap" && identityOf(op.target) === "form"
+      ? op.items
+          .map((item) => `form/fields/${item}`)
+          .filter((field) => known.has(field))
+      : []
+  })
+}
+
 function violations(layers: ResolvedLayers, model: Model, page: Surface) {
   return {
     "stays-visible": outOfSight(layers, model),
     "stays-clear": tooClose(layers, model),
     "free-shortcut": takenKeys(layers, page),
     "keeps-meaning": lostMeaning(layers, model),
+    "valid-default": invalidDefaults(layers),
+    "stays-in-place": rehomed(layers, model),
   }
 }
 
@@ -734,6 +777,8 @@ const none = {
   "stays-clear": [],
   "free-shortcut": [],
   "keeps-meaning": [],
+  "valid-default": [],
+  "stays-in-place": [],
 }
 
 const guardrailSkips = (layers: ResolvedLayers) =>
@@ -803,6 +848,8 @@ describe("guardrails on random surfaces", () => {
         "stays-clear": 0,
         "free-shortcut": 0,
         "keeps-meaning": 0,
+        "valid-default": 0,
+        "stays-in-place": 0,
       }
       for (let run = 0; run < runs; run++) {
         const { page, result, model } = randomRun(next)
@@ -817,8 +864,10 @@ describe("guardrails on random surfaces", () => {
       // Every rule must have had something to stop.
       expect(kinds["stays-visible"]).toBeGreaterThan(runs / 3)
       expect(kinds["stays-clear"]).toBeGreaterThan(runs / 3)
-      expect(kinds["free-shortcut"]).toBeGreaterThan(runs / 3)
+      expect(kinds["free-shortcut"]).toBeGreaterThan(runs / 5)
       expect(kinds["keeps-meaning"]).toBeGreaterThan(runs / 5)
+      expect(kinds["valid-default"]).toBeGreaterThan(runs / 5)
+      expect(kinds["stays-in-place"]).toBeGreaterThan(runs / 5)
     },
     timeout
   )
@@ -837,6 +886,7 @@ describe("guardrails on random surfaces", () => {
           teamOrder: page.teamOrder,
           manifests: reshuffle(page.manifests, next),
           reservedShortcuts: page.reservedShortcuts,
+          fields: page.fields,
         })
         expect(reordered.skipped.map(keyOf)).toEqual(result.skipped.map(keyOf))
         expect(reordered.placements).toEqual(result.placements)
