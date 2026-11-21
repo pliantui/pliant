@@ -7,6 +7,7 @@ import DefaultBanner, {
   Tree,
 } from "@/components/helpers"
 import { MetaBanner } from "@/components/meta-banner"
+import { Wrap } from "@/components/panel"
 
 export default function DirectPage() {
   return (
@@ -19,6 +20,7 @@ export default function DirectPage() {
       <DefaultBanner />
       <Tree depth={1} />
       <MetaBanner table />
+      <Wrap />
     </PliantRoot>
   )
 }

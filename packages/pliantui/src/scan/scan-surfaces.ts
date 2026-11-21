@@ -34,6 +34,7 @@ import {
   usageOf,
   type MemberPath,
 } from "./region-placement"
+import { createRelevance } from "./relevance"
 import {
   addNode,
   builtInKinds,
@@ -75,7 +76,7 @@ interface Walk {
    * How many functions rendered once per row or item, like a `.map`
    * callback or a column's `cell`, the walk is inside.
    */
-  repeated: number
+  readonly repeated: Node[]
 }
 
 /** A region's slots, waiting for the place the component renders them. */
@@ -156,6 +157,16 @@ function hookCalls(
           })
         : []
     })
+}
+
+// A call of the app's own hook that returns a region or table.
+function isAppRegionHook(call: CallExpression) {
+  const fn = functionIn(call.getExpression())
+  return (
+    fn !== undefined &&
+    /^use[A-Z]/.test(componentName(fn) ?? "") &&
+    hookCalls(fn).length > 0
+  )
 }
 
 function warn(walk: Walk, node: Node, message: string) {
@@ -385,9 +396,9 @@ function walkCall(
     renderValue(callee.getExpression(), parent, walk)
     // An inline callback, or a named one like `rows.map(renderRow)`.
     const [callback] = call.getArguments()
-    walk.repeated++
+    walk.repeated.push(call)
     walkFunction(callback && follows(callback, walk), scope, parent, walk)
-    walk.repeated--
+    walk.repeated.pop()
     return
   }
   // `useMemo(() => <Panel />, deps)` renders what its callback returns.
@@ -753,22 +764,23 @@ function walkComponent(
   // the component renders it.
   const calls = hookCalls(fn)
   // A region or table rendered once per row or item would repeat its id.
-  if (walk.repeated > 0 && calls.length > 0) {
+  const [repeatedAt] = walk.repeated
+  if (repeatedAt && calls.length > 0) {
     for (const { call, site } of calls) {
       walk.visited.add(call)
       walk.surface.consumed.add(call)
       walk.surface.consumed.add(site.getExpression())
     }
-    const at = element ?? calls[0]?.call ?? fn
-    const what = Node.isJsxElement(at)
-      ? `<${at.getOpeningElement().getTagNameNode().getText()}>`
-      : Node.isJsxSelfClosingElement(at)
-        ? `<${at.getTagNameNode().getText()}>`
-        : describeExpression(at)
+    const what = Node.isJsxElement(element)
+      ? `<${element.getOpeningElement().getTagNameNode().getText()}>`
+      : Node.isJsxSelfClosingElement(element)
+        ? `<${element.getTagNameNode().getText()}>`
+        : (componentName(fn) ?? "A component")
+    // Reported at the `.map` call or column function that repeats it.
     warn(
       walk,
-      at,
-      `${what} renders a region or table once per row or item, like in a \`.map\` callback or a table cell, so its id isn't unique and it's left out.`
+      repeatedAt,
+      `${what} renders a region or table once per row or item here, so its id isn't unique and it's left out of ${walk.surface.surface}.`
     )
     walkReturns(fn, scope, parent, walk)
     return
@@ -1007,9 +1019,9 @@ function declareTable(
       for (const fn of defs.getDescendants().filter(isFunction)) {
         const outer = fn.getParentOrThrow().getFirstAncestor(isFunction)
         if (!outer || !defs.containsRange(outer.getPos(), outer.getEnd())) {
-          walk.repeated++
+          walk.repeated.push(fn)
           walkFunction(fn, options.scope, id, walk)
-          walk.repeated--
+          walk.repeated.pop()
         }
       }
     }
@@ -1193,7 +1205,7 @@ export function scanSurfaces(
         kindOf,
         pendingSlots: new Map(),
         root,
-        repeated: 0,
+        repeated: [],
       }
       if (fromLayout) {
         const routes = appRoutes(sourceFile.getFilePath(), files)
@@ -1341,6 +1353,8 @@ function isReference(node: Node) {
     return false
   }
   if (
+    Node.isJsxAttribute(parent) ||
+    Node.isJsxNamespacedName(parent) ||
     Node.isExportAssignment(parent) ||
     Node.isBindingElement(parent) ||
     Node.isShorthandPropertyAssignment(parent) ||
@@ -1380,31 +1394,12 @@ function reportUnfollowed(
       )
     )
   }
-  // Whether a component the walk didn't render here may render a region or
-  // table: it declares one, or renders something the scan can't follow.
-  const unknown = new Map<ComponentFunction, boolean>()
-  const mayRenderUnknown = (fn: ComponentFunction): boolean => {
-    const cached = unknown.get(fn)
-    if (cached !== undefined) {
-      return cached
-    }
-    unknown.set(fn, false)
-    const result =
-      declaresNodes(fn) ||
-      fn.getDescendants().some((node) => {
-        if (
-          Node.isJsxOpeningElement(node) ||
-          Node.isJsxSelfClosingElement(node)
-        ) {
-          const tag = node.getTagNameNode()
-          const rendered = componentOf(tag)
-          return rendered ? mayRenderUnknown(rendered) : isOpaqueTag(tag, root)
-        }
-        return isReference(node) && holdsDeclaring(node, declaresNodes)
-      })
-    unknown.set(fn, result)
-    return result
-  }
+  const { relevantFunction, relevantReference } = createRelevance({
+    root,
+    declaresNodes,
+    isRegionHook: (call) => hookOf(call) !== undefined || isAppRegionHook(call),
+    isReference,
+  })
   const check = (node: Node) => {
     if (surface.consumed.has(node)) {
       return
@@ -1415,7 +1410,7 @@ function reportUnfollowed(
     if (Node.isJsxElement(node) || Node.isJsxSelfClosingElement(node)) {
       const tag = tagOf(node)
       const fn = componentOf(tag)
-      if (fn ? mayRenderUnknown(fn) : isOpaqueTag(tag, root)) {
+      if (fn ? relevantFunction(fn) : isOpaqueTag(tag, root)) {
         flag(node, `<${tag.getText()}>`)
       }
       return
@@ -1470,7 +1465,7 @@ function reportUnfollowed(
       }
       return
     }
-    if (isReference(node) && holdsDeclaring(node, declaresNodes)) {
+    if (isReference(node) && relevantReference(node)) {
       flag(node, describeExpression(node))
     }
   }

@@ -199,6 +199,15 @@ function isContextPart(node: Node, root: string) {
 }
 
 /**
+ * Whether an identifier is imported from a package, by the import's
+ * specifier; `undefined` when it isn't imported.
+ */
+export function isImportFromPackage(identifier: Node, root: string) {
+  const imported = importOf(identifier)
+  return imported && isPackageImport(imported, root)
+}
+
+/**
  * Whether a JSX tag renders something the scan can't follow: not an HTML
  * element, not a component from a package, and not one of the app's
  * function components, which the caller has already tried. `root` is the

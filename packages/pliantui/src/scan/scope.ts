@@ -210,6 +210,8 @@ export function functionIn(
     if (!first) {
       return undefined
     }
+    // The wrapper, like `memo` or `withAuth`, is followed through.
+    seen.add(current.getExpression())
     current = unwrapExpression(first)
   }
   seen.add(current)

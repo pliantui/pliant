@@ -936,7 +936,7 @@ describe("pliantui scan", () => {
         .filter(({ file }) => file === "app/orders/columns.tsx")
         .map(({ message }) => message)
     ).toEqual([
-      "<PliantRegion> renders a region or table once per row or item, like in a `.map` callback or a table cell, so its id isn't unique and it's left out.",
+      "<PliantRegion> renders a region or table once per row or item here, so its id isn't unique and it's left out of /orders.",
       'The column "2fa" of orders-table is left out: overlays can only address column ids that start with a letter and contain only letters, digits, - and _.',
     ])
   })
@@ -970,7 +970,7 @@ describe("pliantui scan", () => {
       "app/reports/page.tsx:39 A slot of overview can't be read: the spread ...extra.",
       "app/reports/page.tsx:44 The id of a region can't be read: regionId().",
       // A region rendered once per item would repeat its id.
-      "app/reports/page.tsx:50 <PliantRegion> renders a region or table once per row or item, like in a `.map` callback or a table cell, so its id isn't unique and it's left out.",
+      "app/reports/page.tsx:49 <PliantRegion> renders a region or table once per row or item here, so its id isn't unique and it's left out of reports.",
       "app/reports/page.tsx:19 A column of reports-table can't be read: the columns fields.map((field) => ({ accessorKey:....",
     ])
   })
@@ -1136,6 +1136,56 @@ describe("pliantui scan, for what it can't follow", () => {
     )
   })
 
+  it("follows a context's default value in code it doesn't walk", async () => {
+    const cwd = await createFixtureDirectory("scan-unfollowed")
+    await writeFile(
+      path.join(cwd, "components/panel-context.tsx"),
+      [
+        'import { createContext, useContext } from "react"',
+        "",
+        'import { PliantRegion } from "@/components/pliant/pliant-region"',
+        "",
+        "const PanelContext = createContext(",
+        '  <PliantRegion id="context-panel" slots={{ body: <p>Body</p> }} />',
+        ")",
+        "",
+        "export function ShowPanel() {",
+        "  return <div>{useContext(PanelContext)}</div>",
+        "}",
+        "",
+      ].join("\n")
+    )
+    await mkdir(path.join(cwd, "app/context-default"))
+    await writeFile(
+      path.join(cwd, "app/context-default/page.tsx"),
+      [
+        'import { Loader } from "fake-loader"',
+        "",
+        'import { PliantRoot } from "@pliantui/react"',
+        "",
+        'import { ShowPanel } from "@/components/panel-context"',
+        "",
+        "export default function ContextDefaultPage() {",
+        "  return (",
+        '    <PliantRoot surface="context-default">',
+        "      <Loader>{() => <ShowPanel />}</Loader>",
+        "    </PliantRoot>",
+        "  )",
+        "}",
+        "",
+      ].join("\n")
+    )
+    const { output } = await scanJson(cwd)
+
+    expect(output.inventory["context-default"]?.baseIds.source).toBe("mounted")
+    expect(output.warnings).toContainEqual({
+      file: "app/context-default/page.tsx",
+      line: 10,
+      message:
+        "<ShowPanel> may render a region or table the scan doesn't follow there, so context-default isn't read in full.",
+    })
+  })
+
   it("treats a component from a package whose types aren't built as the package's", async () => {
     const cwd = await createFixtureDirectory("scan-unfollowed")
     await mkdir(path.join(cwd, "node_modules/unbuilt-ui"), { recursive: true })
@@ -1164,7 +1214,7 @@ describe("pliantui scan, for what it can't follow", () => {
     const { output } = await scanJson(cwd)
 
     expect(output.inventory["direct"]?.baseIds).toEqual({
-      ids: ["banner", "message"],
+      ids: ["banner", "body", "message", "panel"],
       source: "inventory",
     })
   })
@@ -1187,7 +1237,7 @@ describe("pliantui scan, for what it can't follow", () => {
       ["children-frame", ["banner", "message"]],
       // `R.useMemo` under a default import.
       ["default-import-memo", ["banner", "message"]],
-      ["direct", ["banner", "message"]],
+      ["direct", ["banner", "body", "message", "panel"]],
       // `renderHidden()` from another file, the one surface that renders it.
       ["helper-rendered", ["hidden", "more"]],
       ["hoc", ["banner", "message"]],
@@ -1225,7 +1275,19 @@ describe("pliantui scan, for what it can't follow", () => {
       ],
       "context-value": ["app/context-value/page.tsx renderBanner"],
       // A member of what `useContext()` returns is the app's own data.
-      "context-member": ["app/context-member/page.tsx <ui.Banner>"],
+      "context-member": [
+        "app/context-member/page.tsx <ui.Banner>",
+        "app/context-member/page.tsx UiContext",
+      ],
+      // What an unwalked render prop renders is followed through every
+      // reference: a constant holding a region, a component that renders
+      // one, or a helper that renders a component the scan can't follow.
+      "constant-in-package-prop": [
+        "app/constant-in-package-prop/page.tsx panel",
+      ],
+      "constant-in-render-prop": ["app/constant-in-render-prop/page.tsx panel"],
+      "helper-renders-opaque": ["app/helper-renders-opaque/page.tsx <Section>"],
+      "wrapper-in-render-prop": ["app/wrapper-in-render-prop/page.tsx <Wrap>"],
       // JSX in a function the walk doesn't render, like a render prop of a
       // package's component or a context's Consumer, is checked too.
       "context-consumer": ["app/context-consumer/page.tsx <ui.Banner>"],
@@ -1235,9 +1297,14 @@ describe("pliantui scan, for what it can't follow", () => {
       "package-render-prop-component": [
         "app/package-render-prop-component/page.tsx <MetaBanner>",
       ],
-      "render-prop-context": ["app/render-prop-context/page.tsx <ui.Banner>"],
+      "render-prop-context": [
+        "app/render-prop-context/page.tsx UiContext",
+        "app/render-prop-context/page.tsx <ui.Banner>",
+      ],
       "context-member-variable": [
         "app/context-member-variable/page.tsx <Picked>",
+        "app/context-member-variable/page.tsx useContext(UiContext).Banner",
+        "app/context-member-variable/page.tsx UiContext",
       ],
       "create-element": ["app/create-element/page.tsx Banner"],
       // A module typed only by the app's own declaration files, here a
@@ -1247,13 +1314,22 @@ describe("pliantui scan, for what it can't follow", () => {
       "mdx-alias": ["app/mdx-alias/page.tsx <Notes>"],
       "mdx-module": ["app/mdx-module/page.tsx <Notes>"],
       // A component taken from what a function returns.
-      "destructured-call": ["app/destructured-call/page.tsx <Picked>"],
+      "destructured-call": [
+        "app/destructured-call/page.tsx <Picked>",
+        "app/destructured-call/page.tsx getComponents",
+      ],
       "dynamic-tag": [
         "app/dynamic-tag/page.tsx <Frame>",
         "app/dynamic-tag/page.tsx Banner",
       ],
-      "factory-call": ["app/factory-call/page.tsx <Picked>"],
-      "hook-component": ["app/hook-component/page.tsx <Picked>"],
+      "factory-call": [
+        "app/factory-call/page.tsx <Picked>",
+        "app/factory-call/page.tsx pick",
+      ],
+      "hook-component": [
+        "app/hook-component/page.tsx <Picked>",
+        "app/hook-component/page.tsx useBannerComponent",
+      ],
       // The region renderHidden makes, passed to a package's component, is
       // unwalked here even though PliantRegion is walked for the banner.
       "helper-in-package": ["components/hidden-region.tsx <PliantRegion>"],
@@ -1269,7 +1345,10 @@ describe("pliantui scan, for what it can't follow", () => {
         "app/registry/page.tsx registry",
         "app/registry/page.tsx Banner",
       ],
-      "unrendered-variable": ["app/unrendered-variable/page.tsx <Banner>"],
+      "unrendered-variable": [
+        "app/unrendered-variable/page.tsx <Banner>",
+        "app/unrendered-variable/page.tsx banner",
+      ],
     })
     for (const surface of Object.keys(marked)) {
       expect(output.inventory[surface]?.baseIds.source).toBe("mounted")
