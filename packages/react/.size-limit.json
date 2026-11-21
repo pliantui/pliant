@@ -1,7 +1,7 @@
 [
   {
     "path": "dist/index.js",
-    "limit": "7.1 kB",
+    "limit": "7.05 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -24,6 +24,17 @@
   {
     "path": "dist/form.js",
     "limit": "900 B",
+    "ignore": [
+      "react",
+      "react-dom",
+      "zod",
+      "@pliantui/contract",
+      "@pliantui/core"
+    ]
+  },
+  {
+    "path": "dist/nav.js",
+    "limit": "880 B",
     "ignore": [
       "react",
       "react-dom",
@@ -101,7 +112,7 @@
       "dist/table.js",
       "dist/local.js"
     ],
-    "limit": "16.6 kB",
+    "limit": "16.55 kB",
     "ignore": [
       "react",
       "react-dom",

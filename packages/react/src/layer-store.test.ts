@@ -991,7 +991,6 @@ describe("createLayerStore", () => {
           filter: { field: "status", operator: "eq", value: "open" },
         },
       ])
-      expect(store.changesNode("page/slots/orders-table")).toBe(true)
 
       expect(store.actions.resetNode("page/slots/orders-table")).toEqual({
         success: true,
@@ -1017,7 +1016,6 @@ describe("createLayerStore", () => {
         layer: "personal",
         op: "setSort",
       })
-      expect(store.changesNode("orders-table")).toBe(false)
       await vi.waitFor(() => {
         expect(records.get("01KAB0000000000000000000P1")?.deletedAt).toEqual(
           expect.any(String)
@@ -1040,25 +1038,129 @@ describe("createLayerStore", () => {
       expect(winner(reloaded.getResolved(), "orders-table", "visible")).toEqual(
         { layer: "personal", op: "hide" }
       )
-      expect(reloaded.changesNode("orders-table", true)).toBe(false)
     })
 
-    it("counts only the personal and session layers as changes", () => {
-      const store = createLayerStore({
+    it("keeps the ops it saves again in their place among later versions", async () => {
+      const earlier = {
+        ...personalOverlay("01KAB0000000000000000000P1", [
+          sort("desc"),
+          { ...sort("asc"), target: "orders-chart" },
+        ]),
+        createdAt: "2026-11-18T00:00:00.000Z",
+      }
+      const later = {
+        ...personalOverlay("01KAB0000000000000000000P2", [
+          { ...sort("desc"), target: "orders-chart" },
+        ]),
+        createdAt: "2026-11-18T12:00:00.000Z",
+      }
+      const { storage, records } = memoryStorage({
+        personal: [earlier, later],
+      })
+      const store = createLayerStore({ surface, storage })
+      store.connect()
+
+      store.actions.resetNode("orders-table")
+      store.flush()
+
+      const sortOf = (resolved: ReturnType<typeof store.getResolved>) => {
+        const op = resolved.properties.get("orders-chart")?.get("sort")?.winner
+          .check.op
+        return op?.op === "setSort" ? op.sort : undefined
+      }
+      expect(sortOf(store.getResolved())).toEqual([
+        { field: "total", dir: "desc" },
+      ])
+      await vi.waitFor(() => {
+        expect(records.get("01KAB0000000000000000000P1")?.deletedAt).toEqual(
+          expect.any(String)
+        )
+      })
+      const reloaded = createLayerStore({
         surface,
         storage: memoryStorage().storage,
-        layers: { team: stored(team), personal: stored(mine) },
+        layers: {
+          personal: [...records.values()].filter((record) => !record.deletedAt),
+        },
+      })
+      expect(sortOf(reloaded.getResolved())).toEqual([
+        { field: "total", dir: "desc" },
+      ])
+      expect(winner(reloaded.getResolved(), "orders-table", "sort")).toBe(
+        undefined
+      )
+    })
+
+    it("drops a change still waiting to be saved, and saves the next one", async () => {
+      const { storage, records } = memoryStorage()
+      const store = createLayerStore({ surface, storage })
+      store.connect()
+      store.actions.applyOps("personal", [sort("desc")])
+
+      expect(store.actions.resetNode("orders-table")).toEqual({
+        success: true,
+      })
+      expect(winner(store.getResolved(), "orders-table", "sort")).toBe(
+        undefined
+      )
+      store.actions.applyOps("personal", [sort("asc")])
+      await vi.advanceTimersByTimeAsync(1000)
+
+      await vi.waitFor(() => {
+        const live = [...records.values()].filter((record) => !record.deletedAt)
+        expect(live.map((record) => record.overlay.ops)).toEqual([
+          [sort("asc")],
+        ])
+      })
+      expect(winner(store.getResolved(), "orders-table", "sort")).toEqual({
+        layer: "personal",
+        op: "setSort",
+      })
+    })
+
+    it("leaves the node's placement, span, visibility and insertion", async () => {
+      const { storage } = memoryStorage({
+        personal: [
+          personalOverlay("01KAB0000000000000000000P1", [
+            {
+              op: "insert",
+              target: "dashboard",
+              node: { id: "sales-chart", kind: "chart", dataset: "orders" },
+              at: { index: 0 },
+            },
+            {
+              op: "move",
+              target: "dashboard/slots/sales-chart",
+              to: { into: "sidebar" },
+            },
+            { op: "span", target: "sidebar/slots/sales-chart", columns: 2 },
+            { op: "hide", target: "sidebar/slots/sales-chart" },
+            { ...sort("asc"), target: "sidebar/slots/sales-chart" },
+          ]),
+        ],
+      })
+      const store = createLayerStore({ surface, storage })
+      store.registerNodes(["dashboard", "sidebar"])
+      store.connect()
+      await Promise.resolve()
+      expect(winner(store.getResolved(), "sales-chart", "sort")).toEqual({
+        layer: "personal",
+        op: "setSort",
       })
 
-      expect(store.changesNode("orders-table", true)).toBe(true)
-      expect(store.changesNode("orders-chart", true)).toBe(true)
-      expect(
-        createLayerStore({
-          surface,
-          storage: memoryStorage().storage,
-          layers: { team: stored(team) },
-        }).changesNode("orders-table", true)
-      ).toBe(false)
+      expect(store.actions.resetNode("sidebar/slots/sales-chart")).toEqual({
+        success: true,
+      })
+      const resolved = store.getResolved()
+      expect(winner(resolved, "sales-chart", "sort")).toBe(undefined)
+      expect(winner(resolved, "sales-chart", "visible")).toEqual({
+        layer: "personal",
+        op: "hide",
+      })
+      const properties = resolved.properties.get("sales-chart")
+      expect(properties?.get("span")?.winner.check.op.op).toBe("span")
+      expect(properties?.get("inserted")?.winner.check.op.op).toBe("insert")
+      expect(resolved.placements.get("sales-chart")?.container).toBe("sidebar")
     })
 
     it("removes a version once a save still running stores it", async () => {
@@ -1094,14 +1196,35 @@ describe("createLayerStore", () => {
       ).toBe(true)
     })
 
+    it("reports a removal that fails", async () => {
+      const { storage } = memoryStorage({ personal: [mine] })
+      const failure = new Error("offline")
+      const onError = vi.fn()
+      const store = createLayerStore({
+        surface,
+        storage: { ...storage, remove: () => Promise.reject(failure) },
+        onError,
+      })
+      store.connect()
+
+      expect(store.actions.resetNode("orders-table")).toEqual({
+        success: true,
+      })
+      await vi.waitFor(() => {
+        expect(onError).toHaveBeenCalledWith(failure)
+      })
+    })
+
     it("is rejected when the adapter can't remove overlays", () => {
       const { storage } = memoryStorage({ personal: [mine] })
+      const onError = vi.fn()
       const store = createLayerStore({
         surface,
         storage: {
           load: (...args) => storage.load(...args),
           save: (...args) => storage.save(...args),
         },
+        onError,
       })
       store.connect()
 
@@ -1109,6 +1232,9 @@ describe("createLayerStore", () => {
         success: false,
         error: "The storage adapter of /orders can't remove overlays",
       })
+      expect(onError).toHaveBeenCalledWith(
+        new Error("The storage adapter of /orders can't remove overlays")
+      )
       expect(winner(store.getResolved(), "orders-table", "sort")).toEqual({
         layer: "personal",
         op: "setSort",

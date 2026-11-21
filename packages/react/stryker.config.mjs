@@ -9,6 +9,7 @@ const all = [
   "!src/index.ts",
   "!src/ask.ts",
   "!src/form.ts",
+  "!src/nav.ts",
   "!src/local.ts",
   "!src/point-mode.ts",
   "!src/region.ts",

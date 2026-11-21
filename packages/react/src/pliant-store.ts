@@ -26,11 +26,11 @@ export type LockInResult =
   | { readonly success: false; readonly error: string }
 
 /**
- * Whether `resetNode` dropped the user's changes, or why it didn't.
+ * Whether `resetNode` dropped the user's changes, or why it was rejected.
  *
  * @experimental
  */
-export type ResetResult =
+export type ResetNodeResult =
   | { readonly success: true }
   | { readonly success: false; readonly error: string }
 
@@ -133,16 +133,20 @@ export interface PliantStore {
   /**
    * Drops the user's own changes to a node: the ops in the personal and
    * session layers that write its properties or those of its items, such
-   * as a table's sort and filters and its columns' widths. Where the node
-   * sits and whether it shows are left, since they belong to its container,
-   * and so is the preview. The node then shows as the org and team layers,
-   * and then the base, have it, and follows their later changes.
-   * `usePliantNodeChanged` tells whether there is anything to drop.
+   * as a table's sort and filters and its columns' widths. The node's
+   * placement, span, visibility and insertion are left, since they belong
+   * to its container, and so is the preview. The node then shows as the org
+   * and team layers, and then the base, have it, and follows their later
+   * changes. A property of the node or its items in
+   * `useResolved().properties` whose winner is in the personal or session
+   * layer is such a change, unless the preview overrides it.
    *
    * A personal version with such ops is removed from storage with the
    * adapter's `remove`, and its other ops are saved as a new version dated
    * the same, so they keep applying in the same order. It is rejected
-   * when the adapter has no `remove`, or until the layers are `ready`.
+   * until the layers are `ready`, and when the adapter has no `remove`,
+   * which is also passed to `PliantRoot`'s `onError`. A removal that fails
+   * is passed to `onError` too.
    */
-  readonly resetNode: (target: string) => ResetResult
+  readonly resetNode: (target: string) => ResetNodeResult
 }

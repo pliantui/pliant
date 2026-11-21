@@ -14,6 +14,7 @@ import type { LayerTools } from "./layer-tools"
 import { planLockIn } from "./lock-in"
 import { settleManual, splitManual } from "./manual-changes"
 import { manualOverlay } from "./manual-overlay"
+import { identityOf } from "./node-identity"
 import { createNodeRegistry } from "./node-registry"
 import { idOf, mergeById, withOps } from "./overlay-list"
 import { loadingStatus, readyStatus, type PliantStatus } from "./pliant-status"
@@ -22,7 +23,7 @@ import type {
   LockInResult,
   OverlayResult,
   PliantStore,
-  ResetResult,
+  ResetNodeResult,
 } from "./pliant-store"
 import { changeKeyOf } from "./property-keys"
 import { viewOf } from "./resolved-view"
@@ -59,11 +60,6 @@ export interface LayerStore {
   readonly getPreview: () => LoadedOverlay | null
   readonly getStatus: () => PliantStatus
   readonly getServerStatus: () => PliantStatus
-  /**
-   * Whether the personal or session layer writes a node, as `resetNode`
-   * finds it, in the layers loaded on the server when `server` is true.
-   */
-  readonly changesNode: (target: string, server?: boolean) => boolean
   readonly registerNodes: (ids: readonly string[]) => () => void
   readonly registerFields: FieldRegistry["register"]
   readonly slots: SlotRegistry
@@ -77,17 +73,12 @@ export interface LayerStore {
   readonly report: (error: unknown) => void
 }
 
-// A node's identity is its bare id: the part after its last `/slots/`.
-function identityOf(target: string) {
-  return target.split("/slots/").at(-1) ?? target
-}
-
-// Where a node sits and whether it shows belong to its container, so a
-// reset leaves them.
+// A node's placement, span, visibility and insertion belong to its
+// container, so a reset leaves them.
 const placeProperties = new Set(["placement", "visible", "inserted", "span"])
 
 // Whether a valid op writes a property of the node with this identity, or of
-// one of its items, such as a column, other than where the node sits.
+// one of its items, such as a column, other than those its container owns.
 function writesNode(op: Op, identity: string) {
   return opProperties(op).some(
     ({ address, property }) =>
@@ -426,18 +417,7 @@ export function createLayerStore({
     return overlay && keep?.includes(false) ? { overlay, keep } : undefined
   }
 
-  function changesNode(target: string, server = false) {
-    const identity = identityOf(target)
-    return (server ? initial : [...personal, ...session]).some((input) => {
-      const layer = load(input)?.layer
-      return (
-        (layer === "personal" || layer === "session") &&
-        resetOf(input, identity) !== undefined
-      )
-    })
-  }
-
-  function resetNode(target: string): ResetResult {
+  function resetNode(target: string): ResetNodeResult {
     const rejected = notReady()
     if (rejected) {
       return rejected
@@ -445,10 +425,10 @@ export function createLayerStore({
     const identity = identityOf(target)
     const changed = personal.flatMap((input) => resetOf(input, identity) ?? [])
     if (changed.length > 0 && !storage.remove) {
-      return {
-        success: false,
-        error: `The storage adapter of ${surface} can't remove overlays`,
-      }
+      const error = `The storage adapter of ${surface} can't remove overlays`
+      // A setup error, so the app hears of it whichever component asked.
+      report(new Error(error))
+      return { success: false, error }
     }
     session = session.flatMap((input) => {
       const reset = resetOf(input, identity)
@@ -801,7 +781,6 @@ export function createLayerStore({
       return status
     },
     getServerStatus: () => serverStatus,
-    changesNode,
     registerNodes: register,
     registerFields: fieldRegistry.register,
     slots: createSlotRegistry(),
