@@ -1,6 +1,6 @@
 "use client"
 
-import type { ComponentProps, CSSProperties } from "react"
+import type { ComponentProps, CSSProperties, ReactNode } from "react"
 import type { Column, ReactTable, RowData } from "@tanstack/react-table"
 import { cn } from "cn"
 import {
@@ -9,7 +9,6 @@ import {
   CircleCheck,
   Star,
   TriangleAlert,
-  type LucideIcon,
 } from "lucide-react"
 
 import { usePliantMessages, type PliantMessages } from "@pliantui/react"
@@ -73,29 +72,34 @@ const toneMessages = {
 // solid background still show under it.
 const tones = {
   emphasis: {
-    icon: Star,
     row: "[&>td]:bg-linear-to-r [&>td]:from-primary/8 [&>td]:to-primary/8",
-    iconClassName: "text-primary",
+    icon: <Star aria-hidden className="size-4 shrink-0 text-primary" />,
   },
   success: {
-    icon: CircleCheck,
     row: "[&>td]:bg-linear-to-r [&>td]:from-emerald-500/14 [&>td]:to-emerald-500/14",
-    iconClassName: "text-emerald-700 dark:text-emerald-400",
+    icon: (
+      <CircleCheck
+        aria-hidden
+        className="size-4 shrink-0 text-emerald-700 dark:text-emerald-400"
+      />
+    ),
   },
   warning: {
-    icon: TriangleAlert,
     row: "[&>td]:bg-linear-to-r [&>td]:from-amber-500/16 [&>td]:to-amber-500/16",
-    iconClassName: "text-amber-700 dark:text-amber-400",
+    icon: (
+      <TriangleAlert
+        aria-hidden
+        className="size-4 shrink-0 text-amber-700 dark:text-amber-400"
+      />
+    ),
   },
   danger: {
-    icon: CircleAlert,
     row: "[&>td]:bg-linear-to-r [&>td]:from-destructive/12 [&>td]:to-destructive/12",
-    iconClassName: "text-destructive",
+    icon: (
+      <CircleAlert aria-hidden className="size-4 shrink-0 text-destructive" />
+    ),
   },
-} satisfies Record<
-  Tone,
-  { icon: LucideIcon; row: string; iconClassName: string }
->
+} satisfies Record<Tone, { row: string; icon: ReactNode }>
 
 const ariaSort = { asc: "ascending", desc: "descending" } as const
 
@@ -117,10 +121,9 @@ function PliantDataTableHighlight({
   tone: Tone
   label: string
 }) {
-  const { icon: Icon, iconClassName } = tones[tone]
   return (
     <>
-      <Icon aria-hidden className={cn("size-4 shrink-0", iconClassName)} />
+      {tones[tone].icon}
       <span className="sr-only">{label}</span>
     </>
   )
