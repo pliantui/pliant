@@ -299,6 +299,14 @@ const signatures = {
     unit: "none",
   }),
   eq: equality,
+  eqI: row({
+    args: [
+      { name: "a", type: "string" },
+      { name: "b", type: { like: "a" } },
+    ],
+    returns: "boolean",
+    unit: "none",
+  }),
   neq: equality,
   gt: comparison,
   gte: comparison,
@@ -362,7 +370,9 @@ const signatures = {
     unit: "none",
   }),
   contains: textTest,
+  containsI: textTest,
   startsWith: textTest,
+  startsWithI: textTest,
   left: textEnd,
   right: textEnd,
   dateDiff: row({

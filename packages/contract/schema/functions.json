@@ -4,6 +4,7 @@
     "Numbers are IEEE 754 doubles, currency included, and calculations use the full value. A currency value is displayed rounded to its format's decimals, or to its currency's minor units (2 for USD, 0 for JPY) when decimals isn't set. An integer is a number without a fractional part and is accepted wherever a number is. A number literal without a fractional part is an integer.",
     "A NaN or infinite value, read or computed, is null.",
     "Functions compare strings by Unicode code point, case included, as in eq, lt, gt, contains, startsWith, in, min and max. Lengths and positions count code points. Table sorting with setSort is separate and uses locale-aware collation.",
+    "eqI, containsI and startsWithI ignore case: they lowercase both strings as lower does, without locale-specific rules, then compare as eq, contains and startsWith do, so containsI(text, search) is contains(lower(text), lower(search)).",
     "Dates and datetimes are read in the dataset's time zone, and datetimes have millisecond precision. A date compared with a datetime is the start of that day there.",
     "Arguments joined by like form a group. Their types unify: integer with number gives number, date with datetime gives datetime, and a null literal fits any type. Their units must match, and a value without a unit fits any unit.",
     "A string literal fits a date as YYYY-MM-DD and a datetime as an ISO 8601 date-time with seconds, optional milliseconds, and a Z or ±hh:mm offset. The type checker rejects any other string there.",
@@ -404,6 +405,26 @@
       "mergeable": null,
       "describe": "True when a equals b."
     },
+    "eqI": {
+      "kind": "row",
+      "args": [
+        {
+          "name": "a",
+          "type": "string"
+        },
+        {
+          "name": "b",
+          "type": {
+            "like": "a"
+          }
+        }
+      ],
+      "returns": "boolean",
+      "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
+      "describe": "True when a equals b, ignoring case."
+    },
     "neq": {
       "kind": "row",
       "args": [
@@ -718,6 +739,24 @@
       "mergeable": null,
       "describe": "True when search occurs in text."
     },
+    "containsI": {
+      "kind": "row",
+      "args": [
+        {
+          "name": "text",
+          "type": "string"
+        },
+        {
+          "name": "search",
+          "type": "string"
+        }
+      ],
+      "returns": "boolean",
+      "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
+      "describe": "True when search occurs in text, ignoring case."
+    },
     "startsWith": {
       "kind": "row",
       "args": [
@@ -735,6 +774,24 @@
       "nulls": "propagate",
       "mergeable": null,
       "describe": "True when text starts with search."
+    },
+    "startsWithI": {
+      "kind": "row",
+      "args": [
+        {
+          "name": "text",
+          "type": "string"
+        },
+        {
+          "name": "search",
+          "type": "string"
+        }
+      ],
+      "returns": "boolean",
+      "unit": "none",
+      "nulls": "propagate",
+      "mergeable": null,
+      "describe": "True when text starts with search, ignoring case."
     },
     "left": {
       "kind": "row",
