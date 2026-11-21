@@ -29,7 +29,7 @@ import {
   type PliantDataTableFeatures,
 } from "./pliant-data-table-features"
 import { PliantDataTablePagination } from "./pliant-data-table-pagination"
-import { PliantDataTableViewOptions } from "./pliant-data-table-view-options"
+import { PliantDataTableToolbar } from "./pliant-data-table-toolbar"
 import { PliantForm } from "./pliant-form"
 import { PliantNav, PliantSidebarProvider } from "./pliant-nav"
 import { PliantPointMode } from "./pliant-point-mode"
@@ -83,6 +83,14 @@ const messages: PliantMessages = {
   dataTableNoRows: (rows) => `⟦dataTableNoRows ${rows}⟧`,
   dataTablePrevious: "⟦dataTablePrevious⟧",
   dataTableNext: "⟦dataTableNext⟧",
+  dataTableRowsPerPage: "⟦dataTableRowsPerPage⟧",
+  dataTableSelected: (count) => `⟦dataTableSelected ${count}⟧`,
+  dataTableClearFilter: "⟦dataTableClearFilter⟧",
+  dataTableFilterPlaceholder: (label) =>
+    `⟦dataTableFilterPlaceholder ${label}⟧`,
+  dataTableSort: "⟦dataTableSort⟧",
+  dataTablePresets: "⟦dataTablePresets⟧",
+  dataTableReset: "⟦dataTableReset⟧",
   dataTableHighlighted: (names) => `⟦dataTableHighlighted ${names.join(" ")}⟧`,
   dataTableHighlightEmphasis: "⟦dataTableHighlightEmphasis⟧",
   dataTableHighlightSuccess: "⟦dataTableHighlightSuccess⟧",
@@ -217,7 +225,28 @@ function Orders({ data }: { data: Order[] }) {
   return (
     <>
       <h2 id="orders-title">«Orders»</h2>
-      <PliantDataTableViewOptions table={table} />
+      <PliantDataTableToolbar
+        table={table}
+        node="orders-table"
+        filters={[
+          { field: "id", control: "search" },
+          { field: "value", control: "multi-select", label: "«Amounts»" },
+        ]}
+        sortOptions={[
+          {
+            id: "largest",
+            label: "«Largest»",
+            sort: [{ field: "value", dir: "desc" }],
+          },
+        ]}
+        presets={[
+          {
+            id: "paid",
+            label: "«Paid»",
+            filters: [{ field: "status", operator: "eq", value: "«paid»" }],
+          },
+        ]}
+      />
       <PliantDataTable table={table} aria-labelledby="orders-title" />
       <PliantDataTablePagination table={table} rows="«orders»" />
     </>
@@ -588,5 +617,47 @@ describe("the registry components with every message given", () => {
       screen.getByRole("menuitemcheckbox", { name: "«Status»" })
     ).toBeTruthy()
     expect(unmarkedText()).toEqual([])
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" })
+    await settle(20)
+
+    expect(
+      screen
+        .getByRole("searchbox", { name: "«Order»" })
+        .getAttribute("placeholder")
+    ).toBe("⟦dataTableFilterPlaceholder «Order»⟧")
+    expect(screen.getByText("⟦dataTableRowsPerPage⟧")).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "⟦dataTableReset⟧" })
+    ).toBeTruthy()
+    expect(unmarkedText()).toEqual([])
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "«Amounts»" }), {
+      key: "Enter",
+    })
+    await settle(20)
+    for (const item of screen.getAllByRole("menuitemcheckbox").slice(0, 3)) {
+      fireEvent.click(item)
+    }
+    expect(screen.getAllByText("⟦dataTableSelected 3⟧")).not.toHaveLength(0)
+    expect(
+      screen.getByRole("menuitem", { name: "⟦dataTableClearFilter⟧" })
+    ).toBeTruthy()
+    expect(unmarkedText()).toEqual([])
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" })
+    await settle(20)
+
+    for (const [menu, item] of [
+      ["⟦dataTableSort⟧", "«Largest»"],
+      ["⟦dataTablePresets⟧", "«Paid»"],
+    ] as const) {
+      fireEvent.keyDown(screen.getByRole("button", { name: menu }), {
+        key: "Enter",
+      })
+      await settle(20)
+      expect(screen.getByRole("menuitemradio", { name: item })).toBeTruthy()
+      expect(unmarkedText()).toEqual([])
+      fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" })
+      await settle(20)
+    }
   })
 })

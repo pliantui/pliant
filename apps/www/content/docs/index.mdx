@@ -1,6 +1,82 @@
 ---
 title: Introduction
-description: Let the users of your shadcn app reshape it to fit their work.
+description: The layer that stores what each user changed in your shadcn app and applies it on top, so you don't build it yourself.
 ---
 
-Pliant is in early development.
+<Callout variant="warning" title="Experimental">
+  Pliant is pre-1.0 and experimental. Its APIs can change in any release. Parts
+  that don't exist are noted where they come up.
+</Callout>
+
+Every app with tables and dashboards ends up needing the same thing: users want the page arranged their way. They want the columns they care about, sorted the way they work, with the cards they look at first on top. Teams want a shared default. The app wants all of it to survive a reload.
+
+Most teams build this by hand, one feature at a time: a sort that's saved per user, a column picker, a "reset layout" button. Pliant is that layer, built once. You keep your app and your shadcn components. Pliant stores what each user changed and applies it on top, along with any team or org defaults your storage returns.
+
+AI is one way to make those changes. A user can ask "hide the notes column" and see the result before saving it. It's optional. Clicking a column header to sort saves the same way.
+
+## What Pliant is not
+
+**Not a component library.** Pliant doesn't ship its own copies of shadcn's components. You keep your `components/ui`, and Pliant adds a few thin wrappers around the parts of the page users can change.
+
+**Not a page builder.** Users can't add arbitrary content or write code. They rearrange, hide, resize and sort what you built.
+
+**Not a security boundary.** Hiding a column or a card is a display preference. The data is still sent to the browser. Control access on your server, as you do today.
+
+## How it works
+
+A **surface** is one page or screen, such as `/orders`. Its customizations are stored and loaded together.
+
+A **region** is a group of items users can rearrange, such as a row of metric cards. You give the region an id, and each item in it (a _slot_) its own id. A **table** is customized the same way, with its columns as the items, but you connect it through a hook instead of a component.
+
+An **overlay** is a small JSON document that describes a change. It has an `id` and a list of operations on the surface, such as "sort `orders-table` by `value`, descending" or "hide the `notes` column". Every operation comes from a closed catalog of operations. Pliant checks each one against that catalog before applying it, and skips any that don't pass. This is one operation:
+
+```json
+{
+  "op": "setSort",
+  "target": "orders-table",
+  "sort": [{ "field": "value", "dir": "desc" }]
+}
+```
+
+Overlays live in **layers**. There are four, from lowest to highest:
+
+| Layer      | Who it's for                 | Where it's kept                                         |
+| ---------- | ---------------------------- | ------------------------------------------------------- |
+| `org`      | Everyone in an organization  | Your storage                                            |
+| `team`     | Everyone on a team           | Your storage                                            |
+| `personal` | One user                     | Your storage, such as the browser                       |
+| `session`  | One user, in one browser tab | The tab's `sessionStorage`, cleared when the tab closes |
+
+When two layers set the same property, the higher layer wins. That's decided per property, not per page. A team can set a default sort while a user hides a column, and both apply.
+
+Put together: a surface contains regions and tables; overlays describe changes to them; layers stack overlays from `org` (lowest) up to `session` (highest); Pliant applies the result on top of the page you wrote. See [Core concepts](/docs/concepts) for details.
+
+The page you wrote is the base. With no overlays, it renders your page as you wrote it.
+
+<Callout>
+  Pliant loads `org` and `team` overlays from your storage, but doesn't create
+  them, so users create `personal` and `session` overlays only. See the
+  [roadmap](/docs/roadmap).
+</Callout>
+
+## Principles
+
+### Works without AI
+
+Sorting, column order, visibility and widths are saved as you use the table, with no AI involved. Pagination stays in the session layer. Filters do too, unless you choose to save them. Pliant doesn't have saved views, which are named arrangements a user can switch between. See the [roadmap](/docs/roadmap).
+
+### Uses your design system
+
+Pliant's components are copied into your project with the shadcn CLI, like any shadcn component. They render your own `components/ui` button, select and so on. The page looks like your app, because it is your app.
+
+### Safe by construction
+
+AI never writes code for your app. It can only produce overlays, made from a closed catalog of operations. The server checks each answer against that catalog and turns away requests that aren't about the view, such as "delete these orders". The browser validates every overlay again before applying it. Nothing an AI suggests is saved until the user saves it.
+
+### Removable
+
+Pliant only adds a layer on top. Remove the overlays and the app renders its base. Remove Pliant and you replace its wrappers with the plain elements underneath; your components and data are untouched.
+
+### No telemetry
+
+Pliant sends no analytics or telemetry. In the browser, it only talks to your storage adapter and, if you add the ask panel, your own ask route. That route only calls the model you configure.

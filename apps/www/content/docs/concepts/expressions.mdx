@@ -136,6 +136,7 @@ The arguments of an aggregate or window function are row expressions, so they ca
 The catalog also defines rules that apply to every function:
 
 - Strings compare by Unicode code point, case included. Lengths and positions count code points.
+- `first`, `last` and `runningSum` read rows in display order: the table's sort, with ties and an unsorted table in ascending order of the row key. Two keys that are both numbers, such as values of an `integer` field named `id`, compare numerically, so `2` comes before `10`. Number keys come before any other key, and the others compare by code point of their text. TanStack Table's `getRowId` returns text, so its keys compare as text.
 - `eqI`, `containsI` and `startsWithI` ignore case. They lowercase both strings as `lower` does, without locale-specific rules, then compare them as `eq`, `contains` and `startsWith` do. Lowercasing isn't full case folding: `containsI("Straße", "SS")` is `false`; `eqI("İ", "i")` is `false` because `İ` lowercases to `i` followed by a combining dot; and `containsI("ΟΔΟΣ", "Σ")` and `eqI("ΟΔΟΣ", "οδοσ")` are `false` because a final `Σ` lowercases to `ς`, not `σ`.
 - `today` is defined as the current date in the viewer's time zone for `personal` and `session` overlays, and in the dataset's time zone for `org` and `team` overlays.
 - A string literal fits a `date` as `YYYY-MM-DD`, and a `datetime` as an ISO 8601 date-time with seconds and an offset.

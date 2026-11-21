@@ -1,6 +1,6 @@
 ---
 name: tables
-description: Make a shadcn/TanStack data table customizable with Pliant, so users can sort, hide, reorder, resize, pin and group columns and keep their choices. Use when asked to make a table customizable or reshapeable, use usePliantTable or pliant-data-table, add column ids and labels, group rows, or add aggregates and totals to a table.
+description: Make a shadcn/TanStack data table customizable with Pliant, so users can sort, filter, hide, reorder, resize, pin and group columns and keep their choices. Use when asked to make a table customizable or reshapeable, use usePliantTable, pliant-data-table or pliant-data-table-toolbar, add column ids and labels, add filters, sort options or presets, group rows, or add aggregates and totals to a table.
 ---
 
 # Customizable tables
@@ -22,6 +22,12 @@ npx shadcn@latest add https://pliantui.dev/r/pliant-data-table.json --yes
 ```
 
 This adds `pliant-data-table`, a sortable header, a columns menu, pagination and the table features to the `pliant` folder inside the project's `components` alias, and installs `@pliantui/react` and `@tanstack/react-table`.
+
+For filters, sort options, presets and a Reset button above the table, also add the toolbar (section 4):
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-data-table-toolbar.json --yes
+```
 
 ## 2. Give every column an id and a label
 
@@ -106,12 +112,66 @@ export function InvoicesTable({ data }: { data: Invoice[] }) {
 ## What users can change, and how it is saved
 
 - Sorting, column visibility, column order, column sizes, column pinning and grouping are saved to the user's personal layer. They come back on the next visit, on this browser with `localAdapter`.
-- The registry components give users sorting (the header button) and showing or hiding columns (the columns menu). Order, sizes and pinning are applied from TanStack's own calls, such as `column.pin("start")` or `table.setColumnOrder([...])`, and from ops that arrive another way, such as the ask panel or `applyOps`. Add your own controls for them only if the user asked.
+- The registry components give users sorting (the header button), showing or hiding columns (the columns menu), the page size (the pagination), and, with the toolbar, filters, sort options and presets. Order, sizes and pinning are applied from TanStack's own calls, such as `column.pin("start")` or `table.setColumnOrder([...])`, and from ops that arrive another way, such as the ask panel or `applyOps`. Add your own controls for them only if the user asked.
 - Pagination stays in the session layer, which lasts for one browser tab and is never saved. Filters stay there too, unless you pass `persistFilters: true`.
 - Until the layers have loaded (`usePliantStatus` is `loading`), the table shows your base state and rejects changes.
 - Users can hide a column but not delete it, and what they save never changes your data.
 
-## 4. Grouping and aggregates (optional)
+## 4. The toolbar (optional)
+
+Only when users should filter the rows, pick from your sort options or presets, or reset the table. `PliantDataTableToolbar` goes above the table and replaces `PliantDataTableViewOptions`, which it includes:
+
+```tsx
+import {
+  PliantDataTableToolbar,
+  type PliantDataTableFilterControl,
+  type PliantDataTablePreset,
+  type PliantDataTableSortOption,
+} from "@/components/pliant/pliant-data-table-toolbar"
+
+const filters: PliantDataTableFilterControl[] = [
+  { field: "customer", control: "search" },
+  { field: "status", control: "multi-select" },
+]
+
+const sortOptions: PliantDataTableSortOption[] = [
+  {
+    id: "largest",
+    label: "Largest first",
+    sort: [{ field: "amount", dir: "desc" }],
+  },
+]
+
+const presets: PliantDataTablePreset[] = [
+  {
+    id: "pending",
+    label: "Pending",
+    filters: [{ field: "status", operator: "eq", value: "pending" }],
+    sort: [{ field: "amount", dir: "desc" }],
+  },
+]
+```
+
+Render it with the table's id:
+
+```tsx
+<PliantDataTableToolbar
+  table={table}
+  node="invoices-table"
+  filters={filters}
+  sortOptions={sortOptions}
+  presets={presets}
+/>
+```
+
+- `filters`, `sortOptions` and `presets` have the shape of the `addFilterControl`, `addSortOption` and `addPreset` ops, without `op` and `target`. A filter's `id` defaults to its `field`, which must be a column id. Define them outside the component.
+- `search` is a text box that filters as `contains`. `multi-select` and `select` are menus of the column's values with the number of rows for each, filtering as `in` or `eq`. `toggle` is a button that filters for `true`. Other controls aren't shown.
+- Ops add to these lists: `addFilterControl`, `addSortOption` and `addPreset` ops on the table show in the toolbar after yours, and one with the id of yours replaces it. `removeUserItem` removes one by id.
+- Pass `formatValue` to name the values in the `select` and `multi-select` menus, such as capitalized statuses. Your own buttons, such as a group-by menu, go in `children`, before the columns menu.
+- Reset shows while the user has changed the table: its sort, filters, grouping, page size or columns, or the items they added. Moving to another page doesn't count. It drops those changes, and the page, with `usePliantStore().resetNode(node)`, so the table shows as the team and org layers, and then your own setup, have it. It needs a storage adapter with `remove`, which `localAdapter` and `serverAdapter` have.
+- Filters stay in the session layer, unless the table has `persistFilters: true`, and a sort option saves its sort like a header click.
+
+## 5. Grouping and aggregates (optional)
 
 Only when users should see totals or counts, or group rows. Pass `dataset` to `usePliantTable`: the fields the aggregates read, and the time zone dates are read in. Define it outside the component.
 
@@ -191,7 +251,7 @@ Render it inside the table's component with `node="invoices-table"` and `grouped
 - `removeUserItem` removes an aggregate by id. Always read the returned result: `success` is `false` with an `error` when an op is rejected, which otherwise fails silently. An aggregate's `id` must not be a column's id.
 - To show an aggregate's value your way, pass `formatAggregate` to `PliantDataTable`.
 
-## 5. Derived columns (optional)
+## 6. Derived columns (optional)
 
 Only when users should add a calculated column, such as a value with tax or each row's share of the total. It needs the same `dataset` as aggregates, and the app applies an `addDerived` op to the personal layer, like the group menu does:
 
@@ -213,7 +273,7 @@ store.applyOps("personal", [
 - `PliantDataTable` shows a derived column with a sortable header and its values by `format`; `formatAggregate` can format them your way, and gets the `format` as its third argument. A derived column's `id` must not be a column's id.
 - An expression that doesn't check against `dataset.fields` is saved but not shown, and an error is reported, as for aggregates.
 
-## 6. Highlights (optional)
+## 7. Highlights (optional)
 
 Only when users should mark rows that meet a condition, such as overdue invoices. It needs the same `dataset`, and the app applies an `addHighlight` op to the personal layer:
 
@@ -234,10 +294,10 @@ store.applyOps("personal", [
 - Elsewhere, `getPliantHighlights(row)` from `@pliantui/react/table` lists a row's highlights, in the order their ops applied.
 - A `when` that doesn't check against `dataset.fields`, or isn't true or false, is saved but not shown, and an error is reported, as for aggregates.
 
-## 7. Verify
+## 8. Verify
 
 1. Run the project's typecheck and `next build`. Fix the errors your change caused.
-2. Load the page. Every header should show its `meta.label`, and the columns menu should list the columns that can be hidden.
+2. Load the page. Every header should show its `meta.label`, and the columns menu should list the columns that can be hidden. With the toolbar, a filter should narrow the rows and Reset should bring them back.
 3. Click a header to sort, hide a column in the menu and reload the page: both should still apply.
 4. Open the page in another tab. Page and filters should be back to the defaults, and sort and hidden columns kept.
 5. With a `dataset`, group by a column and check that groups expand and the aggregate shows a total, and that an added derived column shows its values and an added highlight marks its rows.

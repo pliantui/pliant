@@ -1,12 +1,12 @@
-import type { Op } from "@pliantui/contract"
+import type { Op, Overlay } from "@pliantui/contract"
 import {
   formatError,
   loadOverlay,
+  opProperties,
   resolveLayers,
   validateOverlay,
   type LoadedOverlay,
   type ResolvedLayers,
-  type ValidatedOverlay,
 } from "@pliantui/core"
 
 import { createFieldRegistry, type FieldRegistry } from "./field-registry"
@@ -14,14 +14,16 @@ import type { LayerTools } from "./layer-tools"
 import { planLockIn } from "./lock-in"
 import { settleManual, splitManual } from "./manual-changes"
 import { manualOverlay } from "./manual-overlay"
+import { identityOf } from "./node-identity"
 import { createNodeRegistry } from "./node-registry"
-import { idOf, mergeById } from "./overlay-list"
+import { idOf, mergeById, withOps } from "./overlay-list"
 import { loadingStatus, readyStatus, type PliantStatus } from "./pliant-status"
 import type {
   ApplyOpsOptions,
   LockInResult,
   OverlayResult,
   PliantStore,
+  ResetNodeResult,
 } from "./pliant-store"
 import { changeKeyOf } from "./property-keys"
 import { viewOf } from "./resolved-view"
@@ -71,6 +73,20 @@ export interface LayerStore {
   readonly report: (error: unknown) => void
 }
 
+// A node's placement, span, visibility and insertion belong to its
+// container, so a reset leaves them.
+const placeProperties = new Set(["placement", "visible", "inserted", "span"])
+
+// Whether a valid op writes a property of the node with this identity, or of
+// one of its items, such as a column, other than those its container owns.
+function writesNode(op: Op, identity: string) {
+  return opProperties(op).some(
+    ({ address, property }) =>
+      address.startsWith(`${identity}/`) ||
+      (address === identity && !placeProperties.has(property))
+  )
+}
+
 export function createLayerStore({
   surface,
   storage,
@@ -89,6 +105,11 @@ export function createLayerStore({
   const fieldRegistry = createFieldRegistry(changeLayers)
   // The ids of the personal overlays known to be stored.
   const stored = new Set<unknown>()
+  // The etag of each stored personal overlay, by id.
+  const etagOf = new Map<unknown, string>()
+  // The personal overlays `resetNode` removed, by id: never shown again,
+  // and removed from storage once stored.
+  const removed = new Set<unknown>()
   const { flush, save, defer, pendingId, settle } = createSaveQueue({
     write(overlay) {
       const sentAt = loadCount
@@ -96,7 +117,8 @@ export function createLayerStore({
         const saved = storage.save(surface, overlay, { ifMatch: null })
         if (saved instanceof Promise) {
           return saved.then(
-            () => {
+            (record) => {
+              storedAs(overlay.id, record.etag)
               confirm(overlay.id, sentAt)
             },
             (error: unknown) => {
@@ -104,6 +126,7 @@ export function createLayerStore({
             }
           )
         }
+        storedAs(overlay.id, saved.etag)
         stored.add(overlay.id)
       } catch (error) {
         resolveConflict(overlay, error, sentAt)
@@ -233,9 +256,28 @@ export function createLayerStore({
     }
   }
 
-  function savePersonal(overlay: ValidatedOverlay) {
+  function savePersonal(overlay: Overlay) {
     personal = [...personal, overlay]
     save(overlay)
+  }
+
+  function storedAs(id: unknown, etag: unknown) {
+    if (typeof etag === "string") {
+      etagOf.set(id, etag)
+    }
+    removeStored(id)
+  }
+
+  // A removal that fails leaves the overlay stored, to show again after a
+  // reload, so the error is reported.
+  function removeStored(id: unknown) {
+    const etag = etagOf.get(id)
+    if (removed.has(id) && etag !== undefined && typeof id === "string") {
+      etagOf.delete(id)
+      Promise.resolve()
+        .then(() => storage.remove?.(surface, id, { ifMatch: etag }))
+        .catch(report)
+    }
   }
 
   // Each personal version gets a new id in this tab and is saved once, as
@@ -245,11 +287,7 @@ export function createLayerStore({
   // removed since: then the version is dropped. A version a load showed
   // stored is saved whatever the answer says, so a late failure can't
   // store it again after it was removed elsewhere.
-  function resolveConflict(
-    overlay: ValidatedOverlay,
-    error: unknown,
-    sentAt: number
-  ) {
+  function resolveConflict(overlay: Overlay, error: unknown, sentAt: number) {
     if (stored.has(overlay.id)) {
       return
     }
@@ -264,6 +302,7 @@ export function createLayerStore({
       return
     }
     seed([current])
+    storedAs(current.id, record?.etag)
     personal = personal.map((saved) =>
       idOf(saved) === overlay.id ? current : saved
     )
@@ -367,6 +406,58 @@ export function createLayerStore({
     }
     changeLayers()
     return result
+  }
+
+  // The ops of an overlay a reset of the node keeps, when it drops any.
+  function resetOf(input: unknown, identity: string) {
+    const overlay = load(input)
+    const keep = overlay?.ops.map(
+      (check) => check.status !== "valid" || !writesNode(check.op, identity)
+    )
+    return overlay && keep?.includes(false) ? { overlay, keep } : undefined
+  }
+
+  function resetNode(target: string): ResetNodeResult {
+    const rejected = notReady()
+    if (rejected) {
+      return rejected
+    }
+    const identity = identityOf(target)
+    const changed = personal.flatMap((input) => resetOf(input, identity) ?? [])
+    if (changed.length > 0 && !storage.remove) {
+      const error = `The storage adapter of ${surface} can't remove overlays`
+      // A setup error, so the app hears of it whichever component asked.
+      report(new Error(error))
+      return { success: false, error }
+    }
+    session = session.flatMap((input) => {
+      const reset = resetOf(input, identity)
+      if (!reset) {
+        return [input]
+      }
+      const { overlay, keep } = reset
+      return keep.includes(true)
+        ? [withOps(overlay, (index) => keep[index] === true)]
+        : []
+    })
+    // Waiting versions are sent first, so each is removed once stored.
+    flush()
+    for (const { overlay, keep } of changed) {
+      personal = personal.filter((input) => idOf(input) !== overlay.id)
+      removed.add(overlay.id)
+      removeStored(overlay.id)
+      // The ops kept become a new version at the same time, so they apply
+      // in the same order.
+      if (keep.includes(true)) {
+        savePersonal({
+          ...withOps(overlay, (index) => keep[index] === true),
+          id: generateId(Date.parse(overlay.createdAt)),
+        })
+      }
+    }
+    mirror()
+    changeLayers()
+    return { success: true }
   }
 
   function preview(input: unknown): OverlayResult {
@@ -504,7 +595,12 @@ export function createLayerStore({
     ) {
       loadedEtags = etags
       const [orgRecords = [], teamRecords = [], personalRecords = []] = records
-      const saved = personalRecords.map(({ overlay }) => overlay)
+      for (const { overlay, etag } of personalRecords) {
+        storedAs(idOf(overlay), etag)
+      }
+      const saved = personalRecords.flatMap(({ overlay }) =>
+        removed.has(idOf(overlay)) ? [] : [overlay]
+      )
       org = orgRecords.map(({ overlay }) => overlay)
       team = teamRecords.map(({ overlay }) => overlay)
       personal = mergeById(
@@ -669,7 +765,7 @@ export function createLayerStore({
 
   return {
     surface,
-    actions: { applyOps, preview, lockIn, discard, reload },
+    actions: { applyOps, preview, lockIn, discard, reload, resetNode },
     subscribe(listener) {
       listeners.add(listener)
       return () => {

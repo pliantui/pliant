@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { getDocsGroups, getDocsSections } from "@/lib/docs-nav"
+import { getDocsGroups } from "@/lib/docs-nav"
 import type { NavItem } from "@/lib/nav"
 
 export function MobileNav({
@@ -75,13 +75,6 @@ export function MobileNav({
             {items.map((item) => (
               <MobileLink key={item.href} href={item.href} onNavigate={close}>
                 {item.label}
-              </MobileLink>
-            ))}
-          </MobileGroup>
-          <MobileGroup label="Sections">
-            {getDocsSections(tree).map((page) => (
-              <MobileLink key={page.url} href={page.url} onNavigate={close}>
-                {page.name}
               </MobileLink>
             ))}
           </MobileGroup>

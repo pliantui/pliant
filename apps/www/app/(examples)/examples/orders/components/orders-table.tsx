@@ -9,7 +9,12 @@ import { usePliantTable } from "@pliantui/react/table"
 import { PliantDataTable } from "@/registry/pliant/pliant-data-table"
 import { pliantDataTableFeatures } from "@/registry/pliant/pliant-data-table-features"
 import { PliantDataTablePagination } from "@/registry/pliant/pliant-data-table-pagination"
-import { PliantDataTableViewOptions } from "@/registry/pliant/pliant-data-table-view-options"
+import {
+  PliantDataTableToolbar,
+  type PliantDataTableFilterControl,
+  type PliantDataTablePreset,
+  type PliantDataTableSortOption,
+} from "@/registry/pliant/pliant-data-table-toolbar"
 
 import type { Order } from "../data"
 import { ordersDataset } from "../dataset"
@@ -24,6 +29,41 @@ import {
 
 const nodeId = "orders-table"
 
+const filters: PliantDataTableFilterControl[] = [
+  { field: "customer", control: "search" },
+  { field: "status", control: "multi-select" },
+  { field: "region", control: "multi-select" },
+]
+
+const sortOptions: PliantDataTableSortOption[] = [
+  {
+    id: "newest",
+    label: "Newest first",
+    sort: [{ field: "createdAt", dir: "desc" }],
+  },
+  {
+    id: "largest",
+    label: "Largest first",
+    sort: [{ field: "value", dir: "desc" }],
+  },
+]
+
+const presets: PliantDataTablePreset[] = [
+  {
+    id: "to-chase",
+    label: "To chase",
+    filters: [
+      { field: "status", operator: "in", value: ["overdue", "pending"] },
+    ],
+    sort: [{ field: "value", dir: "desc" }],
+  },
+]
+
+function formatValue(value: string | number | boolean) {
+  const text = String(value)
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
 export function OrdersTable({ data }: { data: Order[] }) {
   const titleId = useId()
   const node = usePliantNodeProps(nodeId)
@@ -35,20 +75,24 @@ export function OrdersTable({ data }: { data: Order[] }) {
 
   return (
     <div {...node} className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id={titleId} className="text-lg font-semibold">
-          All orders
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          <DataTableColumnMenu node={nodeId} />
-          <DataTableHighlightMenu node={nodeId} />
-          <DataTableGroupMenu
-            node={nodeId}
-            value={table.state.grouping[0] ?? "none"}
-          />
-          <PliantDataTableViewOptions table={table} />
-        </div>
-      </div>
+      <h2 id={titleId} className="text-lg font-semibold">
+        All orders
+      </h2>
+      <PliantDataTableToolbar
+        table={table}
+        node={nodeId}
+        filters={filters}
+        sortOptions={sortOptions}
+        presets={presets}
+        formatValue={formatValue}
+      >
+        <DataTableColumnMenu node={nodeId} />
+        <DataTableHighlightMenu node={nodeId} />
+        <DataTableGroupMenu
+          node={nodeId}
+          value={table.state.grouping[0] ?? "none"}
+        />
+      </PliantDataTableToolbar>
       <PliantDataTable
         table={table}
         aria-labelledby={titleId}

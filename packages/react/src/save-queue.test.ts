@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import type { Overlay } from "@pliantui/contract"
 import { validateOverlay, type ValidatedOverlay } from "@pliantui/core"
 
 import { createSaveQueue } from "./save-queue"
@@ -41,7 +42,7 @@ function version(id: string, width = 240): ValidatedOverlay {
 const first = version("01KAB0000000000000000000P1")
 const second = version("01KAB0000000000000000000P2")
 
-function setup(write: (overlay: ValidatedOverlay) => void | Promise<void>) {
+function setup(write: (overlay: Overlay) => void | Promise<void>) {
   const written: string[] = []
   const report = vi.fn()
   const queue = createSaveQueue({
