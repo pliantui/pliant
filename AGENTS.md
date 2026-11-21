@@ -63,7 +63,7 @@ pnpm test
 pnpm build
 ```
 
-The `size-limit` budgets on `@pliantui/contract`, `@pliantui/core` and `@pliantui/react` are deliberate. Raising one needs a stated reason.
+The size budgets in each package's `.size-limit.json` (`@pliantui/contract`, `@pliantui/core`, `@pliantui/react` and `@pliantui/server`) are deliberate. Raising one needs a stated reason.
 
 ## Git
 

@@ -16,6 +16,7 @@ out/
 .source
 .open-next
 .wrangler
+tsup.config.bundled_*
 
 # misc
 .DS_Store
@@ -52,3 +53,6 @@ apps/www/public/schema
 # playwright
 apps/www/playwright-report
 apps/www/test-results
+
+# lighthouse
+.lighthouseci

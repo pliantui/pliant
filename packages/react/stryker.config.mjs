@@ -8,6 +8,10 @@ const all = [
   "!src/**/*.d.ts",
   "!src/index.ts",
   "!src/ask.ts",
+  "!src/form.ts",
+  "!src/local.ts",
+  "!src/point-mode.ts",
+  "!src/region.ts",
   "!src/table.ts",
   "!src/use-*.ts",
   "!src/compose-props.ts",
@@ -21,6 +25,7 @@ const named = {
   store: [
     "src/layer-store.ts",
     "src/local-adapter.ts",
+    "src/field-registry.ts",
     "src/memoize-selector.ts",
     "src/node-registry.ts",
     "src/retention.ts",

@@ -10,6 +10,8 @@ import {
 import { createPortal } from "react-dom"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { localAdapter } from "./local-adapter"
+import { PliantRoot } from "./pliant-root"
 import { usePointMode } from "./use-point-mode"
 
 const targets = [
@@ -681,6 +683,26 @@ describe("usePointMode", () => {
     expect(label.style.right).toBe("60px")
     expect(label.style.left).toBe("")
     Reflect.deleteProperty(document.documentElement, "clientWidth")
+  })
+
+  it("announces the mode with the root's messages", async () => {
+    render(
+      <PliantRoot
+        surface="/orders"
+        storage={localAdapter}
+        messages={{
+          pointModeOn: "Mode pointage activé.",
+          pointModeOff: "Mode pointage désactivé.",
+        }}
+      >
+        <Page />
+      </PliantRoot>
+    )
+
+    await holdAlt()
+    expect(announcement()).toBe("Mode pointage activé.")
+    fireEvent.keyUp(document.body, { key: "Alt" })
+    expect(announcement()).toBe("Mode pointage désactivé.")
   })
 
   it("announces the mode only while Alt is held", async () => {

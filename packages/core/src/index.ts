@@ -1,4 +1,10 @@
 export {
+  createAggregateEvaluator,
+  type AggregateEvaluator,
+  type AggregateEvaluatorOptions,
+  type AggregateExpression,
+} from "./aggregate-evaluator"
+export {
   checkExpression,
   createExpressionChecker,
   type CheckExpressionOptions,
@@ -21,6 +27,8 @@ export {
   type DiffTableStateOptions,
   type TableStateDiff,
 } from "./diff-table-state"
+export { compareCodePoints } from "./compare-code-points"
+export type { FieldSchema } from "./field-schema"
 export { formatError, type FormatErrorOptions } from "./format-error"
 export { loadOverlay, type LoadedOverlay } from "./load-overlay"
 export {
@@ -41,6 +49,11 @@ export {
   type UnappliedOp,
   type UnappliedReason,
 } from "./resolve-layers"
+export {
+  resolveForm,
+  type ResolvedForm,
+  type ResolveFormOptions,
+} from "./resolve-form"
 export {
   resolveRegion,
   type RegionEntry,
@@ -64,3 +77,10 @@ export {
   type ValidateOverlayOptions,
   type ValidatedOverlay,
 } from "./validate-overlay"
+export {
+  createWindowEvaluator,
+  type WindowEvaluator,
+  type WindowEvaluatorOptions,
+  type WindowExpression,
+  type WindowPartitionOptions,
+} from "./window-evaluator"

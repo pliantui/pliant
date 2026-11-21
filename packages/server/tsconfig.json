@@ -5,7 +5,10 @@
     "types": ["node"],
     "paths": {
       "@pliantui/server": ["./src/index.ts"],
-      "@pliantui/server/recordings": ["./src/recordings.ts"]
+      "@pliantui/server/data": ["./src/data.ts"],
+      "@pliantui/server/drizzle": ["./src/drizzle.ts"],
+      "@pliantui/server/recordings": ["./src/recordings.ts"],
+      "@pliantui/server/storage": ["./src/storage.ts"]
     }
   },
   "include": ["src", "tsup.config.ts", "vitest.config.ts"]

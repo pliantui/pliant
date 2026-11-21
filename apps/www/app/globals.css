@@ -12,7 +12,8 @@
 
 /*
  * Fumadocs' light muted text (45% lightness) drops below the 4.5:1 contrast
- * ratio on its own light backgrounds, so it is darkened here.
+ * ratio on its own light backgrounds, so it is darkened here. The site shell
+ * sits on those backgrounds too, so it uses this color for muted text.
  */
 @theme {
   --color-fd-muted-foreground: hsl(0, 0%, 38%);
@@ -126,4 +127,10 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+:root {
+  --header-height: 3.5rem;
+  /* Fumadocs offsets its sticky sidebar and table of contents by the banner height; the site header takes that place. */
+  --fd-banner-height: var(--header-height);
 }

@@ -1,11 +1,16 @@
-import type { Breakpoint, Flags } from "@pliantui/contract"
+import type { Breakpoint, Flags, Manifest } from "@pliantui/contract"
 
 import type { OpCheck } from "./check-op"
+import type { FieldSchema } from "./field-schema"
 import type { LoadedOverlay } from "./load-overlay"
 import type { OpPropertyKey } from "./op-property"
 import type { ResolvedPlacement } from "./placement"
+import { readBaseOrder } from "./read-base-order"
 import { readBaseParents } from "./read-base-parents"
+import { readFields } from "./read-fields"
 import { readFlags } from "./read-flags"
+import { readManifests } from "./read-manifests"
+import { readShortcuts } from "./read-shortcuts"
 import { readBaseIds } from "./resolution"
 import { resolveOrdered } from "./resolve-ordered"
 import { surfaceOrder } from "./surface-order"
@@ -84,8 +89,8 @@ export interface ResolvedProperty {
  * shares its id with an overlay earlier in the resolution order, or with one
  * that ties with it on every sort key but has other contents,
  * `surface-mismatch` when the overlay is for another surface, or
- * `guardrail` when the valid op would break a guardrail (see `flags` in
- * `ResolveLayersOptions`).
+ * `guardrail` when the valid op would break a guardrail (see `flags`,
+ * `manifests`, `reservedShortcuts` and `fields` in `ResolveLayersOptions`).
  */
 export type SkippedOp =
   | {
@@ -109,31 +114,79 @@ export type SkippedOp =
       readonly reason: "duplicate-id" | "surface-mismatch"
     }
   /**
-   * A valid op skipped because it would break a guardrail. Every guardrail
-   * skip names the flagged node the rule protects and the flag that makes
-   * it protected.
+   * A valid op skipped because it would break a guardrail, with the rule
+   * it would break, named after what it enforces, and the node or item the
+   * rule protects.
    */
-  | {
-      readonly check: Extract<OpCheck, { status: "valid" }>
-      readonly overlay: LoadedOverlay
-      readonly reason: "guardrail"
-      /**
-       * The rule the op would break, named after what it enforces:
-       * `stays-visible` keeps nodes flagged `critical` or `required` visible
-       * and reachable.
-       */
-      readonly guardrail: "stays-visible"
-      /** The flag of `node` that the rule protects. */
-      readonly flag: "critical" | "required"
-      /** The identity of the flagged node or item the rule protects. */
-      readonly node: string
-      /**
-       * The ops applied before this one that make it break the rule, such
-       * as the `move … into` the node this op hides. Empty when the op
-       * breaks it alone.
-       */
-      readonly conflictsWith: readonly ResolvedOp[]
-    }
+  | (GuardrailSkip &
+      (
+        | {
+            /**
+             * Keeps nodes flagged `critical` or `required` visible and
+             * reachable. `node` is the flagged node, `flag` its flag.
+             */
+            readonly guardrail: "stays-visible"
+            readonly flag: "critical" | "required"
+          }
+        | {
+            /**
+             * Keeps actions flagged `destructive` from moving closer to the
+             * primary action of their group. `node` is the destructive
+             * action.
+             */
+            readonly guardrail: "stays-clear"
+            readonly flag: "destructive"
+          }
+        | {
+            /**
+             * Keeps `bindShortcut` off reserved keys and keys another action
+             * takes. `node` is the action the op binds.
+             */
+            readonly guardrail: "free-shortcut"
+            readonly flag?: undefined
+          }
+        | {
+            /**
+             * Keeps `setProp` from assigning a semantic value, and from
+             * changing a prop with semantic values on a node flagged
+             * `destructive`, when `flag` is set. `node` is the op's target.
+             */
+            readonly guardrail: "keeps-meaning"
+            readonly flag?: "destructive"
+          }
+        | {
+            /**
+             * `valid-default` keeps a `setDefault` on a form field to values
+             * the field's schema accepts; `stays-in-place` keeps a `wrap`
+             * from taking form fields into a new parent. `node` is the
+             * field.
+             */
+            readonly guardrail: "valid-default" | "stays-in-place"
+            readonly flag?: undefined
+          }
+      ))
+
+interface GuardrailSkip {
+  readonly check: Extract<OpCheck, { status: "valid" }>
+  readonly overlay: LoadedOverlay
+  readonly reason: "guardrail"
+  /** The identity of the node or item the rule protects. */
+  readonly node: string
+  /**
+   * Ops applied before this one that bear on the break. For
+   * `stays-visible`, the ops that make this op break the rule, such as
+   * the `move … into` the node this op hides; empty when the op breaks
+   * it alone. For `stays-clear`, the earlier ops that place either
+   * action (a placement, a `move … into`, a `wrap` or a `collapse`, of
+   * it or of a wrapper that holds it), and, when the op leaves the
+   * destructive action right after the primary one, those that cleared
+   * the space between them (a `hide`, `collapse`, `remove`, move out or
+   * reorder), even when this op alone completes the violation. For
+   * `free-shortcut`, the other actions' bindings that take the same keys;
+   * empty when the keys are reserved. Empty for the other rules.
+   */
+  readonly conflictsWith: readonly ResolvedOp[]
+}
 
 /**
  * Why a valid op didn't apply. `remove` and `removeUserItem` only clear what
@@ -221,19 +274,54 @@ export interface ResolveLayersOptions {
    * node that holds it, and no `move … into`, `wrap` or other op that puts
    * it in a hidden node or a cycle of containers.
    *
-   * Ops apply one at a time in resolution order. Each op that leaves a
-   * flagged node out of sight, given the ops kept before it, is skipped
-   * with reason `guardrail` and guardrail `stays-visible`; every op before
-   * it was kept, so it is the op from the highest layer involved. An op is
-   * judged by the ops before it only: a lower layer's `hide` is skipped even
-   * when a higher layer's `show` would undo it.
+   * An action flagged `destructive` never ends up closer to the action
+   * flagged `primary` in its group than your page puts it. A group is a
+   * node's slots, the node that holds the primary action past any
+   * wrappers, or one of a node's item collections, such as
+   * `orders-toolbar/actions`. A destructive action in another group isn't
+   * judged against it. From far to close, a destructive action is apart,
+   * right after the primary action, or above it. In the order the group
+   * renders, as `resolveRegion` gives it with wrappers flattened, the
+   * destructive action is above the primary one when it comes first, and
+   * right after it when no shown action sits between them: hidden actions
+   * keep their place but don't keep them apart. A demoted or collapsed
+   * action, or one in a collapsed wrapper, has left the group's bar for
+   * its overflow: an action in the bar is above every action in the
+   * overflow, and the overflow is ordered the same way. Every action starts
+   * in the bar.
    *
-   * Each op that can hide something checks the state so far, and each
-   * skipped op applies the ops kept before it again, so the time grows with
-   * the number of ops times the number of ops that can hide something, and
-   * with the number of flags times the depth of the tree; ops such as sorts
-   * and widths add nothing. For scale, 20 flags at depth 6 over 2,000 ops
-   * take about 230 ms; 500 flags at depth 30 take about 7 s.
+   * The group's order before any op comes from `baseOrder`, and only from
+   * what you pass, never from the ops. Members it doesn't list, but that
+   * `baseParents`, `baseOrder` or a flag's address put in the group, go
+   * between an unlisted primary action, first, and an unlisted destructive
+   * one, last, by id. So when only the two flagged actions are known, they
+   * start out adjacent, the least strict case: ops can't move the
+   * destructive action above the primary one, but can leave it right after
+   * it. List the group's order in `baseOrder` for the full rule. A group
+   * has at most one `primary` action.
+   *
+   * Ops apply one at a time in resolution order. Each op that breaks a
+   * rule, given the ops kept before it, is skipped with reason `guardrail`:
+   * guardrail `stays-visible` when it leaves a flagged node out of sight,
+   * `stays-clear` when it leaves a destructive action closer to the primary
+   * one. Every op before it was kept, so it is the op from the highest
+   * layer involved. An op is judged by the ops before it only: a lower
+   * layer's `hide` is skipped even when a higher layer's `show` would undo
+   * it.
+   *
+   * Each op that can hide or move something checks the state so far, and
+   * each skipped op applies the ops kept before it again, so the time grows
+   * with the number of ops times the number of ops that can hide or move
+   * something, and with the number of flags times the depth of the tree;
+   * ops such as sorts and widths add nothing. With a `primary` action,
+   * each op that touches its group also orders the group, which grows with
+   * the placement ops applied so far. For scale, 20 flags at depth 6 over
+   * 2,000 ops take about 120 to 230 ms. When one of them is a primary
+   * action whose group every op reorders, 1,000 ops take about 150 to
+   * 200 ms and 2,000 about 0.6 s; ops in other nodes add much less. Skips
+   * cost more, since each one applies the kept ops again: in that group,
+   * 1,000 kept ops and 1,000 skipped ones take about 1 to 2 s. 500 flags at
+   * depth 30 take about 7 s.
    *
    * Which node holds another in the page comes from `baseParents` when
    * given. Without it, it comes from the addresses in `flags`, then from
@@ -251,12 +339,100 @@ export interface ResolveLayersOptions {
    * page; addresses in overlays don't change it. An item's node always
    * comes from its address.
    *
+   * Its key order is ignored; give the order children render in as
+   * `baseOrder`.
+   *
    * A node it leaves out, such as one not mounted yet, takes the parent its
    * flag's address shows. A node it leaves out that no flag names has no
-   * parent, and the addresses of ops don't supply one. It must put each node a flag's address names in
-   * the parent that address shows, and, with those parents, have no cycle.
+   * parent, and the addresses of ops don't supply one. It must put each node a flag's address names in the parent
+   * that address shows, and, with those parents, have no cycle and no two
+   * `primary` nodes in one parent.
    */
   readonly baseParents?: Readonly<Record<string, string | null>> | undefined
+  /**
+   * Each action group's members in the order they render: a node id mapped
+   * to its children's node ids, such as
+   * `{ "checkout-actions": ["save", "cancel", "delete"] }`, or
+   * `<node>/<collection>` mapped to item ids, such as
+   * `{ "orders-toolbar/actions": ["export", "print", "delete"] }`. The
+   * `stays-clear` guardrail (see `flags`) reads a group's order from it
+   * before any op applies. It may leave out groups and members.
+   *
+   * It must list each child once and only in its parent: the one
+   * `baseParents` gives when given, else the one the child's flag address
+   * shows, if any. With `baseParents`, every node it names must be in it;
+   * without, a node it lists takes that parent where nothing else gives
+   * one, and those parents can't form a cycle. Two `primary` actions can't
+   * share a group.
+   */
+  readonly baseOrder?: Readonly<Record<string, readonly string[]>> | undefined
+  /**
+   * The manifests of the surface's nodes and items, by address, such as
+   * `{ "page/slots/checkout-actions/slots/pay-now": buttonManifest }`.
+   * Addresses of the same node can't give it two manifests.
+   *
+   * Variants keep their meaning: a `setProp` that sets a value the target's
+   * manifest marks `semantic` is skipped with guardrail `keeps-meaning`,
+   * since only your app assigns those. On a node or item flagged
+   * `destructive`, so is any `setProp` on a prop that has semantic values,
+   * so a destructive action keeps the variant that marks it. A destructive
+   * node is protected this way only when its manifest marks the variant's
+   * values `semantic`.
+   */
+  readonly manifests?: Readonly<Record<string, Manifest>> | undefined
+  /**
+   * Keys your app binds itself, in `bindShortcut`'s form, such as
+   * `["mod+k", "mod+shift+p"]`.
+   *
+   * A `bindShortcut` is skipped with guardrail `free-shortcut` when its keys
+   * are reserved, are among these, or are what another action's binding
+   * takes so far. Two bindings take the same keys when they press the same
+   * keys on Windows and Linux, where `mod` is Ctrl, or on macOS, where `mod`
+   * is Command, so `mod+k` takes `ctrl+k`. Reserved, whatever you pass:
+   *
+   * - keys with no modifier or Shift alone, which type text, move focus and
+   *   drive a screen reader's browse mode;
+   * - Alt or Alt+Shift alone, which type characters on macOS and open the
+   *   browser's menus elsewhere;
+   * - Ctrl+Alt, which is AltGr on Windows and holds the VoiceOver keys on
+   *   macOS, and `meta`, the Windows or Super key, on Windows and Linux;
+   * - `mod` with `a c d f g h j l n p q r t u v w x y z`, a digit, `=`, `-`,
+   *   `[`, `]`, `tab`, `space`, `home`, `end`, `backspace`, `delete` or an
+   *   arrow, and `mod+shift` with `b g n o r t w z = tab home end` or an
+   *   arrow: tabs, windows, the address bar, reloading, history, downloads,
+   *   bookmarks, find, printing, the page source, zoom and text editing;
+   * - `ctrl+tab` and `ctrl+shift+tab`, which switch tabs;
+   * - on Windows and Linux, `ctrl` with `pageup`, `pagedown` or `f4`, `mod`
+   *   with `escape`, and `mod+shift` with `c i j delete escape`: switching
+   *   and closing tabs, the Start menu, developer tools, clearing browsing
+   *   data and the Task Manager;
+   * - on macOS, `mod` with `m`, `,`, `` ` `` or `f5`, `ctrl` with `space` or
+   *   an arrow, `mod+shift` with `3 4 5 q [ ]`, and `mod+alt` with
+   *   `c d i j escape`: windows, settings, turning VoiceOver on and off,
+   *   Spaces, input sources, screenshots, logging out, switching tabs,
+   *   developer tools, the Dock and Force Quit.
+   *
+   * A binding on an action that is hidden or removed still takes its keys.
+   */
+  readonly reservedShortcuts?: readonly string[] | undefined
+  /**
+   * The schemas of the surface's form fields, by field address, such as
+   * `{ "page/slots/ticket-form/fields/priority": z.enum(["low", "high"]) }`:
+   * any schema that implements Standard Schema and validates synchronously.
+   * Addresses of the same field can't give it two schemas.
+   *
+   * A form field's default is valid data: a `setDefault` on a field whose
+   * value its schema rejects is skipped with guardrail `valid-default`. A
+   * field with no schema isn't checked.
+   *
+   * Form fields never change parent, since a new parent remounts a field and
+   * loses its focus, its local state and possibly its value: a `wrap` that
+   * takes a field of the form it targets is skipped with guardrail
+   * `stays-in-place`. The fields are those named here, in `flags`, and in
+   * `baseOrder` under `<form>/fields`. A `collapse` keeps fields where they
+   * are, and a field can't `move` into another node.
+   */
+  readonly fields?: Readonly<Record<string, FieldSchema>> | undefined
 }
 
 /** The result of `resolveLayers`. */
@@ -316,13 +492,32 @@ export interface ResolvedLayers {
  * Throws a `TypeError` when `surface` isn't a string, `baseIds` isn't node
  * ids or `{ ids, source }`, `flags` isn't a plain object that maps
  * addresses to valid flags, two of its addresses put one node in different
- * parents, or `baseParents` isn't a plain object that maps node ids to
- * node ids or `null`, puts a node in another parent than a flag's address
- * shows, or has a cycle.
+ * parents, two `primary` nodes or items share a group, or `baseParents`
+ * isn't a plain object that maps node ids to node ids or `null`, puts a
+ * node in another parent than a flag's address shows, or has a cycle,
+ * `baseOrder` isn't a plain object that maps node ids to arrays of node
+ * ids and `<node>/<collection>` keys to arrays of item ids, lists a child
+ * twice or in another parent, names a node `baseParents` doesn't, or makes
+ * a cycle of parents, `manifests` isn't a plain object that maps addresses
+ * to valid manifests or gives a node two manifests, or `reservedShortcuts`
+ * isn't an array of keys in `bindShortcut`'s form, or `fields` isn't a
+ * plain object that maps field addresses to schemas or gives a field two
+ * schemas. Also throws a `TypeError` when a field's schema validates a
+ * `setDefault` asynchronously.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],
-  { surface, baseIds, teamOrder = [], flags, baseParents }: ResolveLayersOptions
+  {
+    surface,
+    baseIds,
+    teamOrder = [],
+    flags,
+    baseParents,
+    baseOrder,
+    manifests,
+    reservedShortcuts,
+    fields,
+  }: ResolveLayersOptions
 ): ResolvedLayers {
   const read = readBaseIds(baseIds)
   const known: BaseIds | undefined = read && {
@@ -331,12 +526,19 @@ export function resolveLayers(
   }
   const ordered = surfaceOrder(overlays, surface, teamOrder)
   const flagged = readFlags(flags)
+  const tree = readBaseParents(baseParents, flagged)
   return {
     ...resolveOrdered(
       ordered,
       known,
       flagged,
-      readBaseParents(baseParents, flagged)
+      tree,
+      readBaseOrder(baseOrder, tree, flagged),
+      {
+        manifests: readManifests(manifests),
+        reservedShortcuts: readShortcuts(reservedShortcuts),
+        fields: readFields(fields),
+      }
     ),
     overlays: ordered.map(({ overlay }) => overlay),
     baseIds: known,

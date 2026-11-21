@@ -6,12 +6,14 @@ import { afterAll, describe, expect, it } from "vitest"
 
 import { manifestSchema } from "@pliantui/contract"
 
-import { createFixtureDirectory, runCli, tempDirectory } from "./helpers"
+import {
+  createFixtureDirectory,
+  removeFixtureDirectories,
+  runCli,
+} from "./helpers"
 import { isManifestValid } from "./json-validator"
 
-afterAll(async () => {
-  await rm(tempDirectory, { recursive: true, force: true })
-})
+afterAll(removeFixtureDirectories)
 
 async function readManifests(cwd: string) {
   const module = (await import(

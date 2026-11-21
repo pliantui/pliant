@@ -1,16 +1,14 @@
 import type { Expression } from "@pliantui/contract"
 
-import {
-  createObservedChecker,
-  type ExpressionCheckerOptions,
-  type ExpressionType,
+import type {
+  ExpressionCheckerOptions,
+  ExpressionType,
 } from "./check-expression"
+import { createContext, type Scope } from "./expression-compiler"
 import type { Inferred } from "./expression-types"
-import { finite, inRange, readField, readTime, type Value } from "./read-value"
-import { failure, type Issue, type Result } from "./result"
-import type { Call } from "./row-function"
-import { rowFunctionOf } from "./row-functions"
-import { createTimeZone, dayMs, type TimeZone } from "./time-zone"
+import type { Value } from "./read-value"
+import { failure, type Result } from "./result"
+import { dayMs } from "./time-zone"
 
 /**
  * The value of an expression for one row. A date is written `YYYY-MM-DD` and
@@ -104,130 +102,15 @@ export type RowEvaluator<TRow extends object = object> = (
   options?: RowExpressionOptions
 ) => Result<RowExpression<TRow>>
 
-type Run = (scope: Scope) => Value
-
-interface Scope {
-  /** Reads a field's value from the row. */
-  readonly read: (fieldId: string) => unknown
-  /** The values of the derived fields this row has computed, by id. */
-  readonly values: Map<string, Value>
-}
-
-interface Compiled {
-  readonly run: Run
-  /** The derived fields it refs. */
-  readonly refs: string[]
-  readonly issues: Issue[]
-}
-
-interface Compiler extends Omit<Compiled, "run"> {
-  readonly fields: RowEvaluatorOptions["fields"]
-  readonly types: WeakMap<Expression, Inferred>
-  readonly call: Omit<Call, "types">
-}
-
-const constant =
-  (value: Value): Run =>
-  () =>
-    value
-
-const windowMessage =
-  "a window function, which needs every row of its partition"
-
-function own<T>(record: Readonly<Record<string, T>> | undefined, id: string) {
-  return record && Object.hasOwn(record, id) ? record[id] : undefined
-}
-
-// Reads own and inherited properties, getters included, as TanStack Table's
-// accessorKey does. What every object inherits from Object.prototype is a
-// function or an object, which no field type accepts, so it reads as null.
-function readProperty(row: object, id: string): unknown {
-  return Reflect.get(row, id)
-}
-
 function isDateType(type: Inferred["type"] | undefined) {
   return type === "date" || type === "datetime"
 }
 
-// Reads an argument as the type its call reads it as: a string literal as a
-// date or datetime, or a date as the datetime its day starts at.
-function compileArg(
-  compiler: Compiler,
-  node: Expression,
-  path: readonly PropertyKey[],
-  to: Inferred["type"] | undefined
-): Run {
-  const { zone } = compiler.call
-  if ((to === "date" || to === "datetime") && "value" in node) {
-    return constant(readTime(node.value, to, zone))
-  }
-  const run = compile(compiler, node, path)
-  return to === "datetime" && compiler.types.get(node)?.type === "date"
-    ? (scope) => {
-        const day = run(scope)
-        return day === null ? null : zone.instant(Number(day) * dayMs)
-      }
-    : run
-}
-
-function compile(
-  compiler: Compiler,
-  node: Expression,
-  path: readonly PropertyKey[]
-): Run {
-  if ("field" in node) {
-    const id = node.field
-    const field = own(compiler.fields, id)
-    return ({ read }) =>
-      field ? readField(field, read(id), compiler.call.zone) : null
-  }
-  if ("ref" in node) {
-    const id = node.ref
-    compiler.refs.push(id)
-    if (compiler.types.get(node)?.window) {
-      compiler.issues.push({
-        path: [...path, "ref"],
-        message: `${id} uses ${windowMessage}`,
-      })
-    }
-    return ({ values }) => values.get(id) ?? null
-  }
-  if ("value" in node) {
-    const { value } = node
-    return constant(typeof value === "number" ? finite(value) : value)
-  }
-  const name = node.fn
-  const definition = rowFunctionOf(name)
-  // The checker has rejected aggregate functions in a row expression.
-  if (!definition) {
-    compiler.issues.push({
-      path: [...path, "fn"],
-      message: `${name} is ${windowMessage}`,
-    })
-    return constant(null)
-  }
-  const { run, propagates } = definition
-  const inferred = compiler.types.get(node)
-  const types = inferred?.reads ?? []
-  const args = node.args.map((arg, index) =>
-    compileArg(compiler, arg, [...path, "args", index], types[index])
-  )
-  const call = { ...compiler.call, types }
-  const type = inferred?.type
-  return (scope) => {
-    const values = args.map((arg) => arg(scope))
-    const result =
-      propagates && values.includes(null) ? null : run(values, call)
-    if (typeof result !== "number") {
-      return result
-    }
-    return type === "date" || type === "datetime"
-      ? inRange(result, type)
-      : finite(result)
-  }
-}
-
-function output(value: Value, type: Inferred["type"] | undefined): RowValue {
+/** A computed value as callers read it: a date or datetime as ISO 8601 text. */
+export function output(
+  value: Value,
+  type: Inferred["type"] | undefined
+): RowValue {
   if (value === null || !isDateType(type)) {
     return value
   }
@@ -244,7 +127,8 @@ function output(value: Value, type: Inferred["type"] | undefined): RowValue {
  * catalog's semantics. A derived field that a `ref` names is computed once
  * per row, however many times it's referenced. An expression that uses a
  * window function, directly or by `ref`, fails: its value depends on every
- * row of its partition. Expressions are interpreted; no code is generated.
+ * row of its partition, so `createWindowEvaluator` computes it. Expressions
+ * are interpreted; no code is generated.
  *
  * Dates and datetimes are kept to the years 0000 to 9999: one computed
  * outside them is null.
@@ -257,116 +141,32 @@ function output(value: Value, type: Inferred["type"] | undefined): RowValue {
 export function createRowEvaluator<TRow extends object = object>(
   options: RowEvaluatorOptions<TRow>
 ): RowEvaluator<TRow> {
-  const types = new WeakMap<Expression, Inferred>()
-  const check = createObservedChecker(options, (node, type) => {
-    types.set(node, type)
-  })
-  const clock = { now: 0 }
-  const zones = new Map<
-    string,
-    { zone: TimeZone; today: () => number | null }
-  >()
-  // Each zone remembers its current date for the last time read, so rows
-  // read at the same time don't each convert it.
-  const zoneOf = (timeZone = options.timeZone) => {
-    let entry = zones.get(timeZone)
-    if (!entry) {
-      const zone = createTimeZone(timeZone)
-      let readAt = Number.NaN
-      let day: number | null = null
-      const today = () => {
-        if (clock.now !== readAt) {
-          readAt = clock.now
-          day =
-            inRange(readAt, "datetime") === null
-              ? null
-              : Math.floor(zone.wallClock(readAt) / dayMs)
-        }
-        return day
-      }
-      entry = { zone, today }
-      zones.set(timeZone, entry)
-    }
-    return entry
-  }
-  const { zone } = zoneOf()
-  for (const timeZone of Object.values(options.todayTimeZones ?? {})) {
-    zoneOf(timeZone)
-  }
-  const items = new Map<string, Compiled>()
-  const getValue = options.getValue ?? readProperty
-
-  const compileRoot = (
-    expression: Expression,
-    todayTimeZone: string | undefined
-  ): Compiled => {
-    const compiler: Compiler = {
-      fields: options.fields,
-      types,
-      refs: [],
-      issues: [],
-      call: { zone, today: zoneOf(todayTimeZone).today },
-    }
-    return { ...compiler, run: compile(compiler, expression, []) }
-  }
-
-  const itemOf = (id: string) => {
-    const item =
-      items.get(id) ??
-      compileRoot(
-        own(options.derived, id) ?? { value: null },
-        own(options.todayTimeZones, id)
-      )
-    items.set(id, item)
-    return item
-  }
-
-  // Derived fields are put in dependency order from an explicit stack rather
-  // than by recursion, so a long chain of refs can't overflow the call stack.
-  const orderOf = (root: Compiled) => {
-    const order = new Map<string, Compiled>()
-    const stack = root.refs.map((id) => ({ id, ready: false }))
-    for (let next = stack.pop(); next; next = stack.pop()) {
-      const { id, ready } = next
-      const item = itemOf(id)
-      if (ready) {
-        order.set(id, item)
-      } else if (!order.has(id)) {
-        stack.push(
-          { id, ready: true },
-          ...item.refs.map((ref) => ({ id: ref, ready: false }))
-        )
-      }
-    }
-    return [...order]
-  }
+  const context = createContext(options)
 
   return (expression, { todayTimeZone } = {}) => {
     const timeZone = todayTimeZone ?? options.timeZone
-    try {
-      zoneOf(timeZone)
-    } catch {
+    if (!context.knowsZone(timeZone)) {
       return failure([{ path: [], message: `Unknown time zone "${timeZone}"` }])
     }
-    const checked = check(expression, "row")
+    const checked = context.check(expression, "row")
     if (!checked.success) {
       return checked
     }
-    const root = compileRoot(expression, todayTimeZone)
+    const root = context.compile(expression, todayTimeZone)
     if (root.issues.length > 0) {
       return failure(root.issues)
     }
-    const order = orderOf(root)
-    const now = options.now ?? Date.now
+    const order = context.derivedOrder(root.refs)
     return {
       success: true,
       data: {
         ...checked.data,
         accessor: (row) => {
-          clock.now = now()
+          context.tick()
           const scope: Scope = {
-            read: (id) => getValue(row, id),
+            read: (id) => context.getValue(row, id),
             values: new Map(),
+            calls: [],
           }
           for (const [id, item] of order) {
             scope.values.set(id, item.run(scope))

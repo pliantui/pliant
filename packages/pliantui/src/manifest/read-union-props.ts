@@ -1,12 +1,12 @@
 import { Node, SyntaxKind, type PropertySignature } from "ts-morph"
 
+import { getDeclarations } from "../utils/read-static"
 import {
   getDefault,
   getPropsParameter,
   isCallTo,
   type Component,
 } from "./component"
-import { getDeclarations } from "./read-static"
 
 function getPropsTypeNode(component: Component) {
   const parameter = getPropsParameter(component)

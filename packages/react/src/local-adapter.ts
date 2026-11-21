@@ -61,16 +61,19 @@ function write(
   return record
 }
 
-// Every readable record of a surface, tombstones included.
-function recordsOf(surface: string) {
-  const prefix = prefixOf(surface)
+function owns(key: string, surfaces: readonly string[]) {
+  return surfaces.some((surface) => {
+    const prefix = prefixOf(surface)
+    return key.startsWith(prefix) && !key.includes(":", prefix.length)
+  })
+}
+
+// Every readable record of the surfaces, tombstones included.
+function recordsOf(...surfaces: string[]) {
   const records: StoredOverlay[] = []
   for (let index = 0; index < localStorage.length; index++) {
     const key = localStorage.key(index)
-    const record =
-      key?.startsWith(prefix) && !key.includes(":", prefix.length)
-        ? readRecord(key)
-        : undefined
+    const record = key && owns(key, surfaces) ? readRecord(key) : undefined
     if (record) {
       records.push(record)
     }
@@ -92,8 +95,10 @@ function recordsOf(surface: string) {
  * earlier versions. Records are ordered by `updatedAt`; records with the
  * same millisecond are ordered by `version`, then by overlay id.
  *
- * `subscribe` tells each `PliantRoot` when another one, in this tab or
- * another tab of the same origin, changes a surface's overlays.
+ * `load` also returns the overlays stored for `@app`, which apply on every
+ * surface. `subscribe` tells each `PliantRoot` when another one, in this tab
+ * or another tab of the same origin, changes a surface's overlays or the
+ * `@app` overlays.
  *
  * @experimental
  */
@@ -101,7 +106,9 @@ export function localAdapter(): StorageAdapter {
   return {
     load(surface) {
       return {
-        personal: recordsOf(surface).filter((record) => !record.deletedAt),
+        personal: recordsOf(surface, "@app").filter(
+          (record) => !record.deletedAt
+        ),
       }
     },
     save(surface, overlay, { ifMatch }) {
@@ -135,9 +142,8 @@ export function localAdapter(): StorageAdapter {
         )
     },
     subscribe(surface, onChange) {
-      const prefix = prefixOf(surface)
       const listener = (key: string | null) => {
-        if (key === null || key.startsWith(prefix)) {
+        if (key === null || owns(key, [surface, "@app"])) {
           onChange()
         }
       }

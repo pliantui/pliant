@@ -477,6 +477,32 @@ describe("checkExpression", () => {
       )
     })
 
+    it("takes strings in the case-insensitive functions", () => {
+      for (const name of ["eqI", "containsI", "startsWithI"]) {
+        expect(row(fn(name, field("name"), value("acme"))).data, name).toEqual({
+          type: "boolean",
+        })
+        expect(
+          messages(row(fn(name, field("qty"), field("name")))),
+          name
+        ).toEqual(["Must be a string, not integer"])
+      }
+    })
+
+    it("takes a null literal where the case-sensitive function does", () => {
+      for (const name of ["eq", "eqI"]) {
+        expect(row(fn(name, field("notes"), value(null))).data, name).toEqual({
+          type: "boolean",
+        })
+      }
+      for (const name of ["contains", "containsI"]) {
+        expect(
+          messages(row(fn(name, field("notes"), value(null)))),
+          name
+        ).toEqual(["Must be a string, not null"])
+      }
+    })
+
     it("unifies integer with number and date with datetime", () => {
       expect(row(fn("min2", field("qty"), field("score"))).data).toEqual({
         type: "number",

@@ -16,11 +16,12 @@ const componentsJsonSchema = z.object({
   }),
 })
 
-interface Config {
+export interface Config {
   tsx: boolean
   tsConfigFilePath: string
   resolvedPaths: {
     cwd: string
+    components: string | null
     ui: string
     lib: string
   }
@@ -89,7 +90,11 @@ export async function getConfig(cwd: string): Promise<Config | null> {
     )
   }
 
-  return { tsx, tsConfigFilePath, resolvedPaths: { cwd, ui, lib } }
+  return {
+    tsx,
+    tsConfigFilePath,
+    resolvedPaths: { cwd, components: resolve(aliases.components), ui, lib },
+  }
 }
 
 function mapResolved(value: string | null, map: (value: string) => string) {

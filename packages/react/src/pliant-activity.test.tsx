@@ -2,6 +2,7 @@ import { use, useInsertionEffect, useLayoutEffect, type ReactNode } from "react"
 import { act, cleanup, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { localAdapter } from "./local-adapter"
 import { PliantActivity } from "./pliant-activity"
 import { PliantRoot } from "./pliant-root"
 import { RetainScopeContext } from "./retain-scope-context"
@@ -44,7 +45,7 @@ function Page({
   children: ReactNode
 }) {
   return (
-    <PliantRoot surface="/dashboard">
+    <PliantRoot surface="/dashboard" storage={localAdapter}>
       <Content id="card" />
       <MountedIds />
       {shown && <PliantActivity mode={mode}>{children}</PliantActivity>}
@@ -87,7 +88,7 @@ describe("PliantActivity", () => {
     }
     function Tree({ mode }: { mode: "visible" | "hidden" }) {
       return (
-        <PliantRoot surface="/dashboard">
+        <PliantRoot surface="/dashboard" storage={localAdapter}>
           <PliantActivity mode={mode}>
             <Scope />
           </PliantActivity>

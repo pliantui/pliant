@@ -6,6 +6,7 @@ import {
   render,
   renderHook,
   screen,
+  within,
 } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -57,6 +58,37 @@ function wrapper(id: string) {
 afterEach(() => {
   cleanup()
 })
+
+function InvalidItems({
+  entries,
+  invalid,
+  name = "Ticket",
+}: {
+  entries: readonly RegionEntry[]
+  invalid: readonly string[]
+  name?: string
+}) {
+  const items = useRegionItems(entries)
+  return (
+    <form aria-label={name}>
+      {items.map((item) =>
+        item.kind === "trigger" ? (
+          <button key={item.key} {...item.getTriggerProps()}>
+            More fields
+          </button>
+        ) : (
+          <div key={item.key} {...item.props} data-mode={item.mode}>
+            <input
+              aria-label={item.entry.id}
+              aria-invalid={invalid.includes(item.entry.id)}
+              required={item.entry.id === "due"}
+            />
+          </div>
+        )
+      )}
+    </form>
+  )
+}
 
 describe("useRegionItems", () => {
   it("gives each entry its wrapper props and mode", () => {
@@ -214,4 +246,153 @@ describe("useRegionItems", () => {
       )
     }
   )
+
+  describe("with an invalid control in a collapse", () => {
+    const entries = [
+      slot("title"),
+      slot("cc", { collapsed: more }),
+      slot("due", { collapsed: more }),
+      slot("notes"),
+    ]
+    const trigger = () => screen.getByRole("button", { name: "More fields" })
+
+    const textbox = (name: string) =>
+      screen.getByRole("textbox", { name, hidden: true })
+
+    function setup() {
+      const view = render(<InvalidItems entries={entries} invalid={[]} />)
+      return async (invalid: readonly string[]) => {
+        view.rerender(<InvalidItems entries={entries} invalid={invalid} />)
+        await act(async () => {
+          await Promise.resolve()
+        })
+      }
+    }
+
+    function submit(name = "Ticket") {
+      fireEvent.submit(screen.getByRole("form", { name }))
+    }
+
+    async function settle() {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve))
+      })
+    }
+
+    function type(name: string) {
+      fireEvent.keyDown(textbox(name), { key: "a" })
+      fireEvent.input(textbox(name), { target: { value: "a" } })
+    }
+
+    it("opens when a submit finds a control inside invalid, and focuses it", async () => {
+      const mark = setup()
+      expect(trigger().getAttribute("aria-expanded")).toBe("false")
+
+      submit()
+      await mark(["title"])
+      expect(trigger().getAttribute("aria-expanded")).toBe("false")
+
+      await mark(["cc"])
+      expect(trigger().getAttribute("aria-expanded")).toBe("true")
+      expect(wrapper("cc").getAttribute("data-mode")).toBe("visible")
+      expect(document.activeElement).toBe(textbox("cc"))
+    })
+
+    it("focuses the form's first invalid control", async () => {
+      const mark = setup()
+      submit()
+      await mark(["title", "due"])
+      expect(trigger().getAttribute("aria-expanded")).toBe("true")
+      expect(document.activeElement).toBe(textbox("title"))
+    })
+
+    it("leaves focus on an invalid control that has it", async () => {
+      const mark = setup()
+      await mark(["notes"])
+      textbox("notes").focus()
+
+      submit()
+      await mark(["notes", "cc"])
+      expect(trigger().getAttribute("aria-expanded")).toBe("true")
+      expect(document.activeElement).toBe(textbox("notes"))
+    })
+
+    it("stays closed when a control inside becomes invalid as the user types", async () => {
+      const mark = setup()
+      textbox("title").focus()
+
+      type("title")
+      await mark(["cc"])
+      await settle()
+      expect(trigger().getAttribute("aria-expanded")).toBe("false")
+      expect(document.activeElement).toBe(textbox("title"))
+    })
+
+    it("stays closed when the user types after a submit", async () => {
+      const mark = setup()
+      textbox("title").focus()
+      submit()
+      await mark(["title"])
+
+      type("title")
+      await mark(["title", "cc"])
+      await settle()
+      expect(trigger().getAttribute("aria-expanded")).toBe("false")
+      expect(document.activeElement).toBe(textbox("title"))
+    })
+
+    it("lets the user close it, and opens it again when a submit finds a control inside still invalid", async () => {
+      const mark = setup()
+      submit()
+      await mark(["cc"])
+      expect(trigger().getAttribute("aria-expanded")).toBe("true")
+
+      fireEvent.click(trigger())
+      expect(trigger().getAttribute("aria-expanded")).toBe("false")
+      await mark(["cc", "due"])
+      await settle()
+      expect(trigger().getAttribute("aria-expanded")).toBe("false")
+
+      submit()
+      await settle()
+      expect(trigger().getAttribute("aria-expanded")).toBe("true")
+      expect(document.activeElement).toBe(textbox("cc"))
+    })
+
+    it("opens only the collapses of the form submitted", async () => {
+      function Forms({ invalid }: { invalid: readonly string[] }) {
+        return (
+          <>
+            <InvalidItems entries={entries} invalid={[]} name="Ticket" />
+            <InvalidItems entries={entries} invalid={invalid} name="Other" />
+          </>
+        )
+      }
+      const view = render(<Forms invalid={["cc"]} />)
+      const other = within(screen.getByRole("form", { name: "Other" }))
+
+      submit()
+      view.rerender(<Forms invalid={["cc", "due"]} />)
+      await settle()
+      expect(
+        other
+          .getByRole("button", { name: "More fields" })
+          .getAttribute("aria-expanded")
+      ).toBe("false")
+      expect(document.activeElement).toBe(document.body)
+    })
+
+    it("opens before the browser reports a control its validation finds invalid", () => {
+      setup()
+      let shown: string | null = null
+      const due = textbox("due")
+      due.addEventListener("invalid", () => {
+        shown = wrapper("due").getAttribute("data-mode")
+      })
+      act(() => {
+        due.dispatchEvent(new Event("invalid"))
+      })
+      expect(shown).toBe("visible")
+    })
+  })
 })

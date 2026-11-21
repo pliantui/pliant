@@ -9,6 +9,7 @@ import {
   type ValidatedOverlay,
 } from "@pliantui/core"
 
+import { createFieldRegistry, type FieldRegistry } from "./field-registry"
 import type { LayerTools } from "./layer-tools"
 import { planLockIn } from "./lock-in"
 import { settleManual, splitManual } from "./manual-changes"
@@ -40,6 +41,8 @@ export interface LayerStoreOptions {
   readonly onError?: ((error: unknown) => void) | undefined
   /** The UI language, as `PliantRoot`'s `lang` prop. */
   readonly lang?: string | undefined
+  /** The layers loaded during the server render, as `PliantRoot`'s `layers`. */
+  readonly layers?: StoredLayers | undefined
   readonly now?: (() => number) | undefined
   readonly generateId?: ((time: number) => string) | undefined
   /** Whether changes replace earlier ones; off only to test that it's exact. */
@@ -54,7 +57,9 @@ export interface LayerStore {
   readonly getServerResolved: () => ResolvedLayers
   readonly getPreview: () => LoadedOverlay | null
   readonly getStatus: () => PliantStatus
+  readonly getServerStatus: () => PliantStatus
   readonly registerNodes: (ids: readonly string[]) => () => void
+  readonly registerFields: FieldRegistry["register"]
   readonly slots: SlotRegistry
   readonly retention: Retention
   readonly setTeamOrder: (teamOrder: readonly string[]) => void
@@ -72,6 +77,7 @@ export function createLayerStore({
   teamOrder: initialTeamOrder = [],
   onError: initialOnError,
   lang: initialLang,
+  layers: initialLayers,
   now = Date.now,
   generateId = ulid,
   coalesce = true,
@@ -80,6 +86,7 @@ export function createLayerStore({
   const loaded = new WeakMap<object, LoadedOverlay | undefined>()
   const keys = new WeakMap<LoadedOverlay, string | undefined>()
   const { ids, sync, register } = createNodeRegistry(changeLayers)
+  const fieldRegistry = createFieldRegistry(changeLayers)
   // The ids of the personal overlays known to be stored.
   const stored = new Set<unknown>()
   const { flush, save, defer, pendingId, settle } = createSaveQueue({
@@ -181,18 +188,26 @@ export function createLayerStore({
   function resolve(inputs: readonly unknown[]) {
     return resolveLayers(
       inputs.flatMap((input) => load(input) ?? []),
-      { surface, baseIds: { ids: ids(), source: "mounted" }, teamOrder }
+      {
+        surface,
+        baseIds: { ids: ids(), source: "mounted" },
+        teamOrder,
+        ...fieldRegistry.options(),
+      }
     )
   }
 
   function validateAbove(input: unknown, overlays: readonly unknown[]) {
+    const { fields, flags } = fieldRegistry.options()
     return validateOverlay(input, {
       layers: {
         overlays,
         surface,
         baseIds: { ids: ids(), source: "mounted" },
         teamOrder,
+        flags,
       },
+      fields,
     })
   }
 
@@ -575,7 +590,7 @@ export function createLayerStore({
   }
 
   function getServerResolved() {
-    serverSnapshot ??= resolve([])
+    serverSnapshot ??= resolve(initial)
     return serverSnapshot
   }
 
@@ -626,7 +641,7 @@ export function createLayerStore({
         })
       }
     })
-    reload()
+    fetchLayers(status === readyStatus)
 
     function onVisibilityChange() {
       if (document.visibilityState === "hidden") {
@@ -645,6 +660,13 @@ export function createLayerStore({
     }
   }
 
+  if (initialLayers) {
+    currentLoad = {}
+    hydrate(currentLoad, initialLayers, new Set())
+  }
+  const initial = [...org, ...team, ...personal]
+  const serverStatus = status
+
   return {
     surface,
     actions: { applyOps, preview, lockIn, discard, reload },
@@ -662,7 +684,9 @@ export function createLayerStore({
     getStatus() {
       return status
     },
+    getServerStatus: () => serverStatus,
     registerNodes: register,
+    registerFields: fieldRegistry.register,
     slots: createSlotRegistry(),
     retention: createRetention(),
     setTeamOrder(next) {

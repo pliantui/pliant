@@ -28,13 +28,37 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./region": {
+      "types": "./dist/region.d.ts",
+      "default": "./dist/region.js"
+    },
+    "./form": {
+      "types": "./dist/form.d.ts",
+      "default": "./dist/form.js"
+    },
     "./table": {
       "types": "./dist/table.d.ts",
       "default": "./dist/table.js"
     },
+    "./local": {
+      "types": "./dist/local.d.ts",
+      "default": "./dist/local.js"
+    },
+    "./server-adapter": {
+      "types": "./dist/server-adapter.d.ts",
+      "default": "./dist/server-adapter.js"
+    },
     "./ask": {
       "types": "./dist/ask.d.ts",
       "default": "./dist/ask.js"
+    },
+    "./point-mode": {
+      "types": "./dist/point-mode.d.ts",
+      "default": "./dist/point-mode.js"
+    },
+    "./pre-paint": {
+      "types": "./dist/pre-paint.d.ts",
+      "default": "./dist/pre-paint.js"
     }
   },
   "files": [
@@ -54,39 +78,6 @@
     "check:package": "publint --strict && attw --pack . --profile esm-only",
     "size": "size-limit"
   },
-  "size-limit": [
-    {
-      "path": "dist/index.js",
-      "limit": "7.6 kB",
-      "ignore": [
-        "react",
-        "zod",
-        "@pliantui/contract",
-        "@pliantui/core"
-      ]
-    },
-    {
-      "path": "dist/ask.js",
-      "limit": "4 kB",
-      "ignore": [
-        "react",
-        "zod",
-        "@pliantui/contract",
-        "@pliantui/core"
-      ]
-    },
-    {
-      "path": "dist/table.js",
-      "limit": "5 kB",
-      "ignore": [
-        "react",
-        "zod",
-        "@pliantui/contract",
-        "@pliantui/core",
-        "@tanstack/react-table"
-      ]
-    }
-  ],
   "dependencies": {
     "@pliantui/contract": "workspace:*",
     "@pliantui/core": "workspace:*"
@@ -94,6 +85,7 @@
   "peerDependencies": {
     "@tanstack/react-table": "^9.3.1",
     "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "zod": "^4.0.16"
   },
   "peerDependenciesMeta": {

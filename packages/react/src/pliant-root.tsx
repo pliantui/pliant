@@ -1,21 +1,27 @@
-import { useLayoutEffect, useState, type ReactNode } from "react"
+import { use, useLayoutEffect, useState, type ReactNode } from "react"
 
+import { setInventory, type PliantInventory } from "./inventory-check"
 import { createLayerStore } from "./layer-store"
-import { localAdapter } from "./local-adapter"
 import { PliantContext } from "./pliant-context"
-import type { StorageAdapter } from "./storage-adapter"
+import { PliantMessagesContext, type PliantMessages } from "./pliant-messages"
+import type { StorageAdapter, StoredLayers } from "./storage-adapter"
 
 /** @experimental */
 export interface PliantRootProps {
   /** The surface the layers belong to: a route pattern or a surface id. */
   readonly surface: string
   /**
-   * Where the layers are loaded from and personal overlays saved to.
-   * Defaults to `localAdapter()`. It is read once, when the surface mounts,
-   * and must be created in client code: an object of functions can't be
-   * passed from a Server Component.
+   * Where the layers are loaded from and personal overlays saved to: an
+   * adapter, such as `serverAdapter(options)`, or a function that returns
+   * one, such as `localAdapter` from `@pliantui/react/local`. It is read
+   * once, when the surface mounts.
+   *
+   * A Server Component can pass `localAdapter` itself, not called, because
+   * it is exported from a client module. It can't pass an adapter object,
+   * because React can't serialize functions: create that in client code,
+   * such as the app's providers file.
    */
-  readonly storage?: StorageAdapter | undefined
+  readonly storage: StorageAdapter | (() => StorageAdapter)
   /** Team ids, highest precedence first, as in core's `resolveLayers`. */
   readonly teamOrder?: readonly string[] | undefined
   /**
@@ -34,6 +40,48 @@ export interface PliantRootProps {
    * malformed tag is ignored, with a warning in development.
    */
   readonly lang?: string | undefined
+  /**
+   * Text to show in place of the English defaults, by key, such as a
+   * translation for `lang`. Entries left out, or `undefined`, keep their
+   * defaults. A root without `messages` inside another uses the outer
+   * root's.
+   *
+   * A catalog with function entries can't be passed from a Server Component,
+   * because React can't serialize functions: create it in a client module,
+   * such as the app's providers file. A catalog of strings only can be.
+   * Define it outside the component or memoize it: an inline object is a
+   * new value on every render, which renders every component that shows
+   * text again.
+   */
+  readonly messages?: Partial<PliantMessages> | undefined
+  /**
+   * The surface's layers, loaded on the server while it renders, as
+   * `storage.load` returns them. The server render and hydration apply
+   * them, and storage loads the layers again after mount without going
+   * back to `loading`. Like `storage`, it is read once, when the surface
+   * mounts.
+   *
+   * Load them from the same store `storage` reads, at least as fresh:
+   * storage stays the source of truth, so a personal overlay that its
+   * reload doesn't return is treated as removed and stops applying.
+   *
+   * Loading them makes the route dynamic. Under Next.js `cacheComponents`,
+   * load them inside a `<Suspense>` boundary.
+   *
+   * The server HTML shows reordering, hiding and layout. Ops that need
+   * their container mounted, such as `insert`, `wrap` and `move` into
+   * another node, show the base layout in the server HTML, with no
+   * skeleton, and apply when the page hydrates.
+   */
+  readonly layers?: StoredLayers | undefined
+  /**
+   * The surface's entry of the inventory `pliantui scan` writes, such as
+   * `inventory["/examples/orders"]`. In development, a region, slot, table
+   * or column that mounts but isn't in it is reported with a warning, once
+   * per id: the scan couldn't follow how it's rendered, or the inventory is
+   * out of date. Production builds don't read it.
+   */
+  readonly inventory?: PliantInventory | undefined
   readonly children?: ReactNode
 }
 
@@ -43,17 +91,33 @@ function PliantSurfaceRoot({
   teamOrder = [],
   onError,
   lang,
+  layers,
+  inventory,
   children,
 }: PliantRootProps) {
-  const [store] = useState(() =>
-    createLayerStore({
+  const [store] = useState(() => {
+    // JavaScript callers, and code that ignores the type error, get a fix
+    // instead of a crash deep in the store.
+    const given: unknown = storage
+    if (given === undefined || given === null) {
+      throw new TypeError(
+        "PliantRoot needs `storage`: pass `localAdapter` from `@pliantui/react/local`, or another storage adapter."
+      )
+    }
+    const adapter = typeof storage === "function" ? storage() : storage
+    return createLayerStore({
       surface,
-      storage: storage ?? localAdapter(),
+      storage: adapter,
       teamOrder,
       onError,
       lang,
+      layers,
     })
-  )
+  })
+  if (process.env.NODE_ENV !== "production") {
+    // Set while rendering, before what mounts inside checks it.
+    setInventory(store, inventory)
+  }
   useLayoutEffect(() => {
     store.setOnError(onError)
   }, [store, onError])
@@ -82,8 +146,9 @@ function PliantSurfaceRoot({
  * Holds the layers of one surface: org and team overlays from `storage`,
  * personal overlays saved to it, and the session layer, kept per tab. It
  * reads storage only after mount, in a layout effect, so the server render
- * resolves no overlays and a synchronous adapter applies before the first
- * client paint. `usePliantStatus` tells when the layers are ready.
+ * resolves only the `layers` it was given, and a synchronous adapter applies
+ * before the first client paint. `usePliantStatus` tells when the layers
+ * are ready.
  *
  * Each personal version gets a new id and is stored as a new record, with
  * `ifMatch: null`. Versions made in other tabs and devices have their own
@@ -107,5 +172,10 @@ function PliantSurfaceRoot({
  * @experimental
  */
 export function PliantRoot(props: PliantRootProps) {
-  return <PliantSurfaceRoot key={props.surface} {...props} />
+  const outerMessages = use(PliantMessagesContext)
+  return (
+    <PliantMessagesContext value={props.messages ?? outerMessages}>
+      <PliantSurfaceRoot key={props.surface} {...props} />
+    </PliantMessagesContext>
+  )
 }

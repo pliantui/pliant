@@ -61,6 +61,7 @@ const builtins = {
   ),
   not: describe("not", "True when x is false, false when x is true."),
   eq: describe("eq", "True when a equals b."),
+  eqI: describe("eqI", "True when a equals b, ignoring case."),
   neq: describe("neq", "True when a doesn't equal b."),
   gt: describe("gt", "True when a is greater than b."),
   gte: describe("gte", "True when a is greater than or equal to b."),
@@ -93,7 +94,15 @@ const builtins = {
   ),
   length: describe("length", "The number of code points in text."),
   contains: describe("contains", "True when search occurs in text."),
+  containsI: describe(
+    "containsI",
+    "True when search occurs in text, ignoring case."
+  ),
   startsWith: describe("startsWith", "True when text starts with search."),
+  startsWithI: describe(
+    "startsWithI",
+    "True when text starts with search, ignoring case."
+  ),
   left: describe(
     "left",
     "The first count code points of text: all of it when count is longer, and an empty string when count is 0 or less."
@@ -213,6 +222,7 @@ export const functionCatalog: {
     "Numbers are IEEE 754 doubles, currency included, and calculations use the full value. A currency value is displayed rounded to its format's decimals, or to its currency's minor units (2 for USD, 0 for JPY) when decimals isn't set. An integer is a number without a fractional part and is accepted wherever a number is. A number literal without a fractional part is an integer.",
     "A NaN or infinite value, read or computed, is null.",
     "Functions compare strings by Unicode code point, case included, as in eq, lt, gt, contains, startsWith, in, min and max. Lengths and positions count code points. Table sorting with setSort is separate and uses locale-aware collation.",
+    "eqI, containsI and startsWithI ignore case: they lowercase both strings as lower does, without locale-specific rules, then compare as eq, contains and startsWith do, so containsI(text, search) is contains(lower(text), lower(search)).",
     "Dates and datetimes are read in the dataset's time zone, and datetimes have millisecond precision. A date compared with a datetime is the start of that day there.",
     "Arguments joined by like form a group. Their types unify: integer with number gives number, date with datetime gives datetime, and a null literal fits any type. Their units must match, and a value without a unit fits any unit.",
     "A string literal fits a date as YYYY-MM-DD and a datetime as an ISO 8601 date-time with seconds, optional milliseconds, and a Z or ±hh:mm offset. The type checker rejects any other string there.",
@@ -220,9 +230,9 @@ export const functionCatalog: {
     "In a product, a factor without a unit takes the other factor's unit, a percent of a unit is that unit (a percent of a price is a price), a percent of a percent is a percent, and two other units fail type checking. In a quotient, dividing by the dividend's own unit, percent included, gives no unit; dividing by a number without a unit or by a percent keeps the dividend's unit; any other divisor with a unit fails type checking.",
     "Arguments of aggregate and window functions are row expressions: they can't contain aggregate or window functions. Row functions can combine aggregates, as in div(sum(a), sum(b)).",
     "Every dataset has a row key: the table's getRowId, or else its field named id. A table whose dataset has neither fails to load with an error.",
-    "A window function's partition is the row's group when the table is grouped, otherwise every row after filters. Display order is the table's current sort, with ties and an unsorted table in ascending order of the row key, compared by code point.",
+    "A window function's partition is the row's group when the table is grouped, otherwise every row after filters. Display order is the table's current sort, with ties and an unsorted table in ascending order of the row key, compared by code point. A sort by a window column is left out when computing window functions, since its values depend on that order.",
     "Implementations must give these results exactly, except for the floating-point results of aggregate and window functions, which must be within the allowances of the next rule at any number of rows. An implementation that can't meet a function's semantics or allowance mustn't compile it, so the function covers loaded rows only.",
-    "With M the largest |x|, D the largest |x - mean| and A the sum of |x| over the values involved, a result may differ from the exact one by: 1e-9 × A for sum, sumIf and runningSum; 1e-9 × M for mean, median and percentile; V = 1e-9 × M × (D + 1e-9 × M) for variance and variancePop; S = the smaller of √V and V ÷ σ for stddev and stddevPop, or √V when σ is 0, with σ the exact deviation; 1e-9 × A × max(|x|, |T|) ÷ T² for share, with x the row's value and T the exact total, and any value or null when 1e-9 × A is more than |T| ÷ 2; and (1e-9 × M + |z| × S) ÷ (σ - S) for zScore, with z the exact score, and any value or null when S is at least σ ÷ 2. Plain accumulation meets these up to about 9 million values; beyond that, every aggregate (sums, means and variances) must use pairwise or compensated accumulation.",
+    "With M the largest |x|, D the largest |x - mean| and A the sum of |x| over the values involved, a result may differ from the exact one by: 1e-9 × A for sum, sumIf and runningSum; 1e-9 × M for mean, median and percentile; V = 1e-9 × M × (D + 1e-9 × M) for variance and variancePop; S = the smaller of √V and V ÷ σ for stddev and stddevPop, or √V when σ is 0, with σ the exact deviation; 1e-9 × A × max(|x|, |T|) ÷ T² for share, with x the row's value and T the exact total, and any value or null when 1e-9 × A is more than |T| ÷ 2; and (1e-9 × M + |z| × S) ÷ (σ - S) for zScore, with z the exact score, and any value or null when S is at least σ ÷ 2. A result may also be the nearest double to the exact result, where no double is within the allowance. Plain accumulation meets these up to about 9 million values; beyond that, every aggregate (sums, means and variances) must use pairwise or compensated accumulation.",
   ],
   functions: builtins,
 }

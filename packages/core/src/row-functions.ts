@@ -24,7 +24,7 @@ const textual =
     compute(stringAt(args, 0), stringAt(args, 1))
 
 /** Orders two values of one comparable type: by code point for strings. */
-function compareValues(a: Value, b: Value): number {
+export function compareValues(a: Value, b: Value): number {
   return typeof a === "string" && typeof b === "string"
     ? compareCodePoints(a, b)
     : Number(a) - Number(b)
@@ -89,6 +89,17 @@ function contains(text: string, search: string) {
   return false
 }
 
+function startsWith(text: string, search: string) {
+  return text.startsWith(search) && matchesAt(text, search, 0)
+}
+
+// Lowercasing as `lower` does keeps containsI(a, b) equal to
+// contains(lower(a), lower(b)), and likewise for eqI and startsWithI.
+const ignoringCase =
+  (test: (text: string, other: string) => boolean) =>
+  (text: string, other: string) =>
+    test(text.toLowerCase(), other.toLowerCase())
+
 const rowFunctions: Partial<Record<FunctionName, RowFunction>> = {
   add: numeric((a, b) => a + b),
   sub: numeric((a, b) => a - b),
@@ -119,6 +130,7 @@ const rowFunctions: Partial<Record<FunctionName, RowFunction>> = {
     args.includes(true) ? true : args.includes(null) ? null : false,
   not: ([x]) => !x,
   eq: ([a, b]) => a === b,
+  eqI: textual(ignoringCase((a, b) => a === b)),
   neq: ([a, b]) => a !== b,
   gt: comparison((order) => order > 0),
   gte: comparison((order) => order >= 0),
@@ -134,9 +146,9 @@ const rowFunctions: Partial<Record<FunctionName, RowFunction>> = {
   upper: textual((text) => text.toUpperCase()),
   length: textual((text) => codePoints(text).length),
   contains: textual(contains),
-  startsWith: textual(
-    (text, search) => text.startsWith(search) && matchesAt(text, search, 0)
-  ),
+  containsI: textual(ignoringCase(contains)),
+  startsWith: textual(startsWith),
+  startsWithI: textual(ignoringCase(startsWith)),
   left: (args) =>
     codePoints(stringAt(args, 0))
       .slice(0, Math.max(numberAt(args, 1), 0))

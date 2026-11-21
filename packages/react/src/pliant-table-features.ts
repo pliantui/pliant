@@ -5,9 +5,12 @@ import {
   columnPinningFeature,
   columnSizingFeature,
   columnVisibilityFeature,
+  createExpandedRowModel,
   createFilteredRowModel,
   createGroupedRowModel,
   createSortedRowModel,
+  rowAggregationFeature,
+  rowExpandingFeature,
   rowPaginationFeature,
   rowSortingFeature,
   sortFn_alphanumeric,
@@ -18,15 +21,21 @@ import {
 } from "@tanstack/react-table"
 
 import { pliantFilterFns } from "./pliant-filter-fns"
+import { derivedValuesFeature } from "./table-derived-values"
+
+// Not a feature TanStack's types name: spread, so it isn't checked as a key.
+const pliantFeatures = { derivedValuesFeature }
 
 /**
  * The developer's features with the ones Pliant's ops need added: column
- * ordering, sizing, pinning, visibility and filtering, grouping, sorting and
- * pagination, with the filtered, sorted and grouped row models when the
- * developer has none (they change nothing until an op sets their state),
+ * ordering, sizing, pinning, visibility and filtering, grouping, aggregation,
+ * expanding, sorting and pagination, with the filtered, grouped, expanded and
+ * sorted row models when the developer has none (they change nothing until
+ * an op sets their state),
  * the sort functions TanStack's `auto` picks from (`basic` for numbers,
  * `datetime` for dates, `alphanumeric` and `text` for text, which sort
- * case-insensitively), and the `pliant:*` filter functions. The
+ * case-insensitively), the `pliant:*` filter functions, and the feature that
+ * reads the values of derived columns. The
  * paginated row model isn't added: it would page a table that shows every
  * row. The developer's own entries win.
  */
@@ -38,9 +47,13 @@ export function withPliantFeatures(features: TableFeatures): TableFeatures {
     columnPinningFeature,
     columnSizingFeature,
     columnVisibilityFeature,
+    rowAggregationFeature,
+    rowExpandingFeature,
     rowPaginationFeature,
     rowSortingFeature,
     ...features,
+    ...pliantFeatures,
+    expandedRowModel: features.expandedRowModel ?? createExpandedRowModel(),
     filteredRowModel: features.filteredRowModel ?? createFilteredRowModel(),
     groupedRowModel: features.groupedRowModel ?? createGroupedRowModel(),
     sortedRowModel: features.sortedRowModel ?? createSortedRowModel(),
