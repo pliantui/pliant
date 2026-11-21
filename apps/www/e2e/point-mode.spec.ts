@@ -16,6 +16,116 @@ function keyMetricsBox(page: Page) {
   return layer(page).getByRole("button", { name: "Key metrics" })
 }
 
+interface Rect {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
+function rectOf(box: { x: number; y: number; width: number; height: number }) {
+  return {
+    top: box.y,
+    right: box.x + box.width,
+    bottom: box.y + box.height,
+    left: box.x,
+  }
+}
+
+function grow(rect: Rect, by: number): Rect {
+  return {
+    top: rect.top - by,
+    right: rect.right + by,
+    bottom: rect.bottom + by,
+    left: rect.left - by,
+  }
+}
+
+function contains(outer: Rect, inner: Rect) {
+  return (
+    outer.left <= inner.left &&
+    inner.right <= outer.right &&
+    outer.top <= inner.top &&
+    inner.bottom <= outer.bottom
+  )
+}
+
+function apart(a: Rect, b: Rect) {
+  return (
+    a.right <= b.left ||
+    b.right <= a.left ||
+    a.bottom <= b.top ||
+    b.bottom <= a.top
+  )
+}
+
+// Every outline leaves room around its target, except against the edge of
+// the screen, and every label sits clear of every outline's 2px ring:
+// outside it, or inside it only when it's the label's own outline or one
+// its own outline is nested in.
+async function expectOutlinesClear(page: Page) {
+  const room = 4
+  const ring = 2
+  const viewport = await page.evaluate(() => ({
+    width: document.documentElement.clientWidth,
+    height: document.documentElement.clientHeight,
+  }))
+  const outlines = await layer(page).getByRole("button").all()
+  expect(outlines.length).toBeGreaterThan(0)
+  const boxes: { name: string; outline: Rect; label: Rect }[] = []
+  for (const outline of outlines) {
+    const name =
+      (await outline.getAttribute("aria-label")) ?? (await outline.innerText())
+    const id = await outline.getAttribute("data-pliant-point-target")
+    const outlineBox = await outline.boundingBox()
+    const targetBox = await page
+      .locator(`[data-pliant-id="${String(id)}"]`)
+      .boundingBox()
+    const labelBox = await outline
+      .getByText(name, { exact: true })
+      .boundingBox()
+    expect(outlineBox && targetBox && labelBox, name).toBeTruthy()
+    if (!outlineBox || !targetBox || !labelBox) return
+    const box = rectOf(outlineBox)
+    const target = rectOf(targetBox)
+    const roomTo = {
+      top: Math.min(room, target.top - ring),
+      left: Math.min(room, target.left - ring),
+      right: Math.min(room, viewport.width - ring - target.right),
+      bottom: Math.min(room, viewport.height - ring - target.bottom),
+    }
+    expect(target.top - box.top, `${name}: room above`).toBeGreaterThanOrEqual(
+      roomTo.top
+    )
+    expect(target.left - box.left, `${name}: room left`).toBeGreaterThanOrEqual(
+      roomTo.left
+    )
+    expect(
+      box.right - target.right,
+      `${name}: room right`
+    ).toBeGreaterThanOrEqual(roomTo.right)
+    expect(
+      box.bottom - target.bottom,
+      `${name}: room below`
+    ).toBeGreaterThanOrEqual(roomTo.bottom)
+    boxes.push({ name, outline: box, label: rectOf(labelBox) })
+  }
+  for (const { name, label } of boxes) {
+    expect(label.left, `${name}: label on screen`).toBeGreaterThanOrEqual(0)
+    expect(label.right, `${name}: label on screen`).toBeLessThanOrEqual(
+      viewport.width
+    )
+    const own = boxes.find((box) => box.name === name)?.outline
+    for (const { name: other, outline } of boxes) {
+      const nested = other === name || (own && contains(outline, own))
+      const clear =
+        apart(label, grow(outline, ring + room)) ||
+        (nested && contains(grow(outline, -room), label))
+      expect(clear, `${name}'s label against ${other}'s outline`).toBe(true)
+    }
+  }
+}
+
 async function load(page: Page) {
   await page.goto(surface)
   await expect(region(page)).not.toHaveAttribute("data-pliant-pending")
@@ -38,9 +148,7 @@ test("holds Alt, clicks the key metrics and asks a suggestion", async ({
 
   await page.keyboard.down("Alt")
   await expect(keyMetricsBox(page)).toBeVisible()
-  const box = await keyMetricsBox(page).boundingBox()
-  const metrics = await region(page).boundingBox()
-  expect(box).toEqual(metrics)
+  await expectOutlinesClear(page)
 
   await keyMetricsBox(page).click()
   await page.keyboard.up("Alt")
@@ -330,6 +438,52 @@ test("announces the mode while Alt is held", async ({ page, errors }) => {
   expect(errors).toEqual([])
 })
 
+for (const colorScheme of ["light", "dark"] as const) {
+  test(`leaves room around outlines and labels in ${colorScheme} mode`, async ({
+    page,
+    errors,
+  }) => {
+    await page.emulateMedia({ colorScheme })
+    await load(page)
+
+    await page.getByRole("button", { name: "Point" }).click()
+    await expect(keyMetricsBox(page)).toBeVisible()
+
+    await expectOutlinesClear(page)
+    expect(errors).toEqual([])
+  })
+}
+
+test("moves a label that would cross another outline", async ({
+  page,
+  errors,
+}) => {
+  // Tall enough that both outlines and their labels are on screen.
+  await page.setViewportSize({ width: 1280, height: 1600 })
+  await load(page)
+  await page.getByRole("button", { name: "Point" }).click()
+  const orders = layer(page).getByRole("button", { name: "All orders" })
+  const id = await orders.getAttribute("data-pliant-point-target")
+  await page.keyboard.press("Escape")
+  const top =
+    (await page.locator(`[data-pliant-id="${String(id)}"]`).boundingBox())?.y ??
+    0
+  // Move the key metrics down to just above all orders, where the label for
+  // all orders would otherwise sit, without moving anything else.
+  await page
+    .getByRole("region", { name: "Key metrics" })
+    .evaluate((section, top) => {
+      const { bottom } = section.getBoundingClientRect()
+      section.style.transform = `translateY(${String(top - 12 - bottom)}px)`
+    }, top)
+
+  await page.getByRole("button", { name: "Point" }).click()
+  await expect(keyMetricsBox(page)).toBeVisible()
+
+  await expectOutlinesClear(page)
+  expect(errors).toEqual([])
+})
+
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 640 }, hasTouch: true })
 
@@ -349,9 +503,7 @@ test.describe("on a phone", () => {
     await expect
       .poll(async () => (await keyMetricsBox(page).boundingBox())?.y)
       .toBe((before?.y ?? 0) - 120)
-    expect(await keyMetricsBox(page).boundingBox()).toEqual(
-      await region(page).boundingBox()
-    )
+    await expectOutlinesClear(page)
 
     await keyMetricsBox(page).tap()
 

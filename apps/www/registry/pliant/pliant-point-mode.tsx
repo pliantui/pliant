@@ -1,13 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { cn } from "cn"
 import { SquareDashedMousePointerIcon } from "lucide-react"
 import { Slot } from "radix-ui"
 import { createPortal } from "react-dom"
 
 import { usePliantMessages, type PliantMessages } from "@pliantui/react"
-import { usePointMode } from "@pliantui/react/point-mode"
+import { usePointMode, type PointModeBox } from "@pliantui/react/point-mode"
 
 import { Button } from "@/components/ui/button"
 
@@ -30,6 +29,105 @@ const pointModeMessages = {
 interface PliantPointTarget {
   id: string
   label: string
+}
+
+// The outline sits this far outside its target, so it never runs along the
+// target's own border, and a label sits this far from any outline.
+const gap = 6
+// The outline's ring, drawn outside its box.
+const ring = 2
+// A label's height, and its widest, matching `max-w-48`.
+const labelHeight = 20
+const labelWidth = 192
+
+interface Rect {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
+// The outline grows `gap` past its target on every side, except where that
+// would push its ring off screen.
+function outlineOf(box: PointModeBox): Rect {
+  const right = box.left + box.width
+  const bottom = box.top + box.height
+  const viewportWidth = document.documentElement.clientWidth
+  const viewportHeight = document.documentElement.clientHeight
+  return {
+    top: Math.min(box.top, Math.max(ring, box.top - gap)),
+    left: Math.min(box.left, Math.max(ring, box.left - gap)),
+    right: Math.max(right, Math.min(viewportWidth - ring, right + gap)),
+    bottom: Math.max(bottom, Math.min(viewportHeight - ring, bottom + gap)),
+  }
+}
+
+function contains(outer: Rect, inner: Rect) {
+  return (
+    outer.left <= inner.left &&
+    inner.right <= outer.right &&
+    outer.top <= inner.top &&
+    inner.bottom <= outer.bottom
+  )
+}
+
+// Whether a label for `own` would get in the way of another outline: lie
+// across its ring or near it, or sit inside it when `own` isn't nested in it,
+// where the label would seem to name the wrong part.
+function getsInWay(label: Rect, own: Rect, other: Rect) {
+  const reach = {
+    top: other.top - ring - gap,
+    right: other.right + ring + gap,
+    bottom: other.bottom + ring + gap,
+    left: other.left - ring - gap,
+  }
+  const overlaps =
+    label.left < reach.right &&
+    reach.left < label.right &&
+    label.top < reach.bottom &&
+    reach.top < label.bottom
+  const inside = {
+    top: other.top + gap,
+    right: other.right - gap,
+    bottom: other.bottom - gap,
+    left: other.left + gap,
+  }
+  return overlaps && !(contains(other, own) && contains(inside, label))
+}
+
+// Relative to the outline's box. An end-aligned label is placed by its right
+// edge, since it's often narrower than its widest.
+type LabelPlacement = { top: number } & ({ left: number } | { right: number })
+
+// A label goes above its outline, or below it, wherever it stays on screen
+// and out of every other outline's way. When neither fits, it goes
+// inside the outline's top corner.
+function placeLabel(
+  outline: Rect,
+  others: readonly Rect[],
+  align: PointModeBox["labelAlign"]
+): LabelPlacement {
+  const viewportWidth = document.documentElement.clientWidth
+  const viewportHeight = document.documentElement.clientHeight
+  const width = Math.min(labelWidth, outline.right - outline.left)
+  const right = Math.min(outline.right, viewportWidth)
+  const left = align === "end" ? right - width : Math.max(outline.left, 0)
+  const across =
+    align === "end"
+      ? { right: outline.right - right }
+      : { left: left - outline.left }
+  const outside = [
+    outline.top - ring - gap - labelHeight,
+    outline.bottom + ring + gap,
+  ]
+  for (const top of outside) {
+    const label = { top, left, right: left + width, bottom: top + labelHeight }
+    const onScreen = top >= 0 && label.bottom <= viewportHeight
+    if (onScreen && !others.some((other) => getsInWay(label, outline, other))) {
+      return { top: top - outline.top, ...across }
+    }
+  }
+  return align === "end" ? { top: gap, right: gap } : { top: gap, left: gap }
 }
 
 /**
@@ -72,8 +170,7 @@ function PliantPointMode({
     usePointMode({
       targets,
       onPick,
-      // The labels' `max-w-48`, so they stay on screen.
-      labelWidth: 192,
+      labelWidth,
     })
   const id = React.useId()
 
@@ -108,37 +205,38 @@ function PliantPointMode({
                 {messages.pointModeHelp}
               </p>
             )}
-            {boxes.map((box) => (
-              <button
-                key={box.id}
-                type="button"
-                data-pliant-point-target={box.id}
-                className="absolute cursor-pointer rounded-lg bg-primary/5 shadow-lg ring-2 shadow-primary/25 ring-primary/60 outline-none hover:bg-primary/10 hover:shadow-primary/40 hover:ring-primary focus-visible:bg-primary/10 focus-visible:ring-4 focus-visible:shadow-primary/40 focus-visible:ring-primary motion-safe:animate-in motion-safe:transition-[background-color,box-shadow] motion-safe:fade-in-0"
-                style={{
-                  top: box.top,
-                  left: box.left,
-                  width: box.width,
-                  height: box.height,
-                }}
-                onClick={() => {
-                  pick(box.id)
-                }}
-              >
-                <span
-                  className={cn(
-                    "absolute max-w-48 truncate rounded-md bg-primary px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-primary-foreground shadow-sm",
-                    box.top < 24 ? "top-1" : "-top-6"
-                  )}
-                  style={
-                    box.labelAlign === "end"
-                      ? { right: box.labelInset }
-                      : { left: box.labelInset }
-                  }
+            {boxes.map((box) => {
+              const outline = outlineOf(box)
+              const label = placeLabel(
+                outline,
+                boxes.filter((other) => other.id !== box.id).map(outlineOf),
+                box.labelAlign
+              )
+              return (
+                <button
+                  key={box.id}
+                  type="button"
+                  data-pliant-point-target={box.id}
+                  className="absolute cursor-pointer rounded-xl bg-primary/5 shadow-lg ring-2 shadow-primary/25 ring-primary/60 outline-none hover:bg-primary/10 hover:shadow-primary/40 hover:ring-primary focus-visible:bg-primary/10 focus-visible:ring-4 focus-visible:shadow-primary/40 focus-visible:ring-primary motion-safe:animate-in motion-safe:transition-[background-color,box-shadow] motion-safe:fade-in-0"
+                  style={{
+                    top: outline.top,
+                    left: outline.left,
+                    width: outline.right - outline.left,
+                    height: outline.bottom - outline.top,
+                  }}
+                  onClick={() => {
+                    pick(box.id)
+                  }}
                 >
-                  {box.label}
-                </span>
-              </button>
-            ))}
+                  <span
+                    className="absolute h-5 max-w-48 truncate rounded-md bg-primary px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-primary-foreground shadow-sm"
+                    style={label}
+                  >
+                    {box.label}
+                  </span>
+                </button>
+              )
+            })}
           </div>,
           document.body
         )}

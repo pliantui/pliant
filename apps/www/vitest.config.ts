@@ -8,7 +8,7 @@ export default defineConfig({
       "app/**/*.test.ts",
       "lib/**/*.test.ts",
       "registry/**/*.test.{ts,tsx}",
-      "scripts/**/*.test.ts",
+      "scripts/**/*.test.{ts,tsx}",
     ],
   },
 })
