@@ -58,9 +58,9 @@ import { serverAdapter } from "@pliantui/react/server-adapter"
 const storage = serverAdapter({ endpoint: "/api/pliant/storage" })
 ```
 
-Pass `storage` to `PliantRoot`. Users read their own personal overlays and those of their `teams` and `org`. Saving or removing a team or org overlay also needs `canPublish`; without it, nobody can. The handler validates every overlay and assigns every etag, version and timestamp. A conflict answers 412 with the current record, and a removal stores a tombstone. `list` returns tombstones too, so an export includes removed overlays.
+Pass `storage` to `PliantRoot`. Users read their own personal overlays and those of their `org` and of their `teams` in that org. Saving or removing a team or org overlay also needs `canPublish`; without it, nobody can. The handler validates every overlay and assigns every etag, version and timestamp. A conflict answers 412 with the current record, and a removal stores a tombstone. `list` returns tombstones too, so an export includes removed overlays.
 
-`memoryOverlayStore` is for tests and demos. In production, implement `OverlayStore` over your database: one row per `(surface, layer, scope, id)` and a `put` that writes only when the stored etag matches, in one statement.
+`memoryOverlayStore` is for tests and demos. In production, implement `OverlayStore` over your database: one row per `(surface, layer, scope, id)`, a `put` that writes only when the stored etag matches, in one statement, and the id of the user who wrote each row.
 
 ## Recordings
 

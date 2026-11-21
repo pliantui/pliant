@@ -2,7 +2,8 @@ import type { StoredOverlay } from "@pliantui/contract"
 
 /**
  * One group of stored overlays: a user's personal overlays, one team's, or
- * one org's. `scope` is the user id, the team id or the org id.
+ * one org's. `scope` is the user id, `JSON.stringify([orgId, teamId])` or
+ * the org id, so a team id only needs to be unique within its org.
  *
  * @experimental
  */
@@ -16,9 +17,6 @@ export interface OverlayScope {
  * per key, which is a unique key in a SQL table. A tombstone blocks saving
  * under its own key only: the same overlay id in another layer, scope or
  * surface is another record.
- *
- * A team key holds the team id without the org, so team ids must be
- * unique across orgs, or team overlays must carry `scope.org`.
  *
  * @experimental
  */
@@ -41,6 +39,16 @@ export interface OverlayQuery {
 }
 
 /**
+ * A record as `history` returns it, with the id of the user who stored it.
+ *
+ * @experimental
+ */
+export interface OverlayVersion {
+  readonly record: StoredOverlay
+  readonly by: string
+}
+
+/**
  * Where `createStorageHandler` keeps stored overlays. The handler checks
  * permissions and assigns every etag, version and timestamp; a store only
  * keeps records, and must make `put` atomic.
@@ -60,20 +68,22 @@ export interface OverlayStore {
    * condition didn't hold. The check and the write must be one atomic step,
    * such as an `INSERT … ON CONFLICT DO NOTHING` or an
    * `UPDATE … WHERE etag = $ifMatch`, judged by the number of rows written.
-   * A store with `history` also keeps every record it stores.
+   * `by` is the id of the user who stores it. A store with `history` also
+   * keeps every record it stores, with `by`.
    */
   put(
     key: OverlayKey,
     record: StoredOverlay,
-    ifMatch: string | null
+    ifMatch: string | null,
+    options: { readonly by: string }
   ): Promise<boolean>
   /** The current record of each matching key, tombstones included. */
   list(query: OverlayQuery): Promise<readonly StoredOverlay[]>
   /**
    * The matching records the store keeps, earlier versions and tombstones
-   * included, ordered by `updatedAt`, then by `version`, then by overlay
-   * id. Without it, history holds only the current record of each overlay,
-   * from `list`.
+   * included, each with the user who stored it, ordered by the record's
+   * `updatedAt`, then `version`, then overlay id. Without it, history holds
+   * only the current record of each overlay, from `list`.
    */
-  history?(query: OverlayQuery): Promise<readonly StoredOverlay[]>
+  history?(query: OverlayQuery): Promise<readonly OverlayVersion[]>
 }

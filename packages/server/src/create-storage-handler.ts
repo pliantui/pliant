@@ -20,9 +20,9 @@ type SharedLayer = "org" | "team"
 
 /**
  * The signed-in user, as `getUser` returns it: their id, the org they
- * belong to and the teams they are a member of. Team ids must be unique
- * across orgs, unless every team overlay carries `scope.org`. It may carry
- * anything else `canPublish` needs, such as roles.
+ * belong to and the teams of that org they are a member of. Team overlays
+ * need the org: a user without one reads and writes no team overlays. It
+ * may carry anything else `canPublish` needs, such as roles.
  *
  * @experimental
  */
@@ -147,12 +147,16 @@ function readSavePrecondition(request: Request) {
   return null
 }
 
+function teamScope(org: string, team: string) {
+  return JSON.stringify([org, team])
+}
+
 function readableScopes(user: StorageUser) {
   const scopes: OverlayScope[] = [{ layer: "personal", scope: user.id }]
-  for (const team of user.teams ?? []) {
-    scopes.push({ layer: "team", scope: team })
-  }
   if (user.org !== undefined) {
+    for (const team of user.teams ?? []) {
+      scopes.push({ layer: "team", scope: teamScope(user.org, team) })
+    }
     scopes.push({ layer: "org", scope: user.org })
   }
   return scopes
@@ -166,10 +170,10 @@ function keyOf(user: StorageUser, overlay: Overlay): OverlayKey | undefined {
     case "personal":
       return { surface, layer: "personal", scope: user.id, id }
     case "team": {
-      const { team, org } = overlay.scope
-      return user.teams?.includes(team) &&
-        (org === undefined || org === user.org)
-        ? { surface, layer: "team", scope: team, id }
+      // A team overlay without `scope.org` belongs to the user's org.
+      const { team, org = user.org } = overlay.scope
+      return org !== undefined && org === user.org && user.teams?.includes(team)
+        ? { surface, layer: "team", scope: teamScope(org, team), id }
         : undefined
     }
     case "org":
@@ -244,16 +248,6 @@ export function createStorageHandler<User extends StorageUser>(
     }
   }
 
-  // A team key holds only the team id, so with team ids that repeat across
-  // orgs, the record under it may belong to another org.
-  async function currentOf(user: User, key: OverlayKey) {
-    const current = await store.get(key)
-    if (current && !keyOf(user, current.overlay)) {
-      throw new HttpError("This overlay belongs to another org", 403)
-    }
-    return current
-  }
-
   function nextRecord(
     overlay: Overlay,
     previous: StoredOverlay | undefined,
@@ -288,7 +282,7 @@ export function createStorageHandler<User extends StorageUser>(
     if (params.has("history")) {
       const query = { scopes, surfaces, id: readId(params) }
       const records = store.history
-        ? await store.history(query)
+        ? (await store.history(query)).map((version) => version.record)
         : [...(await store.list(query))].sort(byTime)
       return respond({
         records: records.filter((record) => keyOf(user, record.overlay)),
@@ -322,13 +316,13 @@ export function createStorageHandler<User extends StorageUser>(
       throw new HttpError(`You aren't a member of this ${overlay.layer}`, 403)
     }
     await assertCanWrite(user, overlay)
-    const current = await currentOf(user, key)
+    const current = await store.get(key)
     if (current?.deletedAt) {
       return conflict(current)
     }
     const record = nextRecord(overlay, current)
-    if (!(await store.put(key, record, ifMatch))) {
-      return conflict(await currentOf(user, key))
+    if (!(await store.put(key, record, ifMatch, { by: user.id }))) {
+      return conflict(await store.get(key))
     }
     return respond(record, ifMatch === null ? 201 : 200, {
       etag: `"${record.etag}"`,
@@ -359,8 +353,8 @@ export function createStorageHandler<User extends StorageUser>(
     }
     await assertCanWrite(user, record.overlay)
     const tombstone = nextRecord(record.overlay, record, true)
-    if (!(await store.put(key, tombstone, ifMatch))) {
-      const current = await currentOf(user, key)
+    if (!(await store.put(key, tombstone, ifMatch, { by: user.id }))) {
+      const current = await store.get(key)
       return current?.deletedAt ? noContent() : conflict(current)
     }
     return noContent()

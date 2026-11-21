@@ -181,28 +181,60 @@ describe("createStorageHandler", () => {
     }
   })
 
-  it("answers 403 instead of a conflict over another org's team overlay", async () => {
+  it("keeps teams with the same id in different orgs apart", async () => {
     const store = memoryOverlayStore()
     const acme = handlerFor({ store })
     const globex = handlerFor({
       store,
       getUser: () => ({ id: "cy", org: "globex", teams: ["ops"] }),
     })
-    const created = await stored(
-      await acme(
-        put(overlay({ layer: "team", scope: { team: "ops", org: "acme" } }))
+    const team = overlay({ layer: "team", scope: { team: "ops" } })
+    const ours = await stored(await acme(put(team)))
+    const load = new Request(`${url}?surface=%2Forders`)
+    expect(await (await globex(load.clone())).json()).toMatchObject({
+      team: [],
+    })
+    const theirs = await globex(put(team))
+    expect(theirs.status).toBe(201)
+    expect(await (await acme(load.clone())).json()).toMatchObject({
+      team: [ours],
+    })
+  })
+
+  it("keeps a user without an org out of team overlays", async () => {
+    const handler = handlerFor({
+      getUser: () => ({ id: "dee", teams: ["ops"] }),
+    })
+    const response = await handler(
+      put(overlay({ layer: "team", scope: { team: "ops" } }))
+    )
+    expect(response.status).toBe(403)
+  })
+
+  it("tells the store who saved and removed each record", async () => {
+    const store = memoryOverlayStore()
+    const ben: StorageUser = { id: "ben", org: "acme", teams: ["ops"] }
+    const team = overlay({ layer: "team", scope: { team: "ops" } })
+    const created = await stored(await handlerFor({ store })(put(team)))
+    const updated = await stored(
+      await handlerFor({ store, getUser: () => ben })(
+        put(team, { "if-match": `"${created.etag}"` })
       )
     )
-    for (const headers of [
-      { "if-none-match": "*" },
-      { "if-match": `"${created.etag}"` },
-    ]) {
-      const response = await globex(
-        put(overlay({ layer: "team", scope: { team: "ops" } }), headers)
-      )
-      expect(response.status).toBe(403)
-      expect(JSON.stringify(await response.json())).not.toContain(created.etag)
-    }
+    await handlerFor({ store })(remove({ "if-match": `"${updated.etag}"` }))
+    const history = await store.history?.({
+      scopes: [{ layer: "team", scope: JSON.stringify(["acme", "ops"]) }],
+    })
+    expect(history?.map((version) => version.by)).toEqual(["ana", "ben", "ana"])
+  })
+
+  it("answers history without the authors", async () => {
+    const handler = handlerFor()
+    const created = await stored(await handler(put(overlay())))
+    const response = await handler(
+      new Request(`${url}?surface=%2Forders&history`)
+    )
+    expect(await response.json()).toEqual({ records: [created] })
   })
 
   it("lets nobody publish without canPublish", async () => {
@@ -229,8 +261,8 @@ describe("createStorageHandler", () => {
     const created = await stored(await handlerFor({ store })(put(overlay())))
     const racing: OverlayStore = {
       ...store,
-      put: async (key, record, ifMatch) => {
-        await store.put(key, { ...record, etag: "other" }, ifMatch)
+      put: async (key, record, ifMatch, options) => {
+        await store.put(key, { ...record, etag: "other" }, ifMatch, options)
         return false
       },
     }
@@ -244,7 +276,8 @@ describe("createStorageHandler", () => {
     const base = memoryOverlayStore()
     const latest: OverlayStore = {
       get: (key) => base.get(key),
-      put: (key, record, ifMatch) => base.put(key, record, ifMatch),
+      put: (key, record, ifMatch, options) =>
+        base.put(key, record, ifMatch, options),
       list: (query) => base.list(query),
     }
     const handler = handlerFor({ store: latest })

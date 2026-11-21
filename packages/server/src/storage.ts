@@ -9,4 +9,5 @@ export type {
   OverlayQuery,
   OverlayScope,
   OverlayStore,
+  OverlayVersion,
 } from "./overlay-store"

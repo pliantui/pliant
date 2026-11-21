@@ -6,6 +6,7 @@ import type { OverlayKey, OverlayQuery, OverlayStore } from "./overlay-store"
 interface Entry {
   readonly key: OverlayKey
   readonly record: StoredOverlay
+  readonly by: string
 }
 
 function keyOf({ surface, layer, scope, id }: OverlayKey) {
@@ -23,7 +24,8 @@ function matches({ key }: Entry, { scopes, surfaces, id }: OverlayQuery) {
 }
 
 /**
- * Keeps stored overlays in memory, every version of each one, for tests,
+ * Keeps stored overlays in memory, every version of each one and who
+ * stored it, for tests,
  * demos and examples. They are lost when the process exits, and each
  * server instance has its own, so use a database in production.
  *
@@ -38,12 +40,12 @@ export function memoryOverlayStore(): OverlayStore {
       const entry = current.get(keyOf(key))
       return Promise.resolve(entry && structuredClone(entry.record))
     },
-    put(key, record, ifMatch) {
+    put(key, record, ifMatch, { by }) {
       const id = keyOf(key)
       if ((current.get(id)?.record.etag ?? null) !== ifMatch) {
         return Promise.resolve(false)
       }
-      const entry = { key, record: structuredClone(record) }
+      const entry = { key, record: structuredClone(record), by }
       current.set(id, entry)
       versions.push(entry)
       return Promise.resolve(true)
@@ -59,8 +61,8 @@ export function memoryOverlayStore(): OverlayStore {
       return Promise.resolve(
         versions
           .filter((entry) => matches(entry, query))
-          .map((entry) => structuredClone(entry.record))
-          .sort(byTime)
+          .map(({ record, by }) => ({ record: structuredClone(record), by }))
+          .sort((a, b) => byTime(a.record, b.record))
       )
     },
   }
