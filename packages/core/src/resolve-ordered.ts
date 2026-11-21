@@ -1,5 +1,9 @@
+import type { Manifest } from "@pliantui/contract"
+
 import { compareOrdered } from "./compare-ordered"
-import type { Guardrail } from "./guardrail"
+import { freeShortcut } from "./free-shortcut"
+import type { Guardrail, Violation } from "./guardrail"
+import { keepsMeaning } from "./keeps-meaning"
 import { addressParents } from "./node-identity"
 import { scopeKeyOf } from "./overlay-scope"
 import type { ReadFlags } from "./read-flags"
@@ -34,6 +38,14 @@ const canHide = new Set([
   "wrap",
   "remove",
 ])
+
+/** What the rules on single ops read besides the resolved state. */
+export interface OpRules {
+  readonly manifests: ReadonlyMap<string, Manifest>
+  readonly reservedShortcuts: readonly string[]
+}
+
+const noRules: OpRules = { manifests: new Map(), reservedShortcuts: [] }
 
 type Step =
   | { readonly skipped: SkippedOp }
@@ -88,8 +100,9 @@ function baseParentsOf(
 /**
  * Applies the ordered overlays' valid ops one at a time, in resolution
  * order. With flags, after each op that can hide or move something, it
- * checks the guardrails on the state so far, and skips the op if it breaks
- * one: every op before it was kept, so the op that completes a violation
+ * checks the guardrails on the state so far; after each `bindShortcut` and
+ * `setProp`, it checks the rules on shortcuts and variants. It skips the op
+ * if it breaks one: every op before it was kept, so the op that completes a violation
  * is the one from the highest layer involved. An op is judged against the ops before
  * it only, so a lower op is skipped even when a higher op would have undone
  * what it did.
@@ -107,7 +120,8 @@ export function resolveOrdered(
   baseIds: ResolveLayersOptions["baseIds"],
   flags: ReadFlags | undefined,
   baseParents?: ReadonlyMap<string, string | null>,
-  baseOrder?: ReadonlyMap<string, readonly string[]>
+  baseOrder?: ReadonlyMap<string, readonly string[]>,
+  rules: OpRules = noRules
 ) {
   const steps: Step[] = []
   for (const { overlay, reason } of ordered) {
@@ -156,8 +170,19 @@ export function resolveOrdered(
     if (notApplied) {
       unapplied.set(op, { ...op, reason: notApplied })
     }
-    const [violation] =
-      flags && tree && canHide.has(op.check.op.op)
+    const name = op.check.op.op
+    const shortcut =
+      name === "bindShortcut"
+        ? freeShortcut(
+            op,
+            settleResolution(state).properties,
+            rules.reservedShortcuts
+          )
+        : undefined
+    const meaning = keepsMeaning(op, rules.manifests, flags?.flags)
+    const [violation]: (Violation | undefined)[] = [
+      shortcut ?? meaning,
+      ...(flags && tree && canHide.has(name)
         ? guardrails
             .flatMap((guardrail) =>
               guardrail({
@@ -171,18 +196,17 @@ export function resolveOrdered(
               })
             )
             .sort((a, b) => compareOrdered(a.node, b.node))
-        : []
+        : []),
+    ].filter((each) => each !== undefined)
     if (!violation) {
       kept.push(step)
       continue
     }
-    const { guardrail, flag, node, ops } = violation
+    const { ops, ...rule } = violation
     skipped.push({
       ...op,
       reason: "guardrail",
-      guardrail,
-      flag,
-      node,
+      ...rule,
       conflictsWith: ops.filter((other) => other !== op),
     })
     unapplied.delete(op)

@@ -48,7 +48,7 @@ So with Save, Cancel, Archive and Delete in that order, a user can move Delete b
 
 A group has at most one `primary` action: `resolveLayers` and `validateOverlay` throw a `TypeError` when two primary actions share a group. A node's slots and each of its item collections are separate groups.
 
-Operations apply one at a time, from the lowest layer up. Each one that would break a rule, given the operations before it, is skipped and reported with the rule's name, `stays-visible` or `stays-clear`, so when layers combine to break one, the operation from the highest layer involved is the one skipped. A lower layer's operation is judged only by the operations before it, so it's skipped even if a higher layer would undo it. `validateOverlay` rejects an overlay that has such an operation.
+Operations apply one at a time, from the lowest layer up. Each one that would break a rule, given the operations before it, is skipped and reported with the rule's name, `stays-visible` or `stays-clear` (and `free-shortcut` or `keeps-meaning` for the rules below), so when layers combine to break one, the operation from the highest layer involved is the one skipped. A lower layer's operation is judged only by the operations before it, so it's skipped even if a higher layer would undo it. `validateOverlay` rejects an overlay that has such an operation.
 
 To know which nodes hold a flagged one, pass the page's node tree as `baseParents`: each node id mapped to the id of the node that holds it, or `null` at the top of the page. Its key order is ignored. To give the order each group renders in, pass `baseOrder`: each node id mapped to its children's ids, and each `<node>/<collection>` mapped to its item ids, in order.
 
@@ -72,6 +72,43 @@ A node the tree leaves out, such as one that isn't mounted yet, takes the parent
 `baseOrder` lists each child once, in the parent that `baseParents` gives it, or, without `baseParents`, the parent its flag's address shows. With `baseParents`, every node it names must be in the tree. Without it, a node `baseOrder` lists takes that parent where nothing else gives one, and those parents must have no cycle. `resolveLayers` and `validateOverlay` throw a `TypeError` otherwise.
 
 `baseOrder` may leave out a group, or some of a group's members. Core then builds the group's starting order only from what you passed (`baseParents`, `baseOrder` and your flags' addresses), never from the overlays. An unlisted primary action goes first, an unlisted destructive one last, and the other known members go between them by id, after the listed ones. When the only members Core knows are the two flagged actions, they start out adjacent. That's the least strict case: users can't move the destructive action above the primary one, but can move it right after it. To get the full rule, list the group's order in `baseOrder`.
+
+## Shortcuts don't take reserved keys
+
+A `bindShortcut` that takes keys the browser, the operating system or a screen reader relies on is skipped, and so is one that takes keys another action is already bound to on the page. Keys are compared on Windows and Linux, where `mod` is Ctrl, and on macOS, where `mod` is Command, so `mod+k` and `ctrl+k` take the same keys. When two layers bind the same keys, the binding from the lower layer wins and the other is skipped.
+
+Reserved, on every page:
+
+- Keys with no modifier, or with Shift alone. They type text, move focus and drive a screen reader's browse mode.
+- Alt or Alt+Shift alone, which type characters on macOS and open the browser's menus on Windows and Linux.
+- Ctrl+Alt, which is AltGr on Windows and holds the VoiceOver keys on macOS, and `meta`, the Windows or Super key, on Windows and Linux.
+- `mod` with `a c d f g h j l n p q r t u v w x y z`, a digit, `=`, `-`, `[`, `]`, `tab`, `space`, `home`, `end`, `backspace`, `delete` or an arrow, and `mod+shift` with `b g n o r t w z = tab home end` or an arrow: tabs, windows, the address bar, reloading, history, downloads, bookmarks, find, printing, the page source, zoom and text editing.
+- `ctrl+tab` and `ctrl+shift+tab`, which switch tabs.
+- On Windows and Linux, `mod+shift` with `c`, `i`, `j` or `delete`: developer tools and clearing browsing data.
+- On macOS, `mod` with `m`, `,` or `` ` ``, `ctrl` with `space` or an arrow, `mod+shift` with `3`, `4`, `5` or `q`, and `mod+alt` with `c`, `d`, `i`, `j` or `escape`.
+
+That leaves combinations such as `mod+k`, `mod+shift+k` and `mod+s` for users. If your app binds keys itself, pass them to `resolveLayers` and `validateOverlay` as `reservedShortcuts`, and bindings to them are skipped too:
+
+```ts
+resolveLayers(overlays, {
+  surface: "/orders",
+  reservedShortcuts: ["mod+k", "mod+shift+p"],
+})
+```
+
+## Variants keep their meaning
+
+Some prop values carry meaning, such as a button's `destructive` variant. A manifest marks them as `semantic`, and only your app assigns them: a `setProp` that sets a semantic value is skipped, in every layer. A node or item flagged `destructive` also keeps its variant: any `setProp` on one of its props that has semantic values is skipped, so a destructive action can't be made to look harmless. Its other props, such as `size`, can still change.
+
+Pass the manifests of the page's nodes by address to `resolveLayers` and `validateOverlay`. A node with no manifest isn't checked.
+
+```ts
+resolveLayers(overlays, {
+  surface: "/settings",
+  manifests: { "account-actions/slots/delete-account": buttonManifest },
+  flags: { "account-actions/slots/delete-account": { destructive: true } },
+})
+```
 
 ## Team and org defaults aren't locks
 

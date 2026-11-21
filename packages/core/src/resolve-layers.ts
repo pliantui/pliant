@@ -1,4 +1,4 @@
-import type { Breakpoint, Flags } from "@pliantui/contract"
+import type { Breakpoint, Flags, Manifest } from "@pliantui/contract"
 
 import type { OpCheck } from "./check-op"
 import type { LoadedOverlay } from "./load-overlay"
@@ -7,6 +7,8 @@ import type { ResolvedPlacement } from "./placement"
 import { readBaseOrder } from "./read-base-order"
 import { readBaseParents } from "./read-base-parents"
 import { readFlags } from "./read-flags"
+import { readManifests } from "./read-manifests"
+import { readShortcuts } from "./read-shortcuts"
 import { readBaseIds } from "./resolution"
 import { resolveOrdered } from "./resolve-ordered"
 import { surfaceOrder } from "./surface-order"
@@ -85,8 +87,8 @@ export interface ResolvedProperty {
  * shares its id with an overlay earlier in the resolution order, or with one
  * that ties with it on every sort key but has other contents,
  * `surface-mismatch` when the overlay is for another surface, or
- * `guardrail` when the valid op would break a guardrail (see `flags` in
- * `ResolveLayersOptions`).
+ * `guardrail` when the valid op would break a guardrail (see `flags`,
+ * `manifests` and `reservedShortcuts` in `ResolveLayersOptions`).
  */
 export type SkippedOp =
   | {
@@ -110,44 +112,69 @@ export type SkippedOp =
       readonly reason: "duplicate-id" | "surface-mismatch"
     }
   /**
-   * A valid op skipped because it would break a guardrail. Every guardrail
-   * skip names a flagged node and the flag that makes the rule apply to it.
+   * A valid op skipped because it would break a guardrail, with the rule
+   * it would break, named after what it enforces, and the node or item the
+   * rule protects.
    */
-  | {
-      readonly check: Extract<OpCheck, { status: "valid" }>
-      readonly overlay: LoadedOverlay
-      readonly reason: "guardrail"
-      /**
-       * The rule the op would break, named after what it enforces:
-       * `stays-visible` keeps nodes flagged `critical` or `required` visible
-       * and reachable; `stays-clear` keeps actions flagged `destructive`
-       * from moving closer to the primary action of their group.
-       */
-      readonly guardrail: "stays-visible" | "stays-clear"
-      /**
-       * The flag of `node` the rule applies to: `critical` or `required`
-       * for `stays-visible`, `destructive` for `stays-clear`.
-       */
-      readonly flag: "critical" | "required" | "destructive"
-      /**
-       * The identity of the flagged node or item: the node `stays-visible`
-       * protects, or the destructive action `stays-clear` keeps away from
-       * the primary one.
-       */
-      readonly node: string
-      /**
-       * Ops applied before this one that bear on the break. For
-       * `stays-visible`, the ops that make this op break the rule, such as
-       * the `move … into` the node this op hides; empty when the op breaks
-       * it alone. For `stays-clear`, the earlier ops that place either
-       * action (a placement, a `move … into`, a `wrap` or a `collapse`, of
-       * it or of a wrapper that holds it), and, when the op leaves the
-       * destructive action right after the primary one, those that cleared
-       * the space between them (a `hide`, `collapse`, `remove`, move out or
-       * reorder), even when this op alone completes the violation.
-       */
-      readonly conflictsWith: readonly ResolvedOp[]
-    }
+  | (GuardrailSkip &
+      (
+        | {
+            /**
+             * Keeps nodes flagged `critical` or `required` visible and
+             * reachable. `node` is the flagged node, `flag` its flag.
+             */
+            readonly guardrail: "stays-visible"
+            readonly flag: "critical" | "required"
+          }
+        | {
+            /**
+             * Keeps actions flagged `destructive` from moving closer to the
+             * primary action of their group. `node` is the destructive
+             * action.
+             */
+            readonly guardrail: "stays-clear"
+            readonly flag: "destructive"
+          }
+        | {
+            /**
+             * Keeps `bindShortcut` off reserved keys and keys another action
+             * takes. `node` is the action the op binds.
+             */
+            readonly guardrail: "free-shortcut"
+            readonly flag?: undefined
+          }
+        | {
+            /**
+             * Keeps `setProp` from assigning a semantic value, and from
+             * changing a prop with semantic values on a node flagged
+             * `destructive`, when `flag` is set. `node` is the op's target.
+             */
+            readonly guardrail: "keeps-meaning"
+            readonly flag?: "destructive"
+          }
+      ))
+
+interface GuardrailSkip {
+  readonly check: Extract<OpCheck, { status: "valid" }>
+  readonly overlay: LoadedOverlay
+  readonly reason: "guardrail"
+  /** The identity of the node or item the rule protects. */
+  readonly node: string
+  /**
+   * Ops applied before this one that bear on the break. For
+   * `stays-visible`, the ops that make this op break the rule, such as
+   * the `move … into` the node this op hides; empty when the op breaks
+   * it alone. For `stays-clear`, the earlier ops that place either
+   * action (a placement, a `move … into`, a `wrap` or a `collapse`, of
+   * it or of a wrapper that holds it), and, when the op leaves the
+   * destructive action right after the primary one, those that cleared
+   * the space between them (a `hide`, `collapse`, `remove`, move out or
+   * reorder), even when this op alone completes the violation. For
+   * `free-shortcut`, the other actions' bindings that take the same keys;
+   * empty when the keys are reserved. Empty for `keeps-meaning`.
+   */
+  readonly conflictsWith: readonly ResolvedOp[]
+}
 
 /**
  * Why a valid op didn't apply. `remove` and `removeUserItem` only clear what
@@ -327,6 +354,48 @@ export interface ResolveLayersOptions {
    * share a group.
    */
   readonly baseOrder?: Readonly<Record<string, readonly string[]>> | undefined
+  /**
+   * The manifests of the surface's nodes and items, by address, such as
+   * `{ "page/slots/checkout-actions/slots/pay-now": buttonManifest }`.
+   * Addresses of the same node can't give it two manifests.
+   *
+   * Variants keep their meaning: a `setProp` that sets a value the target's
+   * manifest marks `semantic` is skipped with guardrail `keeps-meaning`,
+   * since only your app assigns those. On a node or item flagged
+   * `destructive`, so is any `setProp` on a prop that has semantic values,
+   * so a destructive action keeps the variant that marks it.
+   */
+  readonly manifests?: Readonly<Record<string, Manifest>> | undefined
+  /**
+   * Keys your app binds itself, in `bindShortcut`'s form, such as
+   * `["mod+k", "mod+shift+p"]`.
+   *
+   * A `bindShortcut` is skipped with guardrail `free-shortcut` when its keys
+   * are reserved, are among these, or are what another action's binding
+   * takes so far. Two bindings take the same keys when they press the same
+   * keys on Windows and Linux, where `mod` is Ctrl, or on macOS, where `mod`
+   * is Command, so `mod+k` takes `ctrl+k`. Reserved, whatever you pass:
+   *
+   * - keys with no modifier or Shift alone, which type text, move focus and
+   *   drive a screen reader's browse mode;
+   * - Alt or Alt+Shift alone, which type characters on macOS and open the
+   *   browser's menus elsewhere;
+   * - Ctrl+Alt, which is AltGr on Windows and holds the VoiceOver keys on
+   *   macOS, and `meta`, the Windows or Super key, on Windows and Linux;
+   * - `mod` with `a c d f g h j l n p q r t u v w x y z`, a digit, `=`, `-`,
+   *   `[`, `]`, `tab`, `space`, `home`, `end`, `backspace`, `delete` or an
+   *   arrow, and `mod+shift` with `b g n o r t w z = tab home end` or an
+   *   arrow: tabs, windows, the address bar, reloading, history, downloads,
+   *   bookmarks, find, printing, the page source, zoom and text editing;
+   * - `ctrl+tab` and `ctrl+shift+tab`, which switch tabs;
+   * - on Windows and Linux, `mod+shift` with `c i j delete`: developer tools
+   *   and clearing browsing data;
+   * - on macOS, `mod` with `m`, `,` or `` ` ``, `ctrl` with `space` or an
+   *   arrow, `mod+shift` with `3 4 5 q`, and `mod+alt` with
+   *   `c d i j escape`: windows, settings, Spaces, input sources,
+   *   screenshots, logging out, developer tools, the Dock and Force Quit.
+   */
+  readonly reservedShortcuts?: readonly string[] | undefined
 }
 
 /** The result of `resolveLayers`. */
@@ -388,11 +457,13 @@ export interface ResolvedLayers {
  * addresses to valid flags, two of its addresses put one node in different
  * parents, two `primary` nodes or items share a group, or `baseParents`
  * isn't a plain object that maps node ids to node ids or `null`, puts a
- * node in another parent than a flag's address shows, or has a cycle, or
+ * node in another parent than a flag's address shows, or has a cycle,
  * `baseOrder` isn't a plain object that maps node ids to arrays of node
  * ids and `<node>/<collection>` keys to arrays of item ids, lists a child
  * twice or in another parent, names a node `baseParents` doesn't, or makes
- * a cycle of parents.
+ * a cycle of parents, `manifests` isn't a plain object that maps addresses
+ * to valid manifests or gives a node two manifests, or `reservedShortcuts`
+ * isn't an array of keys in `bindShortcut`'s form.
  */
 export function resolveLayers(
   overlays: readonly LoadedOverlay[],
@@ -403,6 +474,8 @@ export function resolveLayers(
     flags,
     baseParents,
     baseOrder,
+    manifests,
+    reservedShortcuts,
   }: ResolveLayersOptions
 ): ResolvedLayers {
   const read = readBaseIds(baseIds)
@@ -419,7 +492,11 @@ export function resolveLayers(
       known,
       flagged,
       tree,
-      readBaseOrder(baseOrder, tree, flagged)
+      readBaseOrder(baseOrder, tree, flagged),
+      {
+        manifests: readManifests(manifests),
+        reservedShortcuts: readShortcuts(reservedShortcuts),
+      }
     ),
     overlays: ordered.map(({ overlay }) => overlay),
     baseIds: known,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import type { Flags, Layer, Op } from "@pliantui/contract"
+import type { Flags, Layer, Manifest, Op } from "@pliantui/contract"
 
 import {
   loadOverlay,
@@ -143,7 +143,38 @@ interface Surface {
   readonly baseParents?: Record<string, string | null>
   readonly baseOrder?: Record<string, readonly string[]>
   readonly teamOrder?: readonly string[]
+  readonly manifests: Record<string, Manifest>
+  readonly reservedShortcuts?: readonly string[]
 }
+
+const actionManifest: Manifest = {
+  kind: "button",
+  version: 1,
+  description: "Clickable action",
+  capabilities: {
+    props: {
+      variant: {
+        values: ["default", "outline", "destructive"],
+        semantic: ["destructive"],
+      },
+      size: { values: ["sm", "lg"] },
+    },
+  },
+}
+
+// Bindings that press the same keys on one platform, `mod+k` and `ctrl+k`,
+// and ones that are always reserved, `meta+k`, `alt+k` and `mod+t`.
+const shortcutKeys = [
+  "mod+k",
+  "ctrl+k",
+  "meta+k",
+  "alt+k",
+  "mod+t",
+  "mod+e",
+  "ctrl+e",
+  "mod+shift+e",
+]
+const alwaysReserved = new Set(["meta+k", "alt+k", "mod+t"])
 
 function randomSurface(next: Random): Surface {
   const flags: Record<string, Flags> = {}
@@ -213,8 +244,13 @@ function randomSurface(next: Random): Surface {
           })
         )
   const teamOrder = next() < 0.5 ? undefined : shuffled(teams, next).slice(0, 2)
+  const reservedShortcuts = next() < 0.5 ? undefined : ["mod+shift+e"]
   return {
     flags,
+    manifests: Object.fromEntries(
+      tools.map((id) => [addressOf(`toolbar/actions/${id}`), actionManifest])
+    ),
+    ...(reservedShortcuts && { reservedShortcuts }),
     ...(baseParents && { baseParents }),
     ...(baseOrder && { baseOrder }),
     ...(teamOrder && { teamOrder }),
@@ -315,6 +351,20 @@ function randomOp(next: Random): unknown {
         at,
       }),
       () => ({ op: "remove", target: pick(["w", "v", "x"], next) }),
+      () => ({
+        op: "bindShortcut",
+        target: tool,
+        keys: pick(shortcutKeys, next),
+      }),
+      () =>
+        next() < 0.5
+          ? {
+              op: "setProp",
+              target: tool,
+              prop: "variant",
+              value: pick(["default", "outline", "destructive"], next),
+            }
+          : { op: "setProp", target: tool, prop: "size", value: "lg" },
     ],
     next
   )()
@@ -627,11 +677,63 @@ function tooClose(layers: ResolvedLayers, model: Model): string[] {
   })
 }
 
-function violations(layers: ResolvedLayers, model: Model) {
+/** The keys a binding presses on Windows and Linux, then on macOS. */
+const pressed = (keys: string) => [
+  keys.replace("mod+", "ctrl+"),
+  keys.replace("mod+", "meta+"),
+]
+
+/** The actions bound to reserved keys, or to keys another action takes. */
+function takenKeys(layers: ResolvedLayers, page: Surface): string[] {
+  const bound = tools.flatMap((item) => {
+    const id = `toolbar/actions/${item}`
+    const op = opOf(layers, id, "shortcut")
+    return op?.op === "bindShortcut" ? [{ id, keys: op.keys }] : []
+  })
+  return bound
+    .filter(
+      ({ id, keys }) =>
+        alwaysReserved.has(keys) ||
+        page.reservedShortcuts?.includes(keys) === true ||
+        bound.some(
+          (other) =>
+            other.id !== id &&
+            pressed(other.keys).some(
+              (press, index) => press === pressed(keys)[index]
+            )
+        )
+    )
+    .map(({ id }) => id)
+}
+
+/** The actions given a semantic variant, or a destructive one's changed. */
+function lostMeaning(layers: ResolvedLayers, model: Model): string[] {
+  return tools
+    .map((item) => `toolbar/actions/${item}`)
+    .filter((id) => {
+      const variant = opOf(layers, id, "props.variant")
+      return (
+        variant?.op === "setProp" &&
+        (variant.value === "destructive" ||
+          model.flags.get(id)?.destructive === true)
+      )
+    })
+}
+
+function violations(layers: ResolvedLayers, model: Model, page: Surface) {
   return {
     "stays-visible": outOfSight(layers, model),
     "stays-clear": tooClose(layers, model),
+    "free-shortcut": takenKeys(layers, page),
+    "keeps-meaning": lostMeaning(layers, model),
   }
+}
+
+const none = {
+  "stays-visible": [],
+  "stays-clear": [],
+  "free-shortcut": [],
+  "keeps-meaning": [],
 }
 
 const guardrailSkips = (layers: ResolvedLayers) =>
@@ -666,7 +768,10 @@ function randomRun(next: Random): Run {
   return { page, inputs, overlays, result, model: modelOf(page, ops) }
 }
 
-/** Resolves, with no guardrails, the ops `keep` picks, in resolution order. */
+/**
+ * Resolves the ops `keep` picks, in resolution order, with no flags or
+ * manifests, so only the rules on shortcuts apply.
+ */
 function replay(
   run: Run,
   keep: (overlay: LoadedOverlay, index: number) => boolean
@@ -677,7 +782,11 @@ function replay(
     const ops = input?.ops.filter((_, index) => keep(overlay, index)) ?? []
     return input && ops.length > 0 ? [load({ ...input, ops })] : []
   })
-  return resolveLayers(overlays, { surface, teamOrder: run.page.teamOrder })
+  return resolveLayers(overlays, {
+    surface,
+    teamOrder: run.page.teamOrder,
+    reservedShortcuts: run.page.reservedShortcuts,
+  })
 }
 
 describe("guardrails on random surfaces", () => {
@@ -689,23 +798,27 @@ describe("guardrails on random surfaces", () => {
     "leaves every resolved result within every guardrail",
     () => {
       const next = random(20261121)
-      const kinds = { "stays-visible": 0, "stays-clear": 0 }
+      const kinds = {
+        "stays-visible": 0,
+        "stays-clear": 0,
+        "free-shortcut": 0,
+        "keeps-meaning": 0,
+      }
       for (let run = 0; run < runs; run++) {
-        const { result, model } = randomRun(next)
+        const { page, result, model } = randomRun(next)
         expect(
           result.skipped.filter(({ reason }) => reason !== "guardrail")
         ).toEqual([])
-        expect(violations(result, model)).toEqual({
-          "stays-visible": [],
-          "stays-clear": [],
-        })
+        expect(violations(result, model, page)).toEqual(none)
         for (const { guardrail } of guardrailSkips(result)) {
           kinds[guardrail]++
         }
       }
-      // Both rules must have had something to stop.
+      // Every rule must have had something to stop.
       expect(kinds["stays-visible"]).toBeGreaterThan(runs / 3)
       expect(kinds["stays-clear"]).toBeGreaterThan(runs / 3)
+      expect(kinds["free-shortcut"]).toBeGreaterThan(runs / 3)
+      expect(kinds["keeps-meaning"]).toBeGreaterThan(runs / 5)
     },
     timeout
   )
@@ -722,6 +835,8 @@ describe("guardrails on random surfaces", () => {
           baseParents: page.baseParents && reshuffle(page.baseParents, next),
           baseOrder: page.baseOrder && reshuffle(page.baseOrder, next),
           teamOrder: page.teamOrder,
+          manifests: reshuffle(page.manifests, next),
+          reservedShortcuts: page.reservedShortcuts,
         })
         expect(reordered.skipped.map(keyOf)).toEqual(result.skipped.map(keyOf))
         expect(reordered.placements).toEqual(result.placements)
@@ -737,7 +852,7 @@ describe("guardrails on random surfaces", () => {
       const next = random(2111)
       for (let run = 0; run < runs; run++) {
         const current = randomRun(next)
-        const { result, model } = current
+        const { page, result, model } = current
         const skips = guardrailSkips(result)
         const order = result.overlays.flatMap((overlay) =>
           overlay.ops.map((check) => ({ overlay, index: check.index }))
@@ -761,17 +876,25 @@ describe("guardrails on random surfaces", () => {
           )
           const kept = (overlay: LoadedOverlay, index: number) =>
             before.has(`${overlay.id} ${String(index)}`)
-          expect(violations(replay(current, kept), model)).toEqual({
-            "stays-visible": [],
-            "stays-clear": [],
-          })
+          expect(violations(replay(current, kept), model, page)).toEqual(none)
           const added = replay(
             current,
             (overlay, index) =>
               kept(overlay, index) ||
               (overlay.id === skip.overlay.id && index === skip.check.index)
           )
-          expect(violations(added, model)[skip.guardrail]).toContain(skip.node)
+          if (skip.guardrail === "free-shortcut") {
+            expect(
+              guardrailSkips(added).map(({ guardrail, node }) => [
+                guardrail,
+                node,
+              ])
+            ).toContainEqual([skip.guardrail, skip.node])
+          } else {
+            expect(violations(added, model, page)[skip.guardrail]).toContain(
+              skip.node
+            )
+          }
         }
 
         const top = result.overlays.at(-1)

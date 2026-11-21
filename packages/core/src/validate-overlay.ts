@@ -5,6 +5,7 @@ import {
   overlaySchema,
   surfaceSchema,
   type Flags,
+  type Manifest,
   type Op,
 } from "@pliantui/contract"
 
@@ -15,8 +16,11 @@ import { ownEntries } from "./own-entries"
 import { readBaseOrder } from "./read-base-order"
 import { readBaseParents } from "./read-base-parents"
 import { readFlags, type ReadFlags } from "./read-flags"
+import { readManifests } from "./read-manifests"
+import { readShortcuts } from "./read-shortcuts"
 import { readBaseIds } from "./resolution"
-import { resolveOrdered } from "./resolve-ordered"
+import type { SkippedOp } from "./resolve-layers"
+import { resolveOrdered, type OpRules } from "./resolve-ordered"
 import type { Result } from "./result"
 import { checkSurface, surfaceOrder } from "./surface-order"
 import type { WithOps } from "./with-ops"
@@ -54,6 +58,10 @@ export interface ValidateOverlayLayers {
   readonly baseParents?: Readonly<Record<string, string | null>> | undefined
   /** Each node's children in render order, as in `resolveLayers`. */
   readonly baseOrder?: Readonly<Record<string, readonly string[]>> | undefined
+  /** The manifests of the surface's nodes by address, as in `resolveLayers`. */
+  readonly manifests?: Readonly<Record<string, Manifest>> | undefined
+  /** Keys your app binds itself, as in `resolveLayers`. */
+  readonly reservedShortcuts?: readonly string[] | undefined
 }
 
 /** How `validateOverlay` checks an overlay beyond its own shape. */
@@ -72,8 +80,9 @@ export interface ValidateOverlayOptions {
    * overlay applied last, it is the highest op involved. Throws a
    * `TypeError` when `layers.surface` isn't a string, `layers.baseIds` isn't
    * an array of ids or `{ ids, source }` with an array, or `layers.flags`,
-   * `layers.baseParents` or `layers.baseOrder` aren't valid as in
-   * `resolveLayers`, whatever the input.
+   * `layers.baseParents`, `layers.baseOrder`, `layers.manifests` or
+   * `layers.reservedShortcuts` aren't valid as in `resolveLayers`, whatever
+   * the input.
    */
   readonly layers?: ValidateOverlayLayers | undefined
 }
@@ -136,12 +145,38 @@ function issuesOf(check: OpCheck): z.core.$ZodIssue[] {
   }
 }
 
+/** Why a guardrail skips the op, in the words of an issue. */
+function guardrailMessage(skip: Extract<SkippedOp, { reason: "guardrail" }>) {
+  const { op } = skip.check
+  const item = `The item ${skip.node}`
+  switch (skip.guardrail) {
+    case "stays-visible":
+      return `${item} is ${skip.flag}, so it must stay visible`
+    case "stays-clear":
+      return `${item} is destructive, so it can't sit next to or above its group's primary action`
+    case "free-shortcut": {
+      const keys = op.op === "bindShortcut" ? op.keys : ""
+      const [other] = skip.conflictsWith
+      return other
+        ? `${item} can't take ${keys}, which ${identityOf(other.check.op.target)} already takes`
+        : `${item} can't take ${keys}, which is reserved`
+    }
+    case "keeps-meaning": {
+      const [prop, value] = op.op === "setProp" ? [op.prop, op.value] : []
+      return skip.flag
+        ? `${item} is destructive, so its ${String(prop)} can't change`
+        : `${item} can't take ${String(prop)} ${String(value)}, which only the app assigns`
+    }
+  }
+}
+
 function layerIssues(
   overlay: LoadedOverlay,
   { overlays, surface, baseIds, teamOrder = [] }: ValidateOverlayLayers,
   flags: ReadFlags | undefined,
   baseParents: ReadonlyMap<string, string | null> | undefined,
-  baseOrder: ReadonlyMap<string, readonly string[]> | undefined
+  baseOrder: ReadonlyMap<string, readonly string[]> | undefined,
+  rules: OpRules
 ): z.core.$ZodIssue[] {
   if (overlay.surface !== surface && overlay.surface !== "@app") {
     return [
@@ -164,7 +199,8 @@ function layerIssues(
     baseIds,
     flags,
     baseParents,
-    baseOrder
+    baseOrder,
+    rules
   )
   const issues = new Map<number, z.core.$ZodIssue>()
   for (const entry of skipped) {
@@ -172,7 +208,7 @@ function layerIssues(
       issues.set(entry.check.index, {
         code: "custom",
         path: ["ops", entry.check.index],
-        message: `The item ${entry.node} is ${entry.flag}, so it ${entry.guardrail === "stays-clear" ? "can't sit next to or above its group's primary action" : "must stay visible"}`,
+        message: guardrailMessage(entry),
       })
     }
   }
@@ -215,6 +251,7 @@ export function validateOverlay(
   let flags: ReadFlags | undefined
   let baseParents: ReadonlyMap<string, string | null> | undefined
   let baseOrder: ReadonlyMap<string, readonly string[]> | undefined
+  let rules: OpRules | undefined
   if (layers) {
     checkSurface(layers.surface)
     const baseIds = readBaseIds(layers.baseIds)
@@ -233,6 +270,13 @@ export function validateOverlay(
       flags,
       "layers.baseOrder"
     )
+    rules = {
+      manifests: readManifests(layers.manifests, "layers.manifests"),
+      reservedShortcuts: readShortcuts(
+        layers.reservedShortcuts,
+        "layers.reservedShortcuts"
+      ),
+    }
   }
   const entries = ownEntries(input)
   const result = overlaySchema.safeParse(entries ?? input)
@@ -260,13 +304,14 @@ export function validateOverlay(
     ...envelopeIssues,
     ...listIssues,
     ...checks.flatMap(issuesOf),
-    ...(result.success && layers
+    ...(result.success && layers && rules
       ? layerIssues(
           { ...result.data, ops: checks },
           layers,
           flags,
           baseParents,
-          baseOrder
+          baseOrder,
+          rules
         )
       : []),
   ]
