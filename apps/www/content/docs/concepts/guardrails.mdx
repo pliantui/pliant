@@ -84,23 +84,30 @@ Reserved, on every page:
 - Ctrl+Alt, which is AltGr on Windows and holds the VoiceOver keys on macOS, and `meta`, the Windows or Super key, on Windows and Linux.
 - `mod` with `a c d f g h j l n p q r t u v w x y z`, a digit, `=`, `-`, `[`, `]`, `tab`, `space`, `home`, `end`, `backspace`, `delete` or an arrow, and `mod+shift` with `b g n o r t w z = tab home end` or an arrow: tabs, windows, the address bar, reloading, history, downloads, bookmarks, find, printing, the page source, zoom and text editing.
 - `ctrl+tab` and `ctrl+shift+tab`, which switch tabs.
-- On Windows and Linux, `mod+shift` with `c`, `i`, `j` or `delete`: developer tools and clearing browsing data.
-- On macOS, `mod` with `m`, `,` or `` ` ``, `ctrl` with `space` or an arrow, `mod+shift` with `3`, `4`, `5` or `q`, and `mod+alt` with `c`, `d`, `i`, `j` or `escape`.
+- On Windows and Linux, `ctrl` with `pageup`, `pagedown` or `f4`, `mod+escape`, and `mod+shift` with `c`, `i`, `j`, `delete` or `escape`: switching and closing tabs, the Start menu, developer tools, clearing browsing data and the Task Manager.
+- On macOS, `mod` with `m`, `,`, `` ` `` or `f5` (which turns VoiceOver on and off), `ctrl` with `space` or an arrow, `mod+shift` with `3`, `4`, `5`, `q`, `[` or `]`, and `mod+alt` with `c`, `d`, `i`, `j` or `escape`.
 
-That leaves combinations such as `mod+k`, `mod+shift+k` and `mod+s` for users. If your app binds keys itself, pass them to `resolveLayers` and `validateOverlay` as `reservedShortcuts`, and bindings to them are skipped too:
+That leaves combinations such as `mod+k`, `mod+shift+k` and `mod+s` for users. A binding on an action that is hidden or removed still takes its keys. If your app binds keys itself, pass them as `reservedShortcuts`, and bindings to them are skipped too:
 
 ```ts
 resolveLayers(overlays, {
   surface: "/orders",
   reservedShortcuts: ["mod+k", "mod+shift+p"],
 })
+
+validateOverlay(overlay, {
+  layers: { overlays: below, surface: "/orders" },
+  reservedShortcuts: ["mod+k", "mod+shift+p"],
+})
 ```
+
+`validateOverlay` rejects a binding to reserved keys, or to your `reservedShortcuts`, even without `layers`. Without `layers` it can't see other actions' bindings, so a binding that takes another action's keys is caught only with them.
 
 ## Variants keep their meaning
 
-Some prop values carry meaning, such as a button's `destructive` variant. A manifest marks them as `semantic`, and only your app assigns them: a `setProp` that sets a semantic value is skipped, in every layer. A node or item flagged `destructive` also keeps its variant: any `setProp` on one of its props that has semantic values is skipped, so a destructive action can't be made to look harmless. Its other props, such as `size`, can still change.
+Some prop values carry meaning, such as a button's `destructive` variant. A manifest marks them as `semantic`, and only your app assigns them: a `setProp` that sets a semantic value is skipped, in every layer. A node or item flagged `destructive` also keeps its variant: any `setProp` on one of its props that has semantic values is skipped, so a destructive action can't be made to look harmless. Its other props, such as `size`, can still change. A `destructive` node is protected this way only when its manifest marks the variant's values as `semantic`.
 
-Pass the manifests of the page's nodes by address to `resolveLayers` and `validateOverlay`. A node with no manifest isn't checked.
+Pass the manifests of the page's nodes by address as `manifests`, to `resolveLayers` and to `validateOverlay`. A node with no manifest isn't checked. `validateOverlay` rejects a semantic value even without `layers`; to check a `destructive` node's variant, it needs the flags in `layers`.
 
 ```ts
 resolveLayers(overlays, {
@@ -124,7 +131,7 @@ resolveLayers(overlays, {
 })
 ```
 
-Form fields also never change parent. A new parent would remount a field, and it would lose its focus, its local state and, with react-hook-form's `shouldUnregister`, its value. So a `wrap` that takes a field of the form it targets is skipped, with the rule's name `stays-in-place`. Core knows a form's fields from `fields`, from your flags' addresses, and from `baseOrder` under `<form>/fields`. A field can't `move` into another node at all, and a `collapse` keeps fields where they are: the collapsed section is the same fields rendered hidden in place.
+Form fields also never change parent. A new parent would remount a field, and it would lose its focus, its local state and, with react-hook-form's `shouldUnregister`, its value. So a `wrap` that takes a field of the form it targets is skipped, with the rule's name `stays-in-place`. Core knows a form's fields from `fields`, from your flags' addresses, and from `baseOrder` under `<form>/fields`. `validateOverlay` checks both rules even without `layers`, then knowing only the fields in `fields`. A field can't `move` into another node at all, and a `collapse` keeps fields where they are: the collapsed section is the same fields rendered hidden in place.
 
 ## Team and org defaults aren't locks
 

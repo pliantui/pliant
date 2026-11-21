@@ -10,7 +10,7 @@ import type { ResolvedOp } from "./resolve-layers"
  * `collapse` keeps fields in place, so these are the only ops to check.
  */
 export function staysInPlace(
-  op: ResolvedOp,
+  op: Pick<ResolvedOp, "check">,
   fields: ReadonlySet<string>
 ): Violation | undefined {
   const wrap = op.check.op

@@ -950,12 +950,16 @@ describe("guardrails on random surfaces", () => {
         const top = result.overlays.at(-1)
         const input = current.inputs.find(({ id }) => id === top?.id)
         if (top && input) {
+          const { manifests, reservedShortcuts, fields, ...page } = current.page
           const validated = validateOverlay(input, {
             layers: {
               overlays: current.inputs.filter((other) => other !== input),
               surface,
-              ...current.page,
+              ...page,
             },
+            manifests,
+            reservedShortcuts,
+            fields,
           })
           const rejected = validated.success
             ? []

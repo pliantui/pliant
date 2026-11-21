@@ -11,7 +11,7 @@ import type { ResolvedOp } from "./resolve-layers"
  * Throws a `TypeError` when the schema validates asynchronously.
  */
 export function validDefault(
-  op: ResolvedOp,
+  op: Pick<ResolvedOp, "check">,
   schemas: ReadonlyMap<string, FieldSchema>
 ): Violation | undefined {
   const set = op.check.op

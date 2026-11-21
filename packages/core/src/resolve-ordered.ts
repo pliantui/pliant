@@ -128,10 +128,10 @@ function baseParentsOf(
  * checks the guardrails on the state so far; after each `bindShortcut`,
  * `setProp`, `setDefault` and `wrap`, it checks the rules on shortcuts,
  * variants and form fields. It skips the op
- * if it breaks one: every op before it was kept, so the op that completes a violation
- * is the one from the highest layer involved. An op is judged against the ops before
- * it only, so a lower op is skipped even when a higher op would have undone
- * what it did.
+ * if it breaks one: every op before it was kept, so the op that completes a
+ * violation is the one from the highest layer involved. An op is judged
+ * against the ops before it only, so a lower op is skipped even when a
+ * higher op would have undone what it did.
  *
  * Each op that can hide or move something settles the state once, and each
  * skipped op applies the ops kept before it again, so time grows with the

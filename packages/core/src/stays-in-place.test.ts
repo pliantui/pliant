@@ -168,4 +168,21 @@ describe("form fields stay in place", () => {
       },
     ])
   })
+
+  it("rejects a wrap of fields named in fields without the layers below", () => {
+    const input = stored("personal", [wrap(form, ["title", "cc"])])
+    const schema = { "~standard": { validate: () => ({}) } }
+    expect(validateOverlay(input).success).toBe(true)
+    expect(
+      validateOverlay(input, { fields: { [`${form}/fields/cc`]: schema } })
+        .error?.issues
+    ).toEqual([
+      {
+        code: "custom",
+        path: ["ops", 0],
+        message:
+          "The item ticket-form/fields/cc is a form field, so it can't move into a new parent",
+      },
+    ])
+  })
 })

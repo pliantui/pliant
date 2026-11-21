@@ -189,7 +189,8 @@ describe("form field defaults", () => {
       setDefault(priority, "urgent"),
     ])
     const result = validateOverlay(input, {
-      layers: { overlays: [], surface, fields },
+      layers: { overlays: [], surface },
+      fields,
     })
     expect(result.error?.issues).toEqual([
       {
@@ -199,12 +200,23 @@ describe("form field defaults", () => {
           "The item ticket-form/fields/priority doesn't accept this default",
       },
     ])
-    expect(() =>
-      validateOverlay(input, {
-        layers: { overlays: [], surface, fields: { a: z.string() } },
-      })
-    ).toThrow(
-      new TypeError('layers.fields["a"] must be a schema at a field address')
+    expect(() => validateOverlay(input, { fields: { a: z.string() } })).toThrow(
+      new TypeError('fields["a"] must be a schema at a field address')
     )
+  })
+
+  it("rejects a default the schema rejects without the layers below", () => {
+    const input = stored("personal", [
+      setDefault(priority, "high"),
+      setDefault(due, "next week"),
+    ])
+    expect(validateOverlay(input).success).toBe(true)
+    expect(validateOverlay(input, { fields }).error?.issues).toEqual([
+      {
+        code: "custom",
+        path: ["ops", 1],
+        message: "The item ticket-form/fields/due doesn't accept this default",
+      },
+    ])
   })
 })

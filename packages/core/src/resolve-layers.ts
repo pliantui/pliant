@@ -375,7 +375,9 @@ export interface ResolveLayersOptions {
    * manifest marks `semantic` is skipped with guardrail `keeps-meaning`,
    * since only your app assigns those. On a node or item flagged
    * `destructive`, so is any `setProp` on a prop that has semantic values,
-   * so a destructive action keeps the variant that marks it.
+   * so a destructive action keeps the variant that marks it. A destructive
+   * node is protected this way only when its manifest marks the variant's
+   * values `semantic`.
    */
   readonly manifests?: Readonly<Record<string, Manifest>> | undefined
   /**
@@ -400,12 +402,17 @@ export interface ResolveLayersOptions {
    *   arrow: tabs, windows, the address bar, reloading, history, downloads,
    *   bookmarks, find, printing, the page source, zoom and text editing;
    * - `ctrl+tab` and `ctrl+shift+tab`, which switch tabs;
-   * - on Windows and Linux, `mod+shift` with `c i j delete`: developer tools
-   *   and clearing browsing data;
-   * - on macOS, `mod` with `m`, `,` or `` ` ``, `ctrl` with `space` or an
-   *   arrow, `mod+shift` with `3 4 5 q`, and `mod+alt` with
-   *   `c d i j escape`: windows, settings, Spaces, input sources,
-   *   screenshots, logging out, developer tools, the Dock and Force Quit.
+   * - on Windows and Linux, `ctrl` with `pageup`, `pagedown` or `f4`, `mod`
+   *   with `escape`, and `mod+shift` with `c i j delete escape`: switching
+   *   and closing tabs, the Start menu, developer tools, clearing browsing
+   *   data and the Task Manager;
+   * - on macOS, `mod` with `m`, `,`, `` ` `` or `f5`, `ctrl` with `space` or
+   *   an arrow, `mod+shift` with `3 4 5 q [ ]`, and `mod+alt` with
+   *   `c d i j escape`: windows, settings, turning VoiceOver on and off,
+   *   Spaces, input sources, screenshots, logging out, switching tabs,
+   *   developer tools, the Dock and Force Quit.
+   *
+   * A binding on an action that is hidden or removed still takes its keys.
    */
   readonly reservedShortcuts?: readonly string[] | undefined
   /**
