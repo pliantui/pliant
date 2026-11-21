@@ -1,9 +1,9 @@
-import { randomUUID } from "node:crypto"
-import { mkdir, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterAll, describe, expect, it } from "vitest"
 
-import { runCli, tempDirectory } from "./helpers"
+import { runCli } from "./helpers"
 
 const projects: string[] = []
 
@@ -14,7 +14,7 @@ afterAll(async () => {
 })
 
 async function createProject(files: Record<string, string>) {
-  const directory = path.join(tempDirectory, `init-${randomUUID()}`)
+  const directory = await mkdtemp(path.join(tmpdir(), "pliantui-init-"))
   projects.push(directory)
   for (const [file, content] of Object.entries(files)) {
     await mkdir(path.dirname(path.join(directory, file)), { recursive: true })
