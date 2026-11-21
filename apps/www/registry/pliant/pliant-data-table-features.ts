@@ -21,6 +21,8 @@ import {
   type TableFeatures,
 } from "@tanstack/react-table"
 
+import type { PliantDataTableFormat } from "./pliant-data-table-format"
+
 /**
  * The features the Pliant data table components use. Pass them to
  * `usePliantTable` as `features`; it adds the ones Pliant's ops need and
@@ -61,13 +63,17 @@ declare module "@tanstack/react-table" {
     label: string
     /**
      * What Pliant reads from a column. `type` and `unit` are set on the
-     * columns Pliant aggregates, with the type and unit of the values; the
-     * data table shows an aggregate's total in the footer. `filterValue`
-     * is the schema of the values a column's own `filterFn` reads.
+     * columns Pliant computes, with the type and unit of the values. An
+     * aggregated column also shows its total in the footer. A derived
+     * column has `derived` and may have the `format` its op gave, which the
+     * data table shows its values by. `filterValue` is the schema of the
+     * values a column's own `filterFn` reads.
      */
     pliant?: {
       type?: string | undefined
       unit?: string | undefined
+      format?: PliantDataTableFormat | undefined
+      derived?: boolean | undefined
       filterValue?:
         | {
             readonly "~standard": {

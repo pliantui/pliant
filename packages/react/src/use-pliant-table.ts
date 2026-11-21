@@ -31,16 +31,22 @@ import { pliantFilterFn } from "./pliant-filter-fns"
 import { withPliantFeatures } from "./pliant-table-features"
 import { propertiesOf } from "./property-keys"
 import { isSameState } from "./same-state"
+import { acceptedColumns } from "./table-accepted"
 import {
-  acceptedAggregates,
-  aggregateColumns,
-  aggregatesOf,
+  aggregateColumn,
+  type AcceptedAggregate,
   type PliantTableDataset,
   type TableAggregate,
 } from "./table-aggregates"
 import { createDerived, createTableCache } from "./table-cache"
 import { tableColumnsOf, type TableColumn } from "./table-columns"
+import {
+  derivedColumn,
+  type AcceptedDerived,
+  type TableDerived,
+} from "./table-derived"
 import { filtersToSave, presentFilters, type RawFilter } from "./table-filters"
+import { tableOpsOf } from "./table-ops"
 import { usePliantStatus } from "./use-pliant-status"
 
 /** @experimental */
@@ -53,10 +59,10 @@ export interface UsePliantTableOptions {
    */
   readonly persistFilters?: boolean | undefined
   /**
-   * The dataset's fields and time zone, which aggregates (`addAggregate`
-   * ops) are computed against: a `defineDataset` result works. Without it,
-   * a table shows no aggregates. Define it outside the component, or keep
-   * it equal as data between renders.
+   * The dataset's fields and time zone, which derived columns (`addDerived`
+   * ops) and aggregates (`addAggregate` ops) are computed against: a
+   * `defineDataset` result works. Without it, a table shows neither. Define
+   * it outside the component, or keep it equal as data between renders.
    */
   readonly dataset?: PliantTableDataset | undefined
 }
@@ -81,6 +87,11 @@ export type PliantTableOptions<
 }
 
 type Slice = keyof CompiledTableState
+
+interface Accepted {
+  readonly accepted: (AcceptedDerived | AcceptedAggregate)[]
+  readonly issues: string[]
+}
 
 const callbacks = {
   sorting: "onSortingChange",
@@ -202,16 +213,34 @@ function baseOf(options: object): Partial<CompiledTableState> {
  * didn't change keep their objects, so TanStack recomputes row models only
  * when an op changes their state.
  *
+ * - Each `addDerived` op adds a column with its id, label and a `meta` of
+ *   `{ label, pliant: { type, unit, format, derived: true } }`: the type and
+ *   unit of its values, and the op's `format`. It has a value on every data
+ *   row and none on a group's row, and is sorted, filtered, hidden, moved and
+ *   pinned like a data column. An expression with window functions (`share`,
+ *   `rank`, `runningSum`) gets its values over the rows of its partition: a
+ *   group's rows when the table is grouped, otherwise the rows that pass the
+ *   filters. Those columns can't be filtered or grouped by: a grouping or
+ *   filter that names one is left out and reported to `onError`. A row's value
+ *   changes with the filters, the grouping and the sort. A null
+ *   value is `undefined`, which sorts last. Faceting (`getUniqueValues`)
+ *   caches a column's values, and isn't refreshed for derived columns.
  * - Each `addAggregate` op adds a column with its id, label and a `meta`
  *   of `{ label, pliant: { type, unit } }`, the type and unit of its
  *   values. It has no value on a data row. A group's row, and
  *   `column.getAggregationValue()` for the filtered rows as a whole, hold
- *   it, computed over those rows in the table's sort order, with ties
- *   and an unsorted table in ascending order of the row key (`getRowId`, else
- *   the field named `id`), which `first` and `last` read. Aggregates need the `dataset` option, and an
- *   aggregate that can't be computed, or whose id a column already has, is
- *   reported to `onError` and left out. Ops hide, move and pin it like any
- *   column.
+ *   it, computed over those rows, and its expression can `ref` derived
+ *   columns.
+ * - Display order is what `first`, `last` and the window functions read:
+ *   the table's sort, as the sorted row model compares rows, with ties and
+ *   an unsorted table in ascending order of the row key (`getRowId`, else
+ *   the field named `id`), compared by code point. A window function
+ *   leaves out a sort by a column with window functions, since its values
+ *   need the order. Rows that tie show in TanStack's order, which is the
+ *   order of the data.
+ * - Derived columns and aggregates need the `dataset` option, and one that
+ *   can't be computed, or whose id a column already has (a derived column
+ *   wins over an aggregate), is reported to `onError` and left out.
  * - Rows expand with `row.toggleExpanded()`, since a group's rows show only
  *   once it does.
  * - The table node and its columns (`<id>/columns/<column id>`) are
@@ -253,9 +282,19 @@ export function usePliantTable<
     table: createTableCache(),
     filters: createDerived<ReturnType<typeof presentFilters>>(),
     shown: createDerived<CompiledTableState>(),
-    aggregates: createDerived<TableAggregate[]>(),
-    accepted: createDerived<ReturnType<typeof acceptedAggregates>>(),
+    grouping: createDerived<string[]>(),
+    windowless: createDerived<ReturnType<typeof presentFilters>["shown"]>(),
+    ops: createDerived<{
+      derived: TableDerived[]
+      aggregates: TableAggregate[]
+    }>(),
+    accepted: createDerived<Accepted>(),
     built: createDerived<readonly unknown[]>(),
+    fresh: createDerived<{
+      columns: readonly unknown[]
+      sorting: unknown[]
+      columnFilters: unknown[]
+    }>(),
     dataset: createDerived<PliantTableDataset | undefined>(),
   }))
   const [rawFilters, setRawFilters] = useState<ReadonlyMap<string, RawFilter>>(
@@ -285,16 +324,19 @@ export function usePliantTable<
   const columnOf = (column: string) =>
     allColumns.find((other) => other.id === column)
 
-  // Aggregates are columns of the table too, so they share its id space: an
-  // aggregate whose id a column already has isn't added.
+  // Derived columns and aggregates are columns of the table too, so they
+  // share its id space: one whose id a column has isn't added, and an
+  // aggregate whose id a derived column has isn't either.
   const columnIds = allColumns.map((column) => column.id).join("\n")
   const stableDataset = cache.dataset([dataset], () => dataset)
   const acceptedAt = (resolved: Parameters<typeof cache.table.compile>[0]) => {
-    const aggregates = cache.aggregates([resolved], () =>
-      aggregatesOf(resolved, id)
-    )
-    return cache.accepted([aggregates, stableDataset, columnIds], () =>
-      acceptedAggregates(
+    const { derived, aggregates } = cache.ops([resolved], () => ({
+      derived: tableOpsOf(resolved, id, "addDerived"),
+      aggregates: tableOpsOf(resolved, id, "addAggregate"),
+    }))
+    return cache.accepted([derived, aggregates, stableDataset, columnIds], () =>
+      acceptedColumns(
+        derived,
         aggregates,
         stableDataset,
         new Set(columnIds.split("\n"))
@@ -349,11 +391,28 @@ export function usePliantTable<
     cache.filters([state.columnFilters, rawFilters, ownFilters], () =>
       presentFilters(state.columnFilters, rawFilters, columnOf)
     )
-  const shownOf = (state: CompiledTableState) =>
-    cache.shown([state, local, filtersOf(state).shown], () => ({
-      ...withLocal(state, local),
-      columnFilters: filtersOf(state).shown,
+  // A column with window functions has values only once the rows are
+  // filtered and grouped, so it can't be filtered or grouped by.
+  const windows = accepted.flatMap(({ id, expression }) =>
+    "compute" in expression ? [id] : []
+  )
+  // Each slice keeps its array while it is equal, so TanStack, which resets
+  // the page when the grouping or filters change, sees no change.
+  const shownOf = (state: CompiledTableState) => {
+    const merged = withLocal(state, local)
+    const key = windows.join()
+    const grouping = cache.grouping([merged.grouping, key], () =>
+      merged.grouping.filter((column) => !windows.includes(column))
+    )
+    const columnFilters = cache.windowless([filtersOf(state).shown, key], () =>
+      filtersOf(state).shown.filter(({ id }) => !windows.includes(id))
+    )
+    return cache.shown([state, local, grouping, columnFilters], () => ({
+      ...merged,
+      grouping,
+      columnFilters,
     }))
+  }
   const shown = shownOf(compiled)
 
   // TanStack computes an aggregate by its rows, so a group's `first` and
@@ -364,9 +423,27 @@ export function usePliantTable<
     [
       accepted,
       options.columns,
-      accepted.some(({ ordered }) => ordered) ? shown.sorting : undefined,
+      accepted.some((item) => "ordered" in item && item.ordered)
+        ? shown.sorting
+        : undefined,
     ],
-    () => aggregateColumns(accepted, options.columns)
+    () => [
+      ...options.columns,
+      ...accepted.map((item) =>
+        "ordered" in item ? aggregateColumn(item) : derivedColumn(item)
+      ),
+    ]
+  )
+
+  // TanStack sorts and filters again only when the sort or filters change, so
+  // new columns need new arrays to do it again.
+  const fresh = cache.fresh(
+    [built, shown.sorting, shown.columnFilters],
+    () => ({
+      columns: built,
+      sorting: [...shown.sorting],
+      columnFilters: [...shown.columnFilters],
+    })
   )
 
   // While a preview writes a property, a personal change to it would stay
@@ -453,8 +530,17 @@ export function usePliantTable<
         )
       }
     }
-    for (const issue of issues) {
-      const text = `Pliant: ${id} has no aggregate ${issue}`
+    const barred = [
+      ...compiled.grouping,
+      ...compiled.columnFilters.map(({ id }) => id),
+    ].filter((column) => windows.includes(column))
+    for (const text of [
+      ...issues.map((issue) => `${id} has no ${issue}`),
+      ...barred.map(
+        (column) =>
+          `${id} can't group or filter by ${column}, which has window functions`
+      ),
+    ].map((text) => `Pliant: ${text}`)) {
       if (!warned.has(text)) {
         warned.add(text)
         store.report(new Error(text))
@@ -543,9 +629,14 @@ export function usePliantTable<
   // features Pliant adds, and their state and handlers, aren't in the type.
   const tableOptions = Object.assign({}, options, handlers, {
     features,
-    columns: built,
+    columns: fresh.columns,
     defaultColumn,
-    state: { ...objectOf(read(options, "state")), ...shown },
+    state: {
+      ...objectOf(read(options, "state")),
+      ...shown,
+      sorting: fresh.sorting,
+      columnFilters: fresh.columnFilters,
+    },
   })
   // `defineProperty` doesn't add the property it defines to the type.
   return Object.defineProperty(tableOptions, "ready", {

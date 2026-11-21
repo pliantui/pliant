@@ -7,7 +7,7 @@ export default defineConfig({
     include: [
       "app/**/*.test.ts",
       "lib/**/*.test.ts",
-      "registry/**/*.test.tsx",
+      "registry/**/*.test.{ts,tsx}",
       "scripts/**/*.test.ts",
     ],
   },

@@ -191,13 +191,35 @@ Render it inside the table's component with `node="invoices-table"` and `grouped
 - `removeUserItem` removes an aggregate by id. Always read the returned result: `success` is `false` with an `error` when an op is rejected, which otherwise fails silently. An aggregate's `id` must not be a column's id.
 - To show an aggregate's value your way, pass `formatAggregate` to `PliantDataTable`.
 
-## 5. Verify
+## 5. Derived columns (optional)
+
+Only when users should add a calculated column, such as a value with tax or each row's share of the total. It needs the same `dataset` as aggregates, and the app applies an `addDerived` op to the personal layer, like the group menu does:
+
+```tsx
+store.applyOps("personal", [
+  {
+    op: "addDerived",
+    target: "invoices-table",
+    id: "amount-share",
+    label: "Share of amount",
+    expr: { fn: "share", args: [{ field: "amount" }] },
+    format: { type: "percent", decimals: 1 },
+  },
+])
+```
+
+- The column has a value on every data row. It sorts, hides, moves and pins like a data column, and a column without window functions filters and groups too. `removeUserItem` removes it by id.
+- A window function (`share`, `rank`, `runningSum`) gives a row its value over its group, or over the filtered rows in an ungrouped table. A column that uses one can't be filtered or grouped by.
+- `PliantDataTable` shows a derived column with a sortable header and its values by `format`; `formatAggregate` can format them your way, and gets the `format` as its third argument. A derived column's `id` must not be a column's id.
+- An expression that doesn't check against `dataset.fields` is saved but not shown, and an error is reported, as for aggregates.
+
+## 6. Verify
 
 1. Run the project's typecheck and `next build`. Fix the errors your change caused.
 2. Load the page. Every header should show its `meta.label`, and the columns menu should list the columns that can be hidden.
 3. Click a header to sort, hide a column in the menu and reload the page: both should still apply.
 4. Open the page in another tab. Page and filters should be back to the defaults, and sort and hidden columns kept.
-5. With a `dataset`, group by a column and check that groups expand and the aggregate shows a total.
+5. With a `dataset`, group by a column and check that groups expand and the aggregate shows a total, and that an added derived column shows its values.
 
 ## Common mistakes
 
@@ -206,7 +228,7 @@ Render it inside the table's component with `node="invoices-table"` and `grouped
 - Two tables on one page with the same `id`, or an `id` that is not kebab-case.
 - Calling `usePliantTable` outside `PliantRoot`, or in a Server Component.
 - Expecting `table.setPageIndex(…)` or filters to be saved. They are per tab, and filters need `persistFilters` to be saved.
-- Aggregates or grouping without `dataset`, or `fields` that name a field missing from `dataset.fields`.
+- Aggregates, derived columns or grouping without `dataset`, or `fields` that name a field missing from `dataset.fields`.
 - Fetching rows page by page and giving the table one page of data. The table groups, sorts and filters only the rows it has.
 - Creating `columns` or `dataset` inside the component, so they change on every render.
 
@@ -214,5 +236,5 @@ Render it inside the table's component with `node="invoices-table"` and `grouped
 
 - [Operations](https://pliantui.dev/docs/concepts/operations): the table ops and what renders.
 - [Layers](https://pliantui.dev/docs/concepts/layers): why sorting, hiding and grouping stack the way they do.
-- [Expressions](https://pliantui.dev/docs/concepts/expressions): the functions an aggregate can use.
+- [Expressions](https://pliantui.dev/docs/concepts/expressions): the functions an aggregate or a derived column can use.
 - [Guardrails](https://pliantui.dev/docs/concepts/guardrails): what is never saved.
