@@ -60,10 +60,22 @@ declare module "@tanstack/react-table" {
     /** The column's name, in its header and in the columns menu. */
     label: string
     /**
-     * Set on the columns Pliant aggregates, with the type and unit of the
-     * values. The data table shows an aggregate's total in the footer.
+     * What Pliant reads from a column. `type` and `unit` are set on the
+     * columns Pliant aggregates, with the type and unit of the values; the
+     * data table shows an aggregate's total in the footer. `filterValue`
+     * is the schema of the values a column's own `filterFn` reads.
      */
-    pliant?: { type: string; unit?: string | undefined }
+    pliant?: {
+      type?: string | undefined
+      unit?: string | undefined
+      filterValue?:
+        | {
+            readonly "~standard": {
+              readonly validate: (value: unknown) => unknown
+            }
+          }
+        | undefined
+    }
   }
 }
 /* eslint-enable @typescript-eslint/no-unused-vars */

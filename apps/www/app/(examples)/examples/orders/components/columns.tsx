@@ -74,7 +74,7 @@ export const columns = columnHelper.columns([
     size: 220,
     meta: { label: "Notes" },
     enableSorting: false,
-    header: ({ column }) => column.columnDef.meta?.label,
+    header: ({ column }) => <PliantDataTableColumnHeader column={column} />,
     cell: ({ row }) =>
       row.original.notes ? (
         <div className="truncate" title={row.original.notes}>

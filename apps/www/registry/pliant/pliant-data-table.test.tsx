@@ -34,12 +34,14 @@ interface Order {
   id: string
   status: "paid" | "open"
   value: number
+  note: string
 }
 
 const orders: Order[] = Array.from({ length: 25 }, (_, index) => ({
   id: `o${String(index + 1).padStart(2, "0")}`,
   status: index % 5 === 0 ? "open" : "paid",
   value: (index + 1) * 10,
+  note: `n${String(index + 1)}`,
 }))
 
 const dataset = {
@@ -67,6 +69,14 @@ const columns = helper.columns([
     meta: { label: "Value" },
     header: ({ column }) => <PliantDataTableColumnHeader column={column} />,
   }),
+  helper.accessor("note", {
+    enableSorting: false,
+    meta: {
+      label: "Note",
+      pliant: { filterValue: { "~standard": { validate: (value) => value } } },
+    },
+    header: ({ column }) => <PliantDataTableColumnHeader column={column} />,
+  }),
 ])
 
 const storage: StorageAdapter = {
@@ -85,10 +95,12 @@ function Orders({
   data,
   rows,
   formatAggregate,
+  formatNumber,
 }: {
   data: Order[]
   rows?: string
   formatAggregate?: (value: unknown, unit: string | undefined) => string
+  formatNumber?: (value: number) => string
 }) {
   const options = usePliantTable(
     { features: pliantDataTableFeatures, data, columns },
@@ -107,6 +119,7 @@ function Orders({
         table={table}
         aria-labelledby="title"
         {...(formatAggregate && { formatAggregate })}
+        {...(formatNumber && { formatNumber })}
       />
       <PliantDataTablePagination table={table} {...(rows && { rows })} />
     </>
@@ -152,14 +165,15 @@ function table() {
   return screen.getByRole("table", { name: "Orders" })
 }
 
-function section(name: "tbody" | "tfoot") {
-  const element = table().querySelector<HTMLElement>(name)
+function section(name: "body" | "footer") {
+  const [, bodyGroup, footerGroup] = within(table()).queryAllByRole("rowgroup")
+  const element = name === "body" ? bodyGroup : footerGroup
   if (!element) throw new Error(`No ${name}`)
   return element
 }
 
 function bodyRows() {
-  return within(section("tbody")).getAllByRole("row")
+  return within(section("body")).getAllByRole("row")
 }
 
 function bodyRow(index: number) {
@@ -206,7 +220,7 @@ describe("PliantDataTable", () => {
     renderOrders({ data: [] })
 
     expect(within(table()).getByText("No results.")).toBeTruthy()
-    expect(table().querySelector("tfoot")).toBeNull()
+    expect(within(table()).getAllByRole("rowgroup")).toHaveLength(2)
     expect(screen.getByText("0 of 0 rows")).toBeTruthy()
     expect(
       screen.getByRole<HTMLButtonElement>("button", { name: "Next" }).disabled
@@ -254,6 +268,24 @@ describe("PliantDataTable", () => {
     expect(within(bodyRow(0)).getByText("o25")).toBeTruthy()
   })
 
+  it("shows the label of a column that can't be sorted, without a sort button", () => {
+    renderOrders()
+
+    const header = within(table()).getByRole("columnheader", { name: "Note" })
+    expect(header.textContent).toBe("Note")
+    expect(within(header).queryByRole("button")).toBeNull()
+    expect(header.getAttribute("aria-sort")).toBeNull()
+  })
+
+  it("adds no footer for a column that only has a filter schema", () => {
+    renderOrders()
+
+    expect(within(table()).getAllByRole("rowgroup")).toHaveLength(2)
+    expect(
+      within(table()).getAllByRole("row").at(-1)?.textContent
+    ).not.toContain("All rows")
+  })
+
   it("hides and shows columns from the columns menu", async () => {
     renderOrders()
     const headers = () =>
@@ -268,7 +300,7 @@ describe("PliantDataTable", () => {
     await settle()
     expect(
       screen.getAllByRole("menuitemcheckbox").map((item) => item.textContent)
-    ).toEqual(["Status", "Value"])
+    ).toEqual(["Status", "Value", "Note"])
     const status = screen.getByRole("menuitemcheckbox", { name: "Status" })
     expect(status.getAttribute("aria-checked")).toBe("true")
 
@@ -298,8 +330,11 @@ describe("PliantDataTable", () => {
     expect(paid.textContent).toContain("(20)")
 
     const openRow = rowOf(open)
-    expect(openRow.textContent).toContain("550")
-    expect(openRow.textContent).toContain("5")
+    expect(
+      within(openRow)
+        .getAllByRole("cell")
+        .map((cell) => cell.textContent)
+    ).toEqual(["open(5)", "", "", "", "550", "5"])
 
     fireEvent.click(open)
     expect(open.getAttribute("aria-expanded")).toBe("true")
@@ -310,27 +345,28 @@ describe("PliantDataTable", () => {
     expect(open.getAttribute("aria-expanded")).toBe("false")
     expect(bodyRows()).toHaveLength(2)
 
-    const footer = within(section("tfoot")).getByRole("row")
+    const footer = within(section("footer")).getByRole("row")
     expect(footer.textContent).toContain("All rows")
     expect(footer.textContent).toContain("3,250")
     expect(footer.textContent).toContain("25")
   })
 
-  it("formats aggregates and group counts with the given function", () => {
+  it("formats aggregates and group counts with the given functions", () => {
     renderOrders({
       data: orders,
       formatAggregate: (value, unit) =>
         `${String(value)}${unit ? ` ${unit}` : ""}!`,
+      formatNumber: (value) => `${String(value)}#`,
     })
     apply(...groupByStatus)
 
     expect(
       within(table()).getByRole("button", { name: /open/ }).textContent
-    ).toContain("(5!)")
+    ).toContain("(5#)")
     expect(
       rowOf(within(table()).getByRole("button", { name: /open/ })).textContent
     ).toContain("550 INR!")
-    const footer = section("tfoot")
+    const footer = section("footer")
     expect(footer.textContent).toContain("3250 INR!")
     expect(footer.textContent).toContain("25!")
   })

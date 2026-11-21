@@ -1,7 +1,8 @@
 "use client"
 
-import type { CSSProperties } from "react"
+import type { ComponentProps, CSSProperties } from "react"
 import type { Column, ReactTable, RowData } from "@tanstack/react-table"
+import { cn } from "cn"
 import { ChevronRight } from "lucide-react"
 
 import { usePliantMessages, type PliantMessages } from "@pliantui/react"
@@ -40,14 +41,28 @@ const pinnedClassName =
 
 const defaultNumber = new Intl.NumberFormat("en")
 
+function defaultFormatNumber(value: number) {
+  return defaultNumber.format(value)
+}
+
 function defaultFormatAggregate(value: unknown) {
   if (typeof value === "number") {
-    return defaultNumber.format(value)
+    return defaultFormatNumber(value)
   }
   return typeof value === "string" || typeof value === "boolean"
     ? String(value)
     : "—"
 }
+
+function isAggregate<TData extends RowData>(
+  column: Column<PliantDataTableFeatures, TData>
+) {
+  return column.columnDef.meta?.pliant?.type !== undefined
+}
+
+type PliantDataTableName =
+  | { "aria-label": string; "aria-labelledby"?: never }
+  | { "aria-labelledby": string; "aria-label"?: never }
 
 function getColumnStyles<TData extends RowData>(
   column: Column<PliantDataTableFeatures, TData>
@@ -73,49 +88,59 @@ function getColumnStyles<TData extends RowData>(
  * A table that renders a TanStack table with the options from
  * `usePliantTable`: column headers, rows, and, when users group the rows,
  * a row per group with a button that expands it and an aggregate in each
- * aggregated cell. Columns with `meta.pliant` get their total in a footer.
+ * aggregated cell. Columns with `meta.pliant.type`, the ones Pliant
+ * aggregates, get their total in a footer.
  * Pinned columns stay in place while the table scrolls sideways.
  *
  * The table scrolls inside a focusable region, so keyboard users can scroll
- * it. Name it with `aria-labelledby` or `aria-label`. Put the title, the
+ * it. Name it with `aria-labelledby` or `aria-label`; other props go to the
+ * region. Put the title, the
  * column menu and the pagination around it, as in `PliantDataTableViewOptions`
  * and `PliantDataTablePagination`.
  */
 function PliantDataTable<TData extends RowData>({
   table,
+  formatAggregate = defaultFormatAggregate,
+  formatNumber = defaultFormatNumber,
+  className,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledBy,
-  formatAggregate = defaultFormatAggregate,
-}: {
-  /** The table from `useTable`, with the options from `usePliantTable`. */
-  table: ReactTable<PliantDataTableFeatures, TData>
-  /** The name of the table, when no element on the page names it. */
-  "aria-label"?: string
-  /** The id of the element that names the table, such as its title. */
-  "aria-labelledby"?: string
-  /**
-   * Formats an aggregated value, and a group's row count, given the unit
-   * from the column's `meta.pliant`, if any. Defaults to English digit
-   * grouping for numbers.
-   */
-  formatAggregate?: (value: unknown, unit: string | undefined) => string
-}) {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "aria-label" | "aria-labelledby" | "children" | "role" | "tabIndex"
+> &
+  PliantDataTableName & {
+    /** The table from `useTable`, with the options from `usePliantTable`. */
+    table: ReactTable<PliantDataTableFeatures, TData>
+    /**
+     * Formats an aggregated value, given the unit from the column's
+     * `meta.pliant`, if any. Defaults to English digit grouping for numbers.
+     */
+    formatAggregate?: (value: unknown, unit: string | undefined) => string
+    /** Formats the number of rows in a group. */
+    formatNumber?: (value: number) => string
+  }) {
   const messages = usePliantMessages(tableMessages)
   const rows = table.getRowModel().rows
   const leafColumns = table.getVisibleLeafColumns()
-  const hasAggregates = leafColumns.some(
-    (column) => column.columnDef.meta?.pliant
-  )
+  const hasAggregates = leafColumns.some(isAggregate)
+  const totalsIndex = leafColumns.findIndex((column) => !isAggregate(column))
 
   return (
     // The region scrolls instead of the table's own container, so it can
     // take focus and scroll from the keyboard.
     <div
+      {...props}
+      data-slot="pliant-data-table"
       role="region"
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
       tabIndex={0}
-      className="overflow-x-auto rounded-lg border border-border outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_[data-slot=table-container]]:overflow-visible"
+      className={cn(
+        "overflow-x-auto rounded-lg border border-border outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_[data-slot=table-container]]:overflow-visible",
+        className
+      )}
     >
       {/* Every column keeps its size, and an empty filler cell at the end of
       each row takes the room left over, so the table fills its container. */}
@@ -172,9 +197,7 @@ function PliantDataTable<TData extends RowData>({
                         />
                         <table.FlexRender cell={cell} />
                         <span className="text-muted-foreground">
-                          (
-                          {formatAggregate(row.getLeafRows().length, undefined)}
-                          )
+                          ({formatNumber(row.getLeafRows().length)})
                         </span>
                       </Button>
                     ) : cell.getIsAggregated() ? (
@@ -213,14 +236,14 @@ function PliantDataTable<TData extends RowData>({
                   className={pinnedClassName}
                   style={getColumnStyles(column)}
                 >
-                  {column.columnDef.meta?.pliant ? (
+                  {isAggregate(column) ? (
                     <div className="pr-4 text-right tabular-nums">
                       {formatAggregate(
                         column.getAggregationValue<unknown>(),
-                        column.columnDef.meta.pliant.unit
+                        column.columnDef.meta?.pliant?.unit
                       )}
                     </div>
-                  ) : index === 0 ? (
+                  ) : index === totalsIndex ? (
                     messages.dataTableTotals
                   ) : null}
                 </TableCell>
