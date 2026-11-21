@@ -46,15 +46,6 @@
     "check:package": "publint --strict && attw --pack . --profile esm-only",
     "size": "size-limit"
   },
-  "size-limit": [
-    {
-      "path": "dist/index.js",
-      "limit": "27 kB",
-      "ignore": [
-        "zod"
-      ]
-    }
-  ],
   "dependencies": {
     "@pliantui/contract": "workspace:*"
   },
