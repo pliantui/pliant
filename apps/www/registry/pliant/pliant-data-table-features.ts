@@ -21,7 +21,12 @@ import {
   type TableFeatures,
 } from "@tanstack/react-table"
 
-export const features = tableFeatures({
+/**
+ * The features the Pliant data table components use. Pass them to
+ * `usePliantTable` as `features`; it adds the ones Pliant's ops need and
+ * keeps these.
+ */
+export const pliantDataTableFeatures = tableFeatures({
   columnGroupingFeature,
   columnOrderingFeature,
   columnPinningFeature,
@@ -42,7 +47,7 @@ export const features = tableFeatures({
   },
 })
 
-export type DataTableFeatures = typeof features
+export type PliantDataTableFeatures = typeof pliantDataTableFeatures
 
 // Declaration merging requires the same type parameters as the original.
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -52,8 +57,12 @@ declare module "@tanstack/react-table" {
     in out TData extends RowData,
     TValue extends CellData = CellData,
   > {
+    /** The column's name, in its header and in the columns menu. */
     label: string
-    /** The type and unit of an aggregate's values. */
+    /**
+     * Set on the columns Pliant aggregates, with the type and unit of the
+     * values. The data table shows an aggregate's total in the footer.
+     */
     pliant?: { type: string; unit?: string | undefined }
   }
 }

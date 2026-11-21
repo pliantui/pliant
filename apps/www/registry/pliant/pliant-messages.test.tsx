@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import * as React from "react"
+import { createColumnHelper, useTable } from "@tanstack/react-table"
 import {
   act,
   cleanup,
@@ -18,8 +19,17 @@ import {
   type PliantStore,
   type StorageAdapter,
 } from "@pliantui/react"
+import { usePliantTable } from "@pliantui/react/table"
 
 import { PliantAskPanel, type PliantAskTarget } from "./pliant-ask-panel"
+import { PliantDataTable } from "./pliant-data-table"
+import { PliantDataTableColumnHeader } from "./pliant-data-table-column-header"
+import {
+  pliantDataTableFeatures,
+  type PliantDataTableFeatures,
+} from "./pliant-data-table-features"
+import { PliantDataTablePagination } from "./pliant-data-table-pagination"
+import { PliantDataTableViewOptions } from "./pliant-data-table-view-options"
 import { PliantPointMode } from "./pliant-point-mode"
 import { PliantRegion } from "./pliant-region"
 
@@ -58,6 +68,15 @@ const messages: PliantMessages = {
   pointModeHelp: "⟦pointModeHelp⟧",
   regionMore: "⟦regionMore⟧",
   regionNodeUnavailable: (label) => `⟦regionNodeUnavailable ${label}⟧`,
+  dataTableNoResults: "⟦dataTableNoResults⟧",
+  dataTableTotals: "⟦dataTableTotals⟧",
+  dataTableColumns: "⟦dataTableColumns⟧",
+  dataTableRows: "⟦dataTableRows⟧",
+  dataTableRange: (first, last, total, rows) =>
+    `⟦dataTableRange ${first} ${last} ${total} ${rows}⟧`,
+  dataTableNoRows: (rows) => `⟦dataTableNoRows ${rows}⟧`,
+  dataTablePrevious: "⟦dataTablePrevious⟧",
+  dataTableNext: "⟦dataTableNext⟧",
 }
 
 const surface = "/dashboard"
@@ -131,6 +150,73 @@ function renderPage(layers: StorageAdapter = storage) {
       />
       <PliantPointMode targets={targets} onPick={() => undefined} />
       <PliantAskPanel endpoint="/api/pliant" targets={targets} />
+    </PliantRoot>
+  )
+}
+
+interface Order {
+  id: string
+  status: string
+  value: number
+}
+
+const orders: Order[] = Array.from({ length: 12 }, (_, index) => ({
+  id: `«o${String(index + 1)}»`,
+  status: index % 2 ? "«open»" : "«paid»",
+  value: (index + 1) * 10,
+}))
+
+const orderColumns = createColumnHelper<PliantDataTableFeatures, Order>()
+
+const columns = orderColumns.columns([
+  orderColumns.accessor("id", {
+    meta: { label: "«Order»" },
+    header: ({ column }) => <PliantDataTableColumnHeader column={column} />,
+  }),
+  orderColumns.accessor("status", {
+    meta: { label: "«Status»" },
+    header: ({ column }) => <PliantDataTableColumnHeader column={column} />,
+  }),
+  orderColumns.accessor("value", {
+    meta: { label: "«Value»" },
+    header: ({ column }) => <PliantDataTableColumnHeader column={column} />,
+  }),
+])
+
+const ordersDataset = {
+  fields: {
+    id: { type: "id" },
+    status: { type: "string" },
+    value: { type: "number" },
+  },
+  timeZone: "UTC",
+} as const
+
+function Orders({ data }: { data: Order[] }) {
+  useMountedNodes(["orders-table"])
+  const options = usePliantTable(
+    { features: pliantDataTableFeatures, data, columns },
+    { id: "orders-table", dataset: ordersDataset }
+  )
+  const table = useTable(options)
+  const actions = usePliantStore()
+  React.useLayoutEffect(() => {
+    store = actions
+  }, [actions])
+  return (
+    <>
+      <h2 id="orders-title">«Orders»</h2>
+      <PliantDataTableViewOptions table={table} />
+      <PliantDataTable table={table} aria-labelledby="orders-title" />
+      <PliantDataTablePagination table={table} rows="«orders»" />
+    </>
+  )
+}
+
+function renderOrders(data: Order[]) {
+  return render(
+    <PliantRoot surface={surface} storage={storage} messages={messages}>
+      <Orders data={data} />
     </PliantRoot>
   )
 }
@@ -359,6 +445,58 @@ describe("the registry components with every message given", () => {
 
     expect(screen.getByRole("button", { name: "⟦regionMore⟧" })).toBeTruthy()
     expect(screen.getByText("⟦regionNodeUnavailable «Trend»⟧")).toBeTruthy()
+    expect(unmarkedText()).toEqual([])
+  })
+
+  it("show only the root's text and the app's in a data table", async () => {
+    renderOrders([])
+    expect(screen.getByText("⟦dataTableNoResults⟧")).toBeTruthy()
+    expect(screen.getByText(/^⟦dataTableNoRows «orders»⟧/)).toBeTruthy()
+    expect(unmarkedText()).toEqual([])
+
+    cleanup()
+    renderOrders(orders)
+    await settle()
+    expect(screen.getByText(/^⟦dataTableRange 1 10 12 «orders»⟧/)).toBeTruthy()
+    expect(unmarkedText()).toEqual([])
+
+    fireEvent.click(screen.getByRole("button", { name: "⟦dataTableNext⟧" }))
+    expect(screen.getByText(/^⟦dataTableRange 11 12 12 «orders»⟧/)).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "⟦dataTablePrevious⟧" })
+    ).toBeTruthy()
+    expect(unmarkedText()).toEqual([])
+    fireEvent.click(screen.getByRole("button", { name: "⟦dataTablePrevious⟧" }))
+
+    apply(
+      { op: "setGroupBy", target: "orders-table", fields: ["status"] },
+      {
+        op: "addAggregate",
+        target: "orders-table",
+        id: "total-value",
+        label: "«Total value»",
+        expr: { fn: "sum", args: [{ field: "value" }] },
+      }
+    )
+    expect(
+      screen.getByText(/^⟦dataTableRange 1 2 2 ⟦dataTableRows⟧⟧/)
+    ).toBeTruthy()
+    const group = screen.getByRole("button", { name: /«open»/ })
+    fireEvent.click(group)
+    expect(group.getAttribute("aria-expanded")).toBe("true")
+    expect(screen.getByText("⟦dataTableTotals⟧")).toBeTruthy()
+    expect(unmarkedText()).toEqual([])
+
+    fireEvent.keyDown(
+      screen.getByRole("button", { name: "⟦dataTableColumns⟧" }),
+      {
+        key: "Enter",
+      }
+    )
+    await settle(20)
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: "«Status»" })
+    ).toBeTruthy()
     expect(unmarkedText()).toEqual([])
   })
 })

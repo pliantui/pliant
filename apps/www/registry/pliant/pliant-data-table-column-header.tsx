@@ -5,12 +5,17 @@ import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 
-import type { DataTableFeatures } from "./data-table-features"
+import type { PliantDataTableFeatures } from "./pliant-data-table-features"
 
-export function DataTableColumnHeader<TData extends RowData, TValue>({
+/**
+ * A column header that sorts the column when pressed, and shows its
+ * direction. It shows the column's `meta.label`. Use it as a column's
+ * `header`.
+ */
+function PliantDataTableColumnHeader<TData extends RowData, TValue>({
   column,
 }: {
-  column: Column<DataTableFeatures, TData, TValue>
+  column: Column<PliantDataTableFeatures, TData, TValue>
 }) {
   const sorted = column.getIsSorted()
 
@@ -34,3 +39,5 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
     </Button>
   )
 }
+
+export { PliantDataTableColumnHeader }
