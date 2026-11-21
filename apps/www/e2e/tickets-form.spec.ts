@@ -140,9 +140,46 @@ test("opens More fields when a field inside is invalid", async ({ page }) => {
 
   await page.getByRole("button", { name: "Submit ticket" }).click()
   await expect(more).toHaveAttribute("aria-expanded", "true")
+  await expect(page.getByLabel("CC")).toBeFocused()
   await expect(page.getByText("Enter an email address.")).toBeVisible()
   await expect(page.getByLabel("CC")).toHaveValue("not an email")
   await expect(page.getByRole("status")).toHaveText("")
+})
+
+test("opens More fields before the browser reports an invalid field", async ({
+  page,
+}) => {
+  await load(page, [collapse])
+  // The browser's own validation runs on a form without `noValidate`.
+  await page.locator("form").evaluate((form) => {
+    form.removeAttribute("novalidate")
+  })
+  const more = page.getByRole("button", { name: "More fields" })
+  await more.click()
+  await page.getByLabel("CC").fill("not an email")
+  await more.click()
+
+  await page.getByRole("button", { name: "Submit ticket" }).click()
+  await expect(more).toHaveAttribute("aria-expanded", "true")
+  await expect(page.getByLabel("CC")).toBeFocused()
+  expect(
+    await page
+      .getByLabel("CC")
+      .evaluate((input: HTMLInputElement) => input.validity.valid)
+  ).toBe(false)
+})
+
+test("tabs from the last shown field to More fields, then past the closed fields", async ({
+  page,
+}) => {
+  await load(page, [collapse])
+  await page.getByLabel("Priority").focus()
+  await page.keyboard.press("Tab")
+  await expect(page.getByRole("button", { name: "More fields" })).toBeFocused()
+  await page.keyboard.press("Tab")
+  await expect(
+    page.getByRole("button", { name: "Submit ticket" })
+  ).toBeFocused()
 })
 
 test("starts the form with the user's own defaults", async ({ page }) => {

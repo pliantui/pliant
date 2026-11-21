@@ -4,6 +4,8 @@ import { renderToString } from "react-dom/server"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import * as z from "zod"
 
+import type { Op } from "@pliantui/contract"
+
 import { memoryStorage } from "../test/storage"
 import { PliantRoot } from "./pliant-root"
 import type { PliantStore } from "./pliant-store"
@@ -170,6 +172,29 @@ describe("usePliantForm", () => {
     })
     expect(result?.success).toBe(false)
     expect(shown()[0]).toBe("title visible ")
+  })
+
+  it("keeps fields in their form", async () => {
+    const wrap: Op = {
+      op: "wrap",
+      target: "ticket-form",
+      id: "pair",
+      items: ["cc", "summary"],
+      mode: "row",
+    }
+    await load([])
+    let result: ReturnType<PliantStore["applyOps"]> | undefined
+    act(() => {
+      result = store?.applyOps("personal", [wrap])
+    })
+    expect(result?.success).toBe(false)
+    cleanup()
+
+    await load([], false)
+    act(() => {
+      result = store?.applyOps("personal", [wrap])
+    })
+    expect(result?.success).toBe(true)
   })
 
   it("can hide any field without a schema", async () => {

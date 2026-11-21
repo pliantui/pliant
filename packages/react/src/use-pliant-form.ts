@@ -18,7 +18,8 @@ export interface UsePliantFormOptions {
   /**
    * The form's schema. A field whose schema rejects a missing value is
    * required, so no overlay can hide or collapse it, and a default its
-   * schema rejects is skipped.
+   * schema rejects is skipped. A field the schema makes `.optional()` or
+   * gives a `.default()` accepts a missing value, so users can hide it.
    */
   readonly schema?: PliantFormSchema | undefined
 }
@@ -39,7 +40,9 @@ function baseForm(names: readonly string[]): ResolvedForm {
  * server, it's the fields in key order, all visible.
  *
  * Fields never leave the form: render every entry in the same parent with
- * its name as the key, so a field keeps its focus, its state and its value.
+ * its name as the key, so a field is never remounted and keeps its state
+ * and its value. Moving a focused field in the DOM blurs it and focuses it
+ * again, which reaches your form library's blur handler.
  * `useRegionItems` puts the entries of a collapse after its trigger and
  * opens it when a field inside becomes invalid. Render a hidden field with
  * `PliantActivity`, and a field in a closed collapse with `display: none`

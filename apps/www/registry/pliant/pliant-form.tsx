@@ -84,8 +84,9 @@ function FormFields({
  * "More fields" section with overlays. Render it inside your `<form>` in
  * place of `FieldGroup`. Each field is rendered inside a `display: contents`
  * wrapper with `data-pliant-id`, always in this same element, so hiding,
- * moving or collapsing a field never remounts it: it keeps its focus and
- * its value. A collapsed section opens when a field inside becomes invalid.
+ * moving or collapsing a field never remounts it: it keeps its state and
+ * its value. A collapsed section opens when a field inside becomes invalid,
+ * and focus moves to that field.
  */
 function PliantForm({
   id,
@@ -103,7 +104,8 @@ function PliantForm({
   fields: Readonly<Record<string, React.ReactNode>>
   /**
    * The form's schema, such as the Zod object your resolver validates with.
-   * Fields it requires can't be hidden or collapsed.
+   * Fields it requires can't be hidden or collapsed: mark a field
+   * `.optional()` or give it a `.default()` to let users hide it.
    */
   schema?: PliantFormSchema
 }) {
