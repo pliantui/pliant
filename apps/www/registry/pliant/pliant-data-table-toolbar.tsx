@@ -82,28 +82,6 @@ function identityOf(node: string) {
 // `resetNode` leaves alone.
 const containerProperties = ["span", "visible", "inserted"]
 
-// Whether the user's personal or session layer changes the node or its
-// items, as `resetNode` drops. Moving between pages doesn't count, though
-// Reset drops it too: only a `setPage` that sets the rows per page does.
-function changesNode(
-  resolved: ReturnType<typeof useResolved>,
-  identity: string
-) {
-  return Array.from(resolved.properties).some(
-    ([address, properties]) =>
-      (address === identity || address.startsWith(`${identity}/`)) &&
-      Array.from(properties).some(([property, { winner }]) => {
-        const { op } = winner.check
-        return (
-          (winner.overlay.layer === "personal" ||
-            winner.overlay.layer === "session") &&
-          !(address === identity && containerProperties.includes(property)) &&
-          !(op.op === "setPage" && op.size === undefined)
-        )
-      })
-  )
-}
-
 // The items a list and ops both give: an op's item replaces the listed one
 // with its id, and the others follow the list.
 function merge<T extends { id: string }>(listed: T[], added: T[]) {
@@ -282,8 +260,26 @@ function PliantDataTableToolbar<TData extends RowData>({
   const store = usePliantStore()
   const resolved = useResolved()
   const identity = identityOf(node)
+  // Whether the user's personal or session layer changes the table or its
+  // items, as `resetNode` drops. Moving between pages doesn't count, though
+  // Reset drops it too: only a `setPage` that sets the rows per page does.
   const changed = useMemo(
-    () => changesNode(resolved, identity),
+    () =>
+      Array.from(resolved.properties).some(
+        ([address, properties]) =>
+          (address === identity || address.startsWith(`${identity}/`)) &&
+          Array.from(properties).some(([property, { winner }]) => {
+            const { op } = winner.check
+            return (
+              (winner.overlay.layer === "personal" ||
+                winner.overlay.layer === "session") &&
+              !(
+                address === identity && containerProperties.includes(property)
+              ) &&
+              !(op.op === "setPage" && op.size === undefined)
+            )
+          })
+      ),
     [resolved, identity]
   )
   const toolbar = useRef<HTMLDivElement>(null)
