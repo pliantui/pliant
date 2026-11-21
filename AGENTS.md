@@ -47,51 +47,25 @@ Everything in this repository and on GitHub (code, comments, docs, READMEs, chan
 
 ## Writing docs
 
-The docs teach people to use Pliant. They follow [Diátaxis](https://diataxis.fr), the [Google developer documentation style guide](https://developers.google.com/style) and the [Write the Docs](https://www.writethedocs.org/guide/writing/docs-principles/) principles. For tone and layout, they take shadcn, Tailwind, Stripe, TanStack and the Vercel AI SDK as models.
+Docs teach people to use Pliant. They follow [Diátaxis](https://diataxis.fr), the [Google developer documentation style guide](https://developers.google.com/style) and the [Write the Docs principles](https://www.writethedocs.org/guide/writing/docs-principles/). For tone and layout, take shadcn, Tailwind, Stripe, TanStack and the Vercel AI SDK as models.
 
-**Pick one kind of page and keep to it:**
+- Each page is one kind:
+  - a tutorial (a guided lesson that ends with something working);
+  - a how-to guide (the steps for one task);
+  - a concept page (what Diátaxis calls explanation);
+  - a reference page (exact options and rules).
 
-- **Tutorial:** a guided lesson that ends with something working. For example, "Your first editable table".
-- **How-to guide:** the steps for one task, for a reader who knows what they want.
-- **Concept:** explains how to think about something. It isn't a set of steps.
-- **Reference:** exact options, flags and rules, ideally generated from the types.
+  Don't mix them. Link to the reference instead of repeating it.
 
-Don't mix them. A guide links to the reference instead of repeating it.
-
-**Write for the reader:**
-
-- Address the reader as "you". Use the present tense, active voice and short sentences. Be plain and warm.
-- Describe what the reader can do and what they'll see. Leave out how Pliant works inside. If a sentence explains internals a user doesn't need, delete it.
-- Introduce a term only when the page needs it, and define it in plain words the first time. Link it to the glossary.
+- Write to the reader as "you", in the present tense and active voice, with short sentences. Keep the language plain and warm.
+- Describe what the reader can do and what they'll see, not how Pliant works inside. Delete any sentence about internals that a user doesn't need.
+- Open with one or two sentences on what the page lets you do. Then show a short working example or a live preview, then the details: usage before options, and the common case before edge cases. Put flags, exact rules and limits last or on a reference page.
+- Keep pages under about 800 words, and split longer ones.
+- Define a term in plain words the first time a page uses it.
 - Write link text that names the destination, never "here".
-- Each page stands on its own, for people and for agents. Use clear headings, and avoid "as mentioned above".
-
-**Shape every page the same way:**
-
-1. Start with one or two sentences on what the page lets you do.
-2. Follow with a short working example or a live preview.
-3. Then add the details: usage before options, and the common case before edge cases.
-4. Put reference detail (flags, exact rules, limits) at the bottom of the page or on a reference page.
-
-Aim for under about 800 words, and split anything longer. Each CLI command gets its own page: what it's for, the typical command, what you see, and then the options.
-
-**Make pages easy to scan:**
-
-- Use the MDX components:
-  - callouts (note, tip, warning)
-  - numbered steps
-  - package-manager tabs (pnpm, npm, yarn, bun)
-  - Preview and Code tabs
-  - copyable code blocks
-  - file trees
-  - cards for navigation
-  - keyboard keys
-- Prefer a short list or a table to a long paragraph.
-
-**Keep it true:**
-
+- Make each page stand on its own, for people and agents alike: give it clear headings and don't write "as mentioned above".
+- Make pages scannable with the MDX components registered in `apps/www/components/mdx.tsx`, and prefer a short list or table to a long paragraph.
 - Every code sample must work. Take samples from files that the checks build or test.
-- A page about something that isn't fully built yet carries the "not implemented" banner. The text itself describes the finished behaviour and never mentions progress.
 
 ## Tests
 
