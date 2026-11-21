@@ -203,6 +203,7 @@ afterEach(() => {
   store = undefined
   fetchMock.mockReset()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 describe("the registry components with every message given", () => {
@@ -223,6 +224,22 @@ describe("the registry components with every message given", () => {
   })
 
   it.each<[string, () => void, string]>([
+    [
+      "a question back",
+      () =>
+        fetchMock.mockResolvedValueOnce(
+          Response.json({ status: "clarify", question: "«Which table?»" })
+        ),
+      "«Which table?»",
+    ],
+    [
+      "an unavailable change",
+      () =>
+        fetchMock.mockResolvedValueOnce(
+          Response.json({ status: "unavailable", reason: "«Not possible»" })
+        ),
+      "«Not possible»",
+    ],
     [
       "an unreadable answer",
       () => fetchMock.mockResolvedValueOnce(Response.json({}, { status: 500 })),
@@ -306,6 +323,7 @@ describe("the registry components with every message given", () => {
     expect(unmarkedText()).toEqual([])
     fireEvent.keyUp(document.body, { key: "Alt" })
     expect(screen.getByText("⟦pointModeOff⟧")).toBeTruthy()
+    expect(unmarkedText()).toEqual([])
 
     fireEvent.click(screen.getByRole("button", { name: "⟦pointModeOpen⟧" }))
     await settle(20)

@@ -68,4 +68,29 @@ describe("usePliantMessages", () => {
     expect(result.current).not.toBe(first)
     expect(result.current.pointModeOn).toBe("Allumé")
   })
+
+  it("keeps the default of an entry set to undefined", () => {
+    const { result } = renderHook(() => usePliantMessages(defaults), {
+      // Apps without `exactOptionalPropertyTypes` can pass this.
+      wrapper: rootWith({
+        pointModeOn: undefined,
+        askPreviewFailed: undefined,
+      } as unknown as Partial<PliantMessages>),
+    })
+
+    expect(result.current.pointModeOn).toBe("On")
+    expect(result.current.askPreviewFailed("bad op")).toBe("Failed: bad op")
+  })
+
+  it("uses the outer root's messages in a root without its own", () => {
+    const { result } = renderHook(() => usePliantMessages(defaults), {
+      wrapper: ({ children }) => (
+        <PliantRoot surface="/outer" messages={{ pointModeOn: "Activé" }}>
+          <PliantRoot surface="/inner">{children}</PliantRoot>
+        </PliantRoot>
+      ),
+    })
+
+    expect(result.current.pointModeOn).toBe("Activé")
+  })
 })

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState, type ReactNode } from "react"
+import { use, useLayoutEffect, useState, type ReactNode } from "react"
 
 import { createLayerStore } from "./layer-store"
 import { localAdapter } from "./local-adapter"
@@ -37,13 +37,20 @@ export interface PliantRootProps {
   readonly lang?: string | undefined
   /**
    * Text to show in place of the English defaults, by key, such as a
-   * translation for `lang`. Entries left out keep their defaults.
+   * translation for `lang`. Entries left out, or `undefined`, keep their
+   * defaults. A root without `messages` inside another uses the outer
+   * root's.
+   *
+   * A catalog with function entries can't be passed from a Server Component,
+   * because React can't serialize functions: create it in a client module,
+   * such as the app's providers file. A catalog of strings only can be.
+   * Define it outside the component or memoize it: an inline object is a
+   * new value on every render, which renders every component that shows
+   * text again.
    */
   readonly messages?: Partial<PliantMessages> | undefined
   readonly children?: ReactNode
 }
-
-const noMessages: Partial<PliantMessages> = {}
 
 function PliantSurfaceRoot({
   surface,
@@ -115,8 +122,9 @@ function PliantSurfaceRoot({
  * @experimental
  */
 export function PliantRoot(props: PliantRootProps) {
+  const outerMessages = use(PliantMessagesContext)
   return (
-    <PliantMessagesContext value={props.messages ?? noMessages}>
+    <PliantMessagesContext value={props.messages ?? outerMessages}>
       <PliantSurfaceRoot key={props.surface} {...props} />
     </PliantMessagesContext>
   )

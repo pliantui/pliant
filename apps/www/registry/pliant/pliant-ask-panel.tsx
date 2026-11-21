@@ -29,6 +29,10 @@ import { Textarea } from "@/components/ui/textarea"
 declare module "@pliantui/react" {
   interface PliantMessages {
     askOpen: string
+    /**
+     * Appended to `askOpen` to form the trigger's accessible name while a
+     * preview shows and the panel is closed. Defaults to "(preview active)".
+     */
     askPreviewActive: string
     askTitle: string
     askDescription: string
