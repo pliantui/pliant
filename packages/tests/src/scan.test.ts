@@ -1049,3 +1049,71 @@ describe("pliantui scan", () => {
     })
   })
 })
+
+describe("pliantui scan, for what it can't follow", () => {
+  // Each surface renders the banner, a component that renders a region, in
+  // its own way. The direct surface renders it plainly, so the banner is
+  // reached on some surface either way.
+  it("places every region a surface renders, or marks the surface", async () => {
+    const cwd = await createFixtureDirectory("scan-unfollowed")
+    const { output, exitCode } = await scanJson(cwd)
+
+    expect(exitCode).toBe(0)
+    const placed = Object.entries(output.inventory)
+      .filter(([, { baseIds }]) => baseIds.source === "inventory")
+      .map(([surface, { baseIds }]) => [surface, baseIds.ids])
+    expect(placed).toEqual([
+      // `R.useMemo` under a default import.
+      ["default-import-memo", ["banner", "message"]],
+      ["direct", ["banner", "message"]],
+      ["hoc", ["banner", "message"]],
+      // `useMemo` from a named import.
+      ["named-memo", ["banner", "message"]],
+      ["re-export", ["banner", "message"]],
+      ["render-prop", ["banner", "message"]],
+      // `renderLevel()` calls itself.
+      ["self-render", ["banner", "message"]],
+      ["use-callback", ["banner", "message"]],
+    ])
+    const marked = (surface: string) =>
+      output.warnings
+        .filter(({ message }) =>
+          message.endsWith(`so ${surface} isn't read in full.`)
+        )
+        .map(({ file, message }) => `${file} ${message.split(" ")[0] ?? ""}`)
+    expect(marked("dynamic-tag")).toEqual(["app/dynamic-tag/page.tsx Banner"])
+    expect(marked("create-element")).toEqual([
+      "app/create-element/page.tsx Banner",
+    ])
+    expect(marked("context-value")).toEqual([
+      "app/context-value/page.tsx renderBanner",
+    ])
+    expect(marked("array-from")).toEqual(["app/array-from/page.tsx renderRow"])
+    expect(marked("lazy")).toEqual([
+      'app/lazy/page.tsx import("@/components/helpers")',
+    ])
+    expect(marked("registry")).toEqual([
+      "app/registry/page.tsx registry",
+      "app/registry/page.tsx Banner",
+    ])
+    expect(marked("as-prop")).toEqual(["app/as-prop/page.tsx Banner"])
+    expect(marked("unrendered-variable")).toEqual([
+      "app/unrendered-variable/page.tsx <Banner>",
+    ])
+    // Tree renders itself and the banner.
+    expect(marked("recursive")).toEqual(["app/recursive/page.tsx Tree"])
+    for (const surface of [
+      "array-from",
+      "as-prop",
+      "context-value",
+      "create-element",
+      "dynamic-tag",
+      "lazy",
+      "recursive",
+      "registry",
+      "unrendered-variable",
+    ]) {
+      expect(output.inventory[surface]?.baseIds.source).toBe("mounted")
+    }
+  })
+})
