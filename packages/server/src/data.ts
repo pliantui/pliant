@@ -1,4 +1,9 @@
 export {
+  authorizeDataset,
+  type DatasetGrant,
+  type DatasetScope,
+} from "./authorize-dataset"
+export {
   type DatasetField,
   type DatasetFieldCapabilities,
   type DatasetFieldType,

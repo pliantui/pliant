@@ -8,6 +8,7 @@ import { describeDataset } from "./describe-dataset"
 
 const orders = defineDataset({
   id: "orders",
+  scope: "public",
   describe: "Customer orders placed through the portal",
   timeZone: "Asia/Tokyo",
   fields: {
@@ -35,6 +36,7 @@ function problemsOf(definition: unknown) {
 
 const valid = {
   id: "orders",
+  scope: "public",
   fields: { id: { type: "id" }, total: { type: "number" } },
 }
 
@@ -45,6 +47,7 @@ function withField(field: unknown) {
 function fieldOf(field: unknown) {
   const dataset = defineDataset({
     id: "orders",
+    scope: "public",
     timeZone: "UTC",
     // @ts-expect-error a field built at runtime
     fields: { id: { type: "id" }, total: field },
@@ -108,12 +111,14 @@ describe("defineDataset", () => {
       filterable: true,
       groupable: false,
       aggregatable: true,
+      exposeToAI: true,
     })
   })
 
   it("lets a field override its type's capabilities", () => {
     const dataset = defineDataset({
       id: "orders",
+      scope: "public",
       fields: {
         id: { type: "id", filterable: false, sortable: undefined },
         notes: { type: "text", sortable: true, filterable: false },
@@ -149,6 +154,7 @@ describe("defineDataset", () => {
     expect(orders.rowKey).toEqual(["id"])
     const lines = defineDataset({
       id: "order-lines",
+      scope: "public",
       fields: { orderId: { type: "id" }, line: { type: "integer" } },
       rowKey: ["orderId", "line"],
     })
@@ -176,6 +182,7 @@ describe("defineDataset", () => {
     expect(
       defineDataset({
         id: "orders",
+        scope: "public",
         fields,
         rowKey: ["k0", ...keys.slice(1, 10)],
       }).rowKey
@@ -185,6 +192,7 @@ describe("defineDataset", () => {
   it("accepts a row key that isn't sortable", () => {
     const dataset = defineDataset({
       id: "orders",
+      scope: "public",
       fields: { id: { type: "id", sortable: false } },
     })
     expect(dataset.rowKey).toEqual(["id"])
@@ -194,6 +202,7 @@ describe("defineDataset", () => {
     function zoneOf(timeZone: string) {
       return defineDataset({
         id: "orders",
+        scope: "public",
         timeZone,
         fields: { id: { type: "id" }, placedOn: { type: "date" } },
       }).timeZone
@@ -202,6 +211,7 @@ describe("defineDataset", () => {
     it("defaults to UTC when no field is a date", () => {
       const undated = defineDataset({
         id: "orders",
+        scope: "public",
         fields: { id: { type: "id" }, total: { type: "number" } },
       })
       expect(undated.timeZone).toBe("UTC")
@@ -253,12 +263,13 @@ describe("defineDataset", () => {
       }
       const dataset = defineDataset({
         id: "users",
+        scope: "public",
         // @ts-expect-error a field with a getter
         fields: { id: { type: "id" }, name: field },
       })
-      const described = describeDataset(dataset, { audience: "ai" })
+      const described = describeDataset(dataset, { audience: "ai", user: null })
       expect(reads).toBe(1)
-      expect(described.fields["name"]).toMatchObject({ label: "Name" })
+      expect(described?.fields["name"]).toMatchObject({ label: "Name" })
       expect(JSON.stringify(described)).not.toContain("password")
     })
 
@@ -266,6 +277,7 @@ describe("defineDataset", () => {
       let reads = 0
       const definition = {
         id: "orders",
+        scope: "public",
         get fields() {
           reads++
           return reads === 1
@@ -299,6 +311,7 @@ describe("defineDataset", () => {
       })
       const dataset = defineDataset({
         id: "orders",
+        scope: "public",
         fields: {
           id: { type: "id" },
           // @ts-expect-error a format with a getter
@@ -309,7 +322,7 @@ describe("defineDataset", () => {
       })
       expect([formatReads, valueReads]).toEqual([1, 1])
       expect(
-        describeDataset(dataset, { audience: "client" }).fields
+        describeDataset(dataset, { audience: "client", user: null })?.fields
       ).toMatchObject({
         total: { format: { type: "number", decimals: 2 } },
         state: { values: ["a", "b"] },
@@ -319,12 +332,15 @@ describe("defineDataset", () => {
     it("treats ids that Object.prototype also has as plain fields", () => {
       const dataset = defineDataset({
         id: "classes",
+        scope: "public",
         fields: { constructor: { type: "string" }, toString: { type: "text" } },
         rowKey: "constructor",
       })
       expect(dataset.rowKey).toEqual(["constructor"])
       expect(
-        Object.keys(describeDataset(dataset, { audience: "ai" }).fields)
+        Object.keys(
+          describeDataset(dataset, { audience: "ai", user: null })?.fields ?? {}
+        )
       ).toEqual(["constructor", "toString"])
       expect(
         problemsOf({
@@ -350,7 +366,7 @@ describe("defineDataset", () => {
         region: { type: "enum", values },
         weight: { type: "number", format },
       } as const
-      const dataset = defineDataset({ id: "regions", fields })
+      const dataset = defineDataset({ id: "regions", scope: "public", fields })
       expect(Object.isFrozen(dataset.fields.region.values)).toBe(true)
       expect(Reflect.set(dataset.fields.region, "sortable", false)).toBe(false)
 
@@ -419,6 +435,7 @@ describe("defineDataset", () => {
       expect(() =>
         defineDataset({
           id: "orders",
+          scope: "public",
           // @ts-expect-error a misspelled option
           fields: { id: { type: "id", sortible: true } },
         })
@@ -426,6 +443,7 @@ describe("defineDataset", () => {
       expect(() =>
         defineDataset({
           id: "orders",
+          scope: "public",
           fields: {
             id: { type: "id" },
             // @ts-expect-error text fields have no unit
@@ -436,6 +454,7 @@ describe("defineDataset", () => {
       expect(() =>
         defineDataset({
           id: "orders",
+          scope: "public",
           timeZone: "UTC",
           fields: {
             id: { type: "id" },
@@ -457,6 +476,7 @@ describe("defineDataset", () => {
       expect(() =>
         defineDataset({
           id: "orders",
+          scope: "public",
           fields: { number: { type: "string" } },
           // @ts-expect-error rowKey must name a field
           rowKey: "code",
@@ -465,6 +485,7 @@ describe("defineDataset", () => {
       expect(() =>
         defineDataset({
           id: "orders",
+          scope: "public",
           fields: { total: { type: "number" } },
           // @ts-expect-error a number can't be a row key
           rowKey: "total",
@@ -477,6 +498,7 @@ describe("defineDataset", () => {
         // @ts-expect-error timeZone is required with a date field
         defineDataset({
           id: "orders",
+          scope: "public",
           fields: { id: { type: "id" }, day: { type: "date" } },
         })
       ).toThrow(TypeError)
@@ -494,8 +516,58 @@ describe("defineDataset", () => {
       ],
       [
         "an unknown option",
-        { ...valid, scope: "public" },
-        'unknown option "scope"',
+        { ...valid, source: "orders" },
+        'unknown option "source"',
+      ],
+      [
+        "no scope",
+        { ...valid, scope: undefined },
+        'scope must be a function of the user, or "public"',
+      ],
+      [
+        "a scope that is neither a function nor public",
+        { ...valid, scope: { orgId: 1 } },
+        'scope must be a function of the user, or "public"',
+      ],
+      [
+        "an access that isn't a function",
+        { ...valid, access: true },
+        "access must be a function",
+      ],
+      [
+        "an unknown privacy option",
+        { ...valid, privacy: { minGroup: 5 } },
+        "privacy must be { minGroupSize }, a whole number of at least 1",
+      ],
+      [
+        "a minimum group size below 1",
+        { ...valid, privacy: { minGroupSize: 0 } },
+        "privacy must be { minGroupSize }, a whole number of at least 1",
+      ],
+      [
+        "a fractional minimum group size",
+        { ...valid, privacy: { minGroupSize: 2.5 } },
+        "privacy must be { minGroupSize }, a whole number of at least 1",
+      ],
+      [
+        "a field access that isn't a function",
+        withField({ type: "number", access: "finance" }),
+        'field "total": access must be a function',
+      ],
+      [
+        "an exposeToAI that isn't a boolean",
+        withField({ type: "number", exposeToAI: "no" }),
+        'field "total": exposeToAI must be a boolean',
+      ],
+      [
+        "a row key field with access",
+        { ...valid, fields: { id: { type: "id", access: () => true } } },
+        'rowKey field "id" can\'t set access or exposeToAI: false',
+      ],
+      [
+        "a row key field kept from the model",
+        { ...valid, fields: { id: { type: "id", exposeToAI: false } } },
+        'rowKey field "id" can\'t set access or exposeToAI: false',
       ],
       [
         "an empty describe",
@@ -737,7 +809,12 @@ describe("defineDataset", () => {
           { type: "money" },
         ])
       )
-      const message = problemsOf({ id: "orders", fields, rowKey: "f0" })
+      const message = problemsOf({
+        id: "orders",
+        scope: "public",
+        fields,
+        rowKey: "f0",
+      })
       expect(message.split("\n- ")).toHaveLength(22)
       expect(message).toMatch(/\n- …and 6 more$/)
     })

@@ -1,5 +1,6 @@
+import { authorizeDataset } from "./authorize-dataset"
 import type { DatasetField } from "./dataset-field"
-import type { Dataset } from "./define-dataset"
+import type { Dataset, Fields } from "./define-dataset"
 import { quote } from "./quote"
 
 const publicKeys = [
@@ -63,41 +64,56 @@ const audiences: readonly unknown[] = ["client", "ai"]
  *
  * @experimental
  */
-export interface DescribeDatasetOptions {
+export interface DescribeDatasetOptions<TUser = never> {
   /**
    * Who reads the descriptor: `client`, the browser, or `ai`, the model.
-   * Both currently get the same descriptor.
+   * The model's leaves out fields with `exposeToAI: false`.
    */
   readonly audience: "client" | "ai"
+  /** The user the descriptor is for, as the dataset's `access` and `scope` take it. */
+  readonly user: TUser
 }
 
 /**
- * Returns the public descriptor of a dataset for one audience: fresh
- * JSON-safe objects that name only what that audience may know about each
- * field.
+ * Returns the public descriptor of a dataset for one user and audience:
+ * fresh JSON-safe objects that name only the fields that user may read, and
+ * only what that audience may know about each. Returns `null` when the
+ * dataset's `access` doesn't allow the user.
+ *
+ * It checks the user's row scope as `authorizeDataset` does, and throws
+ * what that throws.
  *
  * @experimental
  */
-export function describeDataset(
-  dataset: Dataset,
-  options: DescribeDatasetOptions
-): DatasetDescriptor {
+export function describeDataset<TUser>(
+  dataset: Dataset<Fields, string, TUser>,
+  options: DescribeDatasetOptions<TUser>
+): DatasetDescriptor | null {
   const audience: unknown = Reflect.get(Object(options), "audience")
   if (!audiences.includes(audience)) {
     throw new TypeError(
       `audience must be "client" or "ai", not ${quote(audience)}`
     )
   }
-  const fields = Object.entries(dataset.fields).map(([id, field]) => [
-    id,
-    Object.fromEntries(
-      publicKeys.flatMap((key) =>
-        Object.hasOwn(field, key)
-          ? [[key, structuredClone(Reflect.get(field, key))]]
-          : []
-      )
-    ),
-  ])
+  const grant = authorizeDataset(dataset, options.user)
+  if (grant === null) {
+    return null
+  }
+  const fields = Object.entries(dataset.fields)
+    .filter(
+      ([id, field]) =>
+        grant.fields.includes(id) && (audience === "client" || field.exposeToAI)
+    )
+    .map(([id, field]) => [
+      id,
+      Object.fromEntries(
+        publicKeys.flatMap((key) =>
+          Object.hasOwn(field, key)
+            ? [[key, structuredClone(Reflect.get(field, key))]]
+            : []
+        )
+      ),
+    ])
   return {
     id: dataset.id,
     ...(dataset.describe === undefined ? {} : { describe: dataset.describe }),

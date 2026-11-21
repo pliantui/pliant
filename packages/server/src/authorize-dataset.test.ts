@@ -1,0 +1,224 @@
+import { describe, expect, expectTypeOf, it } from "vitest"
+
+import { authorizeDataset } from "./authorize-dataset"
+import { defineDataset, type InferRow } from "./define-dataset"
+
+interface User {
+  id: string
+  orgId?: unknown
+  teamIds?: unknown
+  roles: string[]
+}
+
+const alice: User = { id: "alice", orgId: "acme", roles: ["sales"] }
+
+const orders = defineDataset({
+  id: "orders",
+  scope: (user: User) => ({ orgId: user.orgId as string }),
+  fields: {
+    id: { type: "id" },
+    value: { type: "currency", currency: "USD" },
+    cost: {
+      type: "currency",
+      currency: "USD",
+      access: (user) => user.roles.includes("finance"),
+    },
+    notes: { type: "text", exposeToAI: false },
+  },
+})
+
+function withScope(scope: (user: User) => unknown) {
+  return defineDataset({
+    id: "orders",
+    // @ts-expect-error a scope that returns anything, as JavaScript can
+    scope,
+    fields: { id: { type: "id" } },
+  })
+}
+
+describe("authorizeDataset", () => {
+  it("returns the user's row scope, readable fields and minimum group size", () => {
+    expect(authorizeDataset(orders, alice)).toStrictEqual({
+      scope: { orgId: "acme" },
+      fields: ["id", "value", "notes"],
+      minGroupSize: 1,
+    })
+  })
+
+  it("lists a field only for users its access allows", () => {
+    const finance = { ...alice, roles: ["finance"] }
+    expect(authorizeDataset(orders, finance)?.fields).toEqual([
+      "id",
+      "value",
+      "cost",
+      "notes",
+    ])
+  })
+
+  it("allows only on true, so a truthy value or a promise doesn't", () => {
+    for (const answer of [1, "yes", {}, Promise.resolve(true), undefined]) {
+      const dataset = defineDataset({
+        id: "orders",
+        scope: "public",
+        access: () => answer as boolean,
+        fields: {
+          id: { type: "id" },
+          cost: { type: "number", access: () => answer as boolean },
+        },
+      })
+      expect(authorizeDataset(dataset, alice)).toBeNull()
+      const open = defineDataset({
+        id: "orders",
+        scope: "public",
+        fields: {
+          id: { type: "id" },
+          cost: { type: "number", access: () => answer as boolean },
+        },
+      })
+      expect(authorizeDataset(open, alice)?.fields).toEqual(["id"])
+    }
+  })
+
+  it("returns null when the dataset's access doesn't allow the user", () => {
+    const finance = defineDataset({
+      id: "ledger",
+      scope: (user: User) => ({ orgId: user.orgId as string }),
+      access: (user) => user.roles.includes("finance"),
+      fields: { id: { type: "id" } },
+    })
+    expect(authorizeDataset(finance, alice)).toBeNull()
+    expect(authorizeDataset(finance, { ...alice, roles: ["finance"] })).toEqual(
+      { scope: { orgId: "acme" }, fields: ["id"], minGroupSize: 1 }
+    )
+  })
+
+  it('returns "public" for a dataset any user may load in full', () => {
+    const regions = defineDataset({
+      id: "regions",
+      scope: "public",
+      privacy: { minGroupSize: 5 },
+      fields: { id: { type: "id" } },
+    })
+    expect(authorizeDataset(regions, null)).toEqual({
+      scope: "public",
+      fields: ["id"],
+      minGroupSize: 5,
+    })
+  })
+
+  it("keeps lists of values and copies them", () => {
+    const teamIds = ["north", 2, true]
+    const dataset = withScope((user) => ({ teamId: user.teamIds }))
+    const grant = authorizeDataset(dataset, { ...alice, teamIds })
+    teamIds.push("south")
+    expect(grant?.scope).toEqual({ teamId: ["north", 2, true] })
+  })
+
+  it("returns a frozen copy of plain JSON, so it can be part of a cache key", () => {
+    const scope = { orgId: "acme", teamId: ["north"] }
+    const grant = authorizeDataset(
+      withScope(() => scope),
+      alice
+    )
+    scope.orgId = "globex"
+    expect(grant?.scope).toEqual({ orgId: "acme", teamId: ["north"] })
+    expect(JSON.parse(JSON.stringify(grant))).toEqual(grant)
+    expect(Object.isFrozen(grant)).toBe(true)
+    expect(Object.isFrozen(grant?.scope)).toBe(true)
+    expect(Object.isFrozen(grant?.fields)).toBe(true)
+    expect(Reflect.get(Object(grant?.scope), "teamId")).toSatisfy(
+      Object.isFrozen
+    )
+  })
+
+  it("calls scope once per call, with the user", () => {
+    const users: unknown[] = []
+    const dataset = withScope((user) => {
+      users.push(user)
+      return { orgId: user.orgId }
+    })
+    authorizeDataset(dataset, alice)
+    expect(users).toEqual([alice])
+  })
+
+  it.each([
+    ["a missing value", { orgId: undefined }],
+    ["null", { orgId: null }],
+    ["NaN", { orgId: Number.NaN }],
+    ["Infinity", { orgId: Number.POSITIVE_INFINITY }],
+    ["an object", { orgId: { not: "acme" } }],
+    ["an empty list", { orgId: [] }],
+    ["a list with a missing value", { orgId: ["acme", undefined] }],
+    ["no conditions", {}],
+    ["undefined", undefined],
+    ["a string", "acme"],
+    ["a list", ["acme"]],
+    ["a promise", Promise.resolve({ orgId: "acme" })],
+  ])("throws, never widening the scope, for %s", (_, scope) => {
+    expect(() =>
+      authorizeDataset(
+        withScope(() => scope),
+        alice
+      )
+    ).toThrow(
+      new TypeError(
+        'Dataset "orders": scope(user) must return conditions, each a string, finite number, boolean or non-empty list of them'
+      )
+    )
+  })
+
+  it("throws for a user without the value the scope reads", () => {
+    expect(() => authorizeDataset(orders, { id: "bob", roles: [] })).toThrow(
+      TypeError
+    )
+  })
+
+  it("passes on errors that scope and access throw", () => {
+    const failure = new Error("session expired")
+    const dataset = defineDataset({
+      id: "orders",
+      scope: () => {
+        throw failure
+      },
+      fields: { id: { type: "id" } },
+    })
+    expect(() => authorizeDataset(dataset, alice)).toThrow(failure)
+    const guarded = defineDataset({
+      id: "orders",
+      scope: "public",
+      fields: {
+        id: { type: "id" },
+        cost: {
+          type: "number",
+          access: () => {
+            throw failure
+          },
+        },
+      },
+    })
+    expect(() => authorizeDataset(guarded, alice)).toThrow(failure)
+  })
+
+  it("types the user as the dataset's scope and access take it", () => {
+    expectTypeOf<InferRow<typeof orders>>().toEqualTypeOf<{
+      id: string
+      value: number | null
+      cost: number | null
+      notes: string | null
+    }>()
+    expect(() =>
+      // @ts-expect-error not the dataset's user
+      authorizeDataset(orders, { name: "alice" })
+    ).toThrow(TypeError)
+    defineDataset({
+      id: "orders",
+      // @ts-expect-error a condition can't be undefined
+      scope: (user: User) => ({ orgId: user.id === "" ? undefined : user.id }),
+      fields: { id: { type: "id" } },
+    })
+    expect(() =>
+      // @ts-expect-error every dataset declares its scope
+      defineDataset({ id: "orders", fields: { id: { type: "id" } } })
+    ).toThrow('scope must be a function of the user, or "public"')
+  })
+})
