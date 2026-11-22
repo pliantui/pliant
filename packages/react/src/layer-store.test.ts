@@ -1040,6 +1040,25 @@ describe("createLayerStore", () => {
       )
     })
 
+    it("drops the user's changes to where a region's slots sit and whether they show", () => {
+      const region = personalOverlay("01KAB0000000000000000000P1", [
+        { op: "move", target: "key-metrics/slots/overdue", to: { index: 0 } },
+        { op: "hide", target: "key-metrics/slots/revenue" },
+      ])
+      const { storage } = memoryStorage({ personal: [region] })
+      const store = createLayerStore({ surface, storage })
+      store.connect()
+
+      expect(store.actions.resetNode("key-metrics")).toEqual({
+        success: true,
+      })
+      const resolved = store.getResolved()
+      expect(resolved.placements.get("overdue")?.winner).toBeUndefined()
+      expect(resolved.properties.get("revenue")?.has("visible") ?? false).toBe(
+        false
+      )
+    })
+
     it("keeps the ops it saves again in their place among later versions", async () => {
       const earlier = {
         ...personalOverlay("01KAB0000000000000000000P1", [

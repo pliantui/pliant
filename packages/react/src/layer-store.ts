@@ -79,11 +79,17 @@ const placeProperties = new Set(["placement", "visible", "inserted", "span"])
 
 // Whether a valid op writes a property of the node with this identity, or of
 // one of its items, such as a column, other than those its container owns.
+// A slot's properties are kept under its bare id, so an op that addresses
+// an item through the node (`dashboard/slots/chart`) writes the node's
+// items even where its properties don't show it.
 function writesNode(op: Op, identity: string) {
-  return opProperties(op).some(
-    ({ address, property }) =>
-      address.startsWith(`${identity}/`) ||
-      (address === identity && !placeProperties.has(property))
+  return (
+    op.target.startsWith(`${identity}/`) ||
+    opProperties(op).some(
+      ({ address, property }) =>
+        address.startsWith(`${identity}/`) ||
+        (address === identity && !placeProperties.has(property))
+    )
   )
 }
 
