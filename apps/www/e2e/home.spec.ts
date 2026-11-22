@@ -57,7 +57,7 @@ test("says the demo replays recorded answers", async ({ page }) => {
   ).toBeVisible()
 })
 
-test("reshapes the key metrics with a recorded ask", async ({
+test("reshapes the key metrics with a recorded ask, and resets them", async ({
   page,
   errors,
 }) => {
@@ -77,6 +77,10 @@ test("reshapes the key metrics with a recorded ask", async ({
 
   await metrics.getByRole("button", { name: "Lock in" }).click()
   await expect(metrics.getByText("Customized")).toBeVisible()
+
+  await metrics.getByRole("button", { name: "Reset key metrics" }).click()
+  await expect(metrics.getByText("Customized")).toBeHidden()
+  await expect.poll(() => statOrder(page)).toEqual(before)
   expect(errors).toEqual([])
 })
 
