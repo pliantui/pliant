@@ -14,7 +14,7 @@ import type { LayerTools } from "./layer-tools"
 import { planLockIn } from "./lock-in"
 import { settleManual, splitManual } from "./manual-changes"
 import { manualOverlay } from "./manual-overlay"
-import { identityOf } from "./node-identity"
+import { identityOf, parentOf } from "./node-identity"
 import { createNodeRegistry } from "./node-registry"
 import { idOf, mergeById, withOps } from "./overlay-list"
 import { loadingStatus, readyStatus, type PliantStatus } from "./pliant-status"
@@ -79,17 +79,17 @@ const placeProperties = new Set(["placement", "visible", "inserted", "span"])
 
 // Whether a valid op writes a property of the node with this identity, or of
 // one of its items, such as a column, other than those its container owns.
-// A slot's properties are kept under its bare id, so an op that addresses
-// an item through the node (`dashboard/slots/chart`) writes the node's
-// items even where its properties don't show it.
+// A slot's placement and visibility are kept under its bare id, so they're
+// the node's when the op addresses the slot through it, as
+// `key-metrics/slots/overdue` (at any depth) does.
 function writesNode(op: Op, identity: string) {
-  return (
-    op.target.startsWith(`${identity}/`) ||
-    opProperties(op).some(
-      ({ address, property }) =>
-        address.startsWith(`${identity}/`) ||
-        (address === identity && !placeProperties.has(property))
-    )
+  return opProperties(op).some(
+    ({ address, property }) =>
+      address.startsWith(`${identity}/`) ||
+      (address === identity && !placeProperties.has(property)) ||
+      (placeProperties.has(property) &&
+        address === identityOf(op.target) &&
+        parentOf(op.target) === identity)
   )
 }
 
