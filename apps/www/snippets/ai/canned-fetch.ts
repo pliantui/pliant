@@ -9,7 +9,8 @@ const answers: Record<string, AskResponse> = {
 }
 
 export const cannedFetch: typeof fetch = (_input, init) => {
-  const ask = askRequestSchema.parse(JSON.parse(String(init?.body)))
+  const body = typeof init?.body === "string" ? init.body : "{}"
+  const ask = askRequestSchema.parse(JSON.parse(body))
   return Promise.resolve(
     Response.json(
       answers[ask.prompt] ?? {
