@@ -74,4 +74,24 @@ export const scriptedAnswers: ScriptedAnswer[] = [
     ops: [{ op: "hide", target: "workspace-nav/items/reports" }],
     explain: ["Hid Reports from the sidebar."],
   },
+  {
+    target: "team-workspace",
+    kind: "region",
+    prompt: "put activity first",
+    ops: [
+      {
+        op: "move",
+        target: "team-workspace/slots/activity",
+        to: { index: 0 },
+      },
+    ],
+    explain: ["Moved Activity to the first panel."],
+  },
+  {
+    target: "team-workspace",
+    kind: "region",
+    prompt: "hide shared views",
+    ops: [{ op: "hide", target: "team-workspace/slots/shared-views" }],
+    explain: ["Hid the Shared views panel."],
+  },
 ]
