@@ -22,9 +22,9 @@ export function SiteHeader() {
           <MobileNav
             tree={pageTree}
             items={site.navItems}
-            className="flex lg:hidden"
+            className="flex xl:hidden"
           />
-          <MainNav items={site.navItems} className="hidden lg:flex" />
+          <MainNav items={site.navItems} className="hidden xl:flex" />
           <div className="ml-auto flex items-center gap-2 md:flex-1 md:justify-end">
             <div className="hidden w-full flex-1 md:flex md:w-auto md:flex-none">
               <CommandMenu tree={pageTree} navItems={site.navItems} />
