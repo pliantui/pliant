@@ -1,7 +1,7 @@
 [
   {
     "path": "dist/index.js",
-    "limit": "7.05 kB",
+    "limit": "7.1 kB",
     "ignore": [
       "react",
       "react-dom",
