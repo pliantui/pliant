@@ -1,0 +1,90 @@
+---
+title: Nav
+description: Sidebar links your users can reorder, hide, fold into More and pick their start page from.
+---
+
+<ComponentPreview name="nav-demo" />
+
+## Installation
+
+<CodeTabs>
+
+<TabsList>
+  <TabsTrigger value="cli">Command</TabsTrigger>
+  <TabsTrigger value="manual">Manual</TabsTrigger>
+</TabsList>
+<TabsContent value="cli">
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-nav.json
+```
+
+</TabsContent>
+<TabsContent value="manual">
+
+<Steps className="mb-0 pt-2">
+
+<ComponentManualInstall name="pliant-nav" />
+
+</Steps>
+
+</TabsContent>
+</CodeTabs>
+
+## Usage
+
+Render `PliantNav` in place of shadcn's `SidebarMenu`, with each link by its id. `PliantSidebarProvider` takes the place of `SidebarProvider` and saves whether the sidebar is open as the user's own default.
+
+<include cwd lang="tsx">
+  snippets/components/nav.tsx#usage
+</include>
+
+## What users can ask
+
+These are the asks the preview plays:
+
+| Ask                      | What changes                            |
+| ------------------------ | --------------------------------------- |
+| pin customers to the top | Customers moves to the top of the list. |
+| hide reports             | Reports is hidden from the sidebar.     |
+
+Each link's options menu lets users make it their start page.
+
+## Rules and guardrails
+
+- Users change order, visibility and their start page. They can't add links or change where a link goes.
+- A hidden link only leaves the sidebar. The page is still there, and your own permissions decide who can open it.
+
+## Examples
+
+### Send users to their start page
+
+Read the start page with `usePliantNav` where your app's start route renders, and redirect to it.
+
+<include cwd lang="tsx">
+  snippets/components/nav-start-page.tsx#start
+</include>
+
+## Options
+
+### PliantNav
+
+| Prop    | Type                            | Description                                               |
+| ------- | ------------------------------- | --------------------------------------------------------- |
+| `id`    | `string`                        | The nav's node id: kebab-case, unique within the surface. |
+| `items` | `Record<string, PliantNavItem>` | Each link by its id. The key order is the base order.     |
+
+A `PliantNavItem` has a `title`, a `url`, an optional `icon` and `isActive` for the current page.
+
+### PliantSidebarProvider
+
+| Prop          | Type      | Description                                         |
+| ------------- | --------- | --------------------------------------------------- |
+| `id`          | `string`  | The id of the nav whose open state this is.         |
+| `defaultOpen` | `boolean` | Applies until the user opens or closes the sidebar. |
+
+## Accessibility
+
+- Wrap the nav in `<nav aria-label="...">` so screen readers list it as a landmark.
+- The current page's link gets `aria-current="page"`.
+- Each link keeps its own list item, so the tab order follows the order users see.

@@ -21,12 +21,6 @@ interface Section {
 // page with its title and what the section is, so every nav link leads
 // somewhere.
 const sections = {
-  components: {
-    title: "Components",
-    description:
-      "Components that let your users reshape your app, built on shadcn/ui.",
-    status: "coming-soon",
-  },
   blocks: {
     title: "Blocks",
     description: "Ready-made page sections with Pliant wired in.",

@@ -73,7 +73,7 @@ test.describe("on a wide screen", () => {
       expect.arrayContaining([
         "/",
         "/docs",
-        "/components",
+        "/docs/components",
         "/blocks",
         "/charts",
         "/examples/orders",
@@ -299,7 +299,7 @@ test.describe("on a wide screen", () => {
 
     expect(links).toEqual([
       ["Docs", "/docs"],
-      ["Components", "/components"],
+      ["Components", "/docs/components"],
       ["Examples", "/examples/orders"],
       ["Roadmap", "/roadmap"],
       ["Changelog", "/changelog"],
@@ -339,7 +339,7 @@ test.describe("on a wide screen", () => {
     const main = page.getByRole("main")
 
     await main.getByRole("link", { name: "View components" }).click()
-    await expect(page).toHaveURL("/examples/orders")
+    await expect(page).toHaveURL("/docs/components")
     await page.goto("/")
     await main.getByRole("link", { name: "Get started" }).click()
     await expect(

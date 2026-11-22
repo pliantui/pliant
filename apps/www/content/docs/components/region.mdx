@@ -1,0 +1,88 @@
+---
+title: Region
+description: A group of cards or sections your users can reorder, hide, resize and collapse.
+---
+
+<ComponentPreview name="region-demo" />
+
+## Installation
+
+<CodeTabs>
+
+<TabsList>
+  <TabsTrigger value="cli">Command</TabsTrigger>
+  <TabsTrigger value="manual">Manual</TabsTrigger>
+</TabsList>
+<TabsContent value="cli">
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-region.json
+```
+
+</TabsContent>
+<TabsContent value="manual">
+
+<Steps className="mb-0 pt-2">
+
+<ComponentManualInstall name="pliant-region" />
+
+</Steps>
+
+</TabsContent>
+</CodeTabs>
+
+## Usage
+
+Give the region an `id` and its content as `slots`. The key order is the order users start from. Render it inside a [`PliantRoot`](/docs/components/pliant-root).
+
+<include cwd lang="tsx">
+  snippets/components/region.tsx#usage
+</include>
+
+## What users can ask
+
+Users can point at a region and ask in their own words. Each change previews in place until they lock it in or discard it. These asks have recorded answers, so the preview above plays them:
+
+| Ask                                 | What changes                                  |
+| ----------------------------------- | --------------------------------------------- |
+| put the overdue card first          | The Overdue card moves to the front.          |
+| hide the average order value card   | That card is hidden. Reset brings it back.    |
+| show the cards in a two-column grid | The region lays its cards out in two columns. |
+
+Users can also move, hide, resize and collapse slots by hand.
+
+## Rules and guardrails
+
+- Users change only the order, visibility, size and layout of slots. They can't add content you didn't write or change what a slot shows.
+- Every change is checked against the region's manifest, so an ask that would break it is turned down.
+- A change saves for that user only. Their team's defaults and your base order stay as they are, and Reset returns to them.
+- Slot ids are the names changes are saved under. Rename one with care: a saved change to the old id stops applying.
+
+## Examples
+
+### Two-column layout
+
+A region takes any grid classes. Users' layout changes apply on top of yours.
+
+<include cwd lang="tsx">
+  snippets/components/region-layout.tsx#layout
+</include>
+
+## Options
+
+### PliantRegion
+
+| Prop        | Type                        | Description                                                                                                            |
+| ----------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `id`        | `string`                    | The region's node id: kebab-case, unique within the surface.                                                           |
+| `slots`     | `Record<string, ReactNode>` | The region's content by slot id. The key order is the base order, so keys must be kebab-case and start with a letter.  |
+| `className` | `string`                    | Classes for the grid. Use `gap` classes for spacing, not `space-*` or `divide-*`, which would style the slot wrappers. |
+
+It also takes the props of a `div`, except `children`.
+
+## Accessibility
+
+- Each slot renders inside a `display: contents` wrapper, so your own markup and landmarks stay as they are.
+- Hidden slots are kept with React's `Activity`, so they keep their state while screen readers and the tab order skip them.
+- Collapsed slots sit behind a More button that says whether it's expanded.
+- Reordered slots move in the DOM, so the reading and tab order follow the order users see.
