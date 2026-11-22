@@ -12,17 +12,17 @@ const asks = [
 ]
 
 const history = [
-  { time: "9:12", change: "Hid the Notes column" },
-  { time: "11:40", change: "Sorted by value, highest first" },
   { time: "14:05", change: "Filtered to overdue orders" },
+  { time: "13:20", change: "Sorted by value, highest first" },
+  { time: "9:12", change: "Hid the Notes column" },
 ]
 
 export function HistoryAndUndoMockup() {
   const scripted = useScriptedAsks()
   const kept = scripted.has(asks[1] ?? "")
-    ? []
+    ? history.slice(2)
     : scripted.has(asks[0] ?? "")
-      ? history.slice(0, -1)
+      ? history.slice(1)
       : history
 
   return (
@@ -30,9 +30,7 @@ export function HistoryAndUndoMockup() {
       <div className="flex flex-col gap-3 text-sm">
         <p className="rounded-xl border p-3">
           All orders now:{" "}
-          {kept.length === 0
-            ? "as it was this morning"
-            : kept.map((entry) => entry.change.toLowerCase()).join(", ")}
+          {kept.map((entry) => entry.change.toLowerCase()).join(", ")}
         </p>
         {scripted.has(asks[2] ?? "") && (
           <ol aria-label="Today's changes" className="flex flex-col gap-1">
@@ -49,6 +47,9 @@ export function HistoryAndUndoMockup() {
                   }
                 >
                   {entry.change}
+                  {!kept.includes(entry) && (
+                    <span className="sr-only"> (undone)</span>
+                  )}
                 </span>
               </li>
             ))}

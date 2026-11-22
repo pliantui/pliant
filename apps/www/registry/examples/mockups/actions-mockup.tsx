@@ -1,7 +1,5 @@
 "use client"
 
-import { MoreHorizontalIcon } from "lucide-react"
-
 import {
   ScriptedFrame,
   useScriptedAsks,
@@ -12,7 +10,7 @@ import { Kbd } from "@/components/ui/kbd"
 const asks = [
   "put export on the toolbar",
   "move send gst invoice to the menu",
-  "bind e to export",
+  "bind shift e to export",
   "hide duplicate",
 ]
 
@@ -37,24 +35,16 @@ export function ActionsMockup() {
     <ScriptedFrame label="order actions" asks={asks} scripted={scripted}>
       <div className="flex flex-col gap-3">
         <div
-          role="toolbar"
           aria-label="Order actions"
+          role="group"
           className="flex flex-wrap items-center gap-2"
         >
           {toolbar.map((action) => (
             <Button key={action} type="button" variant="outline" size="sm">
               {action}
-              {action === "Export" && shortcut && <Kbd>E</Kbd>}
+              {action === "Export" && shortcut && <Kbd>⌘⇧E</Kbd>}
             </Button>
           ))}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="More actions"
-          >
-            <MoreHorizontalIcon />
-          </Button>
         </div>
         <div className="w-56 rounded-lg border p-1 text-sm shadow-sm">
           <p className="px-2 py-1 text-xs text-muted-foreground">
@@ -67,7 +57,7 @@ export function ActionsMockup() {
                 className="flex items-center justify-between rounded-sm px-2 py-1.5"
               >
                 {action}
-                {action === "Export" && shortcut && <Kbd>E</Kbd>}
+                {action === "Export" && shortcut && <Kbd>⌘⇧E</Kbd>}
               </li>
             ))}
           </ul>

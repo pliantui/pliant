@@ -25,7 +25,7 @@ export function ShareLinkMockup() {
         {shared && (
           <div className="flex flex-col gap-1 rounded-xl border p-3">
             <code className="truncate text-xs">
-              https://app.saffronsupply.in/orders?view=7KQ2M9
+              https://app.saffronsupply.example/orders?view=7KQ2M9
               {tableOnly ? "&node=orders-table" : ""}
             </code>
             <span className="text-muted-foreground">

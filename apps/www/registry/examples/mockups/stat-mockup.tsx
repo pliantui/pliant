@@ -9,20 +9,12 @@ const asks = [
   "compare with last quarter",
   "show the difference in rupees",
   "show overdue value instead",
-  "round to lakhs",
 ]
 
 export function StatMockup() {
   const scripted = useScriptedAsks()
   const overdue = scripted.has(asks[2] ?? "")
-  const lakhs = scripted.has(asks[3] ?? "")
-  const value = overdue
-    ? lakhs
-      ? "₹4.8 L"
-      : "₹4,80,650"
-    : lakhs
-      ? "₹37.8 L"
-      : "₹37,76,600"
+  const value = overdue ? "₹4,80,650" : "₹37,76,600"
   const comparison = scripted.has(asks[1] ?? "")
     ? overdue
       ? "₹62,400 more than last quarter"

@@ -14,9 +14,12 @@ export function useScriptedAsks() {
   return {
     applied,
     has: (prompt: string) => applied.includes(prompt),
+    // A second press takes the ask back.
     ask: (prompt: string) => {
       setApplied((current) =>
-        current.includes(prompt) ? current : [...current, prompt]
+        current.includes(prompt)
+          ? current.filter((entry) => entry !== prompt)
+          : [...current, prompt]
       )
     },
     reset: () => {
@@ -88,6 +91,13 @@ export function ScriptedFrame({
             </Button>
           ))}
         </div>
+        <p
+          role="status"
+          className="text-xs text-muted-foreground empty:sr-only"
+        >
+          {scripted.applied.length > 0 &&
+            `Playing a scripted answer to "${scripted.applied.at(-1) ?? ""}".`}
+        </p>
         <NotImplementedBanner variant="preview">
           This component isn&apos;t in Pliant yet, so the preview plays
           hand-written answers to its asks.

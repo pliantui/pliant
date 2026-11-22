@@ -82,16 +82,20 @@ export function ListMockup() {
     <ScriptedFrame label="orders list" asks={asks} scripted={scripted}>
       <div className="flex flex-col gap-3">
         {groups.map((group) => (
-          <section
-            key={group.customer ?? "all"}
-            aria-label={group.customer ?? "Orders"}
-          >
+          <div key={group.customer ?? "all"}>
             {group.customer && (
-              <h3 className="mb-1 text-xs font-medium text-muted-foreground">
-                {group.customer}
-              </h3>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
+                {group.customer} · {group.rows.length}
+              </p>
             )}
-            <ul className="divide-y rounded-xl border">
+            <ul
+              aria-label={
+                group.customer
+                  ? `${group.customer}, ${String(group.rows.length)} orders`
+                  : "Orders"
+              }
+              className="divide-y rounded-xl border"
+            >
               {group.rows.map((row) => (
                 <li
                   key={row.id}
@@ -110,7 +114,7 @@ export function ListMockup() {
                 </li>
               ))}
             </ul>
-          </section>
+          </div>
         ))}
       </div>
     </ScriptedFrame>

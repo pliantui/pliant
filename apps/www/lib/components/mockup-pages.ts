@@ -3,7 +3,6 @@ import type { ComponentGroup } from "@/lib/components/component-groups"
 export interface MockupPage {
   slug: string
   title: string
-  description: string
   group: ComponentGroup
   registryItem: string
   dependencies: string[]
@@ -27,8 +26,6 @@ export const mockupPages: MockupPage[] = [
   {
     slug: "messages",
     title: "Messages",
-    description:
-      "Show a label from your messages, translated for each user, and let users rename it for themselves.",
     group: "Core",
     registryItem: "pliant-messages",
     dependencies: ["@pliantui/react"],
@@ -63,7 +60,9 @@ export const mockupPages: MockupPage[] = [
         title: "Declare your own messages",
         description:
           "Add your app's labels to the same messages Pliant's components use, so one translation object covers both.",
-        code: `declare module "@pliantui/react" {
+        code: `import type { PliantMessages } from "@pliantui/react"
+
+declare module "@pliantui/react" {
   interface PliantMessages {
     overdueTitle: string
     ordersShown: (count: number) => string
@@ -98,7 +97,7 @@ export const messages = {
             name: "values",
             type: "unknown[]",
             description:
-              "Arguments for a message that's a function, such as a count. TypeScript checks them against the message.",
+              "Arguments for a message that's a function, such as a count.",
           },
           {
             name: "target",
@@ -124,8 +123,6 @@ export const messages = {
   {
     slug: "chart",
     title: "Chart",
-    description:
-      "A chart of your data that users can switch between kinds, stack, trim to the series they care about and narrow to a time range.",
     group: "Data",
     registryItem: "pliant-chart",
     dependencies: ["@pliantui/react", "recharts"],
@@ -264,8 +261,6 @@ export const messages = {
   {
     slug: "stat",
     title: "Stat",
-    description:
-      "A metric card that users can point at another metric, compare against an earlier period and format their way.",
     group: "Data",
     registryItem: "pliant-stat",
     dependencies: ["@pliantui/react"],
@@ -293,10 +288,6 @@ export const messages = {
       {
         prompt: "show overdue value instead",
         result: "The card switches to the total value of overdue orders.",
-      },
-      {
-        prompt: "round to lakhs",
-        result: "The value shows in compact notation, such as ₹48.2L.",
       },
     ],
     rules: [
@@ -376,8 +367,6 @@ export const messages = {
   {
     slug: "list",
     title: "List",
-    description:
-      "A list of records, such as recent orders, that users can sort, filter, group and space out their way.",
     group: "Data",
     registryItem: "pliant-list",
     dependencies: ["@pliantui/react", "lucide-react"],
@@ -495,8 +484,6 @@ export const messages = {
   {
     slug: "tabs-and-panels",
     title: "Tabs and Panels",
-    description:
-      "Tabs whose default tab, order and visibility each user can change.",
     group: "Navigation",
     registryItem: "pliant-tabs",
     dependencies: ["@pliantui/react", "radix-ui"],
@@ -596,8 +583,6 @@ export const messages = {
   {
     slug: "actions",
     title: "Actions",
-    description:
-      "A toolbar of actions with an overflow menu, whose actions users reorder, pin, hide and bind to keyboard shortcuts.",
     group: "Actions",
     registryItem: "pliant-actions",
     dependencies: ["@pliantui/react", "lucide-react", "radix-ui"],
@@ -623,9 +608,9 @@ export const messages = {
         result: "Send GST invoice moves into the overflow menu.",
       },
       {
-        prompt: "bind e to export",
+        prompt: "bind shift e to export",
         result:
-          "Pressing E runs Export, and the shortcut shows next to it in the menu.",
+          "Pressing ⌘⇧E (Ctrl+Shift+E on Windows and Linux) runs Export, and the shortcut shows next to it in the menu.",
       },
       {
         prompt: "hide duplicate",
@@ -733,8 +718,6 @@ export const messages = {
   {
     slug: "dialog",
     title: "Dialog",
-    description:
-      "A dialog that users can turn into a sheet, a drawer or a full page, with fields and sections they rearrange.",
     group: "Overlays",
     registryItem: "pliant-dialog",
     dependencies: ["@pliantui/react", "radix-ui", "vaul"],
@@ -870,8 +853,6 @@ export const messages = {
   {
     slug: "suggestions",
     title: "Suggestions",
-    description:
-      "Chips with asks that fit the part of the page a user is looking at, which fill in the ask panel with one click.",
     group: "AI",
     registryItem: "pliant-suggestions",
     dependencies: ["@pliantui/react"],
@@ -959,8 +940,6 @@ export const messages = {
   {
     slug: "customized-indicator",
     title: "Customized Indicator",
-    description:
-      "A small marker on a part of the page that the user or their team changed, listing the changes and offering a reset.",
     group: "Status and history",
     registryItem: "pliant-customized-indicator",
     dependencies: ["@pliantui/react", "lucide-react", "radix-ui"],
@@ -1043,8 +1022,6 @@ export const messages = {
   {
     slug: "reset",
     title: "Reset",
-    description:
-      "A button that drops the user's own changes to one part of the page, or to the whole page.",
     group: "Status and history",
     registryItem: "pliant-reset",
     dependencies: ["@pliantui/react", "lucide-react"],
@@ -1150,8 +1127,6 @@ function onReset() {
   {
     slug: "history-and-undo",
     title: "History and Undo",
-    description:
-      "Undo and redo the user's changes, and a list of every change that lets them go back to any point.",
     group: "Status and history",
     registryItem: "pliant-history",
     dependencies: ["@pliantui/react", "lucide-react", "radix-ui"],
@@ -1272,8 +1247,6 @@ return (
   {
     slug: "share-link",
     title: "Share Link",
-    description:
-      "Copy a link that opens the page arranged the user's way, which a colleague previews before keeping.",
     group: "Status and history",
     registryItem: "pliant-share-link",
     dependencies: ["@pliantui/react", "lucide-react"],
@@ -1365,8 +1338,6 @@ return (
   {
     slug: "team-publish",
     title: "Team Publish",
-    description:
-      "Let a team lead publish their arrangement as the team's default, preview it first, and remove it later.",
     group: "Status and history",
     registryItem: "pliant-team-publish",
     dependencies: ["@pliantui/react", "lucide-react", "radix-ui"],
@@ -1460,8 +1431,6 @@ return (
   {
     slug: "text-size-density-motion",
     title: "Text Size, Density and Motion",
-    description:
-      "Controls for a larger text size and reduced motion across the app, and comfortable or compact spacing on a page.",
     group: "Preferences",
     registryItem: "pliant-preferences",
     dependencies: ["@pliantui/react", "radix-ui"],
@@ -1472,7 +1441,7 @@ return (
     asks: [
       {
         prompt: "make the text bigger",
-        result: "Text across the app grows to 125%, and layouts reflow to fit.",
+        result: "Text across the app grows a step, and layouts reflow to fit.",
       },
       {
         prompt: "compact spacing on this page",
@@ -1500,7 +1469,7 @@ return (
         title: "Style for density",
         description:
           "Pliant sets `data-density` on the page's root, so your own components can follow it.",
-        code: `<div className="p-4 data-[density=compact]:p-2 data-[density=comfortable]:p-6">
+        code: `<div className="p-4 in-data-[density=compact]:p-2 in-data-[density=comfortable]:p-6">
   <OrderSummary />
 </div>`,
       },

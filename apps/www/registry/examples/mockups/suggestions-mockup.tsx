@@ -42,7 +42,7 @@ export function SuggestionsMockup() {
     <ScriptedFrame label="orders" asks={asks} scripted={scripted}>
       <div className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          Suggested for you, from what your team changes most on this table.
+          Suggested asks for this table. Picking one previews the change.
         </p>
         <table className="w-full text-sm">
           <caption className="sr-only">Orders</caption>

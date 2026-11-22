@@ -95,8 +95,12 @@ function render(page: MockupPage, section: Section) {
           />
           <p>
             It installs{" "}
-            <Inline text={`\`${page.dependencies.join("`, `")}\``} /> and copies
-            the component into <code>components/pliant</code>.
+            <Inline
+              text={new Intl.ListFormat("en", { type: "conjunction" }).format(
+                page.dependencies.map((dependency) => `\`${dependency}\``)
+              )}
+            />{" "}
+            and copies the component into <code>components/pliant</code>.
           </p>
         </>
       )

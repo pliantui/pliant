@@ -48,7 +48,7 @@ export function ChartMockup() {
     <ScriptedFrame label="revenue chart" asks={asks} scripted={scripted}>
       <figure className="flex flex-col gap-3">
         <figcaption className="text-sm font-medium">
-          Order value by month, May–Oct 2026
+          Revenue by month, May–Oct 2026
           {series.length === 1 ? ", overdue only" : ""}
         </figcaption>
         <svg
@@ -98,7 +98,7 @@ export function ChartMockup() {
               x={index * step + step / 2}
               y={height + 14}
               textAnchor="middle"
-              className="fill-muted-foreground text-[8px]"
+              className="fill-muted-foreground text-[10px]"
             >
               {row.month}
             </text>

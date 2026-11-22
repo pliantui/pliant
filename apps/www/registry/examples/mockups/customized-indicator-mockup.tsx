@@ -20,8 +20,10 @@ export function CustomizedIndicatorMockup() {
     <ScriptedFrame label="orders table" asks={asks} scripted={scripted}>
       <div className="flex flex-col gap-3 rounded-xl border p-4 text-sm">
         <div className="flex items-center justify-between">
-          <h3 className="font-medium">All orders</h3>
-          {!undone && <Badge variant="secondary">Customized by you</Badge>}
+          <p className="font-medium">All orders</p>
+          <Badge variant="secondary">
+            {undone ? "Customized by your team" : "Customized by you"}
+          </Badge>
         </div>
         {scripted.has(asks[0] ?? "") && !undone && (
           <ul className="list-disc pl-5 text-muted-foreground">
@@ -31,13 +33,14 @@ export function CustomizedIndicatorMockup() {
         )}
         {undone && (
           <p className="text-muted-foreground">
-            Your changes are gone. The table shows your team&apos;s layout.
+            Your changes are gone. The table shows your team&apos;s layout, and
+            the indicator lists only their changes.
           </p>
         )}
         {scripted.has(asks[2] ?? "") && (
           <p className="text-muted-foreground">
-            The column order is the Support team&apos;s default, set by Priya
-            Kapoor on 3 Oct 2026.
+            The column order is the Sales North team&apos;s default, set by
+            Arjun Mehta on 3 Oct 2026.
           </p>
         )}
       </div>

@@ -33,7 +33,7 @@ export function DialogMockup() {
               : "items-center justify-center"
         )}
       >
-        <section
+        <div
           role="group"
           aria-label={`Edit ORD-1042, shown as a ${drawer ? "drawer" : sheet ? "side sheet" : "dialog"}`}
           className={cn(
@@ -45,7 +45,7 @@ export function DialogMockup() {
                 : cn("rounded-xl", big ? "w-11/12" : "w-3/4")
           )}
         >
-          <h3 className="font-semibold">Edit ORD-1042</h3>
+          <p className="font-semibold">Edit ORD-1042</p>
           <p className="text-muted-foreground">Kaveri Agro · ₹96,550</p>
           <div className="rounded-md border px-3 py-2">
             Delivery date: 28 Oct 2026
@@ -57,7 +57,7 @@ export function DialogMockup() {
               Delivery notes: Leave with the warehouse at Gate 2.
             </div>
           )}
-        </section>
+        </div>
       </div>
     </ScriptedFrame>
   )

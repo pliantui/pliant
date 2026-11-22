@@ -121,10 +121,39 @@ for (const [slug, title] of mockups) {
         .filter({ hasText: "Not fully implemented yet" })
         .first()
     ).toBeVisible()
-    const asks = preview(page).getByRole("group", { name: /^Ask about / })
-    await expect(asks.getByRole("button").first()).toHaveAccessibleName(
-      /, Scripted$/
-    )
+    const asks = preview(page)
+      .getByRole("group", { name: /^Ask about / })
+      .getByRole("button")
+    expect(await asks.count()).toBeGreaterThan(0)
+    for (const ask of await asks.all()) {
+      await expect(ask).toHaveAccessibleName(/, Scripted$/)
+    }
+  })
+
+  test(`the ${title} preview plays every ask and resets`, async ({
+    page,
+    errors,
+  }) => {
+    await page.goto(`/docs/components/${slug}`)
+    const asks = preview(page)
+      .getByRole("group", { name: /^Ask about / })
+      .getByRole("button")
+
+    for (const ask of await asks.all()) {
+      await ask.click()
+      await expect(ask).toHaveAttribute("aria-pressed", "true")
+    }
+    await expect(
+      preview(page).getByText("Customized", { exact: true })
+    ).toBeVisible()
+    const reset = preview(page).getByRole("button", { name: /^Reset / })
+    await reset.click()
+    await expect(reset).toHaveAttribute("aria-disabled", "true")
+    await expect(reset).toBeFocused()
+    for (const ask of await asks.all()) {
+      await expect(ask).toHaveAttribute("aria-pressed", "false")
+    }
+    expect(errors).toEqual([])
   })
 }
 

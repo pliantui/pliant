@@ -19,7 +19,7 @@ const cards = [
 
 export function MessagesMockup() {
   const scripted = useScriptedAsks()
-  const original = scripted.has("go back to the original name")
+  const original = scripted.has(asks[2] ?? "")
   const label = (id: string, fallback: string) => {
     if (original) return fallback
     if (id === "overdue" && scripted.has(asks[0] ?? "")) return "Dues"
@@ -29,7 +29,7 @@ export function MessagesMockup() {
 
   return (
     <ScriptedFrame label="card labels" asks={asks} scripted={scripted}>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {cards.map((card) => (
           <div key={card.id} className="rounded-xl border p-3">
             <p className="text-xs text-muted-foreground">

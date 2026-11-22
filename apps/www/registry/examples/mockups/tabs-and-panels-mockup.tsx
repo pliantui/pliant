@@ -38,9 +38,7 @@ export function TabsAndPanelsMockup() {
   if (scripted.has(asks[2] ?? "")) {
     order = order.filter((id) => id !== "activity")
   }
-  const opening = scripted.has(asks[0] ?? "")
-    ? "invoices"
-    : (order[0] ?? "overview")
+  const opening = scripted.has(asks[0] ?? "") ? "invoices" : "overview"
 
   return (
     <ScriptedFrame label="order tabs" asks={asks} scripted={scripted}>
