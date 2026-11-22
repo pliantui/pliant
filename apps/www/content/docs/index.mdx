@@ -11,7 +11,16 @@ Here's a row of three metric cards whose arrangement Pliant saves for each user:
   snippets/intro/page.tsx#page
 </include>
 
-The page looks the same as it did before you added Pliant. `PliantRoot` loads and saves each user's changes for the page, and `PliantRegion` renders the cards the way the user arranged them. Cards have no controls of their own: with the [ask panel](/docs/ask-panel) added, a user can ask to move the **Overdue** card to the front, hide **Revenue** or show the row as a two-column grid, and the page stays that way the next time they open it. Try it in the [orders example](/examples/orders).
+The page looks the same as it did before you added Pliant. The difference is that a user can now drag the **Overdue** card to the front, hide **Revenue** from the card's menu, or switch the row to a two-column grid, and see it that way the next time they open the page. `PliantRoot` loads and saves those changes for the page, and `PliantRegion` renders the cards the way the user arranged them. Try it in the [orders example](/examples/orders).
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Dragging, hiding and the layout menu on cards aren't in Pliant yet. Today,
+  users make these changes through the ask panel.
+</Callout>
 
 <Callout title="Pre-1.0">
   Pliant is experimental. Its APIs can change in any release.
@@ -22,9 +31,19 @@ The page looks the same as it did before you added Pliant. `PliantRoot` loads an
 Most apps grow these features one at a time: a sort that's remembered per user, a column picker, a layout reset. With Pliant, each of them is a change saved for the user in the same way, so you don't build and store them separately.
 
 - Tables remember each user's sort and visible columns. A **Reset** button in the toolbar brings back your defaults.
-- Through the ask panel, groups of cards and sections can be reordered, hidden and laid out as a row or a grid.
-- Team or organization defaults can reorder a form's fields and hide optional ones. Required fields always stay.
+- Groups of cards and sections can be reordered, hidden and laid out as a row or a grid.
+- Form fields can be reordered, optional ones hidden, and each user can keep their own defaults. Required fields always stay.
 - With the optional ask panel, a user can point at the table and type "only overdue orders". They see the result as a preview and choose whether to keep it.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Changing cards and form fields from the page isn't in Pliant yet. Today, cards
+  change through the ask panel, and forms apply changes from team or
+  organization defaults.
+</Callout>
 
 [What users can do](/docs/what-users-can-do) lists every change.
 
