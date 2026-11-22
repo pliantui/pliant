@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test"
 
-import { orders } from "../app/(examples)/examples/orders/data"
-import { formatNumber } from "../app/(examples)/examples/orders/format"
+import { orders } from "../lib/demo/data"
+import { formatNumber } from "../lib/demo/format"
 import { expect, test } from "./fixtures"
 
 const surface = "/examples/orders"
@@ -66,7 +66,18 @@ async function pointAtTable(page: Page) {
     .locator('[data-slot="pliant-point-mode"]')
     .getByRole("button", { name: "All orders" })
   await expect(box).toBeVisible()
-  expect(await box.boundingBox()).toEqual(await node(page).boundingBox())
+  const outline = await box.boundingBox()
+  const table = await node(page).boundingBox()
+  // The outline surrounds the table, except where the screen ends.
+  const viewport = page.viewportSize()?.height ?? 0
+  expect(outline?.x).toBeLessThan(table?.x ?? 0)
+  expect(outline?.y).toBeLessThan(table?.y ?? 0)
+  expect((outline?.x ?? 0) + (outline?.width ?? 0)).toBeGreaterThan(
+    (table?.x ?? 0) + (table?.width ?? 0)
+  )
+  expect((outline?.y ?? 0) + (outline?.height ?? 0)).toBeGreaterThanOrEqual(
+    Math.min((table?.y ?? 0) + (table?.height ?? 0), viewport - 2)
+  )
   await box.click()
   await page.keyboard.up("Alt")
   await expect(

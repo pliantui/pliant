@@ -1,6 +1,8 @@
 import { PliantRoot } from "@pliantui/react"
 import { localAdapter } from "@pliantui/react/local"
 
+import { CustomizedReset } from "@/components/demo/customized-reset"
+import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { inventory } from "@/lib/pliant/inventory.generated"
@@ -31,7 +33,14 @@ export default function AppExampleLayout({
               className="mr-2 data-[orientation=vertical]:h-4"
             />
             <span className="text-sm text-muted-foreground">Support desk</span>
+            <div className="ml-auto">
+              <CustomizedReset targets={["app-sidebar"]} label="the sidebar" />
+            </div>
           </header>
+          <NotImplementedBanner variant="preview" className="mx-4 mt-4 w-auto">
+            The Customized badge previews an indicator that isn&apos;t in Pliant
+            yet.
+          </NotImplementedBanner>
           {children}
         </SidebarInset>
       </PliantSidebarProvider>

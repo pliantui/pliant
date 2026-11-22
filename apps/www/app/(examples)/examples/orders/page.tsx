@@ -4,15 +4,19 @@ import { PliantRoot } from "@pliantui/react"
 import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
+import { CustomizedReset } from "@/components/demo/customized-reset"
+import { DemoAskToolbar } from "@/components/demo/demo-ask-toolbar"
+import { ReplayNote } from "@/components/demo/replay-note"
+import { NotImplementedBanner } from "@/components/not-implemented-banner"
+import { orders } from "@/lib/demo/data"
+import { formatCurrency, formatNumber } from "@/lib/demo/format"
+import { getOrderStats } from "@/lib/demo/stats"
 import { inventory } from "@/lib/pliant/inventory.generated"
 import { PliantRegion } from "@/registry/pliant/pliant-region"
 
-import { AskToolbar } from "./components/ask-toolbar"
+import { askTargets } from "./ask-targets"
 import { KpiCard } from "./components/kpi-card"
 import { OrdersTable } from "./components/orders-table"
-import { orders } from "./data"
-import { formatCurrency, formatNumber } from "./format"
-import { getOrderStats } from "./stats"
 
 export const metadata: Metadata = {
   title: "Orders",
@@ -38,8 +42,21 @@ export default function OrdersPage() {
                 Orders placed Jan–Oct 2026
               </p>
             </div>
-            <AskToolbar />
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <CustomizedReset
+                targets={["key-metrics", "orders-table"]}
+                label="the orders page"
+              />
+              <DemoAskToolbar targets={askTargets} />
+            </div>
           </header>
+          <div className="flex flex-col gap-3">
+            <ReplayNote />
+            <NotImplementedBanner variant="preview">
+              The Customized badge previews an indicator that isn&apos;t in
+              Pliant yet.
+            </NotImplementedBanner>
+          </div>
           <section aria-label="Key metrics">
             <PliantRegion
               id="key-metrics"

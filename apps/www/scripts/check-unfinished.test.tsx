@@ -29,8 +29,7 @@ function page(path: string, body: React.ReactNode) {
 }
 
 describe("findUnfinishedPages", () => {
-  it("finds the pages that show a banner or a placeholder", () => {
-    page("index.html", <h1>Home</h1>)
+  it("finds the pages that show a banner, a placeholder or a scripted ask", () => {
     page("charts.html", <NotImplementedBanner />)
     page(
       "docs/guides/teams.html",
@@ -40,6 +39,7 @@ describe("findUnfinishedPages", () => {
       </>
     )
     page("templates.html", <ComingSoon>Templates.</ComingSoon>)
+    page("index.html", <div data-unfinished="scripted">Scripted asks</div>)
     page("notes.txt", <NotImplementedBanner />)
 
     expect(findUnfinishedPages(directory)).toEqual([
@@ -48,6 +48,7 @@ describe("findUnfinishedPages", () => {
         file: join("docs", "guides", "teams.html"),
         kinds: ["coming-soon", "not-implemented"],
       },
+      { file: "index.html", kinds: ["scripted"] },
       { file: "templates.html", kinds: ["coming-soon"] },
     ])
   })
