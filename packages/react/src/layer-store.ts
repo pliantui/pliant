@@ -14,7 +14,7 @@ import type { LayerTools } from "./layer-tools"
 import { planLockIn } from "./lock-in"
 import { settleManual, splitManual } from "./manual-changes"
 import { manualOverlay } from "./manual-overlay"
-import { identityOf, parentOf } from "./node-identity"
+import { identityOf } from "./node-identity"
 import { createNodeRegistry } from "./node-registry"
 import { idOf, mergeById, withOps } from "./overlay-list"
 import { loadingStatus, readyStatus, type PliantStatus } from "./pliant-status"
@@ -86,10 +86,11 @@ function writesNode(op: Op, identity: string) {
   return opProperties(op).some(
     ({ address, property }) =>
       address.startsWith(`${identity}/`) ||
-      (address === identity && !placeProperties.has(property)) ||
-      (placeProperties.has(property) &&
-        address === identityOf(op.target) &&
-        parentOf(op.target) === identity)
+      (address === identity
+        ? !placeProperties.has(property)
+        : placeProperties.has(property) &&
+          op.target.endsWith(`/slots/${address}`) &&
+          identityOf(op.target.slice(0, -7 - address.length)) === identity)
   )
 }
 
