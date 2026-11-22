@@ -44,8 +44,9 @@ export default function ChartsLayout({ children }: LayoutProps<"/charts">) {
         </PageActions>
         <NotImplementedBanner className="mt-4 max-w-2xl text-left">
           Charts aren&apos;t in Pliant yet, so every ask on this page plays a
-          hand-written answer. The server mode example sums generated orders on
-          the server in place of a database query.
+          hand-written answer. The server mode example sums 250,000 generated
+          orders when the page builds, in place of a database query, and its
+          asks switch between the precomputed monthly and weekly totals.
         </NotImplementedBanner>
       </PageHeader>
       <PageNav id="charts">

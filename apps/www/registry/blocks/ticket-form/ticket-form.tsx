@@ -68,7 +68,6 @@ export function TicketForm() {
 
   return (
     <form
-      id="ticket-form"
       noValidate
       onSubmit={(event) => {
         void form.handleSubmit(onSubmit)(event)
