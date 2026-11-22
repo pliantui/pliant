@@ -29,13 +29,27 @@ recordingMiddleware({ mode: "replay", recordings })
 
 `recordings` is the parsed contents of the files, such as an array built from `import` statements. They're checked when the middleware is created, so a broken file fails at startup, not on an ask.
 
+## Replaying in the browser
+
+A demo can skip the server altogether. Give the ask panel a `fetch` that answers each ask itself, and no request leaves the page:
+
+<include cwd lang="ts" meta='title="app/demo/canned-fetch.ts"'>
+  snippets/ai/canned-fetch.ts#fetch
+</include>
+
+```tsx
+<PliantAskPanel endpoint="/demo" fetch={cannedFetch} targets={askTargets} />
+```
+
+The body the panel sends matches `askRequestSchema`, and the answer must match `askResponseSchema`, both from `@pliantui/server`. To replay real model answers this way, record them with `recordingMiddleware`, then turn each recording into an answer keyed by its target and ask.
+
 ## Things to know
 
 - Recording needs Node.js, and writes every ask to disk. Don't record in production.
 - Recordings hold the model's answer, never your rows, because the model never sees them.
 - A change to your targets, your model or Pliant's prompt changes the key, so record again after upgrading.
 
-The demos on this site replay recorded answers this way, so they need no API key.
+The demos on this site replay recorded answers in the browser, through the ask panel's `fetch`, so they need no API key and no server route.
 
 ## Related
 

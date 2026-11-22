@@ -2,10 +2,11 @@ import { readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 
-import { functionCatalog, opCatalog } from "@pliantui/contract"
+import { functionCatalog, manifestSchema, opCatalog } from "@pliantui/contract"
 import {
   checkExpression,
   formatError,
+  loadOverlay,
   validateOverlay,
   type ExpressionField,
   type ExpressionKind,
@@ -54,12 +55,14 @@ function jsonExamples() {
   return { examples, fences }
 }
 
-function overlayOf(op: unknown) {
+// `setPage` is allowed only in the session layer, and ops on `@app` only in
+// an overlay for `@app`.
+function overlayOf(op: Json) {
   return {
     v: 1,
     id: "01JD5Z8Q9W3X4Y5Z6A7B8C9D0E",
-    surface: "/orders",
-    layer: "personal",
+    surface: op["target"] === "@app" ? "@app" : "/orders",
+    layer: op["op"] === "setPage" ? "session" : "personal",
     ops: [op],
     basis: { contract: 1, core: "0.0.0", manifests: {} },
     source: "manual",
@@ -84,11 +87,30 @@ function expressionsOf(op: Op): [Expression, ExpressionKind][] {
   }
 }
 
+// Custom functions are registered by the app, so an expression that calls
+// one can't be type-checked here.
+function callsCustomFunction(expression: unknown): boolean {
+  if (Array.isArray(expression)) {
+    return expression.some(callsCustomFunction)
+  }
+  if (!isObject(expression)) {
+    return false
+  }
+  const name = expression["fn"]
+  return (
+    (typeof name === "string" && name.includes(":")) ||
+    callsCustomFunction(expression["args"])
+  )
+}
+
 function expectValid(overlay: Json) {
   const result = validateOverlay(overlay)
   expect(result.success ? undefined : formatError(result.error)).toBeUndefined()
   for (const op of result.data?.ops ?? []) {
     for (const [expression, kind] of expressionsOf(op)) {
+      if (callsCustomFunction(expression)) {
+        continue
+      }
       const checked = checkExpression(expression, { fields, kind })
       expect(
         checked.success ? undefined : formatError(checked.error),
@@ -111,13 +133,37 @@ describe.each(examples)("$name", ({ title, source }) => {
     if (!isObject(example)) {
       throw new TypeError("A JSON example must be an object")
     }
-    if (title.endsWith("manifest-decisions.json")) {
+    if (["components.json", ".mcp.json"].includes(title)) {
+      // Config files for the shadcn CLI and coding agents, not part of the
+      // contract. This only checks they're JSON objects.
+      expect(Object.keys(example).length).toBeGreaterThan(0)
+    } else if (title === "registry.json") {
+      const meta = example["meta"]
+      expect(
+        isObject(meta) && manifestSchema.safeParse(meta["pliant"]).success
+      ).toBe(true)
+    } else if ("kind" in example && "capabilities" in example) {
+      const result = manifestSchema.safeParse(example)
+      expect(
+        result.success ? undefined : formatError(result.error)
+      ).toBeUndefined()
+    } else if (title.endsWith("manifest-decisions.json")) {
       // The CLI's own decisions file, not part of the contract. The pliantui
       // tests cover its format; this only checks the example's shape.
       expect(typeof example["namespace"]).toBe("string")
       expect(isObject(example["components"])).toBe(true)
     } else if ("ops" in example) {
       expectValid(example)
+    } else if (
+      typeof example["op"] === "string" &&
+      example["op"].includes(":")
+    ) {
+      // A custom op loads, and is skipped as an extension that isn't
+      // installed.
+      const loaded = loadOverlay(overlayOf(example))
+      expect(loaded.data?.ops).toEqual([
+        expect.objectContaining({ status: "unknown", extension: true }),
+      ])
     } else if ("op" in example) {
       expectValid(overlayOf(example))
     } else if (["field", "value", "ref", "fn"].some((key) => key in example)) {

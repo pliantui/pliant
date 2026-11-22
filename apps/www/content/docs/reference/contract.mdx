@@ -1,0 +1,89 @@
+---
+title: "@pliantui/contract"
+description: Every export of @pliantui/contract, the package that holds the Zod schemas, types and catalogs of Pliant's data format.
+---
+
+`@pliantui/contract` describes Pliant's data format: overlays, operations, expressions, manifests and the catalogs of operations and functions. It has no React code and depends only on Zod, so a server, a CLI or a test can use it on its own.
+
+```bash
+npm install @pliantui/contract
+```
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The `@pliantui/*` packages aren't on npm yet, so this install command works
+  only inside the Pliant repository.
+</Callout>
+
+Each schema is a Zod 4 schema with a matching type of the same name without `Schema`, such as `overlaySchema` and `Overlay`. The same format is published as [JSON Schemas](/docs/registry/json-schemas) for other languages.
+
+## Overlays and operations
+
+| Export                | What it is                                                                                   |
+| --------------------- | -------------------------------------------------------------------------------------------- |
+| `overlaySchema`       | One [overlay](/docs/reference/overlay). Ops are kept as written and checked one by one later |
+| `overlayOpSchema`     | One op as an overlay stores it: an object with an `op` name and a `target`                   |
+| `opSchema`            | One op of the catalog, with its exact arguments                                              |
+| `opSchemas`           | The schema of each op, by name                                                               |
+| `opCatalog`           | Each op's capability, layers and argument keys, by name                                      |
+| `storedOverlaySchema` | An overlay as a storage adapter stores it, with its etag, version and timestamps             |
+| `savedViewSchema`     | A named set of overlays for one surface                                                      |
+| `layerSchema`         | `org`, `team`, `personal` or `session`                                                       |
+| `surfaceSchema`       | A surface: a route pattern such as `/orders`, a kebab-case id, or `@app`                     |
+
+Types: `Overlay`, `OverlayOp`, `Op`, `OpName`, `OpDefinition`, `StoredOverlay`, `SavedView`, `Layer`, `Surface`.
+
+## Addresses and names
+
+| Export             | What it is                                                                         |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `addressSchema`    | An [address](/docs/concepts/surfaces), such as `orders-table/columns/status`       |
+| `nodeIdSchema`     | A node id: kebab-case, starting with a letter, with `[]` at the end for a template |
+| `slotIdSchema`     | A slot id: kebab-case, starting with a letter                                      |
+| `itemIdSchema`     | An item id, such as a column or field id                                           |
+| `collectionSchema` | An item collection: `columns`, `fields`, `items`, `actions` or `slots`             |
+
+Types: `Address`, `Collection`.
+
+## Values inside operations
+
+| Export              | What it is                                   |
+| ------------------- | -------------------------------------------- |
+| `expressionSchema`  | An [expression](/docs/reference/expressions) |
+| `filterSchema`      | A filter: a field, an operator and a value   |
+| `sortSchema`        | Up to 8 sort fields, each once               |
+| `formatSchema`      | A number, percent, currency or date format   |
+| `breakpointSchema`  | `base`, `sm`, `md`, `lg`, `xl` or `2xl`      |
+| `languageTagSchema` | A BCP 47 language tag, such as `en-IN`       |
+| `capabilitySchema`  | One of the built-in capabilities             |
+
+Types: `Expression`, `Filter`, `Sort`, `Format`, `Breakpoint`, `Capability`.
+
+## Functions
+
+| Export               | What it is                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------ |
+| `functionCatalog`    | Every built-in function with its description, plus the rules for all of them         |
+| `functionSignatures` | The same entries without descriptions, for code that checks or evaluates expressions |
+
+Types: `FunctionDefinition`, `FunctionSignature`, `FunctionName`. The [function reference](/docs/reference/functions) lists every entry.
+
+## Manifests and flags
+
+| Export                  | What it is                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| `defineManifest`        | Checks a manifest and returns it, typed. Throws on an invalid one                     |
+| `manifestSchema`        | A [manifest](/docs/extending/manifest)                                                |
+| `manifestPropSchema`    | One prop a manifest lets users set                                                    |
+| `manifestDefaultSchema` | One default state a manifest lets users set                                           |
+| `flagsSchema`           | The flags on one address: `critical`, `required`, `destructive`, `primary` and others |
+
+Types: `Manifest`, `ManifestProp`, `ManifestDefault`, `Flags`.
+
+## Related
+
+- [The contract](/docs/registry/contract)
+- [@pliantui/core](/docs/reference/core)

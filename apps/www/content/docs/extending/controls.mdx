@@ -1,0 +1,85 @@
+---
+title: Custom controls
+description: Register your own filter controls for the table toolbar, such as a star rating or a map area, alongside the built-in select and search.
+---
+
+A filter control is the widget in a table's toolbar that sets a filter: a select, a search box, a range. A custom control adds another, such as a star-rating picker for a `rating` field. Users can add it to their toolbar with `addFilterControl`, and the filter it sets is an ordinary Pliant filter, saved and shared like any other.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how custom controls will work. `defineControl` and the
+  `controls` prop aren't in Pliant yet. Today, `addFilterControl` accepts a
+  namespaced control such as `acme:rating`, and overlays with it load and save,
+  but the toolbar doesn't render it.
+</Callout>
+
+## Define a control
+
+A custom control has a namespaced name, `namespace:name`, such as `acme:rating`. It declares which field types it works with, and renders a component that reads and sets one filter.
+
+```tsx title="components/rating-control.tsx"
+"use client"
+
+import { defineControl } from "@pliantui/react"
+
+export const ratingControl = defineControl({
+  name: "acme:rating",
+  label: "Rating",
+  fieldTypes: ["integer"],
+  render: ({ label, filter, setFilter }) => (
+    <RatingPicker
+      label={label}
+      value={filter?.operator === "gte" ? Number(filter.value) : undefined}
+      onChange={(stars) =>
+        setFilter(stars ? { operator: "gte", value: stars } : null)
+      }
+    />
+  ),
+})
+```
+
+| Field        | What it sets                                                                    |
+| ------------ | ------------------------------------------------------------------------------- |
+| `name`       | The control's namespaced name                                                   |
+| `label`      | The name users see when they add a control                                      |
+| `fieldTypes` | The dataset field types it can filter, such as `integer` or `enum`              |
+| `render`     | A component that receives the field's label, its current filter and `setFilter` |
+
+`setFilter` takes an operator and a value from the [filter operators](/docs/reference/expressions#filters), or `null` to clear the filter. A control can't set anything else, so it can't run a query of its own or change data.
+
+## Register it
+
+Pass your controls to `PliantRoot`, and to `createPliantHandler` so the ask panel can offer them:
+
+```tsx title="app/orders/page.tsx"
+<PliantRoot surface="/orders" storage={localAdapter} controls={[ratingControl]}>
+```
+
+A user can then add it to the toolbar:
+
+```json
+{
+  "op": "addFilterControl",
+  "target": "orders-table",
+  "id": "rating-filter",
+  "field": "rating",
+  "control": "acme:rating",
+  "label": "Customer rating"
+}
+```
+
+## Accessibility
+
+Give the control an accessible name from `label`, make it work with the keyboard alone, and announce the filter it sets, as the built-in controls do.
+
+## When the control isn't installed
+
+An overlay that names a control your app doesn't register still loads and saves unchanged. The toolbar leaves the control out, but the filter it set still applies, and users can clear it from the toolbar's filter list.
+
+## Related
+
+- [Custom views](/docs/extending/views)
+- [Operation reference](/docs/reference/operations#addfiltercontrol)

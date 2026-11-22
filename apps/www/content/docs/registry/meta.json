@@ -1,0 +1,10 @@
+{
+  "title": "Registry and contract",
+  "pages": [
+    "index",
+    "compatible",
+    "contract",
+    "json-schemas",
+    "other-languages"
+  ]
+}

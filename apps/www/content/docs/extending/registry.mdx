@@ -1,0 +1,89 @@
+---
+title: Make your registry Pliant-compatible
+description: Add a manifest to each item in your shadcn registry, so apps that install your components let their users customize them safely.
+---
+
+If you publish components through a [shadcn registry](https://ui.shadcn.com/docs/registry), you can make them Pliant-compatible by adding a manifest to each item. Apps that use Pliant then know which of your component's props users may change, and which values carry meaning and must stay under the app's control.
+
+## Write the manifest
+
+A manifest describes what users may change: the props they can set and to which values, whether they can rename or hide the component, and the default states they can choose. Give your component a namespaced `kind`, such as `acme:stat-card`, so it never clashes with Pliant's built-in kinds or another registry's.
+
+```json title="stat-card.manifest.json"
+{
+  "kind": "acme:stat-card",
+  "version": 1,
+  "description": "A card with one metric and its change from last period",
+  "capabilities": {
+    "props": {
+      "variant": {
+        "values": ["default", "outline", "muted", "danger"],
+        "default": "default",
+        "semantic": ["danger"]
+      }
+    },
+    "label": true,
+    "hideable": true
+  }
+}
+```
+
+Mark values that carry meaning as `semantic`, such as a `danger` variant or a `destructive` button. Users see them, but only the app's code can assign them, so a warning never gets restyled to look harmless. [Manifest reference](/docs/extending/manifest) lists every field.
+
+If your components use `cva` or `tailwind-variants`, run [`pliantui manifest`](/docs/cli/manifest) in a project that has them to get a first draft, then review it.
+
+## Validate it
+
+Check each manifest against the published JSON Schema, <SiteUrl path="/schema/manifest.json" />, in your registry's CI. In TypeScript, `defineManifest` from `@pliantui/contract` checks it and throws on an invalid one. A manifest with an unknown key, such as `hidable`, fails, so typos don't ship.
+
+## Ship it in the registry item
+
+Put the manifest in the item's `meta`, under `pliant`. The shadcn registry item schema allows any JSON in `meta`, so your registry still works with the shadcn CLI and with apps that don't use Pliant.
+
+```json title="registry.json"
+{
+  "name": "stat-card",
+  "type": "registry:component",
+  "files": [
+    { "path": "registry/acme/stat-card.tsx", "type": "registry:component" }
+  ],
+  "meta": {
+    "pliant": {
+      "kind": "acme:stat-card",
+      "version": 1,
+      "description": "A card with one metric and its change from last period",
+      "capabilities": { "label": true, "hideable": true }
+    }
+  }
+}
+```
+
+When you change what users may set, raise `version`. Overlays record the manifest versions they were made against, so an app can tell when a saved change predates your update.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Installing an item doesn't read `meta.pliant` yet, and Pliant's own registry
+  items don't carry one. Today an app gets manifests for its components from
+  `pliantui manifest`, which reads their source.
+</Callout>
+
+## Check compatibility and get listed
+
+Run [`pliantui verify`](/docs/cli/verify) on an item's URL before you publish it. It checks that the manifest parses and matches the component's props, renders every declared value in light and dark mode, and checks that changes keep reading order and the guardrails intact. Items that pass can be listed as Pliant-compatible in the [directory](/directory).
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  `pliantui verify` and the directory listing aren't in Pliant yet.
+</Callout>
+
+## Related
+
+- [Manifest reference](/docs/extending/manifest)
+- [Pliant-compatible registries](/docs/registry/compatible)
+- [Installing from the Pliant registry](/docs/registry)

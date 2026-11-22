@@ -17,4 +17,13 @@ description: Rename a node or item id and write a migration, so users' saved cha
 npx pliantui rename-id orders-table/columns/notes orders-table/columns/comments
 ```
 
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The `pliantui` CLI isn't on npm yet, so the `npx pliantui` commands on this
+  page work only inside the Pliant repository.
+</Callout>
+
 The command updates the id in your source where it can find it, writes the migration that rewrites stored overlays on their next load, and runs `scan` so the inventory matches. See [Renames and migrations](/docs/guides/renames).
