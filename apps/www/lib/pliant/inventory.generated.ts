@@ -19,7 +19,7 @@ export const inventory = {
         "overdue",
         "revenue",
       ],
-      source: "inventory",
+      source: "mounted",
     },
     baseParents: {
       "average-order-value": "key-metrics",
@@ -97,7 +97,7 @@ export const inventory = {
         "ticket-form/fields/priority",
         "ticket-form/fields/subject",
       ],
-      source: "inventory",
+      source: "mounted",
     },
     baseParents: {
       "ticket-form": null,
@@ -127,6 +127,137 @@ export const inventory = {
       "ticket-form/fields/subject": {
         kind: "pliant:field",
         hash: "7d402f36c14e4108",
+      },
+    },
+  },
+  "/orders": {
+    baseIds: {
+      ids: [
+        "key-metrics",
+        "orders",
+        "orders-table",
+        "orders-table/columns/customer",
+        "orders-table/columns/id",
+        "orders-table/columns/notes",
+        "orders-table/columns/region",
+        "orders-table/columns/status",
+        "orders-table/columns/value",
+        "overdue",
+        "revenue",
+      ],
+      source: "mounted",
+    },
+    baseParents: {
+      "key-metrics": null,
+      orders: "key-metrics",
+      "orders-table": null,
+      overdue: "key-metrics",
+      revenue: "key-metrics",
+    },
+    baseOrder: {
+      "key-metrics": ["revenue", "orders", "overdue"],
+    },
+    ids: {
+      "key-metrics": {
+        kind: "pliant:region",
+        hash: "a530aef6e984296f",
+      },
+      orders: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "orders-table": {
+        kind: "pliant:table",
+        hash: "f873f0295ae458a8",
+      },
+      "orders-table/columns/customer": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/id": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/notes": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/region": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/status": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/value": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      overdue: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      revenue: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+    },
+  },
+  "/orders/[id]": {
+    baseIds: {
+      ids: [
+        "order-summary",
+        "payment",
+        "region",
+        "status",
+        "summary",
+        "total",
+        "value",
+      ],
+      source: "mounted",
+    },
+    baseParents: {
+      "order-summary": null,
+      payment: "order-summary",
+      region: "order-summary",
+      status: "summary",
+      summary: null,
+      total: "summary",
+      value: "order-summary",
+    },
+    baseOrder: {
+      "order-summary": ["value", "payment", "region"],
+      summary: ["total", "status"],
+    },
+    ids: {
+      "order-summary": {
+        kind: "pliant:region",
+        hash: "a530aef6e984296f",
+      },
+      payment: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      region: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      status: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      summary: {
+        kind: "pliant:region",
+        hash: "a530aef6e984296f",
+      },
+      total: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      value: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
       },
     },
   },
