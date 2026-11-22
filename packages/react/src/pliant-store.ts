@@ -133,16 +133,16 @@ export interface PliantStore {
   /**
    * Drops the user's own changes to a node: the ops in the personal and
    * session layers that write its properties or those of its items, such
-   * as a table's sort and filters and its columns' widths, and the ops that
-   * address its items through it, such as a move or hide of
-   * `key-metrics/slots/overdue`. The node's own placement, span, visibility
-   * and insertion are left, since they belong to its container, and so is
-   * the preview. The node then shows as the org and team layers, and then
-   * the base, have it, and follows their later changes. A property of the
-   * node or its items in `useResolved().properties`, or a placement of one
-   * of its items in `useResolved().placements`, whose winner is in the
-   * personal or session layer is such a change, unless the preview
-   * overrides it.
+   * as a table's sort and filters and its columns' widths, and where its
+   * slots sit and whether they show, when the op addresses the slot through
+   * the node (`key-metrics/slots/overdue`). The node's own placement, span,
+   * visibility and insertion are left, since they belong to its container,
+   * and so is the preview. The node then shows as the org and team layers,
+   * and then the base, have it, and follows their later changes. A property
+   * of the node or its items in `useResolved().properties` whose winner is
+   * in the personal or session layer is such a change, unless the preview
+   * overrides it, and so is a slot's placement, visibility or span whose
+   * winning op's `target` puts the slot in the node.
    *
    * A personal version with such ops is removed from storage with the
    * adapter's `remove`, and its other ops are saved as a new version dated

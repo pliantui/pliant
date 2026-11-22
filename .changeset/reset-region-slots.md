@@ -2,4 +2,4 @@
 "@pliantui/react": patch
 ---
 
-`resetNode` on a region now drops the user's moves and hides of its slots, such as `key-metrics/slots/overdue`, so Reset puts the region back as the base or the team layer has it.
+`resetNode` on a region now also drops the user's moves, hides and spans of the region's slots, such as `key-metrics/slots/overdue`.
