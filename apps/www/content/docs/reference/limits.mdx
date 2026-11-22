@@ -27,6 +27,18 @@ Every change Pliant stores or accepts stays within these limits. A change that g
 | Arguments per function  | 16    |
 | Nodes in one expression | 128   |
 
+## Server queries
+
+These apply to every page of rows a table requests in [server mode](/docs/data/server-mode).
+
+| Limit                    | Value                                        |
+| ------------------------ | -------------------------------------------- |
+| Rows per page            | `maxPageSize`: 100 by default, at most 1,000 |
+| Sort fields              | 8                                            |
+| Filters                  | 100                                          |
+| Values in an `in` filter | 100                                          |
+| Page number              | 1,000,000                                    |
+
 ## Related
 
 - [Operations](/docs/concepts/operations)

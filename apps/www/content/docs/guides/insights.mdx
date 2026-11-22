@@ -1,0 +1,45 @@
+---
+title: Insights and promote-to-default
+description: See which changes users make most often, and turn a popular change into the default for everyone in one step.
+---
+
+When many users make the same change, such as hiding the **Notes** column, it's a sign your default is wrong. Insights show you the most common changes on each page, and let you make one the default.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how this feature will work. Parts of it aren't in Pliant yet.
+</Callout>
+
+## The insights page
+
+`pliantui insights` opens a report built from your [usage signals](/docs/guides/usage-signals):
+
+```bash
+npx pliantui insights --surface /orders
+```
+
+```txt
+/orders, last 30 days, 412 users
+
+  62%  hide orders-table/columns/notes
+  41%  sort orders-table by value, descending
+  18%  move key-metrics/slots/overdue to the start
+```
+
+## Promote a change
+
+Promoting a change publishes it to the org layer as the new default, with `source: "promote"`. Users who already changed the same thing keep their own choice.
+
+```bash
+npx pliantui insights promote "hide orders-table/columns/notes"
+```
+
+Or change your code instead: remove the column from the default visible set, and the change becomes part of your page.
+
+## Related
+
+- [Usage signals and consent](/docs/guides/usage-signals)
+- [Team and org defaults](/docs/guides/team-defaults)

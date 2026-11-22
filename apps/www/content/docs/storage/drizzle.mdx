@@ -1,0 +1,51 @@
+---
+title: Drizzle store
+description: Keep overlays in your PostgreSQL database through Drizzle ORM, with every version kept for history.
+---
+
+`drizzleOverlayStore` keeps overlays in PostgreSQL through [Drizzle ORM](https://orm.drizzle.team). It adds two tables to your schema, writes each save in a transaction, and keeps every version so you can show a history.
+
+<Steps>
+
+<Step>Add the tables to your schema</Step>
+
+Export Pliant's tables from the schema file your migrations are generated from:
+
+<include cwd lang="ts" meta='title="db/schema.ts"'>
+  snippets/storage/schema.ts#schema
+</include>
+
+Then generate and run a migration as usual:
+
+```bash
+npx drizzle-kit generate
+npx drizzle-kit migrate
+```
+
+| Table                  | What it holds                                                   |
+| ---------------------- | --------------------------------------------------------------- |
+| `pliantOverlays`       | The current version of each overlay.                            |
+| `pliantOverlayHistory` | Every version ever saved, with the id of the user who saved it. |
+
+<Step>Use the store in the storage route</Step>
+
+<include cwd lang="ts" meta='title="app/api/pliant/storage/route.ts"'>
+  snippets/storage/drizzle-route.ts#route
+</include>
+
+Pass a Drizzle database connected to your primary, through a driver that supports transactions, such as `drizzle-orm/node-postgres`.
+
+<Step>Point PliantRoot at the route</Step>
+
+Use `serverAdapter`, as in [Self-hosted server](/docs/storage/self-hosted).
+
+</Steps>
+
+## Who can publish defaults
+
+`canPublish` decides who may save team and org defaults. In the route above, team leads publish for their team and admins for the org. It's only asked about the user's own org, and teams they're a member of. Without it, nobody can publish. See [Teams and orgs](/docs/storage/teams).
+
+## Related
+
+- [Self-hosted server](/docs/storage/self-hosted)
+- [Sync, conflicts and deletions](/docs/storage/sync)

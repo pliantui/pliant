@@ -1,0 +1,43 @@
+---
+title: Saved views, undo and sharing
+description: Let users save arrangements under a name and switch between them, step back through their changes, and share a view with a link.
+---
+
+Users who work a page in several ways, such as a daily triage and a month-end review, can save each arrangement as a named **view** and switch between them. They can undo any change, and share a view with a colleague as a link.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how this feature will work. Parts of it aren't in Pliant yet.
+</Callout>
+
+## Saved views
+
+Add the views menu to the table toolbar:
+
+```tsx
+<PliantDataTableToolbar table={table} node="orders-table" views />
+```
+
+- **Save view** stores the current arrangement under a name, such as "To chase".
+- Picking a view applies it. Changes after that update the view only when the user chooses **Update view**.
+- Views are kept in the user's storage, so they follow them across devices with server storage.
+
+A view is stored in Pliant's saved view format: a name, a surface and its operations. Its JSON Schema is published at <SiteUrl path="/schema/saved-view.json" />.
+
+## Undo and history
+
+Users press <Kbd>⌘</Kbd> <Kbd>Z</Kbd> (<Kbd>Ctrl</Kbd> <Kbd>Z</Kbd> on Windows and Linux) to undo their last change on the page, and <Kbd>⌘</Kbd> <Kbd>Shift</Kbd> <Kbd>Z</Kbd> to redo it. The history panel lists each change with a short description, such as "Sorted by value, highest first", and lets them go back to any point.
+
+## Sharing
+
+**Share view** copies a link to the page with the arrangement attached. When a colleague opens it, they see a preview of the shared arrangement, and choose to keep it or not. A shared link never changes their page without asking.
+
+Shared views carry only operations, never data. A colleague who opens one sees only rows they're allowed to see.
+
+## Related
+
+- [What users can do](/docs/what-users-can-do)
+- [Sync, conflicts and deletions](/docs/storage/sync)

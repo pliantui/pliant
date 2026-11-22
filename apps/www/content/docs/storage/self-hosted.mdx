@@ -1,0 +1,61 @@
+---
+title: Self-hosted server
+description: One route on your server stores overlays, so changes follow users across devices and you can serve team and org defaults.
+---
+
+Store changes on your own server, so users get their arrangement on every device. You add one route that stores overlays, and point `PliantRoot` at it with `serverAdapter`.
+
+<Steps>
+
+<Step>Install the server package</Step>
+
+```bash
+npm install @pliantui/server
+```
+
+<Step>Add the storage route</Step>
+
+<include cwd lang="ts" meta='title="app/api/pliant/storage/route.ts"'>
+  snippets/storage/route.ts#route
+</include>
+
+`getUser` returns the signed-in user, or `null` to answer 401. Each user reads their own changes, their teams' and their org's. Return `org` and `teams` to serve team and org defaults; leave them out if you don't have teams.
+
+`memoryOverlayStore()` keeps everything in memory, which is fine for trying it out. In production, use a database, such as the [Drizzle store](/docs/storage/drizzle).
+
+<Step>Point PliantRoot at it</Step>
+
+Create the adapter in a client module, because a Server Component can't pass functions to a client one:
+
+<include cwd lang="tsx" meta='title="app/orders/orders-root.tsx"'>
+  snippets/rendering/orders-root.tsx#root
+</include>
+
+The `layers` prop is optional. Pass the overlays you loaded on the server to render the page arranged from the first paint. See [Rendering modes](/docs/concepts/rendering#server).
+
+</Steps>
+
+Sort the table, then open the page on another device and sign in: the sort is there.
+
+## What the route does
+
+- Checks every overlay before storing it, and refuses anything that isn't valid.
+- Assigns every version number, etag and timestamp itself, so clients can't fake them.
+- Lets users save their own personal changes. Saving to a team or org needs `canPublish`. See [Teams and orgs](/docs/storage/teams).
+- Answers with 412 when a save is based on an old version, so two devices never overwrite each other unseen.
+
+It uses only Web APIs, so it runs on Node.js, edge runtimes and Cloudflare Workers.
+
+<Callout variant="warning">
+  The route has no quota or rate limit. Keep it behind your sign-in, and add
+  your own limits before you expose it.
+</Callout>
+
+## Your own store
+
+A store keeps records. Implement `get`, `put` and `list` (and `history` to keep every version) over any database. `put` must be atomic: store only when the current etag matches, in one step, such as `UPDATE … WHERE etag = $1`. `get` and `list` must read from your primary database, not a replica, so users see their own changes.
+
+## Related
+
+- [Drizzle store](/docs/storage/drizzle)
+- [Sync, conflicts and deletions](/docs/storage/sync)

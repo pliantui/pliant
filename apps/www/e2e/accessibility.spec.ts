@@ -119,9 +119,9 @@ for (const colorScheme of ["light", "dark"] as const) {
     test("a docs page with code comments has no accessibility violations", async ({
       page,
     }) => {
-      await page.goto("/docs/ask-panel")
+      await page.goto("/docs/ai")
       await expect(
-        page.getByRole("heading", { level: 1, name: "Ask panel" })
+        page.getByRole("heading", { level: 1, name: "How asking works" })
       ).toBeVisible()
       expect(await violations(page, colorScheme)).toEqual([])
     })

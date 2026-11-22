@@ -1,0 +1,17 @@
+{
+  "title": "Data",
+  "pages": [
+    "datasets",
+    "permissions",
+    "client-mode",
+    "server-mode",
+    "query-safety",
+    "drizzle",
+    "postgres",
+    "prisma",
+    "mysql",
+    "sqlite",
+    "supabase",
+    "custom-sources"
+  ]
+}
