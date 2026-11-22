@@ -1,11 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { RotateCcwIcon } from "lucide-react"
 
+import { ResetControl } from "@/components/demo/reset-control"
 import { ScriptedBadge } from "@/components/demo/scripted-badge"
 import { NotImplementedBanner } from "@/components/not-implemented-banner"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -187,25 +186,13 @@ export function RevenueChartCard({ data }: { data: MonthlyRevenue[] }) {
         <CardTitle id="revenue-title">Revenue</CardTitle>
         <CardDescription>Order value by month, Jan–Oct 2026.</CardDescription>
         <CardAction>
-          <div className="flex items-center gap-2">
-            {customized && <Badge variant="secondary">Customized</Badge>}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              // Stays focusable after a reset, so focus doesn't fall back to
-              // the page.
-              aria-disabled={!customized}
-              aria-label="Reset revenue"
-              className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
-              onClick={() => {
-                if (customized) setView(original)
-              }}
-            >
-              <RotateCcwIcon />
-              Reset
-            </Button>
-          </div>
+          <ResetControl
+            customized={customized}
+            label="revenue"
+            onReset={() => {
+              setView(original)
+            }}
+          />
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">

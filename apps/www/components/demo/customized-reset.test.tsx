@@ -32,7 +32,7 @@ const sortByValue = (target: string): Op => ({
   sort: [{ field: "value", dir: "desc" }],
 })
 
-const nodeIds = ["orders-table", "orders-tablex"]
+const nodeIds = ["orders-table", "orders-tablex", "page", "notes"]
 
 type Store = ReturnType<typeof usePliantStore>
 
@@ -120,5 +120,19 @@ describe("CustomizedReset", () => {
       store?.applyOps("personal", [sortByValue("orders-table")])
     })
     expect(screen.getByText("Customized")).toBeTruthy()
+  })
+
+  it("counts a slot addressed through the node, as Reset does", async () => {
+    await renderReset()
+
+    act(() => {
+      store?.applyOps("personal", [
+        { op: "hide", target: "page/slots/orders-table/slots/notes" },
+      ])
+    })
+    expect(screen.getByText("Customized")).toBeTruthy()
+
+    fireEvent.click(reset())
+    expect(screen.queryByText("Customized")).toBeNull()
   })
 })
