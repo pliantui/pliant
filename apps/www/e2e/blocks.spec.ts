@@ -95,6 +95,11 @@ test("shows the import paths an app would have in the Code view", async ({
   await section.getByRole("tab", { name: "Code" }).click()
 
   const code = section.locator("figure code")
+  await expect(code).toContainText('from "@/components/key-metrics"')
+
+  await section
+    .getByRole("button", { name: "components/key-metrics.tsx" })
+    .click()
   await expect(code).toContainText('from "@/components/kpi-card"')
   await expect(code).toContainText('from "@/components/pliant/pliant-region"')
 
