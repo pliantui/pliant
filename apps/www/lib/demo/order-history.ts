@@ -1,10 +1,11 @@
+import "server-only"
+
 import { mulberry32 } from "./random"
 import { orderRegions } from "./schema"
 
 // Saffron Supply Co.'s full order history: too many rows to send to a
-// browser, so the server sums them and sends only the totals, as a database
-// query would. The rows are generated as they're summed, never stored. Use
-// it only from server components.
+// browser. The rows are generated and summed when the page builds, never
+// stored, and only the totals and the first few rows reach the page.
 
 export const orderHistoryRows = 250_000
 
@@ -19,10 +20,21 @@ interface OrderHistoryPoint {
   byRegion: Record<string, number>
 }
 
+interface OrderHistoryRow {
+  id: string
+  date: string
+  region: string
+  value: number
+}
+
 export interface OrderHistoryTotals {
+  // The first few rows, for a table.
+  rows: OrderHistoryRow[]
   monthly: OrderHistoryPoint[]
   weekly: OrderHistoryPoint[]
 }
+
+const shownRows = 6
 
 function add(
   points: Map<string, Record<string, number>>,
@@ -49,6 +61,7 @@ export function sumOrderHistory(): OrderHistoryTotals {
   const random = mulberry32(2028)
   const monthly = new Map<string, Record<string, number>>()
   const weekly = new Map<string, Record<string, number>>()
+  const rows: OrderHistoryRow[] = []
 
   for (let index = 0; index < orderHistoryRows; index++) {
     const day = Math.floor(random() * days)
@@ -57,9 +70,12 @@ export function sumOrderHistory(): OrderHistoryTotals {
     if (region === undefined) continue
     const date = new Date(firstDay + day * dayInMs).toISOString()
     const week = new Date(firstDay + Math.floor(day / 7) * 7 * dayInMs)
+    if (rows.length < shownRows) {
+      rows.push({ id: `ORD-${String(10001 + index)}`, date, region, value })
+    }
     add(monthly, `${date.slice(0, 7)}-01`, region, value)
     add(weekly, week.toISOString().slice(0, 10), region, value)
   }
 
-  return { monthly: toPoints(monthly), weekly: toPoints(weekly) }
+  return { rows, monthly: toPoints(monthly), weekly: toPoints(weekly) }
 }

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { askTargets } from "../ask-targets"
-import { columns } from "./columns"
+import { columns } from "@/registry/blocks/orders-list/columns"
+
+import { askTargets } from "./ask-targets"
 
 describe("columns", () => {
   it("are the columns the orders-table ask target describes", () => {

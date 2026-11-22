@@ -12,10 +12,10 @@ import { orders } from "@/lib/demo/data"
 import { formatCurrency, formatNumber } from "@/lib/demo/format"
 import { getOrderStats } from "@/lib/demo/stats"
 import { inventory } from "@/lib/pliant/inventory.generated"
+import { KpiCard } from "@/registry/blocks/analytics-dashboard/kpi-card"
 import { PliantRegion } from "@/registry/pliant/pliant-region"
 
 import { askTargets } from "./ask-targets"
-import { KpiCard } from "./components/kpi-card"
 import { OrdersTable } from "./components/orders-table"
 
 export const metadata: Metadata = {

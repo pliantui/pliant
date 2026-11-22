@@ -48,21 +48,18 @@ test("lists every block in the nav and shows each one", async ({
   expect(errors).toEqual([])
 })
 
-test("offers shadcn add only for components in the registry", async ({
+test("offers to add the published components a block uses", async ({
   page,
 }) => {
   await load(page)
+  const orders = block(page, /^A list of recent orders/)
 
+  await expect(orders.getByText("Block not published yet")).toBeVisible()
   await expect(
-    block(page, /^A list of recent orders/).getByRole("button", {
-      name: "Copy npx shadcn add pliant-data-table",
+    orders.getByRole("button", {
+      name: "Copy the command that adds the components this block uses: npx shadcn add pliant-data-table",
     })
   ).toBeVisible()
-  const pipeline = block(page, /^A sales pipeline board/)
-  await expect(pipeline.getByText("Not published yet")).toBeVisible()
-  await expect(
-    pipeline.getByRole("button", { name: /^Copy npx shadcn add/ })
-  ).toHaveCount(0)
 })
 
 test("shows a block's files in the Code view and keeps its preview's changes", async ({
@@ -70,7 +67,7 @@ test("shows a block's files in the Code view and keeps its preview's changes", a
 }) => {
   await load(page)
   const section = block(page, /^A sales pipeline board/)
-  await section.getByRole("button", { name: /^hide the won column/ }).click()
+  await section.getByRole("button", { name: /^make the cards compact/ }).click()
 
   await section.getByRole("tab", { name: "Code" }).click()
   const files = section.getByRole("list", { name: "Files" })
@@ -82,9 +79,13 @@ test("shows a block's files in the Code view and keeps its preview's changes", a
   )
   await expect(section.getByRole("region", { name: "Lead" })).toBeHidden()
 
+  await expect(
+    files.getByRole("button", { name: "lib/demo/schema.ts" })
+  ).toBeVisible()
+
   await section.getByRole("tab", { name: "Preview" }).click()
   await expect(section.getByRole("region", { name: "Lead" })).toBeVisible()
-  await expect(section.getByRole("region", { name: "Won" })).toHaveCount(0)
+  await expect(section.getByText("Kavya Reddy")).toHaveCount(0)
 })
 
 test("shows the import paths an app would have in the Code view", async ({
@@ -147,20 +148,45 @@ test("reshapes the dashboard with recorded and scripted asks, and resets it", as
   expect(await metricOrder(page)).toEqual(before)
 })
 
-test("hides a pipeline column, and a second press brings it back", async ({
+test("hides and reorders pipeline columns with Pliant, and resets them", async ({
   page,
 }) => {
   await load(page)
   const section = block(page, /^A sales pipeline board/)
-  const ask = section.getByRole("button", { name: /^hide the won column/ })
+  const columns = section.locator('[data-pliant-id="crm-pipeline"]')
+  await expect(columns).not.toHaveAttribute("data-pliant-pending")
 
-  await ask.click()
-  await expect(section.getByRole("region", { name: "Won" })).toHaveCount(0)
+  await section.getByRole("button", { name: /^hide the won column/ }).click()
+  await expect(section.getByText("Hid the Won column.")).toBeVisible()
+  await section.getByRole("button", { name: "Lock in" }).click()
+  await expect(section.getByRole("region", { name: "Won" })).toBeHidden()
   await expect(section.getByText("Customized", { exact: true })).toBeVisible()
 
-  await ask.click()
+  await section.getByRole("button", { name: /^put proposal first/ }).click()
+  await section.getByRole("button", { name: "Lock in" }).click()
+  await expect(columns.getByRole("heading").first()).toHaveText(/^Proposal/)
+
+  const reset = section.getByRole("button", { name: "Reset the pipeline" })
+  await reset.click()
   await expect(section.getByRole("region", { name: "Won" })).toBeVisible()
-  await expect(section.getByText("Customized", { exact: true })).toBeHidden()
+  await expect(columns.getByRole("heading").first()).toHaveText(/^Lead/)
+  await expect(reset).toBeFocused()
+})
+
+test("shows stage totals, and a second press takes them back", async ({
+  page,
+}) => {
+  await load(page)
+  const section = block(page, /^A sales pipeline board/)
+  const ask = section.getByRole("button", {
+    name: /^show the total for each stage/,
+  })
+  const lead = section.getByRole("heading", { name: /^Lead/ })
+
+  await ask.click()
+  await expect(lead).toContainText("₹")
+  await ask.click()
+  await expect(lead).not.toContainText("₹")
 })
 
 test("hides a workspace panel and previews the team default", async ({

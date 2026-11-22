@@ -3,11 +3,11 @@ import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
 import { askTargets } from "@/app/(examples)/examples/orders/ask-targets"
-import { TicketForm } from "@/app/(examples)/examples/tickets/components/ticket-form"
-import { WorkspaceSidebar } from "@/app/(home)/components/sidebar-card"
 import { DemoAskToolbar } from "@/components/demo/demo-ask-toolbar"
 import { DemoFrame } from "@/components/demo/demo-frame"
 import { orders, team } from "@/lib/demo/data"
+import { WorkspaceSidebar } from "@/registry/blocks/app-sidebar/workspace-sidebar"
+import { TicketForm } from "@/registry/blocks/ticket-form/ticket-form"
 import { AskPanelDemo } from "@/registry/examples/ask-panel-demo"
 import { KeyMetrics } from "@/registry/examples/key-metrics"
 import { OrdersTableDemo } from "@/registry/examples/orders-table-demo"
@@ -81,7 +81,7 @@ export const examples = {
     ),
   },
   "form-demo": {
-    file: "app/(examples)/examples/tickets/components/ticket-form.tsx",
+    file: "registry/blocks/ticket-form/ticket-form.tsx",
     render: () => (
       <PliantRoot surface="/docs/components/form" storage={localAdapter}>
         <DemoFrame

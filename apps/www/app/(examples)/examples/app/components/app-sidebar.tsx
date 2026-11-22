@@ -9,9 +9,8 @@ import {
   SidebarGroupLabel,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import { sections } from "@/registry/blocks/app-sidebar/sections"
 import { PliantNav } from "@/registry/pliant/pliant-nav"
-
-import { sections } from "../sections"
 
 export function AppSidebar() {
   const pathname = usePathname()

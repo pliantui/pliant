@@ -1,11 +1,11 @@
-import { TicketForm } from "@/app/(examples)/examples/tickets/components/ticket-form"
-import { OrdersCardTable } from "@/app/(home)/components/orders-card"
-import { WorkspaceSidebar } from "@/app/(home)/components/sidebar-card"
 import { Playground } from "@/components/playground/playground"
 import { orders, team } from "@/lib/demo/data"
 import { getOrderStats } from "@/lib/demo/stats"
 import { KeyMetrics } from "@/registry/blocks/analytics-dashboard/key-metrics"
+import { WorkspaceSidebar } from "@/registry/blocks/app-sidebar/workspace-sidebar"
+import { OrdersList } from "@/registry/blocks/orders-list/orders-list"
 import { SettingsPage } from "@/registry/blocks/settings-page/settings-page"
+import { TicketForm } from "@/registry/blocks/ticket-form/ticket-form"
 
 export const dynamic = "force-static"
 export const revalidate = false
@@ -31,7 +31,7 @@ export default function PlaygroundPage() {
             "hide the notes column",
             "pin the order column",
           ],
-          node: <OrdersCardTable data={recent} />,
+          node: <OrdersList data={recent} />,
         },
         {
           id: "key-metrics",

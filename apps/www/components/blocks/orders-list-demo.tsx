@@ -1,8 +1,8 @@
 "use client"
 
-import { OrdersCardTable } from "@/app/(home)/components/orders-card"
 import { DemoFrame } from "@/components/demo/demo-frame"
 import type { Order } from "@/lib/demo/schema"
+import { OrdersList } from "@/registry/blocks/orders-list/orders-list"
 
 export function OrdersListDemo({ data }: { data: Order[] }) {
   return (
@@ -17,7 +17,7 @@ export function OrdersListDemo({ data }: { data: Order[] }) {
       ]}
       className="max-w-none"
     >
-      <OrdersCardTable data={data} />
+      <OrdersList data={data} />
     </DemoFrame>
   )
 }

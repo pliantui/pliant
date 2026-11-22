@@ -42,7 +42,7 @@ export default function BlocksPage() {
       storage={localAdapter}
       inventory={inventory["/blocks"]}
     >
-      <div id="blocks" className="flex scroll-mt-24 flex-col gap-12 md:gap-24">
+      <div className="flex flex-col gap-12 md:gap-24">
         <BlockDisplay block={block("analytics-dashboard")}>
           <AnalyticsDashboardDemo
             stats={getOrderStats(orders)}

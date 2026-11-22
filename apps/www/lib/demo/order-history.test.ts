@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { orderHistoryRows, sumOrderHistory } from "./order-history"
+
+// Lets the server-only module load outside a server component.
+vi.mock("server-only", () => ({}))
 
 describe("sumOrderHistory", () => {
   it("sums the same rows by month and by week", () => {
@@ -29,6 +32,13 @@ describe("sumOrderHistory", () => {
         "West",
       ])
     }
+  })
+
+  it("keeps the first few rows for a table", () => {
+    const { rows } = sumOrderHistory()
+
+    expect(rows).toHaveLength(6)
+    expect(rows[0]?.id).toBe("ORD-10001")
   })
 
   it("gives the same totals every time", () => {

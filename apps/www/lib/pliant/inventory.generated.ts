@@ -211,7 +211,9 @@ export const inventory = {
       ids: [
         "activity",
         "average-order-value",
+        "crm-pipeline",
         "key-metrics",
+        "lead",
         "members",
         "notification-settings",
         "order-alerts",
@@ -227,6 +229,8 @@ export const inventory = {
         "orders-table/columns/value",
         "overdue",
         "product-news",
+        "proposal",
+        "qualified",
         "refund-requests",
         "revenue",
         "shared-views",
@@ -238,6 +242,7 @@ export const inventory = {
         "ticket-form/fields/priority",
         "ticket-form/fields/subject",
         "weekly-report",
+        "won",
         "workspace-nav",
         "workspace-nav/items/customers",
         "workspace-nav/items/inbox",
@@ -250,7 +255,9 @@ export const inventory = {
     baseParents: {
       activity: "team-workspace",
       "average-order-value": "key-metrics",
+      "crm-pipeline": null,
       "key-metrics": null,
+      lead: "crm-pipeline",
       members: "team-workspace",
       "notification-settings": null,
       "order-alerts": "notification-settings",
@@ -259,15 +266,19 @@ export const inventory = {
       "orders-table": null,
       overdue: "key-metrics",
       "product-news": "notification-settings",
+      proposal: "crm-pipeline",
+      qualified: "crm-pipeline",
       "refund-requests": "notification-settings",
       revenue: "key-metrics",
       "shared-views": "team-workspace",
       "team-workspace": null,
       "ticket-form": null,
       "weekly-report": "notification-settings",
+      won: "crm-pipeline",
       "workspace-nav": null,
     },
     baseOrder: {
+      "crm-pipeline": ["lead", "qualified", "proposal", "won"],
       "key-metrics": ["revenue", "orders", "average-order-value", "overdue"],
       "notification-settings": [
         "order-confirmations",
@@ -287,9 +298,17 @@ export const inventory = {
         kind: "pliant:slot",
         hash: "a220a621c23f938c",
       },
+      "crm-pipeline": {
+        kind: "pliant:region",
+        hash: "a530aef6e984296f",
+      },
       "key-metrics": {
         kind: "pliant:region",
         hash: "a530aef6e984296f",
+      },
+      lead: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
       },
       members: {
         kind: "pliant:slot",
@@ -351,6 +370,14 @@ export const inventory = {
         kind: "pliant:slot",
         hash: "a220a621c23f938c",
       },
+      proposal: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      qualified: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
       "refund-requests": {
         kind: "pliant:slot",
         hash: "a220a621c23f938c",
@@ -392,6 +419,10 @@ export const inventory = {
         hash: "7d402f36c14e4108",
       },
       "weekly-report": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      won: {
         kind: "pliant:slot",
         hash: "a220a621c23f938c",
       },

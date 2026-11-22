@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { usePliantStatus } from "@pliantui/react"
 import { usePliantNav } from "@pliantui/react/nav"
 
-import { isSection, sections } from "../sections"
+import { isSection, sections } from "@/registry/blocks/app-sidebar/sections"
 
 // The start route sends users to the start page they picked in the sidebar,
 // or to the inbox. The landing is read once the layers are ready, so a

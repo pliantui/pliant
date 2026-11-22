@@ -16,11 +16,14 @@ interface ViewerFile {
   html: string
 }
 
-function InstallButton({ components }: { components: readonly string[] }) {
+function InstallButton({
+  components,
+  command,
+}: {
+  components: readonly string[]
+  command: string
+}) {
   const { isCopied, copyToClipboard } = useCopyToClipboard()
-  const command = `npx shadcn@latest add ${components
-    .map((name) => `https://pliantui.dev/r/${name}.json`)
-    .join(" ")}`
 
   return (
     <>
@@ -34,7 +37,9 @@ function InstallButton({ components }: { components: readonly string[] }) {
       >
         {isCopied ? <CheckIcon /> : <TerminalIcon />}
         <span>
-          <span className="sr-only">Copy </span>
+          <span className="sr-only">
+            Copy the command that adds the components this block uses:{" "}
+          </span>
           npx shadcn add {components.join(" ")}
         </span>
       </Button>
@@ -52,12 +57,16 @@ export function BlockViewer({
   name,
   description,
   components,
+  command,
   files,
   children,
 }: {
   name: string
   description: string
+  // The published components the block uses, and the command that adds
+  // them.
   components: readonly string[]
+  command: string | undefined
   files: readonly ViewerFile[]
   children: React.ReactNode
 }) {
@@ -92,16 +101,16 @@ export function BlockViewer({
             </span>
             <Separator orientation="vertical" className="mx-1 h-4!" />
             <span className="text-xs text-muted-foreground">
-              Not published yet
+              Block not published yet
             </span>
-            {components.length > 0 && (
+            {command && (
               <>
                 <Separator
                   orientation="vertical"
                   className="mx-1 hidden h-4! sm:block"
                 />
                 <span className="hidden sm:inline-flex">
-                  <InstallButton components={components} />
+                  <InstallButton components={components} command={command} />
                 </span>
               </>
             )}

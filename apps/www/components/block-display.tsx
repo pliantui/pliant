@@ -4,6 +4,7 @@ import { dirname, join, normalize } from "node:path"
 import { BlockViewer } from "@/components/block-viewer"
 import type { Block } from "@/lib/blocks/blocks"
 import { highlightCode } from "@/lib/highlight-code"
+import { site } from "@/lib/site"
 
 function withoutExtension(path: string) {
   return path.replace(/\.tsx?$/, "")
@@ -28,6 +29,35 @@ function rewriteImports(code: string, src: string, block: Block) {
   })
 }
 
+function isRegistry(value: unknown): value is { items: { name: string }[] } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "items" in value &&
+    Array.isArray(value.items)
+  )
+}
+
+// The command that adds the published components a block uses, checked
+// against `registry.json` so it only names items the registry serves.
+async function installCommand(components: readonly string[]) {
+  if (components.length === 0) return undefined
+  const registry: unknown = JSON.parse(
+    await readFile(join(process.cwd(), "registry.json"), "utf8")
+  )
+  const published = isRegistry(registry)
+    ? registry.items.map((item) => item.name)
+    : []
+  for (const name of components) {
+    if (!published.includes(name)) {
+      throw new Error(`No registry item named ${name}`)
+    }
+  }
+  return `npx shadcn@latest add ${components
+    .map((name) => `${site.url}/r/${name}.json`)
+    .join(" ")}`
+}
+
 // One block on the blocks page: its live preview, and its files to copy.
 export async function BlockDisplay({
   block,
@@ -36,6 +66,7 @@ export async function BlockDisplay({
   block: Block
   children: React.ReactNode
 }) {
+  const command = await installCommand(block.components)
   const files = await Promise.all(
     block.files.map(async ({ src, target }) => {
       const source = await readFile(join(process.cwd(), src), "utf8")
@@ -49,6 +80,7 @@ export async function BlockDisplay({
       name={block.name}
       description={block.description}
       components={block.components}
+      command={command}
       files={files}
     >
       {children}

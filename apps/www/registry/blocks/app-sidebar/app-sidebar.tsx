@@ -1,6 +1,7 @@
-import { WorkspaceSidebar } from "@/app/(home)/components/sidebar-card"
 import { formatCurrency, formatDate } from "@/lib/demo/format"
 import type { Order, TeamMember } from "@/lib/demo/schema"
+
+import { WorkspaceSidebar } from "./workspace-sidebar"
 
 // The support desk: a sidebar the user can reorder and trim, beside the
 // page it opens.

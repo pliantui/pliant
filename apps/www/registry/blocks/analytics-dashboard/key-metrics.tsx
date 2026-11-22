@@ -1,7 +1,8 @@
-import { KpiCard } from "@/app/(examples)/examples/orders/components/kpi-card"
 import { formatCurrency, formatNumber } from "@/lib/demo/format"
 import type { OrderStats } from "@/lib/demo/stats"
 import { PliantRegion } from "@/registry/pliant/pliant-region"
+
+import { KpiCard } from "./kpi-card"
 
 // The company's key figures, as cards the user can reorder, hide and lay
 // out.
