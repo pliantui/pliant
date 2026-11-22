@@ -11,7 +11,7 @@
     "start": "next start --port 4000",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "typecheck": "next typegen && tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit && tsc --noEmit -p snippets",
     "lint": "next typegen && eslint --max-warnings 0 .",
     "lint:fix": "next typegen && eslint . --fix",
     "test": "vitest run",

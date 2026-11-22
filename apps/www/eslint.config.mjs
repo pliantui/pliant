@@ -59,5 +59,13 @@ export default defineConfig(
     rules: {
       "no-restricted-exports": "off",
     },
+  },
+  {
+    // Docs snippets are code readers copy into their own app, so they follow
+    // the app's conventions, like a page's default export.
+    files: ["snippets/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-exports": "off",
+    },
   }
 )

@@ -15,6 +15,8 @@ const config: KnipConfig = {
         "open-next.config.ts",
         // Written by `pliantui scan` and kept current by CI's `scan --check`.
         "lib/pliant/inventory.generated.ts",
+        // Docs snippets, included into pages as code and type-checked here.
+        "snippets/**/*.{ts,tsx}",
       ],
     },
     "packages/tests": {
