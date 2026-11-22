@@ -1,6 +1,6 @@
 ---
 title: Your first editable table
-description: A 10-minute tutorial. Build an orders table that remembers each user's sort and columns.
+description: A step-by-step tutorial that builds a Next.js orders page with Pliant's data table, about ten minutes from start to finish.
 ---
 
 In this tutorial, you build an orders table that each user can sort and trim to the columns they care about. When they come back, the table is the way they left it. It takes about 10 minutes.
@@ -100,7 +100,8 @@ The table comes back sorted by value, without the notes column. Open the page in
 ## What you built
 
 - A table whose sort and visible columns are saved per user.
-- Pagination that resets when the tab closes, so nobody comes back to page 7.
+- Pagination that resets when the tab closes, so a returning user starts on the first page.
+- Filters that also last only for the tab. To save them like the sort, pass `persistFilters: true` next to `id` in `usePliantTable`.
 - A page that renders exactly as you wrote it for anyone who hasn't changed it.
 
 ## Next steps

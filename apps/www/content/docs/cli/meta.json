@@ -1,0 +1,15 @@
+{
+  "title": "CLI",
+  "pages": [
+    "index",
+    "init",
+    "manifest",
+    "scan",
+    "doctor",
+    "skills",
+    "annotate",
+    "rename-id",
+    "eval",
+    "verify"
+  ]
+}

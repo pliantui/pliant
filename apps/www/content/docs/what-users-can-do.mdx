@@ -3,9 +3,9 @@ title: What users can do
 description: A reference list of the changes users can make with Pliant's tables, regions, forms, sidebars and ask panel.
 ---
 
-This page lists every change your users can make once a page uses Pliant, and where on the page they make it. Try them in the [orders example](/examples/orders): sort the table, hide a column, ask for "put the overdue card first", then reload the page and see that your changes are still there.
+Open the [orders example](/examples/orders), sort the table, hide a column and ask for "put the overdue card first". Reload, and all three changes are still there. The sections below list each change users can make and where they make it.
 
-Every change is kept for the person who made it, and comes back on their next visit. Pagination and table filters last only for the browser tab, unless you choose to save filters.
+Every change is kept for the person who made it, and comes back on their next visit. Pagination and table filters last only for the browser tab, unless you pass [`persistFilters: true`](/docs/first-editable-table#what-you-built) to `usePliantTable` to save filters too.
 
 ## Tables
 
@@ -34,18 +34,22 @@ A region is a group of items on the page, such as a row of metric cards, rendere
 - hide a card and show it again;
 - lay the region out as a stack, a row or a grid of up to four columns.
 
-Changes to a region can also make a card span several columns, fold some cards behind a **More** button, or group cards in a new section.
+A region can also make a card span several columns, fold some cards behind a **More** button, or group cards in a new section. Users can't ask for these; they come from team or organization defaults stored for the page.
 
 ## Forms and navigation
 
-- **Forms** (`pliant-form`): fields can be reordered, hidden, or folded into a **More fields** section. Required fields always stay visible.
-- **Sidebars** (`pliant-nav`): links can be reordered, hidden or folded into a **More** item. Each link's options menu sets it as the user's start page, and the sidebar remembers whether they keep it open.
+In a sidebar built with `pliant-nav`, each link's options menu sets it as the user's start page, and the sidebar remembers whether the user keeps it open.
+
+Forms built with `pliant-form`, and sidebar links, can also be reordered, hidden or folded into a **More** section, and form fields can take a user's own default. Neither the page nor the ask panel offers these changes to users. They apply when they come from team or organization defaults stored for the page. Required form fields always stay visible.
 
 ## Asking in plain words
 
 With the [ask panel](/docs/ask-panel) and point mode, a user can:
 
-1. Hold <Kbd>Alt</Kbd>, press <Kbd>⌘</Kbd> <Kbd>.</Kbd> (<Kbd>Ctrl</Kbd> <Kbd>.</Kbd> on Windows and Linux) or use the point mode button, and click the part of the page they want to change.
+1. Turn on point mode, then click the part of the page they want to change. There are three ways to turn it on:
+   - hold <Kbd>Alt</Kbd> (<Kbd>Option</Kbd> on a Mac);
+   - press <Kbd>Ctrl</Kbd> <Kbd>.</Kbd> (<Kbd>⌘</Kbd> <Kbd>.</Kbd> on a Mac);
+   - click the point mode button.
 2. Type what they want, such as "show the cards in a two-column grid", or pick a suggestion.
 3. See the change as a preview, then **Lock in** to keep it or **Discard** to drop it.
 

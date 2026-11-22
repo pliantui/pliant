@@ -1,0 +1,86 @@
+---
+title: doctor
+description: Check that Pliant is set up correctly in your project, with a fix for each problem it finds.
+---
+
+Use the `doctor` command to check that Pliant is set up correctly in your project. It changes nothing, so it's safe to run at any time, in CI or by a coding agent after each change.
+
+```bash
+npx pliantui doctor
+```
+
+```txt
+Usage: pliantui doctor [options]
+
+check that Pliant is set up correctly in your project
+
+Options:
+  --json           print the result as JSON. (default: false)
+  -c, --cwd <cwd>  the working directory. defaults to the current directory.
+                   (default: "/home/you/my-app")
+  -h, --help       display help for command
+```
+
+Each check passes, warns, fails or is skipped, and prints how to fix what it found:
+
+```txt
+✔ Next.js App Router project.
+✔ @pliantui/react is in package.json.
+✔ components.json found.
+✔ Found pliant-data-table, pliant-region in components/pliant.
+✖ 1 PliantRoot has no PliantPrePaint with the same surface.
+  ✖ app/orders/page.tsx:10 PliantRoot renders /orders with no PliantPrePaint in this route.
+  Render <PliantPrePaint surface={surface} /> from @pliantui/react/pre-paint in each page or layout that renders a PliantRoot, with the same surface.
+✔ lib/pliant/inventory.generated.ts is up to date.
+- No lib/pliant/manifests.generated.ts, so none of your own components have manifests.
+  Run npx pliantui manifest to describe your own components.
+- No defineDataset from @pliantui/server/data found in this project.
+
+5 checks passed, 1 failed.
+```
+
+## The checks
+
+| Check             | Passes when                                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `project`         | `package.json` has `next` and the project has an `app` or `src/app` folder.                                                          |
+| `react-package`   | `@pliantui/react` is in the `dependencies` or `devDependencies` of `package.json`.                                                   |
+| `components-json` | `components.json` is there, is valid, and its aliases resolve through `tsconfig.json` or `jsconfig.json`.                            |
+| `components`      | The `pliant` folder inside the `components` alias has at least one of Pliant's components, like `pliant-region`. Otherwise it warns. |
+| `pre-paint`       | Each `PliantRoot` has a `PliantPrePaint` with the same `surface` in its route.                                                       |
+| `inventory`       | The inventory from `pliantui scan` is there and up to date, as `scan --check` checks it.                                             |
+| `manifests`       | Always skipped. It says whether `manifests.generated.ts` is there, but not whether it's up to date.                                  |
+| `ai-fields`       | Every dataset field visible to the AI can be read and none look sensitive. Otherwise it warns. It lists the fields either way.       |
+
+The `pre-paint` check reads your source the way `scan` does, without running it. A `PliantRoot` in a page or layout under the App Router folder needs a `PliantPrePaint` with the same `surface` in the same file or in a `layout` or `template` that renders it: one of a segment above, or of its own segment, where a `layout` renders the `template` and the `template` renders the page. When the check can't tell, it warns instead of passing or failing:
+
+- the `surface` of the `PliantRoot` or of a `PliantPrePaint` in its route can't be read, like a value passed in as a prop
+- the `PliantRoot` is in one of your components rather than in a page or layout, and a `PliantPrePaint` with its surface is somewhere else, so the routes that render it can't be told
+- the `PliantPrePaint` is in one of your components rather than in a page or layout, so whether the route renders that component can't be told
+- the `PliantRoot` is in a `layout` or `template` and its `PliantPrePaint` is in a page, `template` or `layout` that renders inside it, so whether every route under it has one can't be told
+
+It fails when the `PliantPrePaint` in the route renders another surface, and when no `PliantPrePaint` with the `PliantRoot`'s surface is in the route, in your components, or under it. The message names the file of a `PliantPrePaint` with another surface, or of one with the same surface in another route.
+
+The `inventory` check fails when the inventory is missing or out of date, or when the scan finds an error. It warns when the scan has warnings, such as a surface that isn't read in full. It's skipped when the app has no `PliantRoot` and no inventory.
+
+The `ai-fields` check finds each `defineDataset` from `@pliantui/server/data` in your source, through renamed imports, re-exports and `const` aliases, and lists the fields of each dataset: the ones the AI is told about, with their types, and the ones that set `exposeToAI: false`. The AI is told a field's name and type, never its values. A field with `access` is listed too, since the AI is told about it for every user its `access` allows. The check warns about a visible field when its type is `email` or its name has one of these words, split at camelCase, `_` and `-`: `email`, `phone`, `ssn`, `salary`, `password`, `token`, `secret`, `address`, `dob`, `birth` or `birthday`. Set `exposeToAI: false` on each field the AI shouldn't see:
+
+```ts
+const people = defineDataset({
+  id: "people",
+  scope: "public",
+  fields: {
+    id: { type: "id" },
+    team: { type: "string" },
+    workEmail: { type: "email", exposeToAI: false },
+  },
+})
+```
+
+It also warns when it can't read a field, like one built by a function, one whose `exposeToAI` isn't `true`, `false` or a `const` set to one, or fields added by a spread or a computed key it can't follow, and counts what it can't read as visible. A spread or computed key it can't follow in the definition itself, outside `fields`, may replace every field, so all of that dataset's fields count as visible. It passes when every field it found is read and none look sensitive, and it's skipped when the app has no datasets. Its warnings don't change the exit code.
+
+Without a valid `components.json`, the checks that need it are skipped.
+
+The command exits with code 1 when a check fails. Warnings and skipped checks don't change the exit code.
+
+Pass `--json` to get the checks as JSON, for scripts and agents. Each check has a `name`, a `status` (`pass`, `warn`, `fail` or `skip`), a `message`, and, where there is one, a `fix` and the `problems` it found, each with a `file`, `line`, `message` and a `status` of `fail` or `warn`. The `ai-fields` check also has `details`: one entry per dataset, with its `file`, `line`, `message`, `dataset` id (`null` when it can't be read) and `fields`, each with a `name`, `type` (`null` when it can't be read), `exposeToAI`, `sensitive` and `line`. A field that can't be read has `exposeToAI: true`. `ok` is `false` when a check fails. When the command can't run at all, like when the `--cwd` folder doesn't exist, it prints `{ "ok": false, "error": "…" }` and exits with code 1.

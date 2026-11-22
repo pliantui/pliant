@@ -3,7 +3,7 @@ title: Operations
 description: The fixed list of changes an overlay can make, which parts of the page each one applies to, and how Pliant checks them.
 ---
 
-Every change a user makes is an **operation**, or op: a small JSON object with the op's name, the address it changes, and its arguments. This page explains the list of ops, what renders, and how Pliant checks each one.
+Every change a user makes is an **operation**, or op: a small JSON object with the op's name, the address it changes, and its arguments. Sorting the orders table by value, for example, is one `setSort` op.
 
 ```json
 { "op": "pin", "target": "orders-table/columns/customer", "where": "start" }
@@ -96,16 +96,9 @@ Ops on an item, such as `hide` on a column, target the item's address. Ops on a 
 }
 ```
 
-## Limits
+## Limits and schema
 
-The catalog sets fixed limits, so no overlay can grow without bound:
-
-- 500 ops per overlay
-- 8 sort fields and 4 group-by fields
-- 100 values in an `in` filter
-- 4 layout columns
-- 80-character labels, 64-character ids, and 256-character addresses and surfaces
-- Column widths from 16 to 2000 pixels, within the column's own minimum and maximum
+Every op has fixed limits, such as 500 ops per overlay and 4 layout columns, so no overlay can grow without bound. [Limits](/docs/reference/limits) lists them all.
 
 The JSON Schema for one op is published at <SiteUrl path="/schema/op.json" />.
 

@@ -3,7 +3,7 @@ title: Overlays and layers
 description: How a user's changes are stored as overlays, and how organization, team, personal and session layers stack to decide what each user sees.
 ---
 
-Every set of changes is stored as an **overlay**, a small JSON document. Overlays sit in **layers**, from organization-wide defaults down to a single browser tab, and stack on top of your page. This page explains both, so you can predict what each user sees.
+Every set of changes is stored as an **overlay**, a small JSON document. Overlays sit in **layers**, from organization-wide defaults down to a single browser tab, and stack on top of your page. Once you know the order they stack in, you can predict what each user sees.
 
 ## Overlays
 
@@ -32,7 +32,7 @@ An overlay holds a list of [operations](/docs/concepts/operations) for one surfa
 
 You rarely write overlays by hand. Pliant creates them as users work, and your storage keeps them. An overlay saved by a newer version of Pliant loads in an older one without losing anything, and changes the older version doesn't know are skipped, not lost.
 
-The full format is in the [overlay reference](#overlay-fields) below.
+Every field of an overlay is listed in the [overlay format reference](/docs/reference/overlay).
 
 ## Layers
 
@@ -72,27 +72,9 @@ The result never depends on the order your storage returns overlays in.
 
 Users can hide anything, but they can only remove what their own layer added. A user can hide a section their team added, but can't delete it from the team's layer.
 
-## Overlay fields
-
-| Field       | Description                                                                                                 |
-| ----------- | ----------------------------------------------------------------------------------------------------------- |
-| `v`         | The format version, always `1`.                                                                             |
-| `id`        | A [ULID](https://github.com/ulid/spec). Saving an overlay with the same `id` replaces it.                   |
-| `surface`   | The surface it applies to.                                                                                  |
-| `layer`     | `org`, `team`, `personal` or `session`.                                                                     |
-| `scope`     | `{ "org": "…" }` on the `org` layer, `{ "team": "…" }` on the `team` layer, and none otherwise.             |
-| `ops`       | Between 1 and 500 operations.                                                                               |
-| `basis`     | What it was made against: the format version, the `@pliantui/core` version and component manifest versions. |
-| `source`    | How it was made: `ai`, `manual`, `chip`, `share` or `promote`.                                              |
-| `lang`      | Optional. The language of its labels, as a BCP 47 tag such as `en-IN`.                                      |
-| `explain`   | Optional. One short sentence per operation, describing the change to the user.                              |
-| `createdBy` | Who made it.                                                                                                |
-| `createdAt` | When it was made, as an RFC 3339 timestamp with seconds.                                                    |
-
-The JSON Schema is published at <SiteUrl path="/schema/overlay.json" />, for tools and for implementations in other languages.
-
 ## Related
 
 - [Operations](/docs/concepts/operations)
+- [Overlay format](/docs/reference/overlay)
 - [Storage](/docs/storage)
 - [Glossary](/docs/concepts/glossary)

@@ -5,13 +5,13 @@ description: What Pliant is, what it adds to a shadcn app, and where to start re
 
 Pliant lets the people who use your shadcn app change how its pages are laid out for themselves. On an orders page, one person can put the overdue count first and hide the revenue card, while a colleague sorts the table by value and drops the notes column. Each person's version is saved for them, and your code doesn't change.
 
-Here's a row of three metric cards that users can rearrange:
+Here's a row of three metric cards whose arrangement Pliant saves for each user:
 
 <include cwd lang="tsx" meta='title="app/orders/page.tsx"'>
   snippets/intro/page.tsx#page
 </include>
 
-The page looks the same as it did before you added Pliant. The difference is that a user can now move the **Overdue** card to the front, hide **Revenue**, or switch the row to a two-column grid, and still see it that way the next time they open the page. `PliantRoot` loads and saves those changes for the page. `PliantRegion` renders your cards in the order the user chose. Try it in the [orders example](/examples/orders).
+The page looks the same as it did before you added Pliant. `PliantRoot` loads and saves each user's changes for the page, and `PliantRegion` renders the cards the way the user arranged them. Cards have no controls of their own: with the [ask panel](/docs/ask-panel) added, a user can ask to move the **Overdue** card to the front, hide **Revenue** or show the row as a two-column grid, and the page stays that way the next time they open it. Try it in the [orders example](/examples/orders).
 
 <Callout title="Pre-1.0">
   Pliant is experimental. Its APIs can change in any release.
@@ -19,11 +19,11 @@ The page looks the same as it did before you added Pliant. The difference is tha
 
 ## What it adds to your app
 
-Most apps grow these features one at a time: a sort that's remembered per user, a column picker, a layout reset. Pliant gives you all of them through one mechanism.
+Most apps grow these features one at a time: a sort that's remembered per user, a column picker, a layout reset. With Pliant, each of them is a change saved for the user in the same way, so you don't build and store them separately.
 
 - Tables remember each user's sort and visible columns. A **Reset** button in the toolbar brings back your defaults.
-- Groups of cards and sections can be reordered, hidden and laid out as a row or a grid.
-- Form fields can be reordered, and optional ones hidden. Required fields always stay.
+- Through the ask panel, groups of cards and sections can be reordered, hidden and laid out as a row or a grid.
+- Team or organization defaults can reorder a form's fields and hide optional ones. Required fields always stay.
 - With the optional ask panel, a user can point at the table and type "only overdue orders". They see the result as a preview and choose whether to keep it.
 
 [What users can do](/docs/what-users-can-do) lists every change.

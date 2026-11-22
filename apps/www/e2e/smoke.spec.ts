@@ -115,7 +115,7 @@ test("points the canonical link at the site address", async ({ page }) => {
 })
 
 for (const { path, schema } of [
-  { path: "/docs/concepts/layers", schema: "/schema/overlay.json" },
+  { path: "/docs/reference/overlay", schema: "/schema/overlay.json" },
   { path: "/docs/concepts/operations", schema: "/schema/op.json" },
 ]) {
   test(`links ${path} to the ${schema} it serves`, async ({
