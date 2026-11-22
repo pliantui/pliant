@@ -89,6 +89,11 @@ describe("replayFetch", () => {
 
   it("rejects a request it can't read", async () => {
     expect((await ask({ prompt: 1 })).status).toBe(400)
+    const response = await replayFetch("/replay", {
+      method: "POST",
+      body: "not json",
+    })
+    expect(response.status).toBe(400)
   })
 })
 
@@ -96,9 +101,20 @@ describe("scripted answers", () => {
   it("answer only when asked for, for a caller that labels them", () => {
     for (const { target, prompt, explain } of scriptedAnswers) {
       expect(isScriptedAsk(target, prompt)).toBe(true)
+      const answer = replayAnswer(
+        { surface: "/", target, prompt },
+        { scripted: true }
+      )
+      // Marked as a suggestion chip's change, never as an AI answer.
+      expect(answer).toMatchObject({
+        status: "ok",
+        explain,
+        overlay: { source: "chip" },
+      })
       expect(
-        replayAnswer({ surface: "/", target, prompt }, { scripted: true })
-      ).toMatchObject({ status: "ok", explain })
+        answer.status === "ok" &&
+          overlaySchema.safeParse(answer.overlay).success
+      ).toBe(true)
     }
   })
 

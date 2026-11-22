@@ -72,10 +72,13 @@ export function replayAnswer(
   { surface, target, prompt }: Ask,
   { scripted = false }: { scripted?: boolean } = {}
 ): ReplayedAnswer {
+  // Scripted answers are marked as coming from a suggestion chip, never as
+  // an AI's answer.
   const overlay = (
     ops: unknown[],
     basis: unknown,
-    explain: string[]
+    explain: string[],
+    source: "ai" | "chip" = "ai"
   ): ReplayedAnswer => {
     const now = Date.now()
     return {
@@ -86,7 +89,7 @@ export function replayAnswer(
         surface,
         ops,
         basis,
-        source: "ai",
+        source,
         explain,
         createdBy: "anonymous",
         createdAt: new Date(now).toISOString(),
@@ -113,8 +116,9 @@ export function replayAnswer(
   if (script) {
     return overlay(
       script.ops,
-      { contract: 1, core: "0.0.0", manifests: {} },
-      script.explain
+      { contract: 1, core: "0.0.0", manifests: { [script.kind]: 1 } },
+      script.explain,
+      "chip"
     )
   }
   return { status: "unavailable", reason: unrecordedReason }
@@ -124,8 +128,12 @@ export function replayFetch(
   _input: Parameters<typeof fetch>[0],
   init?: RequestInit
 ): Promise<Response> {
-  const body: unknown =
-    typeof init?.body === "string" ? JSON.parse(init.body) : undefined
+  let body: unknown
+  try {
+    body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined
+  } catch {
+    body = undefined
+  }
   if (!isAsk(body)) {
     return Promise.resolve(
       Response.json(

@@ -32,7 +32,7 @@ export function OrdersCardTable({ data }: { data: Order[] }) {
   return (
     <div {...node}>
       <h3 id={titleId} className="sr-only">
-        All orders
+        Recent orders
       </h3>
       <PliantDataTable
         table={table}

@@ -23,7 +23,16 @@ export const dynamic = "force-static"
 export const revalidate = false
 
 export const metadata: Metadata = {
+  title: { absolute: `${site.name}: ${site.headline}` },
+  description: site.summary,
   alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    url: site.url,
+    title: site.headline,
+    description: site.summary,
+    siteName: site.name,
+  },
 }
 
 export default function HomePage() {

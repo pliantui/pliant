@@ -5,7 +5,7 @@ const beats = [
     icon: SparklesIcon,
     title: "Users reshape your app",
     description:
-      "They sort, hide, move and resize what you built, by hand or by pointing at it and asking. Each change saves for that user only.",
+      "They sort, hide, move and resize what you built, by hand or by pointing at it and asking. Each change saves for that user, or for their team.",
   },
   {
     icon: ShieldCheckIcon,
@@ -17,7 +17,7 @@ const beats = [
     icon: BlocksIcon,
     title: "Built on your shadcn components",
     description:
-      "Add Pliant to the components you already have with the shadcn CLI. Your code stays yours, and your design system stays in charge.",
+      "Pliant components wrap the shadcn components you already use, like tables, forms and sidebars. They install with the shadcn CLI as code you own.",
   },
 ]
 

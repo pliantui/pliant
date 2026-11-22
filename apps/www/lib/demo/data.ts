@@ -3,7 +3,6 @@ import {
   type Customer,
   type MonthlyRevenue,
   type Order,
-  type OrderRegion,
   type TeamMember,
 } from "./schema"
 
@@ -11,7 +10,7 @@ import {
 // every recording sees the same company. Import it from server components
 // and pass the rows down, so the generator stays out of the client bundle.
 
-const team: TeamMember[] = [
+export const team: TeamMember[] = [
   {
     name: "Meera Iyer",
     email: "meera@saffronsupply.example",
@@ -62,38 +61,26 @@ const team: TeamMember[] = [
   },
 ]
 
-function accountManager(region: OrderRegion) {
-  return (
-    team.find((member) => member.team === `Sales ${region}`)?.name ??
-    "Meera Iyer"
-  )
-}
-
-const customerHomes: [name: string, city: string, region: OrderRegion][] = [
-  ["Aarav Textiles", "Surat", "West"],
-  ["Bharat Foods", "Lucknow", "North"],
-  ["Chandra Electronics", "Kolkata", "East"],
-  ["Deccan Traders", "Hyderabad", "South"],
-  ["Eastern Spices", "Guwahati", "East"],
-  ["Ganga Pharma", "Varanasi", "North"],
-  ["Himalaya Crafts", "Dehradun", "North"],
-  ["Indus Logistics", "Mumbai", "West"],
-  ["Jaipur Gems", "Jaipur", "North"],
-  ["Kaveri Agro", "Mysuru", "South"],
-  ["Lotus Stationers", "Pune", "West"],
-  ["Malabar Coffee", "Kochi", "South"],
-  ["Narmada Steel", "Vadodara", "West"],
-  ["Orchid Apparel", "Bhubaneswar", "East"],
-  ["Punjab Dairy", "Ludhiana", "North"],
-  ["Rajdhani Motors", "New Delhi", "North"],
-]
-
-const customers: Customer[] = customerHomes.map(([name, city, region]) => ({
-  name,
-  city,
-  region,
-  accountManager: accountManager(region),
-}))
+const customers: Customer[] = (
+  [
+    ["Aarav Textiles", "West"],
+    ["Bharat Foods", "North"],
+    ["Chandra Electronics", "East"],
+    ["Deccan Traders", "South"],
+    ["Eastern Spices", "East"],
+    ["Ganga Pharma", "North"],
+    ["Himalaya Crafts", "North"],
+    ["Indus Logistics", "West"],
+    ["Jaipur Gems", "North"],
+    ["Kaveri Agro", "South"],
+    ["Lotus Stationers", "West"],
+    ["Malabar Coffee", "South"],
+    ["Narmada Steel", "West"],
+    ["Orchid Apparel", "East"],
+    ["Punjab Dairy", "North"],
+    ["Rajdhani Motors", "North"],
+  ] as const
+).map(([name, region]) => ({ name, region }))
 
 const notes = [
   "",

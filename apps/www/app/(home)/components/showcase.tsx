@@ -1,7 +1,7 @@
 import { DemoAskToolbar } from "@/components/demo/demo-ask-toolbar"
 import { ReplayNote } from "@/components/demo/replay-note"
 import { NotImplementedBanner } from "@/components/not-implemented-banner"
-import { monthlyRevenue, orders } from "@/lib/demo/data"
+import { monthlyRevenue, orders, team } from "@/lib/demo/data"
 import { company } from "@/lib/demo/schema"
 import { getOrderStats } from "@/lib/demo/stats"
 
@@ -25,32 +25,32 @@ export function Showcase() {
   return (
     <>
       <section aria-labelledby="showcase-heading" className="container-wrapper">
-        <div className="container flex flex-col gap-4 pb-6">
-          <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-            <div className="flex flex-col gap-1">
-              <h2
-                id="showcase-heading"
-                className="text-lg font-semibold tracking-tight"
-              >
-                Try it
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Parts of the app {company.name} runs on. Pick an ask on a card,
-                or press Point and choose a part to change.
-              </p>
-            </div>
-            <DemoAskToolbar targets={homeTargets} />
+        <div className="container flex flex-col items-start justify-between gap-3 pb-6 sm:flex-row sm:items-end">
+          <div className="flex flex-col gap-1">
+            <h2
+              id="showcase-heading"
+              className="text-lg font-semibold tracking-tight"
+            >
+              Try it
+            </h2>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              A sample app for {company.name}, a made-up supplier. Click a
+              suggestion on any card to preview the change, then lock it in or
+              discard it. Or press Point and pick a part to see what you can
+              ask.
+            </p>
+            <ReplayNote className="mt-1" />
           </div>
-          <ReplayNote />
-          <NotImplementedBanner variant="preview">
-            The Customized badges preview an indicator that isn&apos;t in Pliant
-            yet, and asks marked Scripted play written answers in place of
-            recorded ones.
-          </NotImplementedBanner>
+          <DemoAskToolbar targets={homeTargets} />
         </div>
       </section>
       <div className="container-wrapper">
-        <div className="container rounded-2xl bg-muted p-4 sm:p-6 dark:bg-muted/40">
+        <div className="container flex flex-col gap-4 rounded-2xl bg-muted p-4 sm:gap-6 sm:p-6 dark:bg-muted/40">
+          <NotImplementedBanner variant="preview">
+            The Customized badges preview an indicator that isn&apos;t in Pliant
+            yet. Asks marked Scripted play hand-written answers instead of
+            answers from a model.
+          </NotImplementedBanner>
           <div className="grid min-w-0 items-start gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
             <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
               <StatsCard stats={getOrderStats(orders)} />
@@ -78,7 +78,9 @@ export function Showcase() {
                 target="workspace-nav"
                 asks={["pin customers to the top", "hide reports"]}
               >
-                <WorkspaceSidebar />
+                <WorkspaceSidebar
+                  user={team.find((member) => member.team === "Support")}
+                />
               </ShowcaseCard>
               <TicketCard />
             </div>

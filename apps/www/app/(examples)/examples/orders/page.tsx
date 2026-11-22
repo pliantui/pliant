@@ -41,6 +41,7 @@ export default function OrdersPage() {
               <p className="text-sm text-muted-foreground">
                 Orders placed Jan–Oct 2026
               </p>
+              <ReplayNote />
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <CustomizedReset
@@ -50,13 +51,10 @@ export default function OrdersPage() {
               <DemoAskToolbar targets={askTargets} />
             </div>
           </header>
-          <div className="flex flex-col gap-3">
-            <ReplayNote />
-            <NotImplementedBanner variant="preview">
-              The Customized badge previews an indicator that isn&apos;t in
-              Pliant yet.
-            </NotImplementedBanner>
-          </div>
+          <NotImplementedBanner variant="preview">
+            The Customized badge previews an indicator that isn&apos;t in Pliant
+            yet.
+          </NotImplementedBanner>
           <section aria-label="Key metrics">
             <PliantRegion
               id="key-metrics"

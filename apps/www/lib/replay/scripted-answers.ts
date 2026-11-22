@@ -1,11 +1,13 @@
 import type { Op } from "@pliantui/contract"
 
-// Hand-written answers for asks that have no recording yet. They're kept
+// Hand-written answers for asks that have no recording. They're kept
 // apart from the recordings, never written to `recordings/`, and every ask
 // they answer is labelled as scripted wherever it's offered.
 
 export interface ScriptedAnswer {
   target: string
+  // The manifest kind of the target, for the overlay's basis.
+  kind: string
   prompt: string
   ops: Op[]
   explain: string[]
@@ -14,6 +16,7 @@ export interface ScriptedAnswer {
 export const scriptedAnswers: ScriptedAnswer[] = [
   {
     target: "ticket-form",
+    kind: "form",
     prompt: "put priority first",
     ops: [
       {
@@ -26,12 +29,14 @@ export const scriptedAnswers: ScriptedAnswer[] = [
   },
   {
     target: "ticket-form",
+    kind: "form",
     prompt: "hide the CC field",
     ops: [{ op: "hide", target: "ticket-form/fields/cc" }],
     explain: ["Hid the CC field."],
   },
   {
     target: "notification-settings",
+    kind: "region",
     prompt: "put order alerts first",
     ops: [
       {
@@ -44,12 +49,14 @@ export const scriptedAnswers: ScriptedAnswer[] = [
   },
   {
     target: "notification-settings",
+    kind: "region",
     prompt: "hide product news",
     ops: [{ op: "hide", target: "notification-settings/slots/product-news" }],
     explain: ["Hid the Product news setting."],
   },
   {
     target: "workspace-nav",
+    kind: "nav",
     prompt: "pin customers to the top",
     ops: [
       {
@@ -62,6 +69,7 @@ export const scriptedAnswers: ScriptedAnswer[] = [
   },
   {
     target: "workspace-nav",
+    kind: "nav",
     prompt: "hide reports",
     ops: [{ op: "hide", target: "workspace-nav/items/reports" }],
     explain: ["Hid Reports from the sidebar."],

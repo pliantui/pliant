@@ -1,3 +1,5 @@
+import Link from "next/link"
+
 import { CodeBlockCommand } from "@/components/code-block-command"
 import { site } from "@/lib/site"
 
@@ -17,8 +19,14 @@ export function Install() {
           Add it to your app
         </h2>
         <p className="max-w-xl text-muted-foreground">
-          Install a Pliant component with the shadcn CLI, then follow the
-          installation guide to wire it up.
+          Add a Pliant region with the shadcn CLI, then follow the{" "}
+          <Link
+            href="/docs/installation"
+            className="font-medium text-foreground underline underline-offset-4"
+          >
+            installation guide
+          </Link>{" "}
+          to connect it to your app.
         </p>
         <div className="w-full max-w-2xl overflow-hidden rounded-xl border bg-code text-left text-code-foreground">
           <CodeBlockCommand

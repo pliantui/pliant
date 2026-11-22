@@ -45,7 +45,7 @@ test("leads to the docs, the components and the changelog", async ({
     main.getByRole("link", { name: "View components" })
   ).toHaveAttribute("href", "/components")
   await expect(
-    main.getByRole("link", { name: /Point at any part of a page and ask/ })
+    main.getByRole("link", { name: /point at part of a page and ask/i })
   ).toHaveAttribute("href", "/changelog")
 })
 

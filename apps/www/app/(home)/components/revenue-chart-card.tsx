@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { RotateCcwIcon, SparklesIcon } from "lucide-react"
+import { RotateCcwIcon } from "lucide-react"
 
 import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { Badge } from "@/components/ui/badge"
@@ -248,7 +248,6 @@ export function RevenueChartCard({ data }: { data: MonthlyRevenue[] }) {
                 setView(apply)
               }}
             >
-              <SparklesIcon className="size-3" />
               {prompt}
               <Badge
                 variant="secondary"

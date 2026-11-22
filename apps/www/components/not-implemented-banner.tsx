@@ -29,14 +29,24 @@ export function NotImplementedBanner({
       )}
     >
       <ConstructionIcon aria-hidden="true" />
-      <AlertTitle className={cn(variant === "preview" && "text-xs")}>
-        Not fully implemented yet
-      </AlertTitle>
-      <AlertDescription
-        className={cn("text-current/80", variant === "preview" && "text-xs")}
-      >
-        {children ?? "Parts of what this page describes aren't in Pliant yet."}
-      </AlertDescription>
+      {variant === "page" ? (
+        <>
+          <AlertTitle>Not fully implemented yet</AlertTitle>
+          <AlertDescription className="text-current/80">
+            {children ??
+              "Parts of what this page describes aren't in Pliant yet."}
+          </AlertDescription>
+        </>
+      ) : (
+        <AlertDescription className="text-xs text-current/80">
+          <p>
+            <strong className="font-medium text-current">
+              Not fully implemented yet.
+            </strong>{" "}
+            {children}
+          </p>
+        </AlertDescription>
+      )}
     </Alert>
   )
 }

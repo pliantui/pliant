@@ -14,7 +14,7 @@ export const orderRegions = ["North", "South", "East", "West"] as const
 
 export type OrderStatus = (typeof orderStatuses)[number]
 
-export type OrderRegion = (typeof orderRegions)[number]
+type OrderRegion = (typeof orderRegions)[number]
 
 export interface Order {
   id: string
@@ -28,9 +28,7 @@ export interface Order {
 
 export interface Customer {
   name: string
-  city: string
   region: OrderRegion
-  accountManager: string
 }
 
 export interface TeamMember {
