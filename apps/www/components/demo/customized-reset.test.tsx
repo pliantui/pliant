@@ -59,6 +59,7 @@ async function renderReset() {
     </PliantRoot>
   )
   await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+  expect(store).toBeDefined()
 }
 
 function reset() {

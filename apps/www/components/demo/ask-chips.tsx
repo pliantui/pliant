@@ -117,7 +117,8 @@ export function AskChips({
             onClick={() => {
               const result = store.lockIn()
               if (!result.success) {
-                setAsked({ id: asked.id, message: unavailable })
+                store.discard()
+                settle({ id: null, message: unavailable })
                 return
               }
               settle(
