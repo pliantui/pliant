@@ -119,7 +119,7 @@ Pins an item to the start or end of its container, makes it sticky, or undoes a 
 
 ### `setLayout`
 
-Lays a node's children out as a stack, a row or a grid, at one breakpoint or all. Needs `layout`.
+Lays a node's children out as a stack, a row or a grid, from a breakpoint up. Without `at`, it applies from `md` up, so small screens keep your layout. Needs `layout`.
 
 ```json
 {
@@ -131,16 +131,16 @@ Lays a node's children out as a stack, a row or a grid, at one breakpoint or all
 }
 ```
 
-| Argument  | Type                                              |
-| --------- | ------------------------------------------------- |
-| `mode`    | `stack`, `row` or `grid`                          |
-| `columns` | 1 to 4, only in `grid` mode                       |
-| `align`   | Optional: `start`, `center`, `end` or `between`   |
-| `at`      | Optional: `base`, `sm`, `md`, `lg`, `xl` or `2xl` |
+| Argument  | Type                                                                |
+| --------- | ------------------------------------------------------------------- |
+| `mode`    | `stack`, `row` or `grid`                                            |
+| `columns` | 1 to 4, only in `grid` mode                                         |
+| `align`   | Optional: `start`, `center`, `end` or `between`                     |
+| `at`      | Optional: `base`, `sm`, `md`, `lg`, `xl` or `2xl`. Defaults to `md` |
 
 ### `span`
 
-Makes an item span 1 to 4 columns of its parent's grid, at one breakpoint or all. Needs `layout` on the parent.
+Makes an item span 1 to 4 columns of its parent's grid, from a breakpoint up, `md` by default. Needs `layout` on the parent.
 
 ```json
 { "op": "span", "target": "key-metrics/slots/revenue", "columns": 2 }
