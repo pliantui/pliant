@@ -19,14 +19,16 @@ In server mode, your table asks your server for one page of rows at a time, with
 
 <Step>Ask for rows from the table</Step>
 
-Tell TanStack Table that sorting, filtering and pages happen on the server, and fetch a page whenever they change:
+Tell TanStack Table that sorting and pages happen on the server, and fetch a page whenever they change:
 
 <include cwd lang="tsx" meta='title="app/orders/orders-table.tsx"'>
   snippets/data/server-table.tsx#table
 </include>
 
-- Wait for `options.ready` before fetching, so the first request already has the user's saved sort and filters.
-- `rowCount` is the total number of rows the user may see, so pagination knows how many pages there are. Count them on your server when the page loads.
+- Wait for `options.ready` before fetching, so the first request already has the user's saved sort.
+- Type the request as a `ServerQuery`, so TypeScript checks its shape. A sort entry is `{ field, desc }`.
+- `rowCount` tells pagination how many pages there are. The route above counts the rows in the user's scope with a second query and returns it with the page.
+- To filter on the server too, set `manualFiltering: true` and send `filters`, each in the same shape as a `setFilter` op's filter, such as `{ field: "status", operator: "in", value: ["overdue"] }`. Count with the same filters.
 
 </Steps>
 

@@ -23,8 +23,15 @@ export async function POST(request: Request) {
       columns: { createdAt: "created_at", orgId: "org_id" },
       maxPageSize: 100,
     })
-    const { rows } = await pool.query(query.text, query.values)
-    return Response.json({ rows })
+    const [{ rows }, count] = await Promise.all([
+      pool.query(query.text, query.values),
+      // The same scope as the grant: every order in the user's org.
+      pool.query<{ count: number }>(
+        "select count(*)::int as count from orders where org_id = $1",
+        [user.orgId]
+      ),
+    ])
+    return Response.json({ rows, rowCount: count.rows[0]?.count ?? 0 })
   } catch (error) {
     if (error instanceof TypeError) {
       return Response.json({ message: error.message }, { status: 400 })
