@@ -8,14 +8,14 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata(
-  props: PageProps<"/examples/app/[section]">
+  props: PageProps<"/examples/team-workspace/[section]">
 ): Promise<Metadata> {
   const { section } = await props.params
   return isSection(section) ? { title: sections[section].title } : {}
 }
 
 export default async function SectionPage(
-  props: PageProps<"/examples/app/[section]">
+  props: PageProps<"/examples/team-workspace/[section]">
 ) {
   const { section } = await props.params
   if (!isSection(section)) {

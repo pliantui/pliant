@@ -40,7 +40,7 @@ function sidebarNav(page: Page) {
   return page.getByRole("navigation", { name: "Support desk" })
 }
 
-async function load(page: Page, path = "/examples/app/inbox") {
+async function load(page: Page, path = "/examples/team-workspace/inbox") {
   await page.goto(path)
   await expect(
     page.locator('[data-pliant-id="app-sidebar"]')
@@ -64,7 +64,7 @@ test("renders the links in the team's order, marking the current page", async ({
   page,
   errors,
 }) => {
-  await load(page, "/examples/app/tickets")
+  await load(page, "/examples/team-workspace/tickets")
   expect(await shownLinks(page)).toEqual(teamOrder)
   await expect(
     sidebarNav(page).getByRole("link", { name: "Tickets" })
@@ -128,16 +128,16 @@ test("collapses links behind More", async ({ page }) => {
 
 test.describe("the start page", () => {
   test("is the inbox until the user picks one", async ({ page }) => {
-    await page.goto("/examples/app")
-    await expect(page).toHaveURL("/examples/app/inbox")
+    await page.goto("/examples/team-workspace")
+    await expect(page).toHaveURL("/examples/team-workspace/inbox")
   })
 
   test("is the one the user picked", async ({ page }) => {
     await seed(page, [
       { op: "setLanding", target: "app-sidebar/items/reports" },
     ])
-    await page.goto("/examples/app")
-    await expect(page).toHaveURL("/examples/app/reports")
+    await page.goto("/examples/team-workspace")
+    await expect(page).toHaveURL("/examples/team-workspace/reports")
   })
 
   test("falls back to the inbox when the picked link is hidden", async ({
@@ -147,8 +147,8 @@ test.describe("the start page", () => {
       { op: "setLanding", target: "app-sidebar/items/reports" },
       { op: "hide", target: "app-sidebar/items/reports" },
     ])
-    await page.goto("/examples/app")
-    await expect(page).toHaveURL("/examples/app/inbox")
+    await page.goto("/examples/team-workspace")
+    await expect(page).toHaveURL("/examples/team-workspace/inbox")
   })
 
   test("is the inbox when the layers fail to load", async ({ page }) => {
@@ -158,8 +158,8 @@ test.describe("the start page", () => {
         throw new Error("Storage is blocked")
       }
     })
-    await page.goto("/examples/app")
-    await expect(page).toHaveURL("/examples/app/inbox")
+    await page.goto("/examples/team-workspace")
+    await expect(page).toHaveURL("/examples/team-workspace/inbox")
   })
 
   test("is picked from a link's options and kept", async ({ page }) => {
@@ -175,8 +175,8 @@ test.describe("the start page", () => {
     await expect(startPage).toBeHidden()
     await expect(options).toBeFocused()
 
-    await page.goto("/examples/app")
-    await expect(page).toHaveURL("/examples/app/customers")
+    await page.goto("/examples/team-workspace")
+    await expect(page).toHaveURL("/examples/team-workspace/customers")
   })
 })
 

@@ -4,7 +4,7 @@ import { TeamWorkspaceShell } from "./components/team-workspace-shell"
 
 export default function AppExampleLayout({
   children,
-}: LayoutProps<"/examples/app">) {
+}: LayoutProps<"/examples/team-workspace">) {
   return (
     <TeamWorkspaceShell inventory={inventory["app-shell"]}>
       {children}

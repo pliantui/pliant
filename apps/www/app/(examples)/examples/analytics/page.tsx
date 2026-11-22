@@ -6,7 +6,6 @@ import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
 import { AnalyticsDashboardDemo } from "@/components/blocks/analytics-dashboard-demo"
 import { OrdersListDemo } from "@/components/blocks/orders-list-demo"
-import { ReplayNote } from "@/components/demo/replay-note"
 import { monthlyRevenue, orders } from "@/lib/demo/data"
 import { getOrderStats } from "@/lib/demo/stats"
 import { inventory } from "@/lib/pliant/inventory.generated"
@@ -35,7 +34,6 @@ export default function AnalyticsPage() {
             <p className="text-sm text-muted-foreground">
               Orders placed Jan–Oct 2026
             </p>
-            <ReplayNote />
           </header>
           <AnalyticsDashboardDemo
             stats={getOrderStats(orders)}

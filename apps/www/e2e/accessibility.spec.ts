@@ -170,7 +170,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       "/examples/crm",
       "/examples/settings",
       "/examples/analytics",
-      "/examples/app/inbox",
+      "/examples/team-workspace/inbox",
     ]) {
       test(`the ${path} example has no accessibility violations`, async ({
         page,
@@ -188,7 +188,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     }) => {
       await page.goto("/playground")
       await page.getByRole("button", { name: "hide the notes column" }).click()
-      await page.getByRole("button", { name: "Before" }).click()
+      await page.getByRole("radio", { name: "Before" }).click()
       await expect(
         page.getByRole("region", { name: "Overlay JSON" })
       ).toContainText('"op": "hide"')
@@ -304,7 +304,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     test("the app example's sidebar has no accessibility violations", async ({
       page,
     }) => {
-      await page.goto("/examples/app/inbox")
+      await page.goto("/examples/team-workspace/inbox")
       await expect(
         page.locator('[data-pliant-id="app-sidebar"]')
       ).not.toHaveAttribute("data-pliant-pending")

@@ -11,7 +11,7 @@ const examples = [
   { name: "Tickets", href: "/examples/tickets" },
   { name: "CRM", href: "/examples/crm" },
   { name: "Settings", href: "/examples/settings" },
-  { name: "Team workspace", href: "/examples/app" },
+  { name: "Team workspace", href: "/examples/team-workspace" },
   { name: "Analytics", href: "/examples/analytics" },
 ]
 

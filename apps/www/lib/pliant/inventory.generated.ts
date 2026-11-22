@@ -676,6 +676,44 @@ export const inventory = {
       },
     },
   },
+  "/examples/crm": {
+    baseIds: {
+      ids: ["crm-pipeline", "lead", "proposal", "qualified", "won"],
+      source: "mounted",
+    },
+    baseParents: {
+      "crm-pipeline": null,
+      lead: "crm-pipeline",
+      proposal: "crm-pipeline",
+      qualified: "crm-pipeline",
+      won: "crm-pipeline",
+    },
+    baseOrder: {
+      "crm-pipeline": ["lead", "qualified", "proposal", "won"],
+    },
+    ids: {
+      "crm-pipeline": {
+        kind: "pliant:region",
+        hash: "a530aef6e984296f",
+      },
+      lead: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      proposal: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      qualified: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      won: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+    },
+  },
   "/examples/orders": {
     baseIds: {
       ids: [

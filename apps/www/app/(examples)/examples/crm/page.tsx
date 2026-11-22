@@ -1,8 +1,13 @@
 import type { Metadata } from "next"
 
+import { PliantRoot } from "@pliantui/react"
+import { localAdapter } from "@pliantui/react/local"
+import { PliantPrePaint } from "@pliantui/react/pre-paint"
+
 import { CrmPipelineDemo } from "@/components/blocks/crm-pipeline-demo"
 import { deals } from "@/lib/demo/data"
 import { formatCurrency } from "@/lib/demo/format"
+import { inventory } from "@/lib/pliant/inventory.generated"
 
 export const metadata: Metadata = {
   title: "CRM",
@@ -15,14 +20,21 @@ export default function CrmPage() {
   return (
     <div className="flex-1 bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 lg:px-6">
-        <header className="flex flex-col gap-1">
-          <h2 className="text-2xl font-semibold tracking-tight">Pipeline</h2>
-          <p className="text-sm text-muted-foreground">
-            {open.length} open deals worth{" "}
-            {formatCurrency(open.reduce((sum, deal) => sum + deal.value, 0))}
-          </p>
-        </header>
-        <CrmPipelineDemo deals={deals} />
+        <PliantRoot
+          surface="/examples/crm"
+          storage={localAdapter}
+          inventory={inventory["/examples/crm"]}
+        >
+          <PliantPrePaint surface="/examples/crm" />
+          <header className="flex flex-col gap-1">
+            <h2 className="text-2xl font-semibold tracking-tight">Pipeline</h2>
+            <p className="text-sm text-muted-foreground">
+              {open.length} open deals worth{" "}
+              {formatCurrency(open.reduce((sum, deal) => sum + deal.value, 0))}
+            </p>
+          </header>
+          <CrmPipelineDemo deals={deals} />
+        </PliantRoot>
       </div>
     </div>
   )

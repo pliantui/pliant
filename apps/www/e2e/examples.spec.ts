@@ -30,6 +30,7 @@ test.describe("the team workspace", () => {
   async function viewAs(page: Page, persona: string) {
     await page.getByRole("combobox", { name: "View as" }).click()
     await page.getByRole("option", { name: persona, exact: true }).click()
+    await expect(page.getByRole("combobox", { name: "View as" })).toBeFocused()
     await expect(
       page.locator('[data-pliant-id="app-sidebar"]')
     ).not.toHaveAttribute("data-pliant-pending")
@@ -39,7 +40,7 @@ test.describe("the team workspace", () => {
     page,
     errors,
   }) => {
-    await page.goto("/examples/app/inbox")
+    await page.goto("/examples/team-workspace/inbox")
     await expect(
       page.locator('[data-pliant-id="app-sidebar"]')
     ).not.toHaveAttribute("data-pliant-pending")
@@ -74,6 +75,9 @@ test.describe("the team workspace", () => {
     await reset.click()
     await expect(customers).toBeVisible()
     await expect(reset).toBeFocused()
+    expect((await tickets.boundingBox())?.y ?? 0).toBeLessThan(
+      (await inbox.boundingBox())?.y ?? 0
+    )
     expect(errors).toEqual([])
   })
 })
@@ -134,7 +138,7 @@ for (const path of [
   "/examples/crm",
   "/examples/settings",
   "/examples/analytics",
-  "/examples/app/inbox",
+  "/examples/team-workspace/inbox",
 ]) {
   test(`${path} fits a phone screen`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })

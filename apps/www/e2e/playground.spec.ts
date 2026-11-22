@@ -18,9 +18,11 @@ test("asks for a change, compares it with the start, and resets it", async ({
   await step(page, "Ask for a change")
     .getByRole("button", { name: "hide the notes column" })
     .click()
-  await expect(page.getByRole("status")).toHaveText(
-    "Hid the Notes column from the orders table."
-  )
+  await expect(
+    step(page, "Ask for a change").getByText(
+      "Hid the Notes column from the orders table."
+    )
+  ).toBeVisible()
   await expect(compare.getByText("Customized", { exact: true })).toBeVisible()
   await expect(
     compare.getByRole("columnheader", { name: /^Notes/ })
@@ -28,11 +30,11 @@ test("asks for a change, compares it with the start, and resets it", async ({
   await expect(json).toContainText('"op": "hide"')
   await expect(json).toContainText('"target": "orders-table/columns/notes"')
 
-  await compare.getByRole("button", { name: "Before" }).click()
+  await compare.getByRole("radio", { name: "Before" }).click()
   await expect(
     compare.getByRole("columnheader", { name: /^Notes/ })
   ).toBeVisible()
-  await compare.getByRole("button", { name: "After" }).click()
+  await compare.getByRole("radio", { name: "After" }).click()
   await expect(
     compare.getByRole("columnheader", { name: /^Notes/ })
   ).toHaveCount(0)
@@ -52,7 +54,7 @@ test("shows each example's asks, scripted where there's no recording", async ({
 }) => {
   await page.goto("/playground")
   await step(page, "Pick an example")
-    .getByRole("button", { name: /^Ticket form/ })
+    .getByRole("radio", { name: /^Ticket form/ })
     .click()
 
   const asks = page.getByRole("group", { name: "Ask about ticket form" })
@@ -63,7 +65,7 @@ test("shows each example's asks, scripted where there's no recording", async ({
   await expect(page.getByRole("textbox", { name: "CC" })).toHaveCount(0)
   await expect(
     page.getByRole("region", { name: "Overlay JSON" })
-  ).toContainText('"source": "chip"')
+  ).toContainText('"target": "ticket-form/fields/cc"')
 })
 
 test("answers only the suggested asks when asked in your own words", async ({
@@ -82,9 +84,28 @@ test("answers only the suggested asks when asked in your own words", async ({
 
   await box.fill("sort by value, highest first")
   await page.getByRole("button", { name: "Ask", exact: true }).click()
-  await expect(page.getByRole("status")).toHaveText(
-    "Sorted by value, highest first."
+  await expect(
+    step(page, "Ask for a change").getByText("Sorted by value, highest first.")
+  ).toBeVisible()
+  await expect(
+    page.getByRole("region", { name: "Overlay JSON" })
+  ).toContainText('"field": "value"')
+})
+
+test("suggests one of the picked example's asks in the text box", async ({
+  page,
+}) => {
+  await page.goto("/playground")
+  const box = page.getByRole("textbox", { name: "Or ask in your own words" })
+  await expect(box).toHaveAttribute(
+    "placeholder",
+    "sort by value, highest first"
   )
+
+  await step(page, "Pick an example")
+    .getByRole("radio", { name: /^Sidebar/ })
+    .click()
+  await expect(box).toHaveAttribute("placeholder", "pin customers to the top")
 })
 
 test("fits a phone screen", async ({ page }) => {

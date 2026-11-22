@@ -1,17 +1,22 @@
 "use client"
 
 import * as React from "react"
-import { SparklesIcon } from "lucide-react"
 
-import { PliantRoot, usePliantStore, usePliantSurface } from "@pliantui/react"
+import {
+  PliantRoot,
+  usePliantStore,
+  usePliantSurface,
+  type Overlay,
+} from "@pliantui/react"
 
+import { AskChips } from "@/components/demo/ask-chips"
 import { CustomizedReset } from "@/components/demo/customized-reset"
 import { ReplayNote } from "@/components/demo/replay-note"
-import { ScriptedBadge } from "@/components/demo/scripted-badge"
 import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { memoryAdapter } from "@/lib/demo/memory-adapter"
 import { isScriptedAsk, replayAnswer } from "@/lib/replay/replay-fetch"
 
@@ -26,6 +31,10 @@ export interface PlaygroundExample {
 }
 
 type View = "after" | "before"
+
+function isView(value: string): value is View {
+  return value === "after" || value === "before"
+}
 
 function Step({
   number,
@@ -53,14 +62,14 @@ function Step({
   )
 }
 
-// The asks for the picked example, and a box to ask in your own words.
-// Each answer is locked in at once, so the before and after can be compared.
-function Asks({
+// Asking in your own words. With no model behind the playground, it
+// answers only the example's suggested asks, and keeps each answer at once.
+function FreeTextAsk({
   example,
-  onChange,
+  onLockIn,
 }: {
   example: PlaygroundExample
-  onChange: (overlay: unknown) => void
+  onLockIn: (overlay: Overlay) => void
 }) {
   const store = usePliantStore()
   const surface = usePliantSurface()
@@ -83,87 +92,42 @@ function Asks({
       setMessage("This change can't be shown right now. Try another ask.")
       return
     }
-    onChange(answer.overlay)
+    if (locked.overlay) onLockIn(locked.overlay)
     setMessage(answer.explain.join(" "))
   }
 
   return (
-    <>
-      <Step number={2} title="Ask for a change">
-        <div
-          role="group"
-          aria-label={`Ask about ${example.label.toLowerCase()}`}
-          className="flex flex-wrap gap-1.5"
-          data-unfinished={
-            example.asks.some((prompt) => isScriptedAsk(example.target, prompt))
-              ? "scripted"
-              : undefined
-          }
-        >
-          {example.asks.map((prompt) => {
-            const scripted = isScriptedAsk(example.target, prompt)
-            return (
-              <Button
-                key={prompt}
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 rounded-full px-2.5 text-xs font-normal"
-                onClick={() => {
-                  ask(prompt)
-                }}
-              >
-                {!scripted && <SparklesIcon className="size-3" />}
-                {prompt}
-                {scripted && <ScriptedBadge />}
-              </Button>
-            )
-          })}
-        </div>
-        <form
-          className="flex flex-col gap-2"
-          onSubmit={(event) => {
-            event.preventDefault()
-            if (draft.trim()) ask(draft)
+    <form
+      className="flex flex-col gap-2"
+      onSubmit={(event) => {
+        event.preventDefault()
+        if (draft.trim()) ask(draft)
+      }}
+    >
+      <Label htmlFor="playground-ask">Or ask in your own words</Label>
+      <div className="flex gap-2">
+        <Input
+          id="playground-ask"
+          value={draft}
+          placeholder={example.asks[0]}
+          autoComplete="off"
+          onChange={(event) => {
+            setDraft(event.target.value)
           }}
-        >
-          <Label htmlFor="playground-ask">Or ask in your own words</Label>
-          <div className="flex gap-2">
-            <Input
-              id="playground-ask"
-              value={draft}
-              placeholder="hide the region column"
-              autoComplete="off"
-              onChange={(event) => {
-                setDraft(event.target.value)
-              }}
-            />
-            <Button type="submit" variant="secondary">
-              Ask
-            </Button>
-          </div>
-        </form>
-        <p
-          role="status"
-          className="text-sm text-muted-foreground empty:sr-only"
-        >
-          {message}
-        </p>
-        {example.asks.some(
-          (prompt) => !isScriptedAsk(example.target, prompt)
-        ) && <ReplayNote />}
-        <NotImplementedBanner variant="preview">
-          The playground isn&apos;t connected to a model, so asking in your own
-          words answers only the suggested asks. Asks marked Scripted play
-          hand-written answers.
-        </NotImplementedBanner>
-      </Step>
-    </>
+        />
+        <Button type="submit" variant="secondary">
+          Ask
+        </Button>
+      </div>
+      <p role="status" className="text-sm text-muted-foreground empty:sr-only">
+        {message}
+      </p>
+    </form>
   )
 }
 
 // A guided way to try Pliant: pick an example, ask for a change, compare
-// it with how the example started, see the overlay the answer made, and
+// it with how the example started, see the overlay the answer saved, and
 // reset.
 export function Playground({
   examples,
@@ -172,76 +136,90 @@ export function Playground({
 }) {
   const [picked, setPicked] = React.useState(examples[0]?.id)
   const [view, setView] = React.useState<View>("after")
-  const [changes, setChanges] = React.useState<Record<string, unknown[]>>({})
+  const [changes, setChanges] = React.useState<Record<string, Overlay[]>>({})
   const example = examples.find((entry) => entry.id === picked) ?? examples[0]
   if (!example) return null
   const overlays = changes[example.id] ?? []
+  const keep = (overlay: Overlay) => {
+    setView("after")
+    setChanges((current) => ({
+      ...current,
+      [example.id]: [...(current[example.id] ?? []), overlay],
+    }))
+  }
 
   return (
     <PliantRoot surface="/playground" storage={memoryAdapter()}>
       <div className="grid min-w-0 gap-8 lg:grid-cols-[20rem_1fr]">
         <div className="flex min-w-0 flex-col gap-8">
           <Step number={1} title="Pick an example">
-            <div
-              role="group"
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              spacing={1}
               aria-label="Examples"
-              className="flex flex-col gap-1"
+              value={example.id}
+              onValueChange={(value) => {
+                if (!value) return
+                setPicked(value)
+                setView("after")
+              }}
+              className="w-full flex-col items-stretch"
             >
               {examples.map((entry) => (
-                <button
+                <ToggleGroupItem
                   key={entry.id}
-                  type="button"
-                  aria-pressed={entry.id === example.id}
-                  className="flex flex-col rounded-lg border bg-background px-3 py-2 text-left text-sm outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-pressed:border-primary aria-pressed:ring-1 aria-pressed:ring-primary aria-pressed:hover:bg-background"
-                  onClick={() => {
-                    setPicked(entry.id)
-                    setView("after")
-                  }}
+                  value={entry.id}
+                  className="h-auto flex-col items-start gap-0 bg-background px-3 py-2 text-left whitespace-normal data-[state=on]:border-primary data-[state=on]:bg-background"
                 >
                   <span className="font-medium">{entry.label}</span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs font-normal text-muted-foreground">
                     {entry.description}
                   </span>
-                </button>
+                </ToggleGroupItem>
               ))}
-            </div>
+            </ToggleGroup>
           </Step>
-          <Asks
-            key={example.id}
-            example={example}
-            onChange={(overlay) => {
-              setView("after")
-              setChanges((current) => ({
-                ...current,
-                [example.id]: [...(current[example.id] ?? []), overlay],
-              }))
-            }}
-          />
+          <Step number={2} title="Ask for a change">
+            <AskChips
+              key={example.id}
+              target={example.target}
+              label={example.label.toLowerCase()}
+              prompts={example.asks}
+              lockInAtOnce
+              onLockIn={keep}
+            />
+            <FreeTextAsk key={example.id} example={example} onLockIn={keep} />
+            {example.asks.some(
+              (prompt) => !isScriptedAsk(example.target, prompt)
+            ) && <ReplayNote />}
+            <NotImplementedBanner variant="preview">
+              The playground isn&apos;t connected to a model, so asking in your
+              own words answers only the suggested asks. Asks marked Scripted
+              play hand-written answers.
+            </NotImplementedBanner>
+          </Step>
         </div>
         <div className="flex min-w-0 flex-col gap-8">
           <Step number={3} title="Compare before and after">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div
-                role="group"
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                size="sm"
                 aria-label="Show"
-                className="inline-flex rounded-lg bg-muted p-1"
+                value={view}
+                onValueChange={(value) => {
+                  if (isView(value)) setView(value)
+                }}
               >
-                {(["after", "before"] as const).map((value) => (
-                  <Button
-                    key={value}
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    aria-pressed={view === value}
-                    className="h-7 px-3 text-xs capitalize aria-pressed:bg-background aria-pressed:shadow-sm"
-                    onClick={() => {
-                      setView(value)
-                    }}
-                  >
-                    {value}
-                  </Button>
-                ))}
-              </div>
+                <ToggleGroupItem value="after" className="px-3">
+                  After
+                </ToggleGroupItem>
+                <ToggleGroupItem value="before" className="px-3">
+                  Before
+                </ToggleGroupItem>
+              </ToggleGroup>
               <CustomizedReset
                 targets={[example.target]}
                 label={example.label.toLowerCase()}
@@ -267,8 +245,9 @@ export function Playground({
           </Step>
           <Step number={4} title="What changed">
             <p className="text-sm text-muted-foreground">
-              Each answer is an overlay: a list of changes Pliant applies on top
-              of your app, saved for this user.
+              Each answer you keep is saved as an overlay: a list of changes
+              Pliant applies on top of your app for this user. Here are the
+              overlays saved for this example.
             </p>
             <pre
               role="region"
