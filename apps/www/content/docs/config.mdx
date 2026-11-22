@@ -1,0 +1,101 @@
+---
+title: pliant.config.ts
+description: Reference for pliant.config.ts, with the fields for flags, AI instructions, the model, limits and team order.
+---
+
+`pliant.config.ts` is where you set the rules Pliant follows across your whole app. In it, you mark the parts users must always see, tell the AI about your product, and set limits. It lives at the root of your project and runs only on your server.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how the config file will work. Parts of it aren't in Pliant
+  yet. Today, you pass the model to `createPliantHandler`, and the storage and
+  `teamOrder` to `PliantRoot`.
+</Callout>
+
+```ts title="pliant.config.ts"
+import { anthropic } from "@ai-sdk/anthropic"
+
+import { defineConfig } from "@pliantui/server"
+
+export default defineConfig({
+  flags: {
+    "/orders": {
+      "orders-table/columns/status": { critical: true },
+      "order-actions/slots/delete": { destructive: true },
+      "order-actions/slots/save": { primary: true },
+    },
+  },
+  instructions: {
+    product:
+      "An ordering portal for distributors in India. Users work in sales operations and finance.",
+    glossary: { GMV: "The sum of order value, including tax" },
+    tone: "Short, plain labels. Amounts in rupees.",
+    surfaces: {
+      "/orders": "Users mostly care about overdue and high-value orders.",
+    },
+  },
+  model: { primary: anthropic("claude-haiku-5-5") },
+  limits: {
+    requestsPerMinute: 20,
+    dailyTokensPerUser: 50_000,
+  },
+  teamOrder: ["finance", "sales"],
+})
+```
+
+`pliantui init` creates the file with comments, and `pliantui doctor` checks it.
+
+## Flags
+
+Flags mark parts of a page that need protecting. Give each one by its address, under the surface it's on:
+
+| Flag          | What it does                                                                                          |
+| ------------- | ----------------------------------------------------------------------------------------------------- |
+| `critical`    | The part always stays visible. Users can't hide, collapse or remove it.                               |
+| `required`    | A form field always stays visible. Fields required by your form's schema get it automatically.        |
+| `primary`     | The main action of its group, such as **Save**.                                                       |
+| `destructive` | An action such as **Delete**. It can't move closer to the primary action, and its style can't change. |
+
+See [Guardrails](/docs/concepts/guardrails) for the exact rules. `pliantui doctor` reports a flag whose address doesn't exist.
+
+## Instructions
+
+Instructions tell the AI about your product, so its answers fit how your users talk and work. They're written by you and never mixed with what users type.
+
+| Field      | What it's for                                               |
+| ---------- | ----------------------------------------------------------- |
+| `product`  | One or two sentences on what the app is and who uses it.    |
+| `glossary` | Terms your users use, and what they mean.                   |
+| `tone`     | How labels the AI writes should read.                       |
+| `rules`    | Preferences for answers, such as "prefer tables to charts". |
+| `surfaces` | Extra notes for one page, by surface.                       |
+
+Next to `instructions`, `examples` lists asks with the operations you expect, such as `{ target: "orders-table", ask: "late ones first", ops: [...] }`, to show the model your style.
+
+Instructions guide the model. They don't enforce anything: a rule such as "never hide the status column" belongs in `flags` as well, where Pliant enforces it. `pliantui doctor` warns when a rule reads like a constraint but has no matching flag, and when instructions grow long enough to add noticeable cost to each ask.
+
+## Model
+
+`model.primary` is any [AI SDK](https://ai-sdk.dev) language model. Add `model.fallback` to use a second model when the first fails.
+
+## Limits
+
+| Field                | What it limits                                 |
+| -------------------- | ---------------------------------------------- |
+| `requestsPerMinute`  | Asks per user per minute.                      |
+| `dailyTokensPerUser` | The model tokens each user can spend in a day. |
+
+A user who reaches a limit sees a message in the ask panel, and can still change the page by hand.
+
+## Teams
+
+`teamOrder` lists team ids, highest precedence first. When a user is on several teams and their defaults disagree, the team listed first wins. Teams you don't list rank below the ones you do.
+
+## Related
+
+- [Guardrails](/docs/concepts/guardrails)
+- [How asking works](/docs/ai)
+- [Overlays and layers](/docs/concepts/layers)

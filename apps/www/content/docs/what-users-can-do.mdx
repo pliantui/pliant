@@ -1,0 +1,131 @@
+---
+title: What users can do
+description: A reference list of the changes users can make with Pliant's tables, regions, forms, sidebars and ask panel.
+---
+
+Open the [orders example](/examples/orders), sort the table, hide a column and ask for "put the overdue card first". Reload, and all three changes are still there. The sections below list each change users can make and where they make it.
+
+Every change is kept for the person who made it, and comes back on their next visit. Pagination and table filters last only for the browser tab, unless you pass [`persistFilters: true`](/docs/first-editable-table#what-you-built) to `usePliantTable` to save filters too.
+
+## Tables
+
+With [`pliant-data-table`](/docs/first-editable-table) and its toolbar, users can:
+
+| Change                                              | Where they make it                                        |
+| --------------------------------------------------- | --------------------------------------------------------- |
+| Sort by a column, ascending or descending           | Click the column header                                   |
+| Show and hide columns                               | The **Columns** menu                                      |
+| Search and filter rows, with a count per value      | The toolbar's search box and filter menus                 |
+| Pick a sort you offer, such as "Largest first"      | The toolbar's **Sort** menu                               |
+| Apply a preset, such as "To chase"                  | The toolbar's **Presets** menu                            |
+| Choose how many rows a page shows                   | **Rows per page**, under the table                        |
+| Expand grouped rows and read each group's total     | The group rows, when the table is grouped                 |
+| Drop their own changes                              | The toolbar's **Reset** button                            |
+| Hide, show, move, pin, resize, sort and filter      | The [ask panel](/docs/ai), in plain words                 |
+| Group rows, add a calculated column, highlight rows | Controls you add, such as the menus in the orders example |
+
+When your table lets users reorder, resize or pin columns, those changes are saved the same way. A calculated column, such as a margin or a share of the total, and a highlight, such as "overdue orders in red", are kept like any other change.
+
+## Regions
+
+A region is a group of items on the page, such as a row of metric cards, rendered with `PliantRegion`. Users can:
+
+| Change                                                               | Where they make it                         |
+| -------------------------------------------------------------------- | ------------------------------------------ |
+| Move a card before or after another                                  | Drag it, or the [ask panel](/docs/ai)      |
+| Pin a card to the start or end                                       | The card's menu, or the ask panel          |
+| Hide a card and show it again                                        | The card's menu, or the ask panel          |
+| Lay the region out as a stack, a row or a grid of up to four columns | The region's layout menu, or the ask panel |
+| Make a card span several columns                                     | The card's menu                            |
+| Fold cards behind a **More** button                                  | The card's menu                            |
+| Group cards into a new section                                       | The region's menu                          |
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Dragging, the card and region menus, spanning, folding and grouping aren't in
+  Pliant yet. Today, users move, pin, hide and lay out cards through the ask
+  panel.
+</Callout>
+
+## Forms
+
+In a form built with `pliant-form`, users can reorder fields, hide optional ones, fold fields they rarely use into a **More fields** section, and keep their own default for a field, such as always CC'ing their manager. Each field has a small menu for these changes. Required fields always stay visible, and a default must pass the field's validation.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The field menu isn't in Pliant yet. Forms apply these changes when they come
+  from team or organization defaults.
+</Callout>
+
+## Navigation
+
+In a sidebar built with `pliant-nav`, each link's options menu sets it as the user's start page, and the sidebar remembers whether the user keeps it open. Users can also drag links into a new order, hide links they don't use, and fold rarely used ones into a **More** item.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Reordering, hiding and folding sidebar links from the page isn't in Pliant
+  yet.
+</Callout>
+
+## Asking in plain words
+
+With the [ask panel](/docs/ai) and point mode, a user can:
+
+1. Turn on point mode, then click the part of the page they want to change. There are three ways to turn it on:
+   - hold <Kbd>Alt</Kbd> (<Kbd>Option</Kbd> on a Mac);
+   - press <Kbd>Ctrl</Kbd> <Kbd>.</Kbd> (<Kbd>⌘</Kbd> <Kbd>.</Kbd> on a Mac);
+   - click the point mode button.
+2. Type what they want, such as "show the cards in a two-column grid", or pick a suggestion.
+3. See the change as a preview, then **Lock in** to keep it or **Discard** to drop it.
+
+Nothing is saved until they lock it in.
+
+## Share and manage changes
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This section shows how these features will work. Parts of them aren't in
+  Pliant yet.
+</Callout>
+
+Users can:
+
+- Save the current arrangement under a name, such as "Month-end review", and switch between saved views.
+- Undo a change, or go back to any earlier point from a list of changes.
+- Send a colleague a link that opens the page arranged their way. The colleague sees a preview first and decides whether to keep it.
+- Publish an arrangement as the default for their team. Each member can still adjust it.
+- See which parts of a page they've changed, and reset any one of them.
+
+## Display preferences
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This section shows how these features will work. Parts of them aren't in
+  Pliant yet.
+</Callout>
+
+Users can:
+
+- Switch a page between comfortable and compact spacing.
+- Choose a larger text size, or reduced motion, for the whole app.
+- Pick one of the themes your app offers, such as high contrast.
+- Read Pliant's own labels in their language, laid out right to left for languages such as Arabic. See [RTL and languages](/docs/languages).
+
+## What users can't do
+
+Every change above affects how a page looks. None of them can add code, change your data, show data your server didn't send, or delete something you wrote. See [Guardrails](/docs/concepts/guardrails).

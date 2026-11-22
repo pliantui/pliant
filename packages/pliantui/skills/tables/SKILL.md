@@ -316,6 +316,6 @@ store.applyOps("personal", [
 ## Docs
 
 - [Operations](https://pliantui.dev/docs/concepts/operations): the table ops and what renders.
-- [Layers](https://pliantui.dev/docs/concepts/layers): why sorting, hiding and grouping stack the way they do.
-- [Expressions](https://pliantui.dev/docs/concepts/expressions): the functions an aggregate, a derived column or a highlight can use.
+- [Overlays and layers](https://pliantui.dev/docs/concepts/layers): why sorting, hiding and grouping stack the way they do.
+- [Expressions and functions](https://pliantui.dev/docs/concepts/expressions): the functions an aggregate, a derived column or a highlight can use.
 - [Guardrails](https://pliantui.dev/docs/concepts/guardrails): what is never saved.

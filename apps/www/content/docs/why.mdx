@@ -1,0 +1,34 @@
+---
+title: Why Pliant
+description: The problem Pliant addresses, what we mean by a pliant interface, and the earlier work it borrows from.
+---
+
+Most apps give every user the same page. The finance team that only cares about overdue orders gets the same columns, in the same order, as the sales team that wants this week's largest deals. Users work around it: they export to a spreadsheet, keep a filtered link in their bookmarks, or ask for one more setting. Pliant is our attempt to let each user adjust the page instead, without you building those settings one by one.
+
+## What we mean by a pliant interface
+
+We call an interface pliant when its users can rearrange it for themselves without code and without being able to break it. On the orders page, that means a user can sort the table, hide the notes column or move the overdue card first, and a team lead can set those as the team's starting point. Your version of the page is still there, and a reset brings it back.
+
+The main difference from a settings screen is that you don't design an option for each preference. A table offers its own controls, and anything else you make editable can be changed by asking in plain words. Changes from an organization, a team and one person stack, so a team can set a default that each member still adjusts. Every change is checked against a fixed list of allowed changes before it applies, and one that fails the check is skipped.
+
+## Earlier work
+
+None of this is a new idea. Pliant borrows from a long line of work on software that people can reshape, and we want to credit it.
+
+- In the 1970s at Xerox PARC, Alan Kay and his colleagues built Smalltalk around the idea that a personal computer is a medium its user can change while it runs.
+- Bill Atkinson's HyperCard, released by Apple in 1987, let people who didn't consider themselves programmers build and remix their own tools out of cards, buttons and fields.
+- Spreadsheets, starting with Dan Bricklin and Bob Frankston's VisiCalc in 1979, are still how most people shape software to their own work. They're also why so many reports end up exported.
+- Bret Victor and the Dynamicland community explore computing that lives in a shared physical space, where anyone in the room can see how something works and change it.
+- Ink & Switch's essay [Malleable software](https://www.inkandswitch.com/essay/malleable-software/) makes the case for giving users back control over the apps they use, and surveys what has been tried. Much of how we think about Pliant comes from it.
+
+## Where Pliant fits
+
+Pliant takes a narrow slice of that tradition. It doesn't make your app programmable, and your users don't learn a new tool. It works inside apps built with React, shadcn/ui and TanStack Table, and it only changes how a page is presented.
+
+You decide which parts are editable, and your components, data and permissions stay as they are. [Guardrails](/docs/concepts/guardrails) lists what users can never change. If you add the ask panel, the AI works under the same limits: it proposes a change, the user sees a preview, and nothing is saved unless they keep it.
+
+## Learn more
+
+- [How it works in 5 minutes](/docs/how-it-works)
+- [What users can do](/docs/what-users-can-do)
+- [About and credits](/docs/about)

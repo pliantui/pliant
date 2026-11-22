@@ -1,0 +1,63 @@
+---
+title: Rendering modes
+description: How a customized page reaches the screen without flashing its original layout, in the browser, with a pre-paint script, or rendered on the server.
+---
+
+A customized page should appear the way the user arranged it, without first flashing your default layout. Pliant gives you three ways to get there. Pick the one that fits how your page renders and where its changes are stored.
+
+| Mode      | What the user sees first                                             | Use it when                                          |
+| --------- | -------------------------------------------------------------------- | ---------------------------------------------------- |
+| Client    | Your page as written, then their arrangement                         | The page renders only in the browser                 |
+| Pre-paint | A brief placeholder on the parts that change, then their arrangement | Changes are in the browser, HTML comes from a server |
+| Server    | Their arrangement, straight away                                     | Changes are on your server                           |
+
+## Client
+
+With just `PliantRoot`, the page renders as you wrote it. Then the user's changes load and apply.
+
+In an app that renders in the browser, such as a Vite app, changes kept with `localAdapter` load before the first paint, so there's nothing to see. When the HTML comes from a server, add pre-paint or server rendering.
+
+## Pre-paint
+
+`PliantPrePaint` adds a tiny script that runs before the browser paints the page. If the user has changed a part of it, that part shows a soft placeholder until their changes apply. Every other part, and the whole page for users with no changes, renders as usual.
+
+<include cwd lang="tsx" meta='title="app/orders/page.tsx"'>
+  snippets/first-table/page.tsx#page
+</include>
+
+- Give `PliantPrePaint` the same `surface` as `PliantRoot`, and render it before the parts it covers: first inside `PliantRoot`, or in the layout's `<head>`.
+- It reads changes saved by `localAdapter`. With server storage, use server rendering instead.
+- Placeholders last 4.5 seconds at most, so content always shows, even if loading fails. Change that with `revealAfter`, in milliseconds.
+- With a Content Security Policy, pass its `nonce`.
+
+The placeholder covers reordering, hiding and layout. Preferences for the whole surface, such as density, apply once the page loads.
+
+`pliantui doctor` checks that every route with a `PliantRoot` also has a `PliantPrePaint` with the same surface.
+
+## Server
+
+When changes live on your server, load them while the page renders and pass them to `PliantRoot` as `layers`. The HTML then arrives already arranged the user's way.
+
+Create the storage adapter in a client module, because a Server Component can't pass functions to a client one:
+
+<include cwd lang="tsx" meta='title="app/orders/orders-root.tsx"'>
+  snippets/rendering/orders-root.tsx#root
+</include>
+
+Then load the layers in the page and pass them in:
+
+<include cwd lang="tsx" meta='title="app/orders/page.tsx"'>
+  snippets/rendering/page.tsx#page
+</include>
+
+`loadLayers` is your own function. It returns the surface's overlays by layer, as your storage's `load` does, read from the same store and at least as fresh.
+
+- Loading per user makes the route dynamic. With Next.js `cacheComponents`, load inside a `<Suspense>` boundary.
+- After the page loads in the browser, `storage` loads the layers again and stays the source of truth.
+- The server HTML shows reordering, hiding and layout. Changes that need another part mounted first, such as moving a card into a new section, show your layout in the HTML and apply once the page loads.
+
+## Related
+
+- [Storage](/docs/storage)
+- [Installation for Next.js](/docs/installation/next)
+- [Theming](/docs/theming): how the placeholder looks.

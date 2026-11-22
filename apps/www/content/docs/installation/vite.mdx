@@ -1,0 +1,63 @@
+---
+title: Vite
+description: Install Pliant in a Vite and React project by hand, and wrap your first page. Beta.
+---
+
+Add Pliant to a React app built with Vite, and make a row of metric cards that each user can rearrange.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This guide shows how Pliant will work with this framework. Parts of it aren't
+  tested with it yet, and the `@pliantui/*` packages aren't on npm yet.
+</Callout>
+
+## Before you start
+
+You need a Vite app with React 19.2 or later, and [shadcn/ui](https://ui.shadcn.com/docs/installation/vite) with Tailwind CSS v4. If you don't have one yet, follow shadcn's Vite guide first.
+
+## Install
+
+<Steps>
+
+<Step>Install the React package</Step>
+
+```bash
+npm install @pliantui/react zod
+```
+
+<Step>Add the region component</Step>
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-region.json
+```
+
+This copies `pliant-region.tsx` into `components/pliant`, along with the shadcn components it uses.
+
+</Steps>
+
+## Make a page customizable
+
+Wrap the page in `PliantRoot`, and replace the element that holds your cards with `PliantRegion`:
+
+<include cwd lang="tsx" meta='title="src/pages/orders-page.tsx"'>
+  snippets/installation/vite-orders-page.tsx#page
+</include>
+
+- `surface` names the page. Use its route pattern from your router, and write dynamic segments in brackets: `/orders/:id` becomes `/orders/[id]`.
+- `storage={localAdapter}` keeps each user's changes in their browser. To keep them on your server, see [Storage](/docs/storage).
+- A Vite app renders in the browser, so it doesn't need `PliantPrePaint`. That component only matters for HTML rendered on a server.
+
+Start the dev server and open the page. It looks as before, and users can now drag, hide and lay out the cards.
+
+## What works differently
+
+- `pliantui init`, `scan` and `doctor` read Next.js projects. In a Vite app, install by hand as shown on this page.
+- Everything else, including tables, forms, the ask panel and server storage, works as in the [Next.js guide](/docs/installation/next). The ask panel's server route runs on any server that handles web `Request` and `Response` objects.
+
+## Next steps
+
+- [Your first editable table](/docs/first-editable-table)
+- [Storage](/docs/storage)

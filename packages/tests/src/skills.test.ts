@@ -59,7 +59,7 @@ describe("the skill check", () => {
         "```",
         "",
         "See [the CLI](https://pliantui.dev/docs/cli) and",
-        "[addresses](https://pliantui.dev/docs/concepts#addresses), and add",
+        "[addresses](https://pliantui.dev/docs/concepts/surfaces#addresses), and add",
         "`pliant-data-table` with https://pliantui.dev/r/pliant-data-table.json.",
       ].join("\n")
     )

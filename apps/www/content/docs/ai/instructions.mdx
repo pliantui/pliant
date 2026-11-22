@@ -1,0 +1,66 @@
+---
+title: Writing instructions in pliant.config.ts
+description: Tell the AI about your product, your users' words and your preferences, so its answers fit how your users work.
+---
+
+Instructions tell the model about your product: who uses it, the terms they use and what they usually care about. With them, an ask such as "show me the late ones" becomes "orders that are overdue", because the model knows your users' words.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how instructions will work. They aren't in Pliant yet.
+</Callout>
+
+```ts title="pliant.config.ts"
+import { defineConfig } from "@pliantui/server"
+
+export default defineConfig({
+  instructions: {
+    product:
+      "An ordering portal for distributors in India. Users work in sales operations and finance.",
+    glossary: {
+      late: "Orders with status overdue",
+      "big orders": "Orders worth more than ₹100,000",
+    },
+    tone: "Short, plain labels. Amounts in rupees.",
+    rules: ["Prefer sorting to filtering when an ask is about priority."],
+    surfaces: {
+      "/orders": "Users mostly care about overdue and high-value orders.",
+    },
+  },
+  examples: [
+    {
+      target: "orders-table",
+      ask: "late ones first",
+      ops: [
+        {
+          op: "setSort",
+          target: "orders-table",
+          sort: [{ field: "status", dir: "asc" }],
+        },
+      ],
+    },
+  ],
+})
+```
+
+## Fields
+
+Each field of `instructions`, and `examples`, is listed in the [pliant.config.ts reference](/docs/config#instructions). Examples are checked like any change: an example whose operations aren't valid fails `pliantui doctor`.
+
+## Write them well
+
+- Keep them short. Instructions are sent with every ask, so long ones add cost and latency. `pliantui doctor` warns past about 400 tokens.
+- Remember that instructions only guide the model and don't stop anything. "Never hide the status column" belongs in [flags](/docs/config#flags) too, where Pliant enforces it. `doctor` warns when a rule reads like a constraint but has no matching flag.
+- Leave secrets out, because instructions are sent to your model provider.
+
+## Trusted text only
+
+Instructions are written by you, in your code, and are never mixed with what users type. Users can't change them, and team defaults carry operations, not text for the model.
+
+## Related
+
+- [pliant.config.ts](/docs/config)
+- [Testing a model](/docs/ai/eval)

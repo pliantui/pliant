@@ -1,19 +1,21 @@
 ---
 title: Operations
-description: The closed catalog of operations an overlay is made of, and how Pliant checks each one.
+description: The fixed list of changes an overlay can make, which parts of the page each one applies to, and how Pliant checks them.
 ---
 
-Every change in an overlay is an operation, or op: a small JSON object with the op's name, the address it targets, and its arguments.
+Every change a user makes is an **operation**, or op: a small JSON object with the op's name, the address it changes, and its arguments. Sorting the orders table by value, for example, is one `setSort` op.
 
 ```json
 { "op": "pin", "target": "orders-table/columns/customer", "where": "start" }
 ```
 
+This op pins the customer column to the start of the orders table.
+
 ## A closed catalog
 
-There are 39 ops, and that set is closed. An overlay can't contain code, CSS or markup, only ops from the catalog, each with arguments of a fixed shape. Labels are plain text, filter values are data, and calculations are [expressions](/docs/concepts/expressions) built from a fixed list of functions. This is what makes an overlay safe to store, share and accept from an AI model: it can only make the changes the catalog's ops describe. It can't run code or change your data.
+There are 39 ops, and the list is closed. An overlay can't contain code, CSS or markup, only ops from the catalog, each with arguments of a fixed shape. Labels are plain text, filter values are data, and calculations are [expressions](/docs/concepts/expressions) built from a fixed list of functions. That's what makes an overlay safe to store, share and accept from an AI model.
 
-Each op belongs to a **capability**. A manifest lists the capabilities of a component, such as `slots` and `layout` for a region, or `data` for a table. An op that changes an item, such as a column, belongs to a capability of the item's parent.
+Each op belongs to a **capability**: a kind of change a component allows. A region allows `slots` and `layout`; a table allows `data`.
 
 | Capability     | Ops                                                                  |
 | -------------- | -------------------------------------------------------------------- |
@@ -31,58 +33,60 @@ Each op belongs to a **capability**. A manifest lists the capabilities of a comp
 | `data`         | The data ops below                                                   |
 | none           | `setDensity` on `@surface`; `setTextScale` and `setMotion` on `@app` |
 
-The `data` capability covers the ops on tables and other views of data:
+The `data` capability covers tables and other views of data:
 
 - `setSort`, `setFilter`, `clearFilter`, `setPage`, `setGroupBy` and `setColumnWidth`
 - `addDerived`, `addAggregate`, `addHighlight`, `addSortOption`, `addFilterControl`, `addPreset` and `removeUserItem`
 - `formatField`, `setViewKind`, `configureChart` and `configureStat`
 
-The catalog is part of `@pliantui/contract`, as `opCatalog` and as `schema/catalog.json`. Each entry lists the op's capability, the layers it's allowed in, and its argument keys. Every op is allowed in every layer except `setPage`, which is `session` only, so a page number is never saved.
-
-When you describe a target to the ask route, its manifest lists the target's capabilities, and the route offers the model only the ops they allow. The route supports a subset of the catalog: `setSort`, `setFilter`, `clearFilter`, `hide`, `show`, `move`, `pin`, `setColumnWidth` and `setLayout`. Loading a saved overlay doesn't check capabilities.
+The catalog is part of `@pliantui/contract`, as `opCatalog` and `schema/catalog.json`. Each entry lists the op's capability, the layers it's allowed in and its arguments. Every op is allowed in every layer except `setPage`, which is `session` only, so a page number is never saved.
 
 ## What renders
 
-Every op validates and resolves. Pliant's components render these:
+Pliant's components show the effect of these ops:
 
-- **Tables** (`usePliantTable`): `setSort`, `setFilter`, `clearFilter`, `setGroupBy`, `addDerived`, `addAggregate`, `addHighlight`, `setPage` and `setColumnWidth`, plus `hide`, `show`, `move` and `pin` on columns. Each `addDerived` adds a column with a value on every row, and each `addAggregate` one with a value on every group's row and in the column's total. The column ops apply to both like any column. Each `addHighlight` gives its tone to the rows its condition is true for: `getPliantHighlights(row)` lists them, and the data table tints those rows and marks them with an icon and text for screen readers. Pass the table's `dataset` (its `fields` and `timeZone`) to `usePliantTable` so it can compute them.
-- **Table toolbars** (`pliant-data-table-toolbar`): `addFilterControl`, `addSortOption` and `addPreset`. A filter control with `search`, `select`, `multi-select` or `toggle` adds that filter to the toolbar, a sort option adds a choice to its Sort menu, and a preset adds a choice to its Presets menu that applies the preset's filters, and its sort when it has one. Its Reset button shows while the user's personal or session layer changes the table, other than moving to another page, and drops those changes with `resetNode`, so the table shows as the org and team layers, and then the base, have it. It writes no ops of its own.
-- **Regions** (`PliantRegion`): `hide`, `show`, `move`, `pin`, `collapse`, `setLayout`, `span`, `wrap` and `remove`. A node added with `insert` renders as a placeholder.
+| Component                   | Ops it renders                                                                                                                                                                  |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tables (`usePliantTable`)   | `setSort`, `setFilter`, `clearFilter`, `setGroupBy`, `setPage`, `setColumnWidth`, `addDerived`, `addAggregate`, `addHighlight`, and `hide`, `show`, `move` and `pin` on columns |
+| `pliant-data-table-toolbar` | `addFilterControl`, `addSortOption`, `addPreset`                                                                                                                                |
+| `PliantRegion`              | `hide`, `show`, `move`, `pin`, `collapse`, `setLayout`, `span`, `wrap`, `remove`                                                                                                |
+| `pliant-form`               | `hide`, `show`, `move`, `pin`, `collapse`, `setDefault` on fields                                                                                                               |
+| `pliant-nav`                | `hide`, `show`, `move`, `pin`, `collapse`, `setLanding`, `setDefault` for the open state                                                                                        |
 
-The other ops are part of the format: overlays that contain them load, save and resolve, and no component renders their effect.
+Overlays with the other ops load, save and stack like any other, but Pliant's components don't show their effect.
+
+The [ask panel](/docs/ai) offers the model `setSort`, `setFilter`, `clearFilter`, `hide`, `show`, `move`, `pin`, `setColumnWidth` and `setLayout`, limited to the capabilities of the part the user pointed at.
 
 ## How an op is checked
 
-Pliant checks every op on its own and gives it one of four statuses:
+Pliant checks every op on its own, and gives it one of four statuses:
 
-| Status    | Meaning                                                                                                          |
-| --------- | ---------------------------------------------------------------------------------------------------------------- |
-| `valid`   | It matches its schema, is allowed in the overlay's layer, and targets `@app` exactly when its surface is `@app`. |
-| `newer`   | It would be valid without some new top-level arguments, so a newer version of Pliant wrote it.                   |
-| `unknown` | Its name isn't in the catalog.                                                                                   |
-| `invalid` | Anything else.                                                                                                   |
+| Status    | Meaning                                                                  |
+| --------- | ------------------------------------------------------------------------ |
+| `valid`   | It matches its shape and is allowed in its overlay's layer.              |
+| `newer`   | It has arguments from a newer version of Pliant. It's kept, not applied. |
+| `unknown` | Its name isn't in the catalog.                                           |
+| `invalid` | Anything else.                                                           |
 
-A saved overlay is never thrown away because of one op. When Pliant loads one, it applies the `valid` ops and skips the others, and it keeps every op unchanged when the overlay is saved again, so an overlay from a newer version survives a round trip through an older one. Core tells skipped ops apart by reason, and reports an `unknown` op with a namespaced name, such as `acme:star`, as an extension that isn't installed.
+A saved overlay is never thrown away because of one bad op. Pliant applies the `valid` ops and skips the rest, and keeps every op when the overlay is saved again. An overlay from a newer version survives a round trip through an older one.
 
-Answers from the ask route are stricter: an answer is accepted only if every op in it is valid. Otherwise the route sends the errors back to the model once, and answers with an error if the second answer fails too.
-
-Op names are camelCase. Names with a namespace, such as `acme:star`, are reserved for extensions, and the `pliant:` namespace is reserved for Pliant itself.
+Answers from the ask panel are stricter: an answer is accepted only if every op in it is valid.
 
 ## Targets
 
-Most ops target a node or an item by its [address](/docs/concepts#addresses). Ops on an item, such as `hide` on a column or `setColumnWidth`, target the item. Ops on a whole node, such as `setSort` or `setLayout`, target the node:
+Ops on an item, such as `hide` on a column, target the item's address. Ops on a whole node, such as `setSort` or `setLayout`, target the node:
 
 ```json
 {
   "op": "setLayout",
   "target": "key-metrics",
   "mode": "grid",
-  "columns": 3,
-  "at": "lg"
+  "columns": 2,
+  "at": "md"
 }
 ```
 
-`move` places an item relative to another one, so the move keeps working when you add items to the base:
+`move` places an item relative to another, so the move keeps working when you add cards to your page:
 
 ```json
 {
@@ -92,10 +96,13 @@ Most ops target a node or an item by its [address](/docs/concepts#addresses). Op
 }
 ```
 
-Two targets are reserved: `@surface` for preferences that apply to the whole surface, and `@app` for preferences that apply everywhere. An op targets `@app` exactly when its overlay's surface is `@app`.
+## Limits and schema
 
-## Limits
+Every op has fixed limits, such as 500 ops per overlay and 4 layout columns, so no overlay can grow without bound. [Limits](/docs/reference/limits) lists them all.
 
-The catalog sets fixed limits, so no overlay can grow without bound: 500 ops per overlay, 8 sort fields, 4 group-by fields, 100 values in an `in` filter, 4 layout columns, 80-character labels, 64-character ids, and 256-character addresses and surfaces. `setColumnWidth` carries the only pixel value: 16 to 2000 pixels, clamped to the column's own `minSize` and `maxSize`.
+The JSON Schema for one op is published at <SiteUrl path="/schema/op.json" />.
 
-The JSON Schema for a single op is published at <SiteUrl path="/schema/op.json" />.
+## Related
+
+- [Expressions and functions](/docs/concepts/expressions)
+- [Guardrails](/docs/concepts/guardrails)

@@ -1,0 +1,27 @@
+---
+title: Changelog
+description: What's new in Pliant's packages and CLI, release by release.
+---
+
+Changes to Pliant's packages and the `pliantui` CLI, newest release first. Each package also keeps its own `CHANGELOG.md`, and every release is listed on [GitHub](https://github.com/pliantui/pliant/releases).
+
+Pliant is pre-1.0, so a minor release can include breaking changes. They're always called out.
+
+## Unreleased
+
+### pliantui
+
+- **`pliantui init`** adds Pliant to a Next.js App Router project that uses shadcn/ui. It installs `@pliantui/react` with your package manager and the `pliant-region` component, then prints how to wrap a page. It asks before each step, and `--yes` skips the questions. Run it again and it skips what's already installed.
+- **`pliantui manifest`** reads the `cva` and `tailwind-variants` definitions in your ui folder and generates a manifest for each component, with a review step you can skip with `--yes`.
+- **`pliantui scan`** reads your app and writes `lib/pliant/inventory.generated.ts`: the regions, slots, tables, columns, forms and navs on each page. Run `pliantui scan --check` in CI to fail when it's out of date.
+- **`pliantui doctor`** checks your setup and prints how to fix what isn't right. Its `ai-fields` check lists the dataset fields the AI is told about, and warns when one looks sensitive, such as an email or a salary.
+- **`pliantui skills add`** copies Pliant's skills for coding agents into your project: `setup`, `tables` and `storage`. The `tables` skill covers grouping, aggregates, calculated columns, highlights and the table toolbar. The `storage` skill can set up server storage on PostgreSQL with Drizzle.
+- `init`, the skills and the code they print import `localAdapter` from `@pliantui/react/local` and pass it to `PliantRoot` as `storage`, which is now required.
+
+### @pliantui/react
+
+- Add `resetNode(target)` to the store from `usePliantStore()`. It drops a user's own changes to one part of the page, such as a table's sort, filters and column widths, so it shows as the team and organization defaults have it.
+
+### @pliantui/contract, @pliantui/core and @pliantui/react
+
+- Rows whose keys are numbers, such as numeric ids, are ordered numerically: `2` comes before `10`. This affects the default row order and the functions that read rows in order, such as `first`, `last` and `runningSum`.

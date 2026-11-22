@@ -1,0 +1,66 @@
+---
+title: What the AI sees and never sees
+description: Exactly what Pliant sends to the model when a user asks for a change, and what it never sends.
+---
+
+When a user asks for a change, your server sends the model two things: a short description of the part of the page they pointed at, and the text of their ask. Your rows, details about your users and your code stay on your server.
+
+For the orders table, the model receives something like this:
+
+```txt
+Target: {"address":"orders-table","kind":"data-table","description":"A table of orders","columns":[{"id":"id","label":"Order"},{"id":"customer","label":"Customer"},{"id":"status","label":"Status"},{"id":"value","label":"Value"}],"fields":[{"id":"customer","label":"Customer","type":"text"},{"id":"status","label":"Status","type":"enum","values":["paid","pending","overdue","refunded"]},{"id":"value","label":"Value","type":"number"}],"sort":[{"field":"createdAt","dir":"desc"}]}
+Ask: "only overdue orders"
+```
+
+## What the model sees
+
+| It sees                                                | For example                              |
+| ------------------------------------------------------ | ---------------------------------------- |
+| The part's address and kind                            | `orders-table`, a data table             |
+| Its description                                        | "A table of orders"                      |
+| The ids and labels of its items                        | The columns, or the cards in a region    |
+| The fields it can sort and filter by, with their types | `value`, a number                        |
+| The values of `enum` fields                            | `paid`, `pending`, `overdue`, `refunded` |
+| The current sort and filters                           | Sorted by created date, newest first     |
+| The user's ask                                         | "only overdue orders"                    |
+
+All of it comes from the target you describe, and from what the user typed.
+
+## What the model never sees
+
+- Your rows. No row of data is sent.
+- Anything about the user, such as their id, name or email.
+- Your code, other users' asks, or other pages.
+
+## Fields from your datasets
+
+The ask route builds each target's `fields` from your [dataset](/docs/data/datasets), for the user who asked, with `describeDataset(dataset, { user, audience: "ai" })`. That leaves out every field marked `exposeToAI: false`, and every field the user may not read, so the model is never told those fields exist.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The ask route doesn't read datasets yet. Today, each target's `fields` are
+  sent exactly as you write them in the target. Build them from
+  `describeDataset(dataset, { user, audience: "ai" })` yourself to leave out
+  hidden and restricted fields.
+</Callout>
+
+## Things to check
+
+- Enum values are sent. If the names of a field's values are sensitive, such as customer names used as an enum, make it a `string` field instead, or set `exposeToAI: false`.
+- Filter values are sent too, because the current filters are part of the description. A user who searched for a customer's name sends that name with their next ask.
+- Labels and descriptions are sent, so keep them about the page, not your business secrets.
+
+`pliantui doctor` lists every dataset field the AI is told about, and warns when one looks sensitive, such as an email, phone number, address or salary.
+
+## What an answer can do
+
+The model can only propose operations from the fixed catalog, and only those the target allows. Every answer is checked on your server and again in the browser, and shown as a preview the user must lock in. The user's ask and the labels on the page are passed to the model as data, inside JSON, so text that tries to give the model new instructions arrives as text.
+
+## Related
+
+- [How asking works](/docs/ai)
+- [Datasets](/docs/data/datasets)
+- [Guardrails](/docs/concepts/guardrails)

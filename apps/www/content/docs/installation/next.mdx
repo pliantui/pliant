@@ -1,17 +1,125 @@
 ---
 title: Next.js
-description: Add Pliant to a Next.js app and make one region and one table customizable.
+description: Install Pliant in a Next.js 16 App Router project with the CLI or by hand, and wrap your first page.
 ---
 
-<Callout variant="warning" title="Not on npm yet">
-  The `@pliantui/*` packages aren't published to npm, so `pnpm add` below
-  doesn't work outside the Pliant repository. You can try Pliant today from a
-  clone.
+Add Pliant to a Next.js app, then make a row of metric cards that users can rearrange and a table that remembers its sort.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The `@pliantui/*` packages aren't on npm yet, so the install commands on this
+  page work only inside the Pliant repository. See [Try it from the
+  repository](#try-it-from-the-repository).
 </Callout>
 
-## Try it now
+## Before you start
 
-The repository has a complete example: an orders page with a row of metric cards, a data table and the ask panel. You need Node.js 22.22+ or 24.11+, and pnpm 10.
+You need a Next.js 16 app that uses the App Router, React 19.2 or later, and [shadcn/ui](https://ui.shadcn.com/docs/installation/next) with Tailwind CSS v4. If you don't have one yet, follow shadcn's Next.js guide first.
+
+## Install
+
+<CodeTabs>
+  <TabsList>
+    <TabsTrigger value="cli">CLI</TabsTrigger>
+    <TabsTrigger value="manual">Manual</TabsTrigger>
+  </TabsList>
+  <TabsContent value="cli">
+
+Run `init` in your project. It installs `@pliantui/react` with your package manager and adds the `pliant-region` component, asking before each step.
+
+```bash
+npx pliantui init
+```
+
+  </TabsContent>
+  <TabsContent value="manual">
+
+<Steps>
+
+<Step>Install the React package</Step>
+
+```bash
+npm install @pliantui/react zod
+```
+
+<Step>Add the region component</Step>
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-region.json
+```
+
+</Steps>
+
+  </TabsContent>
+</CodeTabs>
+
+Either way, `pliant-region.tsx` lands in your components folder. It's yours to edit, like any shadcn component.
+
+<FileTree>
+  <Folder name="components">
+    <Folder name="pliant">
+      <File name="pliant-region.tsx" />
+    </Folder>
+  </Folder>
+  <File name="package.json" />
+</FileTree>
+
+## Make a page customizable
+
+<Steps>
+
+<Step>Wrap the page and make a region</Step>
+
+Wrap the page in `PliantRoot`, and replace the element that holds your cards with `PliantRegion`. Pass each card in `slots`, keyed by an id.
+
+<include cwd lang="tsx" meta='title="app/orders/page.tsx"'>
+  snippets/installation/page.tsx#page
+</include>
+
+- `surface` names the page. Use the route pattern, so on `app/orders/[id]/page.tsx` it's `/orders/[id]` and every order page shares one layout.
+- `storage={localAdapter}` keeps each user's changes in their browser. To keep them on your server, see [Storage](/docs/storage).
+- `PliantPrePaint`, with the same `surface`, keeps a customized page from flashing its original layout while it loads.
+- The order of the `slots` keys is the default order. Ids are kebab-case and start with a letter.
+
+The page looks exactly as before. Users can now drag the cards into a new order, hide the ones they don't need and pick a layout, and each user's arrangement is saved for them.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Dragging, hiding and the layout menu on cards aren't in Pliant yet. Today,
+  users rearrange cards through the [ask panel](/docs/ai).
+</Callout>
+
+<Step>Make a table remember its sort</Step>
+
+Add the data table components:
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-data-table.json
+```
+
+Then pass your TanStack Table options through `usePliantTable`, with an id for the table:
+
+<include cwd lang="tsx" meta='title="app/orders/orders-table.tsx"'>
+  snippets/installation/orders-table.tsx#table
+</include>
+
+Render `OrdersTable` inside `PliantRoot`. [Your first editable table](/docs/first-editable-table) shows the columns and the rest of the table step by step.
+
+<Step>Try it</Step>
+
+Start your dev server and open the page. Sort the table by clicking a header, then reload. The sort comes back.
+
+</Steps>
+
+## Try it from the repository
+
+The repository has a complete orders page, with metric cards, a data table and the ask panel. You need Node.js 22.22+ or 24.11+, and pnpm 10.
 
 ```bash
 git clone https://github.com/pliantui/pliant.git
@@ -21,115 +129,10 @@ pnpm build:packages
 PLIANT_ASK_ENABLED=1 pnpm --filter www dev
 ```
 
-`PLIANT_ASK_ENABLED=1` turns on the recorded ask panel. It replays saved answers, so it needs no API key and only answers its suggested asks.
-
-Open [localhost:4000/examples/orders](http://localhost:4000/examples/orders). Sort the table, hide a column from the **Columns** menu and reload: the changes stay.
-
-The rest of this guide shows setup with the published packages.
-
-## Before you start
-
-You need a Next.js app that uses the App Router, Next.js 16 or later, React 19.2 or later, and [shadcn/ui](https://ui.shadcn.com/docs/installation/next) with Tailwind CSS v4. If you don't have one, follow shadcn's Next.js guide first.
-
-## Install
-
-### Add the package
-
-```bash
-pnpm add @pliantui/react zod
-```
-
-`@pliantui/react` is the runtime: it loads each user's changes, applies them and saves new ones. `zod` is a peer dependency.
-
-### Add the region component
-
-```bash
-pnpm dlx shadcn@latest add https://pliantui-www.pliantui-dev.workers.dev/r/pliant-region.json
-```
-
-This copies `pliant-region.tsx` into `components/pliant`. The shadcn CLI also installs the item's npm dependencies, and adds the shadcn `button` if you don't have it. The file is yours to edit, like any shadcn component.
-
-## Make a page customizable
-
-### Wrap the page in PliantRoot
-
-`PliantRoot` holds the changes for one surface. Give it the page's route as its `surface`.
-
-```tsx title="app/orders/page.tsx"
-import { PliantRoot } from "@pliantui/react"
-import { localAdapter } from "@pliantui/react/local"
-
-export default function OrdersPage() {
-  return (
-    <PliantRoot surface="/orders" storage={localAdapter}>
-      {/* your page */}
-    </PliantRoot>
-  )
-}
-```
-
-For a dynamic route, pass the route pattern, not the URL. On `app/orders/[id]/page.tsx`, use `surface="/orders/[id]"`, so every order page shares one layout.
-
-`storage={localAdapter}` saves each user's changes in their browser's `localStorage`. To keep them on your server, see [Storage](/docs/storage).
-
-### Make a region editable
-
-Replace the element that holds a group of items, such as a row of cards, with `PliantRegion`. Pass each item in `slots`, keyed by an id.
-
-```tsx title="app/orders/page.tsx"
-import { PliantRoot } from "@pliantui/react"
-import { localAdapter } from "@pliantui/react/local"
-
-import { PliantRegion } from "@/components/pliant/pliant-region"
-import { StatCard } from "@/components/stat-card"
-
-export default function OrdersPage() {
-  return (
-    <PliantRoot surface="/orders" storage={localAdapter}>
-      <PliantRegion
-        id="key-metrics"
-        slots={{
-          revenue: <StatCard label="Revenue" value="$48,210" />,
-          orders: <StatCard label="Orders" value="1,204" />,
-          overdue: <StatCard label="Overdue" value="17" />,
-        }}
-        className="grid grid-cols-1 gap-4 md:grid-cols-3"
-      />
-    </PliantRoot>
-  )
-}
-```
-
-The order of the keys is the default order. Ids are kebab-case and start with a letter. Give the region its spacing with `gap-*` classes: each slot sits in a `display: contents` wrapper, so `space-*` and `divide-*` won't work.
-
-The region renders as before. Overlays can now reorder, hide and resize the cards, group them, or fold some behind a "More" button. Users make those changes through the [ask panel](/docs/ask-panel). Pliant has no manual controls for regions. See the [roadmap](/docs/roadmap).
-
-### Make a table remember its sort
-
-Pliant works with tables built on [TanStack Table](https://tanstack.com/table) 9.3.1 or later, such as shadcn's data table. If your app doesn't have it, run `pnpm add @tanstack/react-table`; shadcn's data table installs it already. Pass your table's options through `usePliantTable` before they reach `useTable`, with an id for the table:
-
-```tsx title="components/orders-table.tsx"
-"use client"
-
-import { useTable } from "@tanstack/react-table"
-
-import { usePliantTable } from "@pliantui/react/table"
-
-// your existing TanStack v9 setup
-import { columns, features, type Order } from "./columns"
-
-export function OrdersTable({ data }: { data: Order[] }) {
-  const table = useTable(
-    usePliantTable({ features, data, columns }, { id: "orders-table" }) // [!code highlight]
-  )
-
-  // Render the table as before.
-}
-```
-
-Render the table inside `PliantRoot`. When a user sorts it, the sort is saved to their personal layer and comes back after a reload. Column order, visibility, widths and pinning are saved the same way, from your table's own controls. Pagination and filters last for the browser tab only. To save filters too, pass `persistFilters: true` next to `id`.
+Open [localhost:4000/examples/orders](http://localhost:4000/examples/orders). `PLIANT_ASK_ENABLED=1` turns on an ask panel that replays recorded answers, so it needs no API key.
 
 ## Next steps
 
-- [Storage](/docs/storage): save changes to your backend instead of the browser.
-- [Ask panel](/docs/ask-panel): let users describe a change in words.
+- [Your first editable table](/docs/first-editable-table): build a full table with a columns menu and pagination.
+- [Storage](/docs/storage): save changes to your own backend.
+- [Ask panel](/docs/ai): let users describe a change in words.

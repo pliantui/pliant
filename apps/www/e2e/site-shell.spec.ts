@@ -199,20 +199,19 @@ test.describe("on a wide screen", () => {
     for (const name of [
       "Introduction",
       "CLI",
-      "Core concepts",
-      "Layers",
+      "Surfaces, nodes and addresses",
+      "Overlays and layers",
       "Operations",
       "Guardrails",
-      "Expressions",
+      "Expressions and functions",
     ]) {
       await expect(
         sidebar.getByRole("link", { name, exact: true })
       ).toBeVisible()
     }
-    await expect(sidebar.getByRole("link", { name: "Layers" })).toHaveAttribute(
-      "aria-current",
-      "page"
-    )
+    await expect(
+      sidebar.getByRole("link", { name: "Overlays and layers" })
+    ).toHaveAttribute("aria-current", "page")
 
     await sidebar.getByRole("link", { name: "Guardrails" }).click()
     await expect(
@@ -237,7 +236,7 @@ test.describe("on a wide screen", () => {
     ).toBeVisible()
     await page.getByRole("link", { name: "Previous page" }).click()
     await expect(
-      page.getByRole("heading", { level: 1, name: "Layers" })
+      page.getByRole("heading", { level: 1, name: "Overlays and layers" })
     ).toBeVisible()
   })
 
@@ -247,7 +246,7 @@ test.describe("on a wide screen", () => {
     await page.getByRole("button", { name: "Copy Page" }).click()
 
     const copied = await page.evaluate(() => navigator.clipboard.readText())
-    expect(copied).toContain("title: Layers")
+    expect(copied).toContain("title: Overlays and layers")
   })
 
   test("a code block copies its code", async ({ page, context }) => {
@@ -255,12 +254,12 @@ test.describe("on a wide screen", () => {
     await page.goto("/docs/concepts/expressions")
     const block = page
       .getByRole("figure")
-      .filter({ hasText: '"fn": "div"' })
+      .filter({ hasText: '"fn": "gt"' })
       .first()
     await block.getByRole("button", { name: "Copy" }).click()
 
     const copied = await page.evaluate(() => navigator.clipboard.readText())
-    expect(copied).toContain('"fn": "div"')
+    expect(copied).toContain('"fn": "gt"')
     await expect(
       page.getByRole("status").filter({ hasText: "Copied" })
     ).toHaveCount(1)
@@ -396,9 +395,9 @@ test.describe("on a phone", () => {
       "Examples",
       "Introduction",
       "CLI",
-      "Core concepts",
-      "Layers",
-      "Expressions",
+      "Surfaces, nodes and addresses",
+      "Overlays and layers",
+      "Expressions and functions",
     ]) {
       await expect(menu.getByRole("link", { name, exact: true })).toBeVisible()
     }

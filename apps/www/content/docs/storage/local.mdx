@@ -1,0 +1,38 @@
+---
+title: Local storage
+description: What localAdapter keeps, how it behaves across tabs and devices, and how to reset or erase what it stored.
+---
+
+`localAdapter` keeps each user's changes in their browser's `localStorage`. There's nothing to set up, so it's the fastest way to start, and the right choice for apps without accounts.
+
+<include cwd lang="tsx" meta='title="app/orders/page.tsx"'>
+  snippets/first-table/page.tsx#page
+</include>
+
+Import `localAdapter` from `@pliantui/react/local` and pass it as `storage`. A Server Component can pass it as it is, because it comes from a client module.
+
+## What to expect
+
+- Changes stay in one browser. On another device, or in a private window, the user sees your defaults.
+- Changes made in one tab show in the user's other open tabs of the same browser right away.
+- Clearing site data in the browser clears the changes.
+- It keeps personal changes only. Team and organization defaults need a [server](/docs/storage/self-hosted).
+
+## Avoiding a flash on load
+
+`PliantPrePaint` reads the changes `localAdapter` saved before the page paints, so a customized page doesn't flash its default layout. Give it the same `surface` as `PliantRoot`, as above.
+
+## Resetting and erasing
+
+A user's **Reset** in the table toolbar removes their changes to that table. A removed change leaves a small marker behind, so a late save from another tab can't bring it back.
+
+Each overlay is stored under its own key, starting with `pliant:` and the surface. To erase a user's changes completely, remove those keys from `localStorage`.
+
+## Moving to a server later
+
+Switching to [self-hosted storage](/docs/storage/self-hosted) only changes the `storage` prop. Changes already in browsers stay there and aren't copied to the server.
+
+## Related
+
+- [How customizations are saved](/docs/storage)
+- [Self-hosted server](/docs/storage/self-hosted)
