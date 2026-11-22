@@ -13,6 +13,23 @@ const pages = [
   ["point-mode", "Point Mode"],
 ] as const
 
+const mockups = [
+  ["messages", "Messages"],
+  ["chart", "Chart"],
+  ["stat", "Stat"],
+  ["list", "List"],
+  ["tabs-and-panels", "Tabs and Panels"],
+  ["actions", "Actions"],
+  ["dialog", "Dialog"],
+  ["suggestions", "Suggestions"],
+  ["customized-indicator", "Customized Indicator"],
+  ["reset", "Reset"],
+  ["history-and-undo", "History and Undo"],
+  ["share-link", "Share Link"],
+  ["team-publish", "Team Publish"],
+  ["text-size-density-motion", "Text Size, Density and Motion"],
+] as const
+
 const sections = [
   "Installation",
   "Usage",
@@ -34,7 +51,17 @@ test("lists every component by group and links to its page", async ({
   await page.goto("/docs/components")
   const main = page.getByRole("main")
 
-  for (const group of ["Core", "Data", "Forms", "Navigation", "AI"]) {
+  for (const group of [
+    "Core",
+    "Data",
+    "Forms",
+    "Navigation",
+    "Actions",
+    "Overlays",
+    "AI",
+    "Status and history",
+    "Preferences",
+  ]) {
     await expect(
       main.getByRole("heading", { level: 2, name: group, exact: true })
     ).toBeVisible()
@@ -52,7 +79,7 @@ test("sends the old components address to the index", async ({ page }) => {
   await expect(page).toHaveURL("/docs/components")
 })
 
-for (const [slug, title] of pages) {
+for (const [slug, title] of [...pages, ...mockups]) {
   test(`the ${title} page has a live preview and every section, in order`, async ({
     page,
     errors,
@@ -80,6 +107,80 @@ for (const [slug, title] of pages) {
     expect(errors).toEqual([])
   })
 }
+
+for (const [slug, title] of mockups) {
+  test(`the ${title} page says it isn't built yet and labels its asks as scripted`, async ({
+    page,
+  }) => {
+    await page.goto(`/docs/components/${slug}`)
+
+    await expect(
+      page
+        .getByRole("main")
+        .getByRole("note")
+        .filter({ hasText: "Not fully implemented yet" })
+        .first()
+    ).toBeVisible()
+    const asks = preview(page)
+      .getByRole("group", { name: /^Ask about / })
+      .getByRole("button")
+    expect(await asks.count()).toBeGreaterThan(0)
+    for (const ask of await asks.all()) {
+      await expect(ask).toHaveAccessibleName(/, Scripted$/)
+    }
+  })
+
+  test(`the ${title} preview plays every ask and resets`, async ({
+    page,
+    errors,
+  }) => {
+    await page.goto(`/docs/components/${slug}`)
+    const asks = preview(page)
+      .getByRole("group", { name: /^Ask about / })
+      .getByRole("button")
+
+    for (const ask of await asks.all()) {
+      await ask.click()
+      await expect(ask).toHaveAttribute("aria-pressed", "true")
+    }
+    await expect(
+      preview(page).getByText("Customized", { exact: true })
+    ).toBeVisible()
+    const reset = preview(page).getByRole("button", { name: /^Reset / })
+    await reset.click()
+    await expect(reset).toHaveAttribute("aria-disabled", "true")
+    await expect(reset).toBeFocused()
+    for (const ask of await asks.all()) {
+      await expect(ask).toHaveAttribute("aria-pressed", "false")
+    }
+    expect(errors).toEqual([])
+  })
+}
+
+test("plays a scripted ask in the chart preview, and resets it", async ({
+  page,
+  errors,
+}) => {
+  await page.goto("/docs/components/chart")
+  const pending = preview(page)
+    .getByRole("listitem")
+    .filter({ hasText: /^pending$/ })
+
+  await expect(pending).toBeVisible()
+  await preview(page)
+    .getByRole("button", { name: /^only show overdue/ })
+    .click()
+  await expect(pending).toBeHidden()
+  await expect(
+    preview(page).getByText("Customized", { exact: true })
+  ).toBeVisible()
+
+  await preview(page)
+    .getByRole("button", { name: "Reset revenue chart" })
+    .click()
+  await expect(pending).toBeVisible()
+  expect(errors).toEqual([])
+})
 
 test("plays a recorded ask in the region preview, and resets it", async ({
   page,
@@ -137,7 +238,7 @@ test("marks Components, not Docs, as the current section", async ({ page }) => {
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  for (const [slug] of pages) {
+  for (const [slug] of [...pages, ...mockups]) {
     test(`the ${slug} page fits the screen`, async ({ page }) => {
       await page.goto(`/docs/components/${slug}`)
       await expect(page.getByRole("tab", { name: "Preview" })).toBeVisible()

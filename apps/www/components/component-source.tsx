@@ -23,11 +23,31 @@ export async function ComponentSource({
     // Regions mark the parts docs include; the whole file is shown here.
     .replace(/^\s*\/\/ #(end)?region.*\n/gm, "")
     .replaceAll("@/registry/pliant/", "@/components/pliant/")
-    .replaceAll("@/registry/examples/", "@/components/")
     .trimEnd()
   const lang = src.split(".").pop() ?? "tsx"
-  const html = await highlightCode(code, lang)
+  return (
+    <ComponentCode
+      code={code}
+      language={lang}
+      title={title}
+      className={className}
+    />
+  )
+}
 
+// Highlighted code with a copy button, styled like the docs' code blocks.
+export async function ComponentCode({
+  code,
+  language,
+  title,
+  className,
+}: {
+  code: string
+  language: string
+  title?: string | undefined
+  className?: string | undefined
+}) {
+  const html = await highlightCode(code, language)
   return (
     <figure
       data-rehype-pretty-code-figure=""
@@ -36,17 +56,17 @@ export async function ComponentSource({
       {title && (
         <figcaption
           data-rehype-pretty-code-title=""
-          data-language={lang}
+          data-language={language}
           className="flex items-center gap-2 text-code-foreground [&_svg]:size-4 [&_svg]:text-code-foreground [&_svg]:opacity-70"
         >
-          {getIconForLanguageExtension(lang)}
+          {getIconForLanguageExtension(language)}
           {title}
         </figcaption>
       )}
       <CopyButton value={code} />
       <div
         data-not-typeset
-        className="[&>pre]:no-scrollbar [&>pre]:overflow-auto [&>pre]:px-4 [&>pre]:py-3.5 [&>pre]:outline-none"
+        className="[&>pre]:no-scrollbar [&>pre]:overflow-auto [&>pre]:px-4 [&>pre]:py-3.5 [&>pre]:outline-none [&>pre]:focus-visible:ring-[3px] [&>pre]:focus-visible:ring-ring/50"
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </figure>

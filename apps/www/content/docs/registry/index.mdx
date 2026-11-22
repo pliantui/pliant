@@ -1,0 +1,77 @@
+---
+title: Installing from the Pliant registry
+description: Add Pliant's components to your project with the shadcn CLI, by URL or through the @pliant namespace.
+---
+
+Pliant's components are distributed as a [shadcn registry](https://ui.shadcn.com/docs/registry). The shadcn CLI copies each component's source into your project, with the shadcn components and packages it needs, so the code is yours to read and edit.
+
+## Install by URL
+
+Pass the component's URL to `shadcn add`:
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-data-table.json
+```
+
+Every component is at `https://pliantui.dev/r/<name>.json`. [`pliantui init`](/docs/cli/init) uses the same URLs, and takes `--registry` to install from another one.
+
+## Install with `@pliant`
+
+To install by name, add the registry to `components.json`:
+
+```json title="components.json"
+{
+  "registries": {
+    "@pliant": "https://pliantui.dev/r/{name}.json"
+  }
+}
+```
+
+Then install any component as `@pliant/<name>`:
+
+```bash
+npx shadcn@latest add @pliant/pliant-region @pliant/pliant-data-table
+```
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  `@pliant` isn't listed in the shadcn registry index yet, so `shadcn add
+  @pliant/...` works only after you add the registry to `components.json` as
+  shown.
+</Callout>
+
+## The components
+
+| Component                   | What it is                                                                                                   |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `pliant-region`             | A region whose cards users can reorder, hide, resize, group and collapse                                     |
+| `pliant-data-table`         | A data table for `usePliantTable`, with sorting, grouping, totals, calculated columns, highlights and paging |
+| `pliant-data-table-toolbar` | The table's toolbar: search, filters, sort options, presets, columns and Reset                               |
+| `pliant-form`               | Form fields users can reorder, hide, fold into "More fields" and give defaults                               |
+| `pliant-nav`                | Sidebar links users can reorder, hide and fold, with their own start page                                    |
+| `pliant-ask-panel`          | A panel for asking AI to change part of a page, with a preview to lock in                                    |
+| `pliant-point-mode`         | A mode for pointing at the part of a page to change                                                          |
+
+The components import your own shadcn components, such as `button` and `table`, from `@/components/ui`, and the CLI adds any that are missing. They need the `@pliantui/react` package, which the CLI installs too.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The `@pliantui/*` packages aren't on npm yet, so installing a component works
+  only inside the Pliant repository.
+</Callout>
+
+## Updating a component
+
+Run `shadcn add` again with `--overwrite` to take the latest version. It replaces your copy, so commit your changes first and reapply them after.
+
+## Related
+
+- [Installation](/docs/installation)
+- [Pliant-compatible registries](/docs/registry/compatible)
+- [Make your registry Pliant-compatible](/docs/extending/registry)

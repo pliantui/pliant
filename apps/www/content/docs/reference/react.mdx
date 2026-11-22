@@ -1,0 +1,114 @@
+---
+title: "@pliantui/react"
+description: Every export of @pliantui/react and its entry points, the hooks and components that make a React app customizable.
+---
+
+`@pliantui/react` holds the surface root, the hooks that Pliant's components are built on, and the storage adapters. The registry components, such as `pliant-region` and `pliant-data-table`, are copied into your project and use these hooks; you only call them directly when you build your own component.
+
+```bash
+npm install @pliantui/react
+```
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The `@pliantui/*` packages aren't on npm yet, so this install command works
+  only inside the Pliant repository.
+</Callout>
+
+Every export of this package is experimental: its API can change in a minor release, and the [changelog](/docs/changelog) calls each change out.
+
+## `@pliantui/react`
+
+| Export                 | What it does                                                                                                            |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `PliantRoot`           | Holds the layers of one surface: loads them from `storage`, keeps the session layer per tab, and saves personal changes |
+| `usePliantStore`       | Applies, previews, locks in and discards changes on the nearest surface                                                 |
+| `useResolved`          | The surface's layers resolved, optionally narrowed with a selector                                                      |
+| `usePliantStatus`      | Whether the surface's layers are `loading`, `ready` or in `error`                                                       |
+| `usePliantSurface`     | The surface of the nearest `PliantRoot`                                                                                 |
+| `usePreview`           | The overlay being previewed, or `null`                                                                                  |
+| `useMountedNodes`      | Registers node ids as mounted, so changes to them apply                                                                 |
+| `usePliantNodeProps`   | The `data-pliant-id` props that point mode and the ask panel find a node by                                             |
+| `usePliantMessages`    | A component's text, with translations given to `PliantRoot` in place of the English defaults                            |
+| `StorageConflictError` | What a storage adapter throws when a save or remove finds a newer version                                               |
+
+Types: `PliantRootProps`, `PliantStore`, `PliantStatus`, `ApplyOpsOptions`, `OverlayResult`, `ResetNodeResult`, `StorageAdapter`, `StoredLayers`, `PliantMessages`, `PliantInventory`, `Overlay`, `StoredOverlay`.
+
+## `@pliantui/react/region`
+
+| Export            | What it does                                                                        |
+| ----------------- | ----------------------------------------------------------------------------------- |
+| `usePliantRegion` | Declares a region and returns its layout and entries in the order the user chose    |
+| `useRegionSlots`  | Declares a region's slots, so a slot moved elsewhere can still render               |
+| `useRegionItems`  | The items to render for a region's or a wrapper's entries, collapses included       |
+| `useSlotContent`  | The content of a slot, from the region that declares it                             |
+| `PliantActivity`  | React's `Activity`, keeping hidden regions mounted so changes into them still apply |
+
+Types: `RegionItem`, `PliantActivityProps`.
+
+## `@pliantui/react/table`
+
+| Export                | What it does                                                                           |
+| --------------------- | -------------------------------------------------------------------------------------- |
+| `usePliantTable`      | Wraps a TanStack Table v9 table's options so its state comes from the surface's layers |
+| `getPliantHighlights` | The highlights that apply to one row                                                   |
+
+Types: `UsePliantTableOptions`, `PliantTableOptions`, `PliantTableDataset`, `PliantHighlight`.
+
+## `@pliantui/react/form`
+
+| Export                  | What it does                                                                  |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| `usePliantForm`         | Declares a form and returns its fields in the order the user chose            |
+| `usePliantFormDefaults` | A form's initial values, with users' and teams' defaults that pass the schema |
+
+Types: `UsePliantFormOptions`, `UsePliantFormDefaultsOptions`, `PliantFormSchema`.
+
+## `@pliantui/react/nav`
+
+| Export             | What it does                                                                   |
+| ------------------ | ------------------------------------------------------------------------------ |
+| `usePliantNav`     | Declares a nav, such as an app sidebar, and returns its items and landing item |
+| `usePliantNavOpen` | Whether a nav is open, remembered as the user's default                        |
+
+Types: `PliantNav`, `PliantNavOpen`, `UsePliantNavOpenOptions`.
+
+## Asking and pointing
+
+| Entry point                  | Export         | What it does                                                              |
+| ---------------------------- | -------------- | ------------------------------------------------------------------------- |
+| `@pliantui/react/ask`        | `useAskPanel`  | The state of an ask panel: open, target, prompt, and where the ask stands |
+| `@pliantui/react/point-mode` | `usePointMode` | Point mode, where users pick the part of the page they want to change     |
+
+Types: `AskPanelState`, `UseAskPanelOptions`, `UsePointModeOptions`, `PointModeBox`.
+
+## Storage and first paint
+
+| Entry point                      | Export           | What it does                                                       |
+| -------------------------------- | ---------------- | ------------------------------------------------------------------ |
+| `@pliantui/react/local`          | `localAdapter`   | Stores personal changes in the browser's `localStorage`            |
+| `@pliantui/react/server-adapter` | `serverAdapter`  | Stores changes through your server's storage route                 |
+| `@pliantui/react/pre-paint`      | `PliantPrePaint` | An inline script that applies saved changes before the first paint |
+
+Types: `ServerAdapterOptions`, `PliantPrePaintProps`.
+
+## Not in the package yet
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  `PliantConsent` and the `consent` prop on `PliantRoot`, described in [Usage
+  signals and consent](/docs/guides/usage-signals), aren't in the package yet,
+  and neither is `PliantRoot` reading flags.
+</Callout>
+
+## Related
+
+- [Installation](/docs/installation)
+- [How customizations are saved](/docs/storage)
+- [@pliantui/server](/docs/reference/server)

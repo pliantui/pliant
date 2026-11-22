@@ -1,0 +1,100 @@
+---
+title: "@pliantui/server"
+description: Every export of @pliantui/server and its entry points, for the ask route, datasets, server-mode queries and overlay storage.
+---
+
+`@pliantui/server` runs on your server. It answers asks from the ask panel, describes and authorizes your datasets, compiles server-mode queries, and stores overlays. Its route handlers use only Web APIs, so they run anywhere a Web `Request` handler does, such as Next.js route handlers or Cloudflare Workers.
+
+```bash
+npm install @pliantui/server
+```
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The `@pliantui/*` packages aren't on npm yet, so this install command works
+  only inside the Pliant repository.
+</Callout>
+
+Every export of this package is experimental: its API can change in a minor release, and the [changelog](/docs/changelog) calls each change out.
+
+## `@pliantui/server`
+
+| Export                | What it does                                                                                                              |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `createPliantHandler` | A route handler that answers asks: it turns an ask into operations with your model, validates them, and returns a preview |
+| `askRequestSchema`    | The body the ask panel sends                                                                                              |
+| `askContextSchema`    | The description of the part the user pointed at, inside an ask                                                            |
+| `askResponseSchema`   | The answer: a preview overlay with its explanations, a clarifying question, a reason the ask can't be done, or an error   |
+
+Types: `PliantHandlerConfig`, `AskRequest`, `AskContext`, `AskResponse`. See [How asking works](/docs/ai).
+
+## `@pliantui/server/data`
+
+| Export             | What it does                                                                                             |
+| ------------------ | -------------------------------------------------------------------------------------------------------- |
+| `defineDataset`    | Declares a dataset: its fields, their types, and who may load which rows and fields                      |
+| `authorizeDataset` | What one user may load from a dataset: the row scope, readable fields and smallest group size, or `null` |
+| `describeDataset`  | The fields one user may read, for the browser (`audience: "client"`) or the model (`audience: "ai"`)     |
+| `allRows`          | The value a dataset's `scope` returns to let a user, such as an admin, load every row                    |
+
+Types: `Dataset`, `DatasetDefinition`, `DatasetField`, `DatasetFieldType`, `DatasetFieldCapabilities`, `DatasetGrant`, `DatasetScope`, `DatasetDescriptor`, `DatasetFieldDescriptor`, `DescribeDatasetOptions`, `InferRow`. See [Datasets](/docs/data/datasets) and [Permissions and row security](/docs/data/permissions).
+
+## `@pliantui/server/sql`
+
+| Export         | What it does                                                                                                    |
+| -------------- | --------------------------------------------------------------------------------------------------------------- |
+| `compileQuery` | Compiles one page of a dataset's rows, for one user, to a parameterized Postgres query with their scope applied |
+
+Types: `CompiledQuery`, `CompileQueryOptions`, `ServerQuery`, `ServerQuerySort`. See [Postgres](/docs/data/postgres).
+
+## `@pliantui/server/storage`
+
+| Export                 | What it does                                                                                 |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `createStorageHandler` | A route handler that stores overlays for `serverAdapter`, with personal, team and org layers |
+| `memoryOverlayStore`   | An in-memory store for tests and demos                                                       |
+
+Types: `StorageHandlerConfig`, `StorageUser`, `PublishTarget`, `OverlayStore`, `OverlayKey`, `OverlayQuery`, `OverlayScope`, `OverlayVersion`. See [Self-hosted server](/docs/storage/self-hosted).
+
+## `@pliantui/server/drizzle`
+
+| Export                 | What it does                                                |
+| ---------------------- | ----------------------------------------------------------- |
+| `drizzleOverlayStore`  | Stores overlays in PostgreSQL through Drizzle               |
+| `pliantOverlays`       | The Drizzle table of current overlay records                |
+| `pliantOverlayHistory` | The Drizzle table of every stored version and who stored it |
+
+See [Drizzle store](/docs/storage/drizzle).
+
+## `@pliantui/server/recordings`
+
+| Export                | What it does                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------ |
+| `recordingMiddleware` | AI SDK middleware that records model answers to files, or replays them without calling the model |
+
+Types: `RecordingOptions`. See [Recordings and replay](/docs/ai/recordings).
+
+## Not in the package yet
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  These exports are described elsewhere in the docs but aren't in the package
+  yet: `defineConfig` from `@pliantui/server` for
+  [pliant.config.ts](/docs/config); `createRowsHandler` from
+  `@pliantui/server/data` for [custom data sources](/docs/data/custom-sources);
+  and the data adapters `drizzleRows` (`@pliantui/server/drizzle`), `prismaRows`
+  (`@pliantui/server/prisma`), `compileMysqlQuery` (`@pliantui/server/mysql`),
+  `compileSqliteQuery` (`@pliantui/server/sqlite`) and `supabaseRows`
+  (`@pliantui/server/supabase`).
+</Callout>
+
+## Related
+
+- [@pliantui/react](/docs/reference/react)
+- [@pliantui/core](/docs/reference/core)

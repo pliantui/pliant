@@ -1,0 +1,677 @@
+---
+title: Function reference
+description: Every built-in function an expression can call, with its arguments, result type, unit and handling of null.
+---
+
+Expressions call these 65 functions, and only these. A **row** function reads one row, an **aggregate** function reads every row of a group, and a **window** function gives each row a value computed over its partition: the row's group, or every row that passes the filters when the table isn't grouped.
+
+Each entry gives the function's signature, what it returns, and how it treats `null`. An argument marked `?` is optional, with its default after `=`, and `...` marks an argument that takes one or more values. "Same as `a`" means the argument joins `a`'s group: their types unify and their units must match. The rules that apply to every function, such as how strings compare and how units combine, are in [Expression rules](/docs/reference/expressions).
+
+The same catalog is exported by `@pliantui/contract` as `functionCatalog`, and published in the package as `schema/functions.json`.
+
+## Arithmetic
+
+### `add`
+
+```txt
+add(a: number, b: same as a) → same as a
+```
+
+`a` plus `b`.
+
+Row function. Takes the unit of `a`. Null when an argument is null.
+
+### `sub`
+
+```txt
+sub(a: number, b: same as a) → same as a
+```
+
+`a` minus `b`.
+
+Row function. Takes the unit of `a`. Null when an argument is null.
+
+### `mul`
+
+```txt
+mul(a: number, b: number) → number, or integer when a and b are
+```
+
+`a` times `b`.
+
+Row function. Its unit follows the product rule. Null when an argument is null.
+
+### `div`
+
+```txt
+div(a: number, b: number) → number
+```
+
+`a` divided by `b`, or null when `b` is 0.
+
+Row function. Its unit follows the quotient rule. Null when an argument is null.
+
+### `abs`
+
+```txt
+abs(x: number) → same as x
+```
+
+The absolute value of `x`.
+
+Row function. Takes the unit of `x`. Null when an argument is null.
+
+### `round`
+
+```txt
+round(x: number, digits?: integer = 0) → integer when digits is 0, else number
+```
+
+`x` rounded to `digits` decimal places, halves away from zero, applied to the shortest decimal that represents `x`, so `round(1.005, 2)` is 1.01.
+
+Row function. Takes the unit of `x`. Null when an argument is null. `digits` is a literal from 0 to 10.
+
+### `floor`
+
+```txt
+floor(x: number) → integer
+```
+
+The largest integer not greater than `x`.
+
+Row function. Takes the unit of `x`. Null when an argument is null.
+
+### `ceil`
+
+```txt
+ceil(x: number) → integer
+```
+
+The smallest integer not less than `x`.
+
+Row function. Takes the unit of `x`. Null when an argument is null.
+
+### `min2`
+
+```txt
+min2(a: number | string | date | datetime, b: same as a) → same as a
+```
+
+The smaller of `a` and `b`, or null when either is null.
+
+Row function. Takes the unit of `a`. Null when an argument is null.
+
+### `max2`
+
+```txt
+max2(a: number | string | date | datetime, b: same as a) → same as a
+```
+
+The larger of `a` and `b`, or null when either is null.
+
+Row function. Takes the unit of `a`. Null when an argument is null.
+
+### `clamp`
+
+```txt
+clamp(x: number, low: same as x, high: same as x) → same as x
+```
+
+`x` limited to the range from `low` to `high`, or null when `low` is greater than `high`.
+
+Row function. Takes the unit of `x`. Null when an argument is null.
+
+### `percentChange`
+
+```txt
+percentChange(from: number, to: same as from) → number
+```
+
+`(to - from)` divided by the absolute value of `from`, so a rise is positive even from a negative base. Null when `from` is 0.
+
+Row function. Returns a percent. Null when an argument is null.
+
+## Logic
+
+### `if`
+
+```txt
+if(condition: boolean, then: number | string | boolean | date | datetime, else: same as then) → same as then
+```
+
+`then` when `condition` is true, otherwise `else`. A null `condition` picks `else`.
+
+Row function. Takes the unit of `then`.
+
+### `and`
+
+```txt
+and(a: boolean, ...b: boolean) → boolean
+```
+
+True when every argument is true. False when any is false, even if others are null; otherwise null.
+
+Row function.
+
+### `or`
+
+```txt
+or(a: boolean, ...b: boolean) → boolean
+```
+
+True when any argument is true, even if others are null. False when every one is false; otherwise null.
+
+Row function.
+
+### `not`
+
+```txt
+not(x: boolean) → boolean
+```
+
+True when `x` is false, false when `x` is true.
+
+Row function. Null when an argument is null.
+
+### `eq`
+
+```txt
+eq(a: number | string | boolean | date | datetime, b: same as a) → boolean
+```
+
+True when `a` equals `b`.
+
+Row function. Null when an argument is null.
+
+### `eqI`
+
+```txt
+eqI(a: string, b: same as a) → boolean
+```
+
+True when `a` equals `b`, ignoring case.
+
+Row function. Null when an argument is null.
+
+### `neq`
+
+```txt
+neq(a: number | string | boolean | date | datetime, b: same as a) → boolean
+```
+
+True when `a` doesn't equal `b`.
+
+Row function. Null when an argument is null.
+
+### `gt`
+
+```txt
+gt(a: number | string | date | datetime, b: same as a) → boolean
+```
+
+True when `a` is greater than `b`.
+
+Row function. Null when an argument is null.
+
+### `gte`
+
+```txt
+gte(a: number | string | date | datetime, b: same as a) → boolean
+```
+
+True when `a` is greater than or equal to `b`.
+
+Row function. Null when an argument is null.
+
+### `lt`
+
+```txt
+lt(a: number | string | date | datetime, b: same as a) → boolean
+```
+
+True when `a` is less than `b`.
+
+Row function. Null when an argument is null.
+
+### `lte`
+
+```txt
+lte(a: number | string | date | datetime, b: same as a) → boolean
+```
+
+True when `a` is less than or equal to `b`.
+
+Row function. Null when an argument is null.
+
+### `between`
+
+```txt
+between(x: number | string | date | datetime, low: same as x, high: same as x) → boolean
+```
+
+True when `x` is from `low` to `high`, both included. False when `low` is greater than `high`.
+
+Row function. Null when an argument is null.
+
+### `in`
+
+```txt
+in(x: number | string | boolean | date | datetime, ...values: same as x) → boolean
+```
+
+True when `x` equals one of `values`, otherwise false. Null when `x` is null; null `values` never match. Takes at most 15 `values`, by the 16-argument limit.
+
+Row function.
+
+### `isNull`
+
+```txt
+isNull(x: number | string | boolean | date | datetime) → boolean
+```
+
+True when `x` is null, otherwise false.
+
+Row function.
+
+### `coalesce`
+
+```txt
+coalesce(x: number | string | boolean | date | datetime, ...fallbacks: same as x) → same as x
+```
+
+The first argument that isn't null, or null when all are.
+
+Row function. Takes the unit of `x`.
+
+## Text
+
+### `concat`
+
+```txt
+concat(a: string, ...b: string) → string
+```
+
+The arguments joined into one string, with null arguments as empty strings. Never null.
+
+Row function.
+
+### `lower`
+
+```txt
+lower(text: string) → string
+```
+
+`text` in lowercase, by Unicode's default case mapping.
+
+Row function. Null when an argument is null.
+
+### `upper`
+
+```txt
+upper(text: string) → string
+```
+
+`text` in uppercase, by Unicode's default case mapping.
+
+Row function. Null when an argument is null.
+
+### `length`
+
+```txt
+length(text: string) → integer
+```
+
+The number of code points in `text`.
+
+Row function. Null when an argument is null.
+
+### `contains`
+
+```txt
+contains(text: string, search: string) → boolean
+```
+
+True when `search` occurs in `text`.
+
+Row function. Null when an argument is null.
+
+### `containsI`
+
+```txt
+containsI(text: string, search: string) → boolean
+```
+
+True when `search` occurs in `text`, ignoring case.
+
+Row function. Null when an argument is null.
+
+### `startsWith`
+
+```txt
+startsWith(text: string, search: string) → boolean
+```
+
+True when `text` starts with `search`.
+
+Row function. Null when an argument is null.
+
+### `startsWithI`
+
+```txt
+startsWithI(text: string, search: string) → boolean
+```
+
+True when `text` starts with `search`, ignoring case.
+
+Row function. Null when an argument is null.
+
+### `left`
+
+```txt
+left(text: string, count: integer) → string
+```
+
+The first `count` code points of `text`: all of it when `count` is longer, and an empty string when `count` is 0 or less.
+
+Row function. Null when an argument is null.
+
+### `right`
+
+```txt
+right(text: string, count: integer) → string
+```
+
+The last `count` code points of `text`: all of it when `count` is longer, and an empty string when `count` is 0 or less.
+
+Row function. Null when an argument is null.
+
+## Date
+
+### `dateDiff`
+
+```txt
+dateDiff(start: date | datetime, end: date | datetime, unit: "days" | "weeks" | "months" | "years") → integer
+```
+
+The whole units from the date of `start` to the date of `end`. Days are calendar days, and weeks are days divided by 7, truncated toward zero. Months are the largest n for which `start` moved n months, clamped to the month's last day, doesn't pass `end` (Jan 31 to Feb 28 is 1), and years are months divided by 12, truncated toward zero. When `end` is before `start`, the result is minus `dateDiff(end, start, unit)`.
+
+Row function. Null when an argument is null.
+
+### `datePart`
+
+```txt
+datePart(date: date | datetime, part: "year" | "quarter" | "month" | "week" | "weekday" | "day") → integer
+```
+
+One part of the `date`: the calendar year, quarter (1 to 4), month (1 to 12), ISO 8601 week number (1 to 53, so Dec 31, 2024 is in week 1 while its year is 2024), weekday (1 for Monday to 7 for Sunday) or day of the month.
+
+Row function. Null when an argument is null.
+
+### `dateTrunc`
+
+```txt
+dateTrunc(date: date | datetime, unit: "day" | "week" | "month" | "quarter" | "year") → date
+```
+
+The first day of the `unit` that contains the `date`. Weeks start on Monday.
+
+Row function. Null when an argument is null.
+
+### `addDays`
+
+```txt
+addDays(date: date | datetime, days: integer) → same as date
+```
+
+`date` moved by `days` calendar days, keeping the wall-clock time of a datetime.
+
+Row function. Null when an argument is null.
+
+### `today`
+
+```txt
+today() → date
+```
+
+The current date in the time zone of the layer that defines the expression: the dataset's for org and team, the viewer's for personal and session.
+
+Row function. Null when an argument is null.
+
+### `age`
+
+```txt
+age(date: date | datetime) → integer
+```
+
+`dateDiff(date, today(), years)`.
+
+Row function. Null when an argument is null.
+
+## Aggregate
+
+### `count`
+
+```txt
+count(x?: number | string | boolean | date | datetime) → integer
+```
+
+`count(x)` is the number of rows where `x` isn't null; `count()` is the number of rows.
+
+Aggregate function. Skips null values.
+
+### `countIf`
+
+```txt
+countIf(condition: boolean) → integer
+```
+
+The number of rows where `condition` is true.
+
+Aggregate function. Skips null values.
+
+### `sum`
+
+```txt
+sum(x: number) → same as x
+```
+
+The sum of `x`, or 0 when there are no values.
+
+Aggregate function. Takes the unit of `x`. Skips null values.
+
+### `sumIf`
+
+```txt
+sumIf(x: number, condition: boolean) → same as x
+```
+
+The sum of `x` over rows where `condition` is true, or 0 when there are none.
+
+Aggregate function. Takes the unit of `x`. Skips null values.
+
+### `mean`
+
+```txt
+mean(x: number) → number
+```
+
+The arithmetic mean of `x`, or null when there are no values.
+
+Aggregate function. Takes the unit of `x`. Skips null values.
+
+### `min`
+
+```txt
+min(x: number | string | date | datetime) → same as x
+```
+
+The smallest value of `x`, or null when there are no values.
+
+Aggregate function. Takes the unit of `x`. Skips null values.
+
+### `max`
+
+```txt
+max(x: number | string | date | datetime) → same as x
+```
+
+The largest value of `x`, or null when there are no values.
+
+Aggregate function. Takes the unit of `x`. Skips null values.
+
+### `variance`
+
+```txt
+variance(x: number) → number
+```
+
+The sample variance of `x` (dividing by n - 1), or null with fewer than 2 values.
+
+Aggregate function. Skips null values.
+
+### `stddev`
+
+```txt
+stddev(x: number) → number
+```
+
+The sample standard deviation of `x` (dividing by n - 1), or null with fewer than 2 values.
+
+Aggregate function. Takes the unit of `x`. Skips null values.
+
+### `variancePop`
+
+```txt
+variancePop(x: number) → number
+```
+
+The population variance of `x` (dividing by n), or null when there are no values.
+
+Aggregate function. Skips null values.
+
+### `stddevPop`
+
+```txt
+stddevPop(x: number) → number
+```
+
+The population standard deviation of `x` (dividing by n), or null when there are no values.
+
+Aggregate function. Takes the unit of `x`. Skips null values.
+
+### `median`
+
+```txt
+median(x: number) → number
+```
+
+`percentile(x, 0.5)`.
+
+Aggregate function. Takes the unit of `x`. Skips null values.
+
+### `percentile`
+
+```txt
+percentile(x: number, p: number) → number
+```
+
+The `p` quantile of `x`: with the n values sorted, the value at position `p` × `(n - 1)` counting from 0, interpolated linearly between neighbours. Null when there are no values.
+
+Aggregate function. Takes the unit of `x`. Skips null values. `p` is a literal from 0 to 1.
+
+### `mode`
+
+```txt
+mode(x: number | string | boolean | date | datetime) → same as x
+```
+
+The most frequent value of `x`; on a tie, the smallest, with false before true. Null when there are no values.
+
+Aggregate function. Takes the unit of `x`. Skips null values.
+
+### `distinctCount`
+
+```txt
+distinctCount(x: number | string | boolean | date | datetime) → integer
+```
+
+The number of distinct values of `x`.
+
+Aggregate function. Skips null values.
+
+### `first`
+
+```txt
+first(x: number | string | boolean | date | datetime) → same as x
+```
+
+The value of `x` in the group's first row with one, in display order. Null when there are no values.
+
+Aggregate function. Takes the unit of `x`. Skips null values.
+
+### `last`
+
+```txt
+last(x: number | string | boolean | date | datetime) → same as x
+```
+
+The value of `x` in the group's last row with one, in display order. Null when there are no values.
+
+Aggregate function. Takes the unit of `x`. Skips null values.
+
+## Window
+
+### `rank`
+
+```txt
+rank(x: number | string | date | datetime, order?: "desc" | "asc" = "desc") → integer
+```
+
+1 plus the number of rows in the partition whose `x` comes before this row's, largest first unless `order` is asc. Ties share a rank and leave gaps (1, 2, 2, 4).
+
+Window function. Skips null values.
+
+### `denseRank`
+
+```txt
+denseRank(x: number | string | date | datetime, order?: "desc" | "asc" = "desc") → integer
+```
+
+1 plus the number of distinct values of `x` in the partition that come before this row's, largest first unless `order` is asc. Ties share a rank without gaps (1, 2, 2, 3).
+
+Window function. Skips null values.
+
+### `runningSum`
+
+```txt
+runningSum(x: number) → same as x
+```
+
+The sum of `x` over the partition's rows up to and including this one, one row at a time in display order, so tied rows get different sums.
+
+Window function. Takes the unit of `x`. Skips null values.
+
+### `share`
+
+```txt
+share(x: number) → number
+```
+
+`x` divided by the sum of `x` over the partition, or null when that sum is 0.
+
+Window function. Returns a percent. Skips null values.
+
+### `zScore`
+
+```txt
+zScore(x: number) → number
+```
+
+`(x - mean)` divided by the sample standard deviation over the partition, or null when the deviation is 0 or there are fewer than 2 values.
+
+Window function. Skips null values.
+
+## Related
+
+- [Expression rules](/docs/reference/expressions)
+- [Expressions and functions](/docs/concepts/expressions)

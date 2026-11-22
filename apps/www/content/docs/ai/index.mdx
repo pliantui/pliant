@@ -24,6 +24,15 @@ Install the server package, the AI SDK and a model provider:
 npm install @pliantui/server ai @ai-sdk/anthropic
 ```
 
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The `@pliantui/*` packages aren't on npm yet, so this install command works
+  only inside the Pliant repository.
+</Callout>
+
 Add your provider's API key to `.env.local`, such as `ANTHROPIC_API_KEY`. Then add the route that answers asks:
 
 <include cwd lang="ts" meta='title="app/api/pliant/route.ts"'>

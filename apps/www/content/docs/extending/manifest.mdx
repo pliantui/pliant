@@ -1,0 +1,94 @@
+---
+title: Manifest reference
+description: Every field of a component manifest, with its type, limits and the operations each capability allows.
+---
+
+A **manifest** is a short JSON description of what users may change about a component: which values of its props they can pick, whether they can rename or hide it, and which default states they can set. This page lists every field. [Make your registry Pliant-compatible](/docs/extending/registry) shows how to ship one.
+
+<include cwd lang="ts" meta='title="registry/acme/stat-card.manifest.ts"'>
+  snippets/extending/stat-card-manifest.ts#manifest
+</include>
+
+`defineManifest` from `@pliantui/contract` checks the manifest and returns it typed, and throws on an invalid one. As JSON, the same manifest validates against <SiteUrl path="/schema/manifest.json" />.
+
+## Top-level fields
+
+| Field          | Type    | Description                                                                                                                                                             |
+| -------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `kind`         | string  | What the component is. Kebab-case, at most 64 characters. A third-party kind is namespaced, such as `acme:stat-card`; bare kinds belong to Pliant's built-in components |
+| `version`      | integer | The manifest's version, from 1. Raise it when you change what users may set                                                                                             |
+| `description`  | string  | What the component is, in 1 to 200 characters. The ask panel's model reads it                                                                                           |
+| `capabilities` | object  | What users may change, below                                                                                                                                            |
+
+Unknown keys are rejected, so a typo like `hidable` is an error rather than a silent no-op. Keys named `__proto__`, `constructor` or `prototype` are rejected at any depth.
+
+## Capabilities
+
+Each capability allows a fixed group of [operations](/docs/reference/operations). Leave out a capability, or set it to `false`, and those operations are skipped for the component, and the ask panel never offers them to the model.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Today only the ask route reads capabilities: it offers the model only the
+  operations the target's manifest allows. Saved overlays and changes made by
+  hand aren't checked against manifests yet.
+</Callout>
+
+| Capability     | Type    | Allows                                                                         |
+| -------------- | ------- | ------------------------------------------------------------------------------ |
+| `props`        | object  | `setProp` on the props listed, with the values listed                          |
+| `label`        | boolean | `rename`                                                                       |
+| `hideable`     | boolean | `hide` and `show`                                                              |
+| `slots`        | boolean | `move`, `pin` and `collapse` on its children                                   |
+| `layout`       | boolean | `setLayout`, and `span` on its children                                        |
+| `insertable`   | boolean | `insert`, `wrap`, and `remove` on what users added                             |
+| `form`         | boolean | `setDefault` on its fields                                                     |
+| `defaults`     | object  | `setDefault` on the default states listed                                      |
+| `presentation` | boolean | `setPresentation` and `setSize`                                                |
+| `nav`          | boolean | `setLanding` on its items                                                      |
+| `actions`      | boolean | `promote`, `demote` and `bindShortcut` on its actions                          |
+| `data`         | boolean | Sorting, filtering, grouping, calculated columns and the other data operations |
+
+A capability for an item, such as `slots` for a region's cards, goes on the component that holds the items.
+
+### `props`
+
+Each key is a camelCase prop name, such as `variant`.
+
+| Field         | Type     | Description                                                                                                                                       |
+| ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `values`      | string[] | The values users may see, 1 to 32 unique strings of 1 to 64 characters                                                                            |
+| `default`     | string   | Optional. The value when no layer sets one. Must be one of `values`                                                                               |
+| `semantic`    | string[] | Optional. Values that carry meaning, such as `danger`. Shown, but users can't set them; only your code assigns them. Each must be one of `values` |
+| `description` | string   | Optional. What the prop changes, in up to 200 characters                                                                                          |
+
+Prop values are strings, because `cva` and `tailwind-variants` variant keys are strings.
+
+### `defaults`
+
+Each key is a camelCase prop that sets a component's starting state, such as `defaultValue` on tabs or `defaultOpen` on a collapsible. Users and teams can set it per layer with `setDefault`. A default is never a data value, so free-form text isn't allowed. Each declaration is one of:
+
+| Declaration                          | Allowed values                             |
+| ------------------------------------ | ------------------------------------------ |
+| `{ "values": [...] }`                | One of 1 to 32 strings, or 1 to 32 numbers |
+| `{ "type": "boolean" }`              | `true` or `false`                          |
+| `{ "type": "number", "min", "max" }` | A number from `min` to `max`               |
+| `{ "type": "date" }`                 | A real calendar date, written `YYYY-MM-DD` |
+
+Add `"persist": true` to save the user's own changes to that state automatically, such as the tab they last opened.
+
+### Namespaced capabilities
+
+A key written `namespace:name`, such as `"crm:starrable"`, holds any JSON value. It's kept but not read, so a manifest written for an extension still loads where the extension isn't installed. [Custom operations](/docs/extending/operations) use them. The `pliant:` namespace is reserved.
+
+## Generating manifests
+
+For components already in your app, [`pliantui manifest`](/docs/cli/manifest) reads their `cva` and `tailwind-variants` definitions and writes a manifest for each, after a review.
+
+## Related
+
+- [Make your registry Pliant-compatible](/docs/extending/registry)
+- [Guardrail rules](/docs/reference/guardrails#variants-keep-their-meaning)
+- [JSON Schemas](/docs/registry/json-schemas)
