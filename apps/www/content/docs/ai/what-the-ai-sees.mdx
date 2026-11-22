@@ -1,0 +1,52 @@
+---
+title: What the AI sees and never sees
+description: Exactly what Pliant sends to the model when a user asks for a change, and what it never sends.
+---
+
+When a user asks for a change, your server sends the model a short description of the part they pointed at, and their ask. That's all. Your rows, your users' details and your code never leave your server.
+
+For the orders table, the model receives something like this:
+
+```txt
+Target: {"address":"orders-table","kind":"data-table","description":"A table of orders","columns":[{"id":"customer","label":"Customer"},{"id":"status","label":"Status"},{"id":"value","label":"Value"}],"fields":[{"id":"status","label":"Status","type":"enum","values":["paid","pending","overdue","refunded"]},{"id":"value","label":"Value","type":"number"}],"sort":[{"field":"createdAt","dir":"desc"}]}
+Ask: "only overdue orders"
+```
+
+## What the model sees
+
+| It sees                                                | For example                              |
+| ------------------------------------------------------ | ---------------------------------------- |
+| The part's address and kind                            | `orders-table`, a data table             |
+| Its description                                        | "A table of orders"                      |
+| The ids and labels of its items                        | The columns, or the cards in a region    |
+| The fields it can sort and filter by, with their types | `value`, a number                        |
+| The values of `enum` fields                            | `paid`, `pending`, `overdue`, `refunded` |
+| The current sort and filters                           | Sorted by created date, newest first     |
+| The user's ask                                         | "only overdue orders"                    |
+
+All of it comes from the target you describe, and from what the user typed.
+
+## What the model never sees
+
+- **Your rows.** No order, customer name or amount is ever sent.
+- **Who the user is.** The model doesn't get their id, name or email.
+- **Fields you hide from it.** A dataset field with `exposeToAI: false` is left out, and so is any field the user may not read.
+- **Your code, prompts from other users, or other pages.**
+
+## Things to check
+
+- **Enum values are sent.** If the names of a field's values are sensitive, such as customer names used as an enum, make it a `string` field instead, or set `exposeToAI: false`.
+- **Filter values are sent.** The current filters are part of the description. A user who searched for a customer's name sends that name with their next ask.
+- **Labels and descriptions are sent.** Keep them about the page, not your business secrets.
+
+`pliantui doctor` lists every dataset field the AI is told about, and warns when one looks sensitive, such as an email, phone number, address or salary.
+
+## Safe whatever the answer
+
+The model's answer can't do harm, whatever it says. It can only contain operations from the fixed catalog, and only those the target allows. Every answer is checked on your server and again in the browser, and shown as a preview the user must lock in. A user's ask, and labels on the page, are passed to the model as data, so text that tries to give the model new instructions is treated as text.
+
+## Related
+
+- [How asking works](/docs/ai)
+- [Datasets](/docs/data/datasets)
+- [Guardrails](/docs/concepts/guardrails)

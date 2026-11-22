@@ -1,0 +1,57 @@
+---
+title: Forms
+description: Let users reorder, hide and fold away the fields of your forms, and set their own defaults, without losing what they've typed.
+---
+
+`PliantForm` lets each user arrange your forms their way: put the fields they use first at the top, hide optional ones they never fill in, or fold them into a **More fields** section. They can also keep their own default values, such as always CC'ing their manager. Required fields always stay visible.
+
+It works with your form library. You keep your validation, submission and field components, and wrap the fields in `PliantForm`.
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-form.json
+```
+
+## How it fits
+
+```tsx
+<form onSubmit={…}>
+  <PliantForm id="refund-form" schema={refundSchema} fields={{ orderId: …, amount: …, reason: … }} />
+  <Button type="submit">Request refund</Button>
+</form>
+```
+
+- `id` names the form, as for any node: kebab-case and unique on the page.
+- `fields` holds each field by the name your form library knows it by. Their order is the default order.
+- `schema` is the schema your form validates with, such as a Zod object. Pliant reads it to know which fields are required.
+
+## What users can change
+
+| Change                            | What's protected                                  |
+| --------------------------------- | ------------------------------------------------- |
+| Reorder fields                    | Fields never leave the form                       |
+| Hide a field                      | Required fields can't be hidden                   |
+| Fold fields into **More fields**  | It opens by itself when a field inside is invalid |
+| Set their own default for a field | The default must pass the field's schema          |
+
+A field is required when its schema rejects a missing value. Mark a field `.optional()` or give it a `.default()` to let users hide it.
+
+## Fields keep their values
+
+Moving, hiding or folding a field never remounts it, so it keeps focus, what the user typed and its validation state. When the form is submitted with an invalid field folded away, the **More fields** section opens and focus moves to the first invalid field.
+
+Submit through the `<form>` element, with a submit button or `form.requestSubmit()`. Calling your library's submit handler from a button outside the form skips that.
+
+## User defaults
+
+`usePliantFormDefaults` returns your default values with each user's own defaults in place. Pass the result to your form library so the form starts from them. Only fields you list in your defaults can take one, and only a value the field's schema accepts.
+
+## Choose your library
+
+<div className="mt-6 grid gap-4 sm:grid-cols-2 sm:gap-6">
+  <LinkedCard href="/docs/forms/react-hook-form">
+    <span className="font-medium">React Hook Form</span>
+  </LinkedCard>
+  <LinkedCard href="/docs/forms/tanstack-form">
+    <span className="font-medium">TanStack Form</span>
+  </LinkedCard>
+</div>

@@ -1,0 +1,50 @@
+---
+title: Sync, conflicts and deletions
+description: What happens when a user has the same page open in two places, how saves avoid overwriting each other, and how removed changes stay removed.
+---
+
+Users open the same page in several tabs and devices. Pliant saves each change so that nothing is silently overwritten, and so that a change a user removed doesn't come back. This page explains what users see, and what your storage needs to do.
+
+## Two tabs, both changing the page
+
+Each change is saved as its own version. If a user sorts the table in one tab and hides a column in another, both changes apply. If both tabs change the same property, such as the sort, the later change wins.
+
+With an adapter that has `subscribe`, such as `localAdapter` across tabs of one browser, changes from other tabs show as they arrive, without a reload. Changes this tab hasn't saved yet stay. `serverAdapter` has no `subscribe`, so changes from other devices show on the next load. To push them, add your own: `{ ...serverAdapter(options), subscribe }`.
+
+## Conflicts
+
+Every saved record has an **etag**, a version tag that changes on every save. A save says which etag it replaces, and storage refuses it if the record changed in the meantime. Pliant reads the refusal as a conflict:
+
+- If the record is the version it was saving, an earlier attempt worked but the answer was lost. Pliant counts it as saved.
+- Otherwise, Pliant reports the conflict to `PliantRoot`'s `onError` and tries again with the next save.
+
+A storage adapter signals a conflict by throwing a `StorageConflictError` from `@pliantui/react`, or any error named `"StorageConflictError"` with a `current` property holding the stored record. `serverAdapter` turns the route's HTTP 412 into one for you.
+
+## Saving while the page closes
+
+Pliant also saves when the user leaves the page. An adapter that saves over the network must send those requests with `fetch(…, { keepalive: true })` or `navigator.sendBeacon`, so they survive the page unloading. `serverAdapter` does.
+
+## Deletions
+
+When a user resets a table, Pliant removes their changes with the adapter's `remove`. A removed overlay leaves a **tombstone**: a marker with the removal time, kept in its place.
+
+- `load` never returns tombstones, and they never apply.
+- A late save of a removed overlay, such as a retry from a tab that was offline, is refused. The removal sticks.
+- Keep tombstones at least 30 days. After that you may delete them.
+
+## Erasing a user's data
+
+To erase a user's changes completely, such as when they ask for their data to be deleted, delete their records and their tombstones. Use `list` to find every record of a layer, including tombstones. A very late retry from an old tab could then store an overlay again, so sign the user out everywhere first.
+
+## History
+
+An adapter with `history(surface, id?)` returns every stored version of a surface or overlay, oldest first, tombstones included. The [Drizzle store](/docs/storage/drizzle) keeps every version, with who saved it. Use it for an audit trail, or to restore a removed change by saving it again under a new id.
+
+## Fresh reads
+
+A load must see every save that finished before it started. Read from your primary database, not a replica, and fetch with `cache: "no-store"`. Otherwise a user can save a change, reload and briefly not see it.
+
+## Related
+
+- [How customizations are saved](/docs/storage)
+- [Self-hosted server](/docs/storage/self-hosted)

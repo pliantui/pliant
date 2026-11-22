@@ -1,0 +1,54 @@
+---
+title: Server mode
+description: Load one page of rows at a time from your database, sorted and filtered on the server, for tables too large to send to the browser.
+---
+
+In server mode, your table asks your server for one page of rows at a time, with the user's sort and filters. Your server checks what that user may see, builds a safe query and returns the page. Use it for large tables, and whenever users mustn't receive every row.
+
+<Steps>
+
+<Step>Add a route that returns a page of rows</Step>
+
+<include cwd lang="ts" meta='title="app/api/orders/rows/route.ts"'>
+  snippets/data/rows-route.ts#route
+</include>
+
+- `authorizeDataset` resolves which rows and fields this user may load. It returns `null` when they may not use the dataset.
+- `compileQuery` turns the table's request into one parameterized Postgres query that applies the user's scope, their sort and filters, and the page. Every value is a parameter, and table and column names come only from your code.
+- `columns` maps fields to columns stored under another name. Keys of the user's scope map the same way, so `orgId` can be a column that isn't a field.
+
+<Step>Ask for rows from the table</Step>
+
+Tell TanStack Table that sorting, filtering and pages happen on the server, and fetch a page whenever they change:
+
+<include cwd lang="tsx" meta='title="app/orders/orders-table.tsx"'>
+  snippets/data/server-table.tsx#table
+</include>
+
+- Wait for `options.ready` before fetching, so the first request already has the user's saved sort and filters.
+- `rowCount` is the total number of rows the user may see, so pagination knows how many pages there are. Count them on your server when the page loads.
+
+</Steps>
+
+The user's changes save as they do in client mode. Sort the table, reload, and the server returns the rows in their order.
+
+## What the server checks
+
+`compileQuery` treats every request as untrusted. It throws a `TypeError`, which the route above turns into a 400, when the request:
+
+- isn't a valid query, or names another dataset;
+- sorts or filters by a field the user can't read, or one whose capabilities don't allow it.
+
+A request for a page larger than `maxPageSize` gets `maxPageSize` rows. A field the user can't read is reported as missing, so the error gives no hint that it exists.
+
+## Rules for values
+
+- Text sorts in your column's collation. Rows without a value go last.
+- `contains` and `startsWith` ignore case. `eq`, `neq` and `in` don't.
+- A date without a time covers that whole day in the dataset's time zone. Store dates as `date` and datetimes as `timestamptz`.
+
+## Related
+
+- [Query safety](/docs/data/query-safety)
+- [Postgres](/docs/data/postgres)
+- [Permissions and row security](/docs/data/permissions)

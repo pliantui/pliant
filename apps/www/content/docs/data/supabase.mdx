@@ -1,0 +1,53 @@
+---
+title: Supabase
+description: Load pages of rows from Supabase, with the user's permissions and your row-level security applied.
+---
+
+Load pages of rows from Supabase, with the user's permissions and your row-level security applied. Your route stays the same as in [server mode](/docs/data/server-mode); only the line that loads rows changes.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how this adapter will work. It isn't in Pliant yet. Today,
+  load rows with [`compileQuery` for Postgres](/docs/data/postgres) or [your own
+  query](/docs/data/custom-sources).
+</Callout>
+
+```ts title="app/api/orders/rows/route.ts"
+import { authorizeDataset } from "@pliantui/server/data"
+import { supabaseRows } from "@pliantui/server/supabase"
+
+const db = createClient(url, key)
+
+export async function POST(request: Request) {
+  const user = await getSessionUser(request)
+  const grant = authorizeDataset(ordersDataset, user)
+  if (!grant) return new Response(null, { status: 403 })
+
+  const rows = await supabaseRows(
+    db,
+    ordersDataset,
+    grant,
+    await request.json(),
+    {
+      table: "orders",
+    }
+  )
+  return Response.json(rows)
+}
+```
+
+The adapter applies the user's scope to every query, checks the request as `compileQuery` does, and returns one page with the total row count, so pagination knows how many pages there are.
+
+## Notes
+
+- Pliant's scope runs alongside your Postgres row-level security policies. Both apply.
+- Index the fields users sort and filter by most, and your scope columns.
+- The same limits apply as for every adapter. See [Query safety](/docs/data/query-safety).
+
+## Related
+
+- [Server mode](/docs/data/server-mode)
+- [Permissions and row security](/docs/data/permissions)

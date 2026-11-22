@@ -1,0 +1,51 @@
+---
+title: Usage signals and consent
+description: Learn which customizations your users make, with their consent, so you can improve your defaults.
+---
+
+Usage signals tell you how people reshape your pages: which columns they hide, which sorts they choose, which asks they make. Pliant only collects them when you turn them on and the user agrees, and never includes your data.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how this feature will work. Parts of it aren't in Pliant yet.
+</Callout>
+
+## Turn them on
+
+Pass `onEvent` in `pliant.config.ts` to receive each event on your server:
+
+```ts title="pliant.config.ts"
+export default defineConfig({
+  onEvent: (event) => analytics.capture(event.name, event.payload),
+})
+```
+
+Nothing is sent anywhere else. Pliant itself never sends analytics.
+
+## Consent
+
+Events are sent only for users who agree. Render `PliantConsent` where you ask for other consent, or pass `consent` to `PliantRoot` from your own consent manager:
+
+```tsx
+<PliantRoot surface="/orders" storage={storage} consent={analyticsConsent}>
+```
+
+Without consent, no event leaves the browser.
+
+## What an event holds
+
+| Event           | Holds                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------ |
+| `pliant.change` | The surface, the operations, and whether they came from the ask panel                                  |
+| `pliant.reset`  | The surface and the node that was reset                                                                |
+| `pliant.ask`    | The outcome, the operations and the model's latency. The ask's text only if you set `logPrompts: true` |
+
+Events never hold row values, user names or anything from your data. The user id is your own, as `getUser` returns it.
+
+## Related
+
+- [Insights and promote-to-default](/docs/guides/insights)
+- [What the AI sees and never sees](/docs/ai/what-the-ai-sees)

@@ -1,0 +1,43 @@
+---
+title: Recordings and replay
+description: Record your model's answers once, then replay them in demos, tests and previews without calling the model or needing an API key.
+---
+
+`recordingMiddleware` records each answer your model gives to a JSON file, and can replay those answers later without calling the model. Use it for demos that need no API key, for tests that always get the same answer, and for previews that cost nothing.
+
+<include cwd lang="ts" meta='title="app/api/pliant/route.ts"'>
+  snippets/ai/replay-route.ts#replay
+</include>
+
+Wrap your model with the AI SDK's `wrapLanguageModel` and pass it to `createPliantHandler` as usual.
+
+## Record, then replay
+
+1. Set `mode: "record"` and use the ask panel, or run your test suite. Each answer is saved to `recordings/` as one JSON file.
+2. Commit the files.
+3. Set `mode: "replay"`. Asks are answered from the files, and the model is never called.
+
+Each recording is keyed by a hash of the model, the prompt and the tools. So a replay answers exactly the asks you recorded, on the same targets. Any other ask throws a `MissingRecordingError`, which the route reports to `onError` and answers as an error. Catch it to show your own message, such as "This demo answers its suggested asks."
+
+## Replaying without a file system
+
+On runtimes without a file system, such as Cloudflare Workers, import the recordings and pass them as `recordings` instead of `directory`:
+
+```ts
+recordingMiddleware({ mode: "replay", recordings })
+```
+
+`recordings` is the parsed contents of the files, such as an array built from `import` statements. They're checked when the middleware is created, so a broken file fails at startup, not on an ask.
+
+## Things to know
+
+- Recording needs Node.js, and writes every ask to disk. Don't record in production.
+- Recordings hold the model's answer, never your rows, because the model never sees them.
+- A change to your targets, your model or Pliant's prompt changes the key, so record again after upgrading.
+
+This site's demos replay recorded answers in exactly this way.
+
+## Related
+
+- [Testing your integration](/docs/guides/testing)
+- [How asking works](/docs/ai)

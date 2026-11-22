@@ -1,0 +1,92 @@
+---
+title: How asking works
+description: Let users describe a change in plain words, see it on the page as a preview, and keep it only if they like it.
+---
+
+With the ask panel, a user points at part of the page and types what they want, such as "only overdue orders" or "put the overdue card first". The change shows on the page as a preview, and it's saved only when they choose **Lock in**. AI is optional: everything it can do, Pliant also does without it.
+
+<Steps>
+
+<Step>Add the server route</Step>
+
+Install the server package, the AI SDK and a model provider:
+
+```bash
+npm install @pliantui/server ai @ai-sdk/anthropic
+```
+
+Add your provider's API key to `.env.local`, such as `ANTHROPIC_API_KEY`. Then add the route that answers asks:
+
+<include cwd lang="ts" meta='title="app/api/pliant/route.ts"'>
+  snippets/ai/route.ts#route
+</include>
+
+<Step>Describe what users can ask about</Step>
+
+Each **target** is a part of the page users can ask about: its id, a label, what it holds and what can change. It never includes your rows. `suggestions` show as chips that fill in the prompt.
+
+<include cwd lang="ts" meta='title="app/orders/ask-targets.ts"'>
+  snippets/ai/ask-targets.ts#targets
+</include>
+
+<Step>Add the panel and point mode</Step>
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-ask-panel.json https://pliantui.dev/r/pliant-point-mode.json
+```
+
+Render them inside `PliantRoot`, such as in the page header:
+
+<include cwd lang="tsx" meta='title="app/orders/ask-toolbar.tsx"'>
+  snippets/ai/ask-toolbar.tsx#toolbar
+</include>
+
+</Steps>
+
+## What the user sees
+
+1. They hold <Kbd>Alt</Kbd>, press <Kbd>⌘</Kbd> <Kbd>.</Kbd> or click the point mode button. The parts they can ask about light up, and they click one. Or they open the panel and pick a part from its list.
+2. They type an ask, or pick a suggestion, and press <Kbd>Enter</Kbd>. <Kbd>Shift</Kbd> <Kbd>Enter</Kbd> adds a new line.
+3. The change appears on the page as a preview, with a short sentence describing it.
+4. **Lock in** saves it. **Discard** drops it. Until then, nothing is saved.
+
+If the ask is unclear, the panel asks a short question back. If it's about changing data, such as "delete these orders", it explains that it can only change how the page looks.
+
+## What happens on your server
+
+1. The route checks the user is signed in, and that the request is well formed.
+2. Asks that clearly act on data are turned away before they reach the model.
+3. The model is given a description of the target and the ask, and answers with [operations](/docs/concepts/operations), from those the target allows.
+4. Every operation is checked. If any fails, the model gets one chance to correct its answer.
+5. The route answers with the checked change. The browser checks it again before showing it.
+
+The route never changes your data, and the model never sees your rows. See [What the AI sees and never sees](/docs/ai/what-the-ai-sees).
+
+## Route options
+
+| Option         | Default  | What it does                                                |
+| -------------- | -------- | ----------------------------------------------------------- |
+| `model`        | Required | Any [AI SDK](https://ai-sdk.dev) language model instance.   |
+| `getUser`      | Required | Returns the user's id, or `null` to answer 401.             |
+| `maxToolCalls` | 8        | Most tool calls the model may make in one answer.           |
+| `timeout`      | 15000    | Milliseconds allowed for each model call.                   |
+| `onError`      | None     | Called with errors the response hides, so you can log them. |
+
+<Callout variant="warning">
+  The route doesn't rate-limit asks. Keep it behind your sign-in, and add your
+  own limits before you expose it. See [Costs and rate limits](/docs/ai/costs).
+</Callout>
+
+## Making room for the panel
+
+From the `sm` breakpoint up, the panel docks to the right edge; on small screens it's a sheet at the bottom. Give your page room while it's open:
+
+```tsx
+<main className="max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh] sm:has-[[data-slot=pliant-ask-panel]]:pr-96">
+```
+
+## Related
+
+- [What the AI sees and never sees](/docs/ai/what-the-ai-sees)
+- [Choosing a model](/docs/ai/models)
+- [Recordings and replay](/docs/ai/recordings)

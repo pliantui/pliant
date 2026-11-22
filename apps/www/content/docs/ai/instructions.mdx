@@ -1,0 +1,75 @@
+---
+title: Writing instructions in pliant.config.ts
+description: Tell the AI about your product, your users' words and your preferences, so its answers fit how your users work.
+---
+
+Instructions tell the model about your product: who uses it, the terms they use and what they usually care about. With them, an ask such as "show me the late ones" becomes "orders that are overdue", because the model knows your users' words.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how instructions will work. They aren't in Pliant yet.
+</Callout>
+
+```ts title="pliant.config.ts"
+import { defineConfig } from "@pliantui/server"
+
+export default defineConfig({
+  instructions: {
+    product:
+      "An ordering portal for distributors in India. Users work in sales operations and finance.",
+    glossary: {
+      late: "Orders with status overdue",
+      "big orders": "Orders worth more than ₹1,00,000",
+    },
+    tone: "Short, plain labels. Indian number formatting.",
+    rules: ["Prefer sorting to filtering when an ask is about priority."],
+    surfaces: {
+      "/orders": "Users mostly care about overdue and high-value orders.",
+    },
+  },
+  examples: [
+    {
+      target: "orders-table",
+      ask: "late ones first",
+      ops: [
+        {
+          op: "setSort",
+          target: "orders-table",
+          sort: [{ field: "status", dir: "asc" }],
+        },
+      ],
+    },
+  ],
+})
+```
+
+## Fields
+
+| Field      | What to write                                                  |
+| ---------- | -------------------------------------------------------------- |
+| `product`  | One or two sentences: what the app is and who uses it.         |
+| `glossary` | Words your users use, and what they mean on your pages.        |
+| `tone`     | How labels the model writes should read.                       |
+| `rules`    | Preferences for answers.                                       |
+| `surfaces` | Extra notes for one page, by surface.                          |
+| `examples` | Asks and the changes you expect, to show the model your style. |
+
+Examples are checked like any change: an example whose operations aren't valid fails `pliantui doctor`.
+
+## Write them well
+
+- **Keep them short.** Instructions are sent with every ask, so long ones add cost and latency. `pliantui doctor` warns past about 400 tokens.
+- **Describe, don't enforce.** Instructions guide the model; they don't stop anything. "Never hide the status column" belongs in [flags](/docs/config#flags) too, where Pliant enforces it. `doctor` warns when a rule reads like a constraint but has no matching flag.
+- **Don't put secrets in them.** They're sent to your model provider.
+
+## Trusted text only
+
+Instructions are written by you, in your code, and are never mixed with what users type. Users can't change them, and team defaults carry operations, not text for the model.
+
+## Related
+
+- [pliant.config.ts](/docs/config)
+- [Testing a model](/docs/ai/eval)

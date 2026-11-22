@@ -1,0 +1,55 @@
+---
+title: Make a dashboard customizable
+description: Let each user arrange a dashboard's metric cards and charts their way: reorder them, hide what they don't need and choose the layout.
+---
+
+A dashboard is where users most want things their way: the metrics they watch first at the top, and the charts they never look at gone. This guide makes a dashboard's cards and charts customizable with two regions.
+
+<include cwd lang="tsx" meta='title="app/dashboard/page.tsx"'>
+  snippets/guides/dashboard-page.tsx#page
+</include>
+
+Each `PliantRegion` holds a group of cards. The order of the `slots` keys is the default order, and the `className` sets your default layout. Users can now, through the ask panel:
+
+- reorder the cards, or pin one to the start;
+- hide cards they don't need;
+- switch a region between a stack, a row and a grid of up to four columns, from the `md` breakpoint up.
+
+Give regions their spacing with `gap-*` classes. `space-*` and `divide-*` don't reach the cards.
+
+## Let users ask
+
+Add the ask panel and point mode, with a target for each region. See [How asking works](/docs/ai). Good suggestions for a dashboard:
+
+- "put overdue first"
+- "show the cards in two columns"
+- "hide the top customers chart"
+
+## Keep important cards visible
+
+A card users must always see, such as a compliance notice, shouldn't sit in a region: render it outside, so no change can hide it.
+
+## Charts that users can change
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This section shows how customizable charts will work. They aren't in Pliant
+  yet. Today, a chart is a card in a region: users can move, hide and resize it,
+  but not change what it shows.
+</Callout>
+
+A Pliant chart is a view of a dataset, like a table. Users can ask to change it:
+
+- "show this as a bar chart" switches the chart's kind;
+- "group revenue by region" changes what it groups by;
+- "only this quarter" adds a filter.
+
+Each change is saved like any other, and the **Reset** button brings back your chart.
+
+## Related
+
+- [What users can do](/docs/what-users-can-do)
+- [Theming](/docs/theming)

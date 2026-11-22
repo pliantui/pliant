@@ -1,0 +1,82 @@
+---
+title: TanStack Form
+description: Make a TanStack Form form customizable with PliantForm, keeping your validation and each user's own defaults.
+---
+
+Wrap your TanStack Form fields in `PliantForm`, and pass each user's defaults to `useForm`. Your validators, fields and submission stay as they are.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Pliant's form hooks are built to work with TanStack Form, but this guide isn't
+  tested against it yet.
+</Callout>
+
+```tsx title="components/refund-form.tsx"
+"use client"
+
+import { useForm } from "@tanstack/react-form"
+
+import { usePliantFormDefaults } from "@pliantui/react/form"
+
+import { PliantForm } from "@/components/pliant/pliant-form"
+
+export function RefundForm() {
+  const defaultValues = usePliantFormDefaults("refund-form", refundDefaults, {
+    schema: refundSchema,
+  })
+  const form = useForm({
+    defaultValues,
+    validators: { onSubmit: refundSchema },
+    onSubmit: ({ value }) => requestRefund(value),
+  })
+
+  return (
+    <form
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault()
+        void form.handleSubmit()
+      }}
+    >
+      <PliantForm
+        id="refund-form"
+        schema={refundSchema}
+        fields={{
+          orderId: (
+            <form.Field name="orderId">
+              {(field) => <OrderField field={field} />}
+            </form.Field>
+          ),
+          amount: (
+            <form.Field name="amount">
+              {(field) => <AmountField field={field} />}
+            </form.Field>
+          ),
+          reason: (
+            <form.Field name="reason">
+              {(field) => <ReasonField field={field} />}
+            </form.Field>
+          ),
+        }}
+      />
+      <Button type="submit">Request refund</Button>
+    </form>
+  )
+}
+```
+
+## How it works
+
+- `usePliantFormDefaults` returns your defaults with the user's own in place. Pass the result as `defaultValues`: TanStack Form updates a form the user hasn't touched yet when they change, so the user's defaults apply once they load.
+- `PliantForm` takes each `form.Field`, keyed by its name. Their order is the default order.
+- The schema tells Pliant which fields are required. Required fields can't be hidden or folded away.
+
+Submit through the `<form>` element, as above, so a folded section with an invalid field opens.
+
+## Related
+
+- [Forms overview](/docs/forms)
+- [React Hook Form](/docs/forms/react-hook-form)

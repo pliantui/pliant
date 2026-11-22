@@ -1,0 +1,48 @@
+---
+title: Postgres
+description: Load pages of rows from PostgreSQL with compileQuery, which turns a table's request into one safe, parameterized query.
+---
+
+`compileQuery` turns a table's request for a page of rows into one parameterized PostgreSQL query, with the user's permissions applied. Pass the result to any Postgres driver, such as `pg`, `postgres.js` or Neon's serverless driver.
+
+Import `compileQuery` from `@pliantui/server/sql`, then compile the request and run it:
+
+<include cwd lang="ts">
+  snippets/data/postgres-query.ts#query
+</include>
+
+[Server mode](/docs/data/server-mode) shows the full route, with sign-in and permission checks.
+
+## Options
+
+| Option        | What it does                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------------ |
+| `table`       | The table or view that holds the rows. Required.                                                       |
+| `schema`      | The table's schema, such as `public`. Defaults to the connection's search path.                        |
+| `columns`     | Column names by field id, for fields stored under another name, such as `{ createdAt: "created_at" }`. |
+| `maxPageSize` | The most rows a page may have. Defaults to 100, at most 1,000.                                         |
+
+## What the query does
+
+- Selects only the fields the user may read, each under its field id, so rows come back shaped like your dataset.
+- Keeps only rows that match the user's scope and every filter.
+- Sorts by the user's sort, then by the row key, so pages never overlap or skip rows. An `integer` key sorts numerically.
+- Returns one page.
+
+Every value is a parameter. Table and column names come only from your options and your dataset, never from the request.
+
+## Storing your data
+
+- Store `date` fields as `date` and `datetime` fields as `timestamptz`.
+- Text sorts in the column's collation.
+- `contains` and `startsWith` use `lower()`, so an index on `lower(column)` speeds up search.
+- Index the fields users sort and filter by most, along with your scope columns, such as `org_id`.
+
+## A view for joined data
+
+`compileQuery` reads one table. To show data from several tables, such as an order with its customer's name, create a view and pass it as `table`.
+
+## Related
+
+- [Server mode](/docs/data/server-mode)
+- [Query safety](/docs/data/query-safety)

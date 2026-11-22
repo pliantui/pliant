@@ -1,0 +1,50 @@
+---
+title: Choosing a model
+description: Pick the model that answers your users' asks. Any AI SDK model works, and safety never depends on which one you choose.
+---
+
+The ask route works with any language model the [AI SDK](https://ai-sdk.dev) supports: Anthropic, OpenAI, Google, Mistral, models on your own servers, and more. Pass the model to `createPliantHandler`:
+
+<include cwd lang="ts" meta='title="app/api/pliant/route.ts"'>
+  snippets/ai/route.ts#route
+</include>
+
+To use another provider, install its AI SDK package, such as `@ai-sdk/openai`, and pass one of its models. Pass a model instance, not a model id string.
+
+## What makes a good model for asks
+
+Asks are short, and answers are a few small tool calls, so you don't need a large model. Look for:
+
+- **Reliable tool calling.** Answers are tool calls with a fixed shape.
+- **Low latency.** Users wait for the preview, so a fast, small model feels best.
+- **Low cost per request.** Each ask is one or two short requests.
+
+Small, fast models from the major providers handle most asks well. Try yours on your own pages with [`pliantui eval`](/docs/ai/eval).
+
+## Safety doesn't depend on the model
+
+A weaker model gives worse answers, never unsafe ones. Every answer is checked against the same catalog, the same capabilities and the same guardrails, whichever model wrote it. An answer that fails the check gets one retry, then an error.
+
+## Recommended models
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The recommended list, fallback models and the `doctor` check below aren't in
+  Pliant yet. Today, you pass one model to `createPliantHandler`.
+</Callout>
+
+Pliant publishes a list of recommended models that pass its eval suite, checked again on every release. `pliantui doctor` warns when your model isn't on the list and you haven't evaluated it yourself.
+
+You can also give a fallback, used when the first model fails or times out:
+
+```ts
+model: { primary: anthropic("claude-haiku-5-5"), fallback: anthropic("claude-sonnet-5-5") },
+```
+
+## Related
+
+- [Testing a model](/docs/ai/eval)
+- [Costs and rate limits](/docs/ai/costs)

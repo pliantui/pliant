@@ -1,0 +1,51 @@
+---
+title: Teams and orgs
+description: Give a team or a whole organization a default arrangement that each member starts from and can still adjust.
+---
+
+Team and org defaults let one person arrange a page for everyone: a finance lead sets the orders table to show overdue orders first, and the whole finance team starts from that. Each member can still make their own changes on top.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how team and org defaults will work. The storage route already
+  serves them and checks who may publish, and every user's page applies them.
+  Publishing a default from the page isn't in Pliant yet.
+</Callout>
+
+## How defaults reach users
+
+The [storage route](/docs/storage/self-hosted) returns, for each user:
+
+- their org's overlays, from the `org` layer;
+- the overlays of each team they're a member of, from the `team` layer;
+- their own personal overlays.
+
+The page stacks them, lowest first: org, then team, then personal. A user's own change wins over their team's on the same property, and the team's wins over the org's. See [Overlays and layers](/docs/concepts/layers).
+
+`getUser` in the storage route says which org a user belongs to and which teams they're on, and `canPublish(user, target)` decides who may save a default:
+
+<include cwd lang="ts" meta='title="app/api/pliant/storage/route.ts"'>
+  snippets/storage/drizzle-route.ts#route
+</include>
+
+`target` is `{ layer: "team", org, team }` or `{ layer: "org", org }`. `canPublish` is only asked about the user's own org and teams they belong to. Without it, nobody can publish.
+
+## Publishing from the page
+
+A user who may publish sees **Publish for my team** in the ask panel and the table toolbar. It turns their current arrangement into the team's default, after a preview of what teammates will see. Publishing again replaces the previous default, and **Remove team default** takes it away.
+
+## When a user is on several teams
+
+Pass `teamOrder` to `PliantRoot`, highest precedence first. When two teams' defaults disagree, the team listed first wins. Teams you don't list rank below the ones you do.
+
+## Defaults aren't locks
+
+A default is a starting point. Members can change anything it sets, for themselves. To stop changes, see [Locks for admins](/docs/guides/locks).
+
+## Related
+
+- [Team and org defaults](/docs/guides/team-defaults)
+- [Drizzle store](/docs/storage/drizzle)
