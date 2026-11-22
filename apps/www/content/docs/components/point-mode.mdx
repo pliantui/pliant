@@ -1,0 +1,78 @@
+---
+title: Point Mode
+description: Users point at the part of the page they want to change instead of picking it from a list.
+---
+
+<ComponentPreview name="point-mode-demo" />
+
+## Installation
+
+<CodeTabs>
+
+<TabsList>
+  <TabsTrigger value="cli">Command</TabsTrigger>
+  <TabsTrigger value="manual">Manual</TabsTrigger>
+</TabsList>
+<TabsContent value="cli">
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-point-mode.json
+```
+
+</TabsContent>
+<TabsContent value="manual">
+
+<Steps className="mb-0 pt-2">
+
+<ComponentManualInstall name="pliant-point-mode" />
+
+</Steps>
+
+</TabsContent>
+</CodeTabs>
+
+## Usage
+
+Put it next to the [ask panel](/docs/components/ask-panel), with the same targets. Picking a part opens the panel on it.
+
+<include cwd lang="tsx">
+  snippets/ai/ask-toolbar.tsx#toolbar
+</include>
+
+## What users can ask
+
+Press Point above, or hold <Kbd>Alt</Kbd>, and click the key metrics. The panel opens on them, with these recorded asks:
+
+| Ask                               | What changes                         |
+| --------------------------------- | ------------------------------------ |
+| put the overdue card first        | The Overdue card moves to the front. |
+| hide the average order value card | That card is hidden.                 |
+
+## Rules and guardrails
+
+- Only the targets you pass are outlined. Everything else on the page stays out of reach.
+- Point mode only picks. The change itself goes through the ask panel, with its preview and its checks.
+- Outlines and labels stay below a sticky header when the page sets `scroll-padding-top` to the header's height, and labels avoid covering the page's text.
+
+## Examples
+
+### Your own toggle
+
+<include cwd lang="tsx">
+  snippets/components/point-mode-trigger.tsx#trigger
+</include>
+
+## Options
+
+| Prop      | Type                              | Description                                                      |
+| --------- | --------------------------------- | ---------------------------------------------------------------- |
+| `targets` | `{ id: string; label: string }[]` | The nodes users can point at, usually the ask panel's targets.   |
+| `onPick`  | `(id: string) => void`            | Called with the id of the target the user picked.                |
+| `trigger` | `ReactElement`                    | The element that toggles point mode. Defaults to a Point button. |
+
+## Accessibility
+
+- Started from the toggle or <Kbd>⌘</Kbd> <Kbd>.</Kbd> (<Kbd>Ctrl</Kbd> <Kbd>.</Kbd> on Windows and Linux), point mode is a modal dialog: the rest of the page is inert, and focus moves to the first outline.
+- <Kbd>Tab</Kbd> and the arrow keys move between outlines, <Kbd>Enter</Kbd>
+  picks, and <Kbd>Escape</Kbd> leaves and returns focus.
+- The toggle is the way in that always works, and the only one on touch screens.

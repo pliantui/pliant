@@ -206,6 +206,145 @@ export const inventory = {
       },
     },
   },
+  "/docs/components/data-table": {
+    baseIds: {
+      ids: [
+        "orders-table",
+        "orders-table/columns/createdAt",
+        "orders-table/columns/customer",
+        "orders-table/columns/id",
+        "orders-table/columns/notes",
+        "orders-table/columns/region",
+        "orders-table/columns/status",
+        "orders-table/columns/value",
+      ],
+      source: "mounted",
+    },
+    baseParents: {
+      "orders-table": null,
+    },
+    baseOrder: {},
+    ids: {
+      "orders-table": {
+        kind: "pliant:table",
+        hash: "f873f0295ae458a8",
+      },
+      "orders-table/columns/createdAt": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/customer": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/id": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/notes": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/region": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/status": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/value": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+    },
+  },
+  "/docs/components/form": {
+    baseIds: {
+      ids: [
+        "ticket-form",
+        "ticket-form/fields/cc",
+        "ticket-form/fields/description",
+        "ticket-form/fields/orderId",
+        "ticket-form/fields/priority",
+        "ticket-form/fields/subject",
+      ],
+      source: "mounted",
+    },
+    baseParents: {
+      "ticket-form": null,
+    },
+    baseOrder: {},
+    ids: {
+      "ticket-form": {
+        kind: "pliant:form",
+        hash: "699e992c0abd1832",
+      },
+      "ticket-form/fields/cc": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+      "ticket-form/fields/description": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+      "ticket-form/fields/orderId": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+      "ticket-form/fields/priority": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+      "ticket-form/fields/subject": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+    },
+  },
+  "/docs/components/nav": {
+    baseIds: {
+      ids: [
+        "workspace-nav",
+        "workspace-nav/items/customers",
+        "workspace-nav/items/inbox",
+        "workspace-nav/items/reports",
+        "workspace-nav/items/settings",
+        "workspace-nav/items/tickets",
+      ],
+      source: "mounted",
+    },
+    baseParents: {
+      "workspace-nav": null,
+    },
+    baseOrder: {},
+    ids: {
+      "workspace-nav": {
+        kind: "pliant:nav",
+        hash: "3c4bd372f62c58fb",
+      },
+      "workspace-nav/items/customers": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+      "workspace-nav/items/inbox": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+      "workspace-nav/items/reports": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+      "workspace-nav/items/settings": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+      "workspace-nav/items/tickets": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+    },
+  },
   "/examples/orders": {
     baseIds: {
       ids: [
@@ -223,7 +362,7 @@ export const inventory = {
         "overdue",
         "revenue",
       ],
-      source: "inventory",
+      source: "mounted",
     },
     baseParents: {
       "average-order-value": "key-metrics",
@@ -301,7 +440,7 @@ export const inventory = {
         "ticket-form/fields/priority",
         "ticket-form/fields/subject",
       ],
-      source: "inventory",
+      source: "mounted",
     },
     baseParents: {
       "ticket-form": null,

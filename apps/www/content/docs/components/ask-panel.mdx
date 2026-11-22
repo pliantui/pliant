@@ -1,0 +1,87 @@
+---
+title: Ask Panel
+description: A panel where users ask for a change in their own words, preview it, and lock it in or discard it.
+---
+
+<ComponentPreview name="ask-panel-demo" />
+
+## Installation
+
+<CodeTabs>
+
+<TabsList>
+  <TabsTrigger value="cli">Command</TabsTrigger>
+  <TabsTrigger value="manual">Manual</TabsTrigger>
+</TabsList>
+<TabsContent value="cli">
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-ask-panel.json
+```
+
+</TabsContent>
+<TabsContent value="manual">
+
+<Steps className="mb-0 pt-2">
+
+<ComponentManualInstall name="pliant-ask-panel" />
+
+</Steps>
+
+</TabsContent>
+</CodeTabs>
+
+You also need a route that answers asks with `createPliantHandler` from `@pliantui/server`. See [AI](/docs/ai).
+
+## Usage
+
+Give the panel your ask route and the parts of the page users can ask about. Each target describes the node to the AI and offers suggestions.
+
+<include cwd lang="tsx">
+  snippets/components/ask-panel.tsx#usage
+</include>
+
+## What users can ask
+
+Open the panel above and pick a suggestion, or type one of these. This page replays recorded answers; no AI model is called.
+
+| Ask                                 | What changes                         |
+| ----------------------------------- | ------------------------------------ |
+| put the overdue card first          | The Overdue card moves to the front. |
+| hide the average order value card   | That card is hidden.                 |
+| show the cards in a two-column grid | The cards lay out in two columns.    |
+
+On this page, an ask that isn't recorded gets a reply that lists the suggestions.
+
+## Rules and guardrails
+
+- The AI never writes code or queries. It picks from the operations the target's manifest allows, and every answer is checked before it previews.
+- A change previews first. Nothing is saved until the user locks it in.
+- The AI only sees what each target's context describes: labels, ids and field types, never your rows. See [what the AI sees](/docs/ai/what-the-ai-sees).
+
+## Examples
+
+### Open the panel from your own button
+
+<include cwd lang="tsx">
+  snippets/components/ask-panel-trigger.tsx#trigger
+</include>
+
+## Options
+
+| Prop                                    | Type                       | Description                                                           |
+| --------------------------------------- | -------------------------- | --------------------------------------------------------------------- |
+| `endpoint`                              | `string`                   | The URL of the route that answers asks with `createPliantHandler`.    |
+| `targets`                               | `PliantAskTarget[]`        | The nodes users can ask about, in picker order.                       |
+| `target` / `defaultTarget`              | `string`                   | The picked target, controlled or uncontrolled. Defaults to the first. |
+| `onTargetChange`                        | `(target: string) => void` | Called when the user picks a target.                                  |
+| `open` / `defaultOpen` / `onOpenChange` |                            | The panel's open state.                                               |
+| `placeholder`                           | `string`                   | The prompt's placeholder.                                             |
+| `trigger`                               | `ReactElement`             | The element that opens the panel. Defaults to an Ask button.          |
+| `fetch`                                 | `typeof fetch`             | Sends each ask in place of the global `fetch`, as for tests.          |
+
+## Accessibility
+
+- The panel is a labelled complementary landmark, and focus moves to the prompt when it opens.
+- Answers and previews are announced in a live region.
+- On phones it docks to the bottom of the screen, and the page stays scrollable above it.

@@ -5,6 +5,10 @@ import { cn } from "cn"
 import { Callout } from "@/components/callout"
 import { CodeBlockCommand } from "@/components/code-block-command"
 import { CodeTabs } from "@/components/code-tabs"
+import { ComponentManualInstall } from "@/components/component-manual-install"
+import { ComponentPreview } from "@/components/component-preview"
+import { ComponentSource } from "@/components/component-source"
+import { ComponentsIndex } from "@/components/components-index"
 import { CopyButton } from "@/components/copy-button"
 import { File, FileTree, Folder } from "@/components/file-tree"
 import { getIconForLanguageExtension } from "@/components/icons"
@@ -177,6 +181,10 @@ export const mdxComponents = {
   ),
   Callout,
   CodeTabs,
+  ComponentManualInstall,
+  ComponentPreview,
+  ComponentSource,
+  ComponentsIndex,
   FileTree,
   Folder,
   File,

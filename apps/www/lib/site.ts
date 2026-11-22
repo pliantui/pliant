@@ -35,7 +35,7 @@ export const site = {
   navItems: [
     { href: "/", label: "Home" },
     { href: "/docs", label: "Docs" },
-    { href: "/components", label: "Components" },
+    { href: "/docs/components", label: "Components" },
     { href: "/blocks", label: "Blocks" },
     { href: "/charts", label: "Charts" },
     { href: "/examples/orders", label: "Examples" },

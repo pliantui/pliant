@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
-import { isActivePath, type NavItem } from "@/lib/nav"
+import { getActiveHref, type NavItem } from "@/lib/nav"
 
 export function MainNav({
   items,
@@ -14,7 +14,7 @@ export function MainNav({
 }: React.ComponentProps<"nav"> & {
   items: readonly NavItem[]
 }) {
-  const pathname = usePathname()
+  const active = getActiveHref(usePathname(), items)
 
   return (
     <nav
@@ -32,9 +32,7 @@ export function MainNav({
         >
           <Link
             href={item.href}
-            aria-current={
-              isActivePath(pathname, item.href) ? "page" : undefined
-            }
+            aria-current={item.href === active ? "page" : undefined}
             className="relative items-center"
           >
             {item.label}

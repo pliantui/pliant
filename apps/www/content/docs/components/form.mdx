@@ -1,0 +1,82 @@
+---
+title: Form
+description: The fields of a form, which your users can reorder, hide and fold into More fields.
+---
+
+<ComponentPreview name="form-demo" />
+
+## Installation
+
+<CodeTabs>
+
+<TabsList>
+  <TabsTrigger value="cli">Command</TabsTrigger>
+  <TabsTrigger value="manual">Manual</TabsTrigger>
+</TabsList>
+<TabsContent value="cli">
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-form.json
+```
+
+</TabsContent>
+<TabsContent value="manual">
+
+<Steps className="mb-0 pt-2">
+
+<ComponentManualInstall name="pliant-form" />
+
+</Steps>
+
+</TabsContent>
+</CodeTabs>
+
+## Usage
+
+Render `PliantForm` inside your `<form>` in place of `FieldGroup`, with each field by its name. Pass your schema, so required fields can't be hidden.
+
+<include cwd lang="tsx">
+  snippets/forms/refund-form.tsx#form
+</include>
+
+See [forms](/docs/forms) for React Hook Form and TanStack Form.
+
+## What users can ask
+
+These are the asks the preview plays:
+
+| Ask                | What changes                             |
+| ------------------ | ---------------------------------------- |
+| put priority first | The Priority field moves to the top.     |
+| hide the CC field  | The CC field is hidden. Its value stays. |
+
+## Rules and guardrails
+
+- A field your schema requires can't be hidden or folded away. Mark it `.optional()` or give it a `.default()` to let users hide it.
+- Hiding or moving a field never remounts it, so it keeps its value and its validation.
+- Users can't add fields, change labels you didn't allow, or change what a field accepts.
+
+## Examples
+
+### Fields users can hide
+
+Your schema decides which fields users can hide. A required field always stays.
+
+<include cwd lang="ts">
+  snippets/components/form-schema.ts#schema
+</include>
+
+## Options
+
+| Prop     | Type                        | Description                                                                                  |
+| -------- | --------------------------- | -------------------------------------------------------------------------------------------- |
+| `id`     | `string`                    | The form's node id: kebab-case, unique within the surface.                                   |
+| `fields` | `Record<string, ReactNode>` | Each field by its name in your form library. The key order is the base order.                |
+| `schema` | `PliantFormSchema`          | The form's schema, such as your Zod object. Fields it requires can't be hidden or collapsed. |
+
+It also takes the props of a `div`, except `children`.
+
+## Accessibility
+
+- When submitting finds an invalid field inside More fields, the section opens and focus moves to the first invalid field.
+- Fields keep shadcn's `Field` markup, so labels, descriptions and errors stay linked to their inputs.
