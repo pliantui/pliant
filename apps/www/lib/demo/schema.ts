@@ -38,6 +38,18 @@ export interface TeamMember {
   team: string
 }
 
+export const dealStages = ["lead", "qualified", "proposal", "won"] as const
+
+export type DealStage = (typeof dealStages)[number]
+
+export interface Deal {
+  id: string
+  customer: string
+  stage: DealStage
+  value: number
+  owner: string
+}
+
 export interface MonthlyRevenue {
   // The first day of the month, as `YYYY-MM-01`.
   month: string

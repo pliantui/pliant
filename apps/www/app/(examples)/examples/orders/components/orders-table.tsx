@@ -6,8 +6,10 @@ import { useTable } from "@tanstack/react-table"
 import { usePliantNodeProps } from "@pliantui/react"
 import { usePliantTable } from "@pliantui/react/table"
 
-import { formatAggregate, formatNumber } from "@/lib/demo/format"
+import { formatNumber } from "@/lib/demo/format"
 import { ordersDataset, type Order } from "@/lib/demo/schema"
+import { columns } from "@/registry/blocks/orders-list/columns"
+import { formatAggregate } from "@/registry/blocks/orders-list/format-aggregate"
 import { PliantDataTable } from "@/registry/pliant/pliant-data-table"
 import { pliantDataTableFeatures } from "@/registry/pliant/pliant-data-table-features"
 import { PliantDataTablePagination } from "@/registry/pliant/pliant-data-table-pagination"
@@ -18,7 +20,6 @@ import {
   type PliantDataTableSortOption,
 } from "@/registry/pliant/pliant-data-table-toolbar"
 
-import { columns } from "./columns"
 import { DataTableColumnMenu } from "./data-table-column-menu"
 import { DataTableGroupMenu } from "./data-table-group-menu"
 import {

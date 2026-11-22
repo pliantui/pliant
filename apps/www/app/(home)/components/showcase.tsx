@@ -4,13 +4,13 @@ import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { monthlyRevenue, orders, team } from "@/lib/demo/data"
 import { company } from "@/lib/demo/schema"
 import { getOrderStats } from "@/lib/demo/stats"
+import { WorkspaceSidebar } from "@/registry/blocks/app-sidebar/workspace-sidebar"
+import { OrdersList } from "@/registry/blocks/orders-list/orders-list"
 
 import { homeTargets } from "../home-targets"
-import { OrdersCardTable } from "./orders-card"
 import { RevenueChartCard } from "./revenue-chart-card"
 import { SettingsCard } from "./settings-card"
 import { ShowcaseCard } from "./showcase-card"
-import { WorkspaceSidebar } from "./sidebar-card"
 import { StatsCard } from "./stats-card"
 import { TicketCard } from "./ticket-card"
 
@@ -60,7 +60,7 @@ export function Showcase() {
               ]}
               className="flex-1"
             >
-              <OrdersCardTable data={recentOrders} />
+              <OrdersList data={recentOrders} />
             </ShowcaseCard>
           </div>
           <div className="flex min-w-0 flex-col gap-4 sm:gap-6 md:col-span-2 md:grid md:grid-cols-2 xl:col-span-1 xl:flex">

@@ -1,4 +1,5 @@
-import { TicketForm } from "../../(examples)/examples/tickets/components/ticket-form"
+import { TicketForm } from "@/registry/blocks/ticket-form/ticket-form"
+
 import { ShowcaseCard } from "./showcase-card"
 
 export function TicketCard({ className }: { className?: string }) {

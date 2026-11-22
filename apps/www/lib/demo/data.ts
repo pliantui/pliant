@@ -1,6 +1,9 @@
+import { mulberry32 } from "./random"
 import {
+  dealStages,
   orderStatuses,
   type Customer,
+  type Deal,
   type MonthlyRevenue,
   type Order,
   type TeamMember,
@@ -99,16 +102,6 @@ const orderCount = 200
 const firstOrderDate = Date.UTC(2026, 0, 1)
 const dayInMs = 24 * 60 * 60 * 1000
 
-function mulberry32(seed: number) {
-  let state = seed
-  return () => {
-    state = (state + 0x6d2b79f5) | 0
-    let t = Math.imul(state ^ (state >>> 15), 1 | state)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
-
 function generateOrders(seed: number): Order[] {
   const random = mulberry32(seed)
   const pick = <T>(items: readonly T[]): T => {
@@ -154,3 +147,26 @@ export const monthlyRevenue: MonthlyRevenue[] = Array.from(
     }
   }
 )
+
+const accountManagers = team.filter(
+  (member) => member.role === "Account manager"
+)
+
+// Open deals with the customers, for the sales pipeline.
+function generateDeals(seed: number): Deal[] {
+  const random = mulberry32(seed)
+  return customers.map((customer, index) => {
+    const owner = accountManagers[index % accountManagers.length]
+    const stage = dealStages[Math.floor(random() * dealStages.length)]
+    if (!owner || !stage) throw new Error("Cannot generate a deal")
+    return {
+      id: `DEAL-${String(201 + index)}`,
+      customer: customer.name,
+      stage,
+      value: Math.round((50000 + random() * 950000) / 1000) * 1000,
+      owner: owner.name,
+    }
+  })
+}
+
+export const deals = generateDeals(2027)

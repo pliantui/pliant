@@ -138,6 +138,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     })
 
     for (const [path, name] of [
+      ["/blocks", "Blocks"],
       ["/charts", "Charts"],
       ["/templates", "Templates"],
     ] as const) {
@@ -151,6 +152,18 @@ for (const colorScheme of ["light", "dark"] as const) {
         expect(await violations(page, colorScheme)).toEqual([])
       })
     }
+
+    test("a block's Code view has no accessibility violations", async ({
+      page,
+    }) => {
+      await page.goto("/blocks")
+      const block = page.getByRole("region", {
+        name: /^A list of recent orders/,
+      })
+      await block.getByRole("tab", { name: "Code" }).click()
+      await expect(block.getByRole("list", { name: "Files" })).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
 
     test("the 404 page has no accessibility violations", async ({ page }) => {
       await page.goto("/no-such-page")

@@ -1,9 +1,7 @@
 "use client"
 
-import {
-  ScriptedFrame,
-  useScriptedAsks,
-} from "@/components/demo/scripted-frame"
+import { ScriptedFrame } from "@/components/demo/scripted-frame"
+import { useScriptedAsks } from "@/components/demo/use-scripted-asks"
 import { mockupAsks } from "@/lib/components/mockup-asks"
 import { formatCurrency } from "@/lib/demo/format"
 

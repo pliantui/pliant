@@ -21,16 +21,6 @@ interface Section {
 // page with its title and what the section is, so every nav link leads
 // somewhere.
 const sections = {
-  blocks: {
-    title: "Blocks",
-    description: "Ready-made page sections with Pliant wired in.",
-    status: "coming-soon",
-  },
-  charts: {
-    title: "Charts",
-    description: "Charts and stat cards your users can reshape.",
-    status: "unfinished",
-  },
   playground: {
     title: "Playground",
     description: "Point at any part of an example and ask for a change.",
