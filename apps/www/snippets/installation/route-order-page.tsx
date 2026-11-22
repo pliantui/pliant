@@ -16,8 +16,8 @@ export default function OrderPage() {
       <PliantRegion
         id="order-summary"
         slots={{
-          total: <StatCard label="Total" value="₹1,86,500" />,
-          status: <StatCard label="Status" value="Overdue" />,
+          value: <StatCard label="Value" value="₹1,86,500" />,
+          payment: <StatCard label="Payment" value="Overdue" />,
           region: <StatCard label="Region" value="West" />,
         }}
         className="grid grid-cols-1 gap-4 md:grid-cols-3"
