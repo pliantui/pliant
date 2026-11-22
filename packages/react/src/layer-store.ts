@@ -77,6 +77,10 @@ export interface LayerStore {
 // container, so a reset leaves them.
 const placeProperties = new Set(["placement", "visible", "inserted", "span"])
 
+// What a region resets for its slots. A removal stays, so a node the user
+// inserted and then removed doesn't come back.
+const slotProperties = new Set(["placement", "visible", "span"])
+
 // Whether a valid op writes a property of the node with this identity, or of
 // one of its items, such as a column, other than those its container owns.
 // A slot's placement and visibility are kept under its bare id, so they're
@@ -88,7 +92,7 @@ function writesNode(op: Op, identity: string) {
       address.startsWith(`${identity}/`) ||
       (address === identity
         ? !placeProperties.has(property)
-        : placeProperties.has(property) &&
+        : slotProperties.has(property) &&
           !address.includes("/") &&
           op.target.endsWith(`/slots/${address}`) &&
           identityOf(op.target.slice(0, -7 - address.length)) === identity)

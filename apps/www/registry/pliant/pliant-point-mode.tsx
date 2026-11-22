@@ -377,7 +377,7 @@ function layoutOutlines(
   boxes: readonly PointModeBox[],
   viewport: Viewport,
   content: PageContent,
-  previous: Map<string, PlacedLabel>
+  previous: ReadonlyMap<string, PlacedLabel>
 ) {
   const shapes = boxes.flatMap((box) => {
     const rect = outlineOf(box, viewport)
@@ -408,9 +408,13 @@ function layoutOutlines(
       viewport,
       previous.get(own.box.id)
     )
-    previous.set(own.box.id, label)
     placed.push(label.rect)
-    return { box: own.box, outline: own.rect, label: label.placement }
+    return {
+      box: own.box,
+      outline: own.rect,
+      label: label.placement,
+      placed: label,
+    }
   })
 }
 
@@ -472,12 +476,17 @@ function PliantPointMode({
         : {
             top: headerInset(),
             content: findPageContent(),
-            previous: new Map<string, PlacedLabel>(),
           },
     // The size isn't read, but a resize moves the page's content.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [mode, width, height]
   )
+  // Each label's spot in the last layout of this session, so the next one
+  // can keep it. It's written after each render, never during one.
+  const previous = React.useRef<{
+    page: typeof page
+    labels: ReadonlyMap<string, PlacedLabel>
+  }>({ page: null, labels: new Map() })
   const layout = React.useMemo(
     () =>
       page === null
@@ -486,10 +495,19 @@ function PliantPointMode({
             boxes,
             { top: page.top, width, height },
             page.content,
-            page.previous
+            // Read only as a hint for where labels sat; a stale value just
+            // means a label may move once.
+            // eslint-disable-next-line react-hooks/refs
+            previous.current.page === page ? previous.current.labels : new Map()
           ),
     [page, boxes, width, height]
   )
+  React.useEffect(() => {
+    previous.current = {
+      page,
+      labels: new Map(layout.map(({ box, placed }) => [box.id, placed])),
+    }
+  }, [page, layout])
 
   return (
     <>

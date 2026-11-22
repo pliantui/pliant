@@ -1100,6 +1100,38 @@ describe("createLayerStore", () => {
         }
       )
 
+      it("keeps the removal of a node inserted into it", async () => {
+        const store = createLayerStore({
+          surface,
+          storage: memoryStorage().storage,
+        })
+        store.connect()
+        store.registerNodes(["key-metrics"])
+        await Promise.resolve()
+        store.actions.applyOps("personal", [
+          opSchema.parse({
+            op: "insert",
+            target: "key-metrics",
+            node: { id: "my-chart", kind: "chart", dataset: "orders" },
+            at: { index: 0 },
+          }),
+        ])
+        store.actions.applyOps("personal", [
+          opSchema.parse({
+            op: "remove",
+            target: "key-metrics/slots/my-chart",
+          }),
+        ])
+
+        expect(store.actions.resetNode("key-metrics")).toEqual({
+          success: true,
+        })
+        expect(
+          store.getResolved().properties.get("my-chart")?.get("inserted")
+            ?.winner.check.op.op
+        ).toBe("remove")
+      })
+
       it("keeps the changes its slots make to themselves", () => {
         const after = reset("personal", "dashboard")
 
