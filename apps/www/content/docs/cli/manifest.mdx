@@ -9,6 +9,15 @@ Use the `manifest` command to generate a manifest for each component in your ui 
 npx pliantui manifest
 ```
 
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The `pliantui` CLI isn't on npm yet, so the `npx pliantui` commands on this
+  page work only inside the Pliant repository.
+</Callout>
+
 The command reads your components' `cva` and `tailwind-variants` (`tv()`) definitions as source code. It never runs your code. It shows what it found, lets you accept or change it, and then writes the manifests.
 
 ```txt

@@ -17,6 +17,15 @@ description: Rewrite a container's children into a PliantRegion with a slots obj
 npx pliantui annotate app/orders/page.tsx
 ```
 
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The `pliantui` CLI isn't on npm yet, so the `npx pliantui` commands on this
+  page work only inside the Pliant repository.
+</Callout>
+
 The command finds layout containers it recognizes in the file, such as a `div` with flex or grid classes, a `Card` or a `section`. It moves each container's children into a `slots` object in their current order, and gives each slot an id taken from its heading or label: a card headed "Order summary" becomes `order-summary`. It doesn't touch your logic.
 
 Review the diff before you commit it. The order of the `slots` keys is the default order users start from.

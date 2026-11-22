@@ -1,0 +1,77 @@
+---
+title: Events
+description: The usage events Pliant passes to onEvent, the fields each one holds, and what they never hold.
+---
+
+When you turn on [usage signals](/docs/guides/usage-signals), Pliant calls your `onEvent` function with one event per customization, reset and ask, for users who consented. This page lists every event and its fields.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  `onEvent`, `PliantConsent` and the `consent` prop aren't in Pliant yet, so no
+  events are sent. Pliant sends no analytics of its own.
+</Callout>
+
+## The event object
+
+Every event has the same envelope:
+
+| Field     | Type     | Meaning                                       |
+| --------- | -------- | --------------------------------------------- |
+| `name`    | `string` | The event's name, such as `pliant.change`     |
+| `surface` | `string` | The surface it happened on, such as `/orders` |
+| `user`    | `string` | Your own user id, as `getUser` returns it     |
+| `at`      | `string` | When it happened, as an RFC 3339 timestamp    |
+| `payload` | `object` | The fields below, which depend on the event   |
+
+```ts title="pliant.config.ts"
+export default defineConfig({
+  onEvent: (event) => analytics.capture(event.name, event.payload),
+})
+```
+
+## `pliant.change`
+
+A user locked in a change, by hand or from the ask panel.
+
+| Field    | Meaning                                                       |
+| -------- | ------------------------------------------------------------- |
+| `layer`  | The layer it was saved to: `personal`, `team` or `org`        |
+| `ops`    | The operations, with their targets and arguments              |
+| `source` | How it was made: `manual`, `ai`, `chip`, `share` or `promote` |
+
+## `pliant.reset`
+
+A user reset a part of the page, or the whole surface, to its defaults.
+
+| Field   | Meaning                                                               |
+| ------- | --------------------------------------------------------------------- |
+| `node`  | The address of the part that was reset, or none for the whole surface |
+| `layer` | The layer that was cleared                                            |
+
+## `pliant.ask`
+
+A user asked for a change with the ask panel.
+
+| Field       | Meaning                                                                    |
+| ----------- | -------------------------------------------------------------------------- |
+| `target`    | The address and kind of the part they pointed at                           |
+| `outcome`   | `proposed`, `out-of-scope` or `error`                                      |
+| `ops`       | The operations the model proposed, if any                                  |
+| `latencyMs` | How long the model took to answer                                          |
+| `prompt`    | The ask's text, only when you set `logPrompts: true` in `pliant.config.ts` |
+
+## What events never hold
+
+- Row values, or anything else read from your data. Filter values typed by a user are left out of `ops`.
+- User names, emails or other details. `user` is your own id, and you decide whether to send it on.
+- The ask's text, unless you set `logPrompts: true`.
+
+Events go only to your `onEvent` function. What happens next, such as sending them to PostHog or your own database, is up to you.
+
+## Related
+
+- [Usage signals and consent](/docs/guides/usage-signals)
+- [Usage data and consent](/docs/security/usage-data)

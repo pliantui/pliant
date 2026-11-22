@@ -1,0 +1,36 @@
+---
+title: llms.txt
+description: Plain-text versions of these docs for AI tools, at /llms.txt and /llms-full.txt, plus a Markdown copy of every page.
+---
+
+[llms.txt](https://llmstxt.org) is a convention for giving AI tools a site's docs as plain text. Pliant publishes two files, so you can point a chat assistant or an agent at the docs without it crawling HTML.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  `/llms.txt`, `/llms-full.txt` and the `.md` page URLs aren't published yet.
+  Today, use the copy button at the top of each docs page to copy it as
+  Markdown.
+</Callout>
+
+| File                              | What it holds                                                                            |
+| --------------------------------- | ---------------------------------------------------------------------------------------- |
+| <SiteUrl path="/llms.txt" />      | A short index: what Pliant is, and a link to every docs page with a one-line description |
+| <SiteUrl path="/llms-full.txt" /> | Every docs page in full, as Markdown, in sidebar order                                   |
+
+Every docs page is also available as Markdown at its own URL with `.md` added, such as <SiteUrl path="/docs/concepts/operations.md" />.
+
+## Using them
+
+- In a chat assistant, paste the `llms-full.txt` URL, or attach the file, and ask your question.
+- In a coding agent, prefer the [skills](/docs/ai-tooling/skills) and the [MCP server](/docs/ai-tooling/mcp), which load only what the task needs. Use `llms.txt` to let the agent find the right page.
+- `llms-full.txt` is large. When a tool has a small context window, give it `llms.txt` and the pages it links to instead.
+
+The files are generated from these docs on every release, so they always match the site.
+
+## Related
+
+- [Agent skills](/docs/ai-tooling/skills)
+- [MCP server](/docs/ai-tooling/mcp)

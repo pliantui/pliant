@@ -1,0 +1,85 @@
+---
+title: Custom views
+description: Register your own ways to show a dataset, such as a board or a map, so users can switch a table to them or add them to a dashboard.
+---
+
+A view is a way to show a dataset: a table, a chart, a stat or a list. A custom view adds another, such as a kanban board or a map. Once you register it, users can switch a table to it with `setViewKind`, and add one to a dashboard with `insert`, by hand or by asking.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how custom views will work. `defineView` and the `views` prop
+  aren't in Pliant yet. Today, `setViewKind` and `insert` accept a namespaced
+  kind such as `acme:board`, and overlays with them load and save, but nothing
+  renders the view. A region shows a placeholder for an inserted node it can't
+  render.
+</Callout>
+
+## Define a view
+
+A custom view has a namespaced kind, `namespace:name`, such as `acme:board`. Bare kinds and the `pliant:` namespace belong to the built-in views.
+
+```tsx title="components/board-view.tsx"
+"use client"
+
+import { defineView } from "@pliantui/react"
+
+export const boardView = defineView({
+  kind: "acme:board",
+  label: "Board",
+  description: "Cards in columns, one column per value of a field.",
+  render: ({ rows, fields, state }) => (
+    <Board rows={rows} columnField={state.groupBy[0]} fields={fields} />
+  ),
+})
+```
+
+| Field         | What it sets                                                                 |
+| ------------- | ---------------------------------------------------------------------------- |
+| `kind`        | The view's namespaced kind                                                   |
+| `label`       | The name users see when they switch views                                    |
+| `description` | What the view shows. The model reads it to decide when the view fits an ask  |
+| `render`      | A component that receives the rows, the fields and the view's resolved state |
+
+`render` receives the same data a built-in view gets: the rows the user may load, after the user's filters, with calculated columns added, and the current sort, filters, grouping and formats. It never receives fields the user may not read.
+
+## Register it
+
+Pass your views to `PliantRoot`, and to `createPliantHandler` so the ask panel can suggest them:
+
+```tsx title="app/orders/page.tsx"
+<PliantRoot surface="/orders" storage={localAdapter} views={[boardView]}>
+```
+
+A table can then switch to it:
+
+```json
+{ "op": "setViewKind", "target": "orders-table", "kind": "acme:board" }
+```
+
+And a dashboard region that allows `insertable` can add one over a dataset the page already shows:
+
+```json
+{
+  "op": "insert",
+  "target": "key-metrics",
+  "node": { "id": "orders-board", "kind": "acme:board", "dataset": "orders" },
+  "at": { "after": "revenue" }
+}
+```
+
+## Accessibility
+
+A custom view is your component, so it's yours to make accessible. Give it the semantics a screen reader needs, such as a list of lists for a board, and keep keyboard focus order the same as the visual order.
+
+## When the view isn't installed
+
+An overlay that names a view your app doesn't register still loads and saves unchanged. A table with an unknown view kind stays a table, and an inserted node of an unknown kind shows a placeholder. Uninstalling a view never breaks a user's page.
+
+## Related
+
+- [Custom controls](/docs/extending/controls)
+- [Make your registry Pliant-compatible](/docs/extending/registry)
+- [Operation reference](/docs/reference/operations#setviewkind)

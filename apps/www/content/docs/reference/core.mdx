@@ -1,0 +1,78 @@
+---
+title: "@pliantui/core"
+description: Every export of @pliantui/core, the framework-free engine that validates overlays, resolves layers and evaluates expressions.
+---
+
+`@pliantui/core` is Pliant's engine. It checks overlays, stacks layers into the page a user sees, enforces the [guardrails](/docs/reference/guardrails), and computes expressions. It has no React code, so it runs the same on your server, in the browser and in tests. `@pliantui/react` uses it for you; import it directly to validate overlays on a server or to build a renderer of your own.
+
+```bash
+npm install @pliantui/core
+```
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The `@pliantui/*` packages aren't on npm yet, so this install command works
+  only inside the Pliant repository.
+</Callout>
+
+## Overlays
+
+| Export            | What it does                                                                                                                                                          |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `validateOverlay` | Checks a new overlay strictly, as for an AI answer or an import: every op must be valid. With `layers`, also checks it against the layers below it and the guardrails |
+| `loadOverlay`     | Reads a saved overlay leniently, giving each op a status of `valid`, `newer`, `unknown` or `invalid`                                                                  |
+| `formatError`     | Turns a validation error into a short message, such as one to send back to a model                                                                                    |
+
+Types: `ValidatedOverlay`, `ValidateOverlayOptions`, `ValidateOverlayLayers`, `LoadedOverlay`, `OpCheck`, `FormatErrorOptions`.
+
+## Resolving layers
+
+| Export          | What it does                                                                                                                                 |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resolveLayers` | Stacks a surface's overlays, org, team, personal then session, into one value per part and property, and reports every op it skipped and why |
+| `resolveRegion` | What a region renders: its layout and its nodes in order, with visibility, pins, collapses and spans                                         |
+| `resolveForm`   | A form's fields in order, with visibility, pins, collapses and defaults                                                                      |
+| `resolveNav`    | A nav's items in order, with visibility, pins, collapses and the landing item                                                                |
+| `opProperties`  | The parts and properties one op writes                                                                                                       |
+
+Types: `ResolveLayersOptions`, `ResolvedLayers`, `ResolvedOp`, `ResolvedProperty`, `ResolvedItemPlacement`, `SkippedOp`, `UnappliedOp`, `UnappliedReason`, `BaseIds`, `ResolvedRegion`, `ResolveRegionOptions`, `RegionEntry`, `RegionLayout`, `ByBreakpoint`, `ResolvedForm`, `ResolveFormOptions`, `ResolvedNav`, `ResolveNavOptions`, `OpProperty`, `OpPropertyKey`, `PlacementPosition`.
+
+## Tables
+
+| Export              | What it does                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------ |
+| `compileTableState` | Turns a table's resolved layers into TanStack Table state, on top of your own state  |
+| `diffTableState`    | The ops that turn the current table state into a new one, such as after a user sorts |
+
+Types: `CompiledTableState`, `CompileTableStateOptions`, `ColumnSizeLimits`, `FilterValue`, `DiffTableStateOptions`, `TableStateDiff`.
+
+## Expressions
+
+| Export                     | What it does                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| `checkExpression`          | Type-checks an expression against a dataset's fields and returns its type      |
+| `createExpressionChecker`  | A checker that shares work across the expressions of one view                  |
+| `createRowEvaluator`       | Computes row expressions, for calculated columns and highlights                |
+| `createAggregateEvaluator` | Computes aggregate expressions over a group of rows, for totals                |
+| `createWindowEvaluator`    | Computes row expressions that use window functions, such as `share` and `rank` |
+| `compareCodePoints`        | Compares two strings by Unicode code point, as expressions do                  |
+| `compareRowKeys`           | Compares two row keys in display order: number keys first, in numeric order    |
+
+Types: `CheckExpressionOptions`, `ExpressionChecker`, `ExpressionCheckerOptions`, `ExpressionField`, `ExpressionKind`, `ExpressionType`, `RowEvaluator`, `RowEvaluatorOptions`, `RowExpression`, `RowExpressionOptions`, `RowAccessor`, `RowValue`, `AggregateEvaluator`, `AggregateEvaluatorOptions`, `AggregateExpression`, `WindowEvaluator`, `WindowEvaluatorOptions`, `WindowExpression`, `WindowPartitionOptions`, `FieldSchema`.
+
+## Example
+
+Check an overlay a client sends, and answer 400 with a readable message when it isn't valid:
+
+<include cwd lang="ts" meta='title="app/api/overlays/route.ts"'>
+  snippets/reference/validate-overlay.ts#validate
+</include>
+
+## Related
+
+- [@pliantui/contract](/docs/reference/contract)
+- [@pliantui/react](/docs/reference/react)
+- [Guardrail rules](/docs/reference/guardrails)
