@@ -417,8 +417,8 @@ test("keeps its labels off the page's headings and notes", async ({
 
   for (const label of labels) {
     for (const content of covered) {
-      expect(label && content).toBeTruthy()
-      if (!label || !content) continue
+      expect(label).toBeTruthy()
+      if (!label) continue
       expect(apart(rectOf(label), rectOf(content))).toBe(true)
     }
   }
