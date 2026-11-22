@@ -10,6 +10,7 @@ export default defineConfig({
       "lib/**/*.test.ts",
       "registry/**/*.test.{ts,tsx}",
       "scripts/**/*.test.{ts,tsx}",
+      "snippets/**/*.test.{ts,tsx}",
     ],
   },
 })

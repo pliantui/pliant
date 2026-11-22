@@ -1,0 +1,49 @@
+---
+title: Testing your integration
+description: Test that your pages remember users' changes, that your routes answer the way you expect, and that your setup stays correct in CI.
+---
+
+Your tests can check what users rely on: that a page remembers their changes, that your storage and ask routes behave, and that your ids and setup stay correct as your app changes.
+
+## Test that a page remembers changes
+
+Render the page with an in-memory storage adapter, change it as a user would, then render it again from the same storage:
+
+<include cwd lang="tsx" meta='title="app/orders/orders-table.test.tsx"'>
+  snippets/guides/orders-table.test.tsx#test
+</include>
+
+- The adapter keeps saved overlays in an array, so each test starts empty and you can see what was saved.
+- Changes save about a second after the last one, so wait for the save before rendering again.
+- Query by role and label, as users perceive the page.
+
+## Test your storage route
+
+`memoryOverlayStore()` from `@pliantui/server/storage` keeps overlays in memory. Create your storage handler with it in a test, and call it with `Request` objects, as your framework would:
+
+- a `GET` with `?surface=/orders` returns the user's overlays;
+- a `PUT` with a stale `If-Match` answers 412;
+- a user without `canPublish` gets 403 when saving to a team.
+
+## Test your ask route without a model
+
+Wrap your model with `recordingMiddleware` in `replay` mode, and commit the recordings. Your tests then send real asks to your route and get the same answers every time, with no API key and no cost. See [Recordings and replay](/docs/ai/recordings).
+
+## Test your data routes
+
+Call `compileQuery` with your dataset and a test user, and check the query keeps only that user's rows. Pass a query that sorts by a field the user can't read, and check it throws.
+
+## Check your setup in CI
+
+```bash
+npx pliantui scan --check
+npx pliantui doctor
+```
+
+- `scan --check` fails when your pages' ids have changed but the inventory hasn't been updated.
+- `doctor` fails when a `PliantRoot` has no `PliantPrePaint`, or another check fails, and warns about dataset fields the AI shouldn't see.
+
+## Related
+
+- [Recordings and replay](/docs/ai/recordings)
+- [Add Pliant to an existing app](/docs/guides/existing-app)

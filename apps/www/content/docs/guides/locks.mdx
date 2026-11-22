@@ -1,0 +1,42 @@
+---
+title: Locks for admins
+description: Let admins lock parts of a page, such as a required column, so team members can't hide or move them.
+---
+
+A lock keeps part of a page as an admin set it. Locking the orders table's **Status** column means no one on the team can hide or move it, even in their own view.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how this feature will work. Parts of it aren't in Pliant yet.
+</Callout>
+
+## Lock a part of the page
+
+An admin points at the part with point mode, and chooses **Lock for my team** or **Lock for everyone**. Locked parts show a small lock icon. Members can still use them; they just can't change them.
+
+## What a lock covers
+
+| Locked             | Members can't             |
+| ------------------ | ------------------------- |
+| A column           | Hide, move or resize it   |
+| A card in a region | Hide or move it           |
+| A whole region     | Change anything inside it |
+| A table's sort     | Sort it another way       |
+
+Your own code can lock a region too, with the `locked` prop. Nothing inside it is editable:
+
+```tsx
+<PliantRegion id="compliance" locked slots={{ notice: <ComplianceNotice /> }} />
+```
+
+## Locks aren't security
+
+A lock is a policy for the page, not a way to keep data from users. The page runs in the user's browser, and they control it. Anything a user mustn't see belongs in your [dataset permissions](/docs/data/permissions).
+
+## Related
+
+- [Team and org defaults](/docs/guides/team-defaults)
+- [Guardrails](/docs/concepts/guardrails)

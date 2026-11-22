@@ -1,0 +1,51 @@
+---
+title: How customizations are saved
+description: Where each user's changes are kept, how to choose between the browser and your own server, and what Pliant expects from storage.
+---
+
+Every change a user makes, such as sorting the orders table, is saved as a small JSON document called an overlay. You choose where overlays are kept by passing a **storage adapter** to `PliantRoot`. Choosing one comes down to whether changes should follow users across devices, and whether you need team defaults.
+
+```tsx
+<PliantRoot surface="/orders" storage={localAdapter}>
+```
+
+## Choose where changes live
+
+| Storage                                         | Changes follow the user across devices | Team and org defaults | Setup                    |
+| ----------------------------------------------- | -------------------------------------- | --------------------- | ------------------------ |
+| [Local storage](/docs/storage/local)            | No, they stay in one browser           | No                    | None                     |
+| [Self-hosted server](/docs/storage/self-hosted) | Yes                                    | Yes                   | One route                |
+| [Drizzle store](/docs/storage/drizzle)          | Yes                                    | Yes                   | One route and two tables |
+
+Start with local storage. It needs no setup, and switching later only changes the `storage` prop: your pages, ids and components stay the same.
+
+## What gets saved
+
+Sorts, visible columns, column order, widths and pinning, region layouts, and anything a user locks in from the ask panel are saved for that user. Each change is saved about a second after they stop, and again when they leave the page.
+
+The table's current page, its filters (unless you save them with `persistFilters`), and ask panel previews that weren't locked in last only as long as the tab.
+
+Your data is never saved. Overlays describe how the page looks, not the rows in it.
+
+## What a storage adapter does
+
+An adapter loads a surface's overlays and saves new ones. `PliantRoot` calls three of its methods:
+
+| Method      | What it does                                                        |
+| ----------- | ------------------------------------------------------------------- |
+| `load`      | Returns the surface's overlays, by layer.                           |
+| `save`      | Stores one overlay, and refuses if someone else changed it first.   |
+| `subscribe` | Optional. Tells the page when another tab or device saved a change. |
+
+Adapters can also offer `remove`, used when a user resets a table, plus `list` and `history` for your own code, such as exporting or erasing a user's data. See [Sync, conflicts and deletions](/docs/storage/sync).
+
+## Loading state
+
+While the overlays load, tables show your default state and don't accept changes, and `usePliantStatus()` reports `loading`. If loading fails, the page shows your defaults, and the status reports the error. Call `reload()` from `usePliantStore()` to try again.
+
+To avoid a flash of the default layout while loading, see [Rendering modes](/docs/concepts/rendering).
+
+## Related
+
+- [Overlays and layers](/docs/concepts/layers)
+- [Sync, conflicts and deletions](/docs/storage/sync)

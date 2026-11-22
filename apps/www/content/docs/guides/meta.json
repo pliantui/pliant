@@ -1,0 +1,14 @@
+{
+  "title": "Guides",
+  "pages": [
+    "existing-app",
+    "dashboard",
+    "team-defaults",
+    "saved-views",
+    "locks",
+    "usage-signals",
+    "insights",
+    "renames",
+    "testing"
+  ]
+}

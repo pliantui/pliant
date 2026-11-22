@@ -1,0 +1,42 @@
+---
+title: Client mode
+description: When to send all of a table's rows to the browser, what the dataset option enables there, and when to switch to server mode.
+---
+
+In client mode, your page sends a table's rows to the browser, and every sort, filter, group, calculated column and total runs there. It's the simplest way to start, and right for tables of up to a few thousand rows.
+
+<include cwd lang="tsx" meta='title="app/orders/orders-table.tsx"'>
+  snippets/data/client-table.tsx#dataset
+</include>
+
+Pass `dataset` to `usePliantTable` with each field's type and the time zone. It's what lets the table compute calculated columns, totals and highlights, and check them against your fields. Without it, the table still sorts, filters and pages, but shows none of those.
+
+## Keep the dataset stable
+
+Define the dataset outside your component, as above, or keep it equal between renders. A new object on every render makes the table recompute.
+
+If you've defined the dataset on your server with `defineDataset`, send the browser only what it needs: `describeDataset(dataset, { user, audience: "client" })` returns the fields that user may read, as plain JSON.
+
+## What runs where
+
+| Change                         | In client mode                          |
+| ------------------------------ | --------------------------------------- |
+| Sort, filter, search           | In the browser, over every row you sent |
+| Group rows and totals          | In the browser                          |
+| Calculated columns, highlights | In the browser, with the `dataset`      |
+| Pages                          | In the browser                          |
+
+## When to move to server mode
+
+Move to [server mode](/docs/data/server-mode) when:
+
+- the table has too many rows to send at once;
+- users mustn't receive every row, so the server must filter by user;
+- loading every row makes the page slow.
+
+Your columns, toolbar and users' saved changes stay the same when you switch. Only how the rows arrive changes.
+
+## Related
+
+- [Datasets](/docs/data/datasets)
+- [Your first editable table](/docs/first-editable-table)

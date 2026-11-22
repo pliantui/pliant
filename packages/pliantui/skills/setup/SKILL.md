@@ -160,8 +160,8 @@ This reads the `cva` and `tailwind-variants` definitions in the ui folder, witho
 
 ## Docs
 
-- [Core concepts](https://pliantui.dev/docs/concepts): surfaces, addresses, regions and overlays.
+- [Surfaces, nodes and addresses](https://pliantui.dev/docs/concepts/surfaces): how pages, regions, tables and their items are named.
 - [Operations](https://pliantui.dev/docs/concepts/operations): what users can change and what renders.
-- [Layers](https://pliantui.dev/docs/concepts/layers): how org, team, personal and session changes stack.
+- [Overlays and layers](https://pliantui.dev/docs/concepts/layers): how org, team, personal and session changes stack.
 - [Guardrails](https://pliantui.dev/docs/concepts/guardrails): what users can't change.
 - [CLI](https://pliantui.dev/docs/cli): `init`, `manifest`, `scan`, `doctor` and `skills`.

@@ -1,0 +1,41 @@
+---
+title: React Hook Form
+description: A complete React Hook Form example with PliantForm, Zod validation and usePliantFormDefaults, and what each part does.
+---
+
+Wrap your React Hook Form fields in `PliantForm`, and pass each user's defaults to `useForm`. Your validation, `Controller`s and submission stay as they are.
+
+<include cwd lang="tsx" meta='title="components/refund-form.tsx"'>
+  snippets/forms/refund-form.tsx#form
+</include>
+
+## How it works
+
+<Steps>
+
+<Step>Load the user's defaults</Step>
+
+`usePliantFormDefaults("refund-form", refundDefaults, { schema })` returns `refundDefaults` with the user's own defaults in place. Define your defaults outside the component, so they keep their identity between renders.
+
+<Step>Pass them as values</Step>
+
+Pass the result to `useForm` as `values`, not `defaultValues`, so the form updates when the user's defaults load. `resetOptions: { keepDirtyValues: true }` keeps anything the user has already typed.
+
+<Step>Wrap the fields</Step>
+
+`PliantForm` takes the same `id`, your Zod schema and each field's `Controller`, keyed by its name. Render it inside your `<form>`, in place of `FieldGroup`.
+
+</Steps>
+
+In this form, `orderId` and `amount` are required, so users can't hide them. `reason` and `cc` are optional, so users can hide them or fold them into **More fields**.
+
+## Things to know
+
+- Use the same schema for `zodResolver`, `usePliantFormDefaults` and `PliantForm`.
+- With `shouldUnregister`, a field's value would be dropped when it unmounts. Pliant never unmounts fields, so values stay.
+- Submit with a submit button inside the `<form>`, so a folded section with an invalid field opens.
+
+## Related
+
+- [Forms overview](/docs/forms)
+- [The tickets example](/examples/tickets)

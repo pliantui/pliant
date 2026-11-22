@@ -1,0 +1,65 @@
+---
+title: Permissions and row security
+description: The scope, access and privacy options of a dataset, and how compileQuery applies them to every request on your server.
+---
+
+A sales rep in the North region should see North's orders and nothing else. You express that once, in the dataset, and Pliant applies it on your server to every query it builds, so rows and fields a user mustn't see never reach their browser.
+
+<include cwd lang="ts" meta='title="lib/datasets/orders.ts"'>
+  snippets/data/permissions.ts#permissions
+</include>
+
+With this dataset:
+
+- Support staff can't use it at all.
+- Sales staff see only orders from their own org and region, and never the notes.
+- Admins see every order.
+
+## Rows: `scope`
+
+`scope` is required. It returns the conditions every row a user loads must match, such as `{ orgId: user.orgId }`. Each key names a field, or a column your table has, and must equal the value, or one of a list of values.
+
+- `"public"` lets every user load every row.
+- Returning `allRows` lets one user, such as an admin, load every row. It's a special value only Pliant exports, so a value read from your database or a request can never widen the scope by accident.
+- Anything else, such as `undefined` or `{}`, throws. A missing scope fails closed.
+
+`scope` runs synchronously, so look up what it needs, such as the user's region, before you load rows.
+
+## The whole dataset: `access`
+
+`access` on the dataset decides whether a user may use it at all. Only `true` allows. A user without access gets nothing: `authorizeDataset` returns `null`, and your route answers 403.
+
+## Fields: `access`
+
+`access` on a field decides whether a user may read it. A user who may not read a field gets no trace of it: it's left out of every query `compileQuery` builds and out of `describeDataset`'s output. A sort or filter on it fails as if the field didn't exist.
+
+A row key field can't set `access`, because every row needs its key.
+
+## Small groups: `privacy`
+
+`privacy.minGroupSize` is the fewest rows a total may summarize. With `minGroupSize: 5`, a grouped table never shows the total for a customer with fewer than five orders, so nobody can work out a single order's value from the total of a group of one. Pliant suppresses those totals on your server, in client and server mode alike.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Suppressing small totals isn't in Pliant yet. Today, `authorizeDataset` puts
+  `minGroupSize` in the grant, and you apply it in any aggregate query you
+  write. Totals computed in the browser have no threshold.
+</Callout>
+
+## Applying the rules
+
+`authorizeDataset(dataset, user)` resolves all of it for one user, and returns a **grant**: the row conditions, the fields they may read and the smallest group size. `compileQuery` applies the grant to every query it builds. If you load rows another way, apply every part of the grant yourself. See [Custom data sources](/docs/data/custom-sources).
+
+<Callout variant="warning" title="Hiding isn't a permission">
+  Hiding a column in the table is a display preference. The data is still sent
+  to the browser. To keep a field from a user, use `access` here.
+</Callout>
+
+## Related
+
+- [Datasets](/docs/data/datasets)
+- [Server mode](/docs/data/server-mode)
+- [Guardrails](/docs/concepts/guardrails)

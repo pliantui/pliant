@@ -1,0 +1,83 @@
+---
+title: Add Pliant to an existing app
+description: Make an app you already have customizable, one page at a time, with the CLI checking your work as you go.
+---
+
+This guide adds Pliant to a Next.js app that already uses shadcn/ui, one page at a time. The CLI sets things up, maps the parts of your pages users could change, and checks your work.
+
+<Steps>
+
+<Step>Set up Pliant</Step>
+
+```bash
+npx pliantui init
+```
+
+`init` installs `@pliantui/react` and adds the `pliant-region` component. It asks before each step, and prints the code to wrap your first page with. It doesn't edit your pages.
+
+<Step>Give your coding agent the skills</Step>
+
+If you use a coding agent, add Pliant's skills so it knows how to do the next steps for you:
+
+```bash
+npx pliantui skills add
+```
+
+<Step>Pick a page and wrap it</Step>
+
+Start with a page users spend time on, such as a list or a dashboard. Wrap it in `PliantRoot`, with its route pattern as the `surface`, and add `PliantPrePaint`:
+
+<include cwd lang="tsx" meta='title="app/orders/page.tsx"'>
+  snippets/installation/page.tsx#page
+</include>
+
+<Step>Make its parts editable</Step>
+
+- Replace the element around a group of cards or sections with `PliantRegion`. Give each item a stable id.
+- Pass your table's options through `usePliantTable`, with an id. See [Your first editable table](/docs/first-editable-table).
+- Wrap a form's fields in `PliantForm`. See [Forms](/docs/forms).
+
+Name ids for what things are, such as `overdue`, not where they are, such as `card-3`. They're stored in every user's changes.
+
+<Step>Map your pages</Step>
+
+```bash
+npx pliantui scan
+```
+
+`scan` reads your source, without running it, and writes `lib/pliant/inventory.generated.ts`: every surface, with its regions, tables, forms and their items. Pass a surface's entry to `PliantRoot` as `inventory`, and in development the console warns about any id it doesn't list.
+
+<Step>Describe your own components</Step>
+
+```bash
+npx pliantui manifest
+```
+
+`manifest` reads the variants of the components in your ui folder and writes a manifest for each: what users may change about it. It shows what it found and lets you adjust it first.
+
+<Step>Check your setup</Step>
+
+```bash
+npx pliantui doctor
+```
+
+`doctor` checks the whole setup, such as a `PliantPrePaint` for every `PliantRoot` and an inventory that's up to date, and prints how to fix anything it finds.
+
+</Steps>
+
+## Keep it working in CI
+
+Add these to your CI, so a change to your pages can't quietly break users' saved changes:
+
+```bash
+npx pliantui scan --check
+npx pliantui doctor
+```
+
+`scan --check` fails when the inventory is out of date. `doctor` fails when a check fails.
+
+## Next steps
+
+- Move changes to your server: [Self-hosted server](/docs/storage/self-hosted).
+- Let users ask in plain words: [How asking works](/docs/ai).
+- Test it: [Testing your integration](/docs/guides/testing).

@@ -1,0 +1,53 @@
+---
+title: Costs and rate limits
+description: What an ask costs, and how to cap requests and tokens per user so the ask panel stays affordable.
+---
+
+Each ask is one short request to your model, sometimes two when the first answer needs a correction. A typical ask costs a fraction of a cent, and you can cap how many each user makes.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how built-in limits will work. They aren't in Pliant yet.
+  Today, the route has no rate limit: keep it behind your sign-in and add your
+  own, such as in middleware.
+</Callout>
+
+## What an ask costs
+
+An ask sends a short description of one part of the page and the user's words, and gets back a few small tool calls. That's typically a few thousand input tokens and a few hundred output tokens. With a small, fast model, that's a fraction of a cent per ask.
+
+The fixed part of each request, Pliant's instructions and the tools, is the same for every ask, so providers that cache prompts charge less for it after the first request.
+
+`pliantui eval` reports the cost per ask with your own pages and model. See [Testing a model](/docs/ai/eval).
+
+## Limits per user
+
+Set limits in `pliant.config.ts`:
+
+```ts title="pliant.config.ts"
+export default defineConfig({
+  limits: {
+    requestsPerMinute: 20,
+    dailyTokensPerUser: 50_000,
+  },
+})
+```
+
+`requestsPerMinute` caps asks per user per minute, and `dailyTokensPerUser` caps the model tokens each user can spend in a day, resetting at midnight UTC. When a user reaches either, the ask panel tells them so. The [pliant.config.ts reference](/docs/config#limits) lists both.
+
+Users who reach a limit can still change the page by hand.
+
+## Keeping costs down
+
+- Keep instructions short, because they're sent with every ask.
+- List only the items users actually ask about in each target. Every item's id and label goes out with each ask.
+- Use a small model. Asks are short and don't need a large one. See [Choosing a model](/docs/ai/models).
+- In demos and tests, replay [recordings](/docs/ai/recordings) instead of calling the model.
+
+## Related
+
+- [Choosing a model](/docs/ai/models)
+- [How asking works](/docs/ai)

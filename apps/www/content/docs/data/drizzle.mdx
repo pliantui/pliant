@@ -1,0 +1,65 @@
+---
+title: Drizzle
+description: Load pages of rows for a server-mode table from a Drizzle table, with column names and types taken from your schema.
+---
+
+If your orders table is defined in a Drizzle schema, `drizzleRows` loads each page for a table in [server mode](/docs/data/server-mode) straight from that table. Column names come from the schema, so a `createdAt` field finds the `created_at` column without a `columns` map, and the dataset is checked against the table's columns when your server starts.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how this adapter will work. It isn't in Pliant yet. Today,
+  load rows with [`compileQuery` for Postgres](/docs/data/postgres) or [your own
+  query](/docs/data/custom-sources).
+</Callout>
+
+```ts title="app/api/orders/rows/route.ts"
+import { authorizeDataset } from "@pliantui/server/data"
+import { drizzleRows } from "@pliantui/server/drizzle"
+
+import { db } from "@/db"
+import { orders } from "@/db/schema"
+import { ordersDataset } from "@/lib/datasets/orders"
+import { getSessionUser } from "@/lib/session"
+
+export async function POST(request: Request) {
+  const user = getSessionUser(request)
+  if (!user) return new Response(null, { status: 401 })
+
+  const grant = authorizeDataset(ordersDataset, user)
+  if (!grant) return new Response(null, { status: 403 })
+
+  const query = await request.json()
+  try {
+    const { rows, rowCount } = await drizzleRows(
+      db,
+      orders,
+      ordersDataset,
+      grant,
+      query
+    )
+    return Response.json({ rows, rowCount })
+  } catch (error) {
+    if (error instanceof TypeError) {
+      return Response.json({ message: error.message }, { status: 400 })
+    }
+    throw error
+  }
+}
+```
+
+The route matches the one in [server mode](/docs/data/server-mode): sign-in, the user's grant, then one page of rows with the total count, so pagination knows how many pages there are. The request is checked as `compileQuery` checks it, and a bad one throws a `TypeError`, which the route answers with a 400.
+
+## Notes
+
+- It works with any Drizzle Postgres, MySQL or SQLite database, through the driver you already use.
+- A field that has no matching column in the table fails at startup, with the field's name.
+- To read joined data, define a Drizzle view and pass it in place of the table.
+
+## Related
+
+- [Server mode](/docs/data/server-mode)
+- [Permissions and row security](/docs/data/permissions)
+- [Query safety](/docs/data/query-safety)

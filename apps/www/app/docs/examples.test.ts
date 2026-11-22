@@ -14,12 +14,15 @@ import {
 
 const docs = path.join(import.meta.dirname, "../../content/docs")
 
-// The dataset the examples describe: an orders table.
+// The dataset the examples describe: the orders table of the orders example.
 const fields: Record<string, ExpressionField> = {
-  price: { type: "currency", currency: "USD" },
-  cost: { type: "currency", currency: "USD" },
-  value: { type: "currency", currency: "USD" },
-  dueDate: { type: "date" },
+  id: { type: "id" },
+  customer: { type: "string" },
+  region: { type: "enum" },
+  status: { type: "enum" },
+  value: { type: "currency", currency: "INR" },
+  createdAt: { type: "datetime" },
+  notes: { type: "text" },
 }
 
 type Json = Record<string, unknown>

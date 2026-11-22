@@ -1,0 +1,43 @@
+---
+title: Renames and migrations
+description: Rename a column, card or page without losing the changes your users made to it.
+---
+
+Users' changes refer to your ids, such as `orders-table/columns/notes`. When you rename one, `pliantui rename-id` updates every stored change, so users keep their arrangement.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how this feature will work. Parts of it aren't in Pliant yet.
+</Callout>
+
+## Rename an id
+
+```bash
+npx pliantui rename-id orders-table/columns/notes orders-table/columns/comments
+```
+
+The command:
+
+1. Updates the id in your source, where it can find it.
+2. Writes a migration that rewrites stored overlays, which your storage applies on the next load.
+3. Runs `pliantui scan` so the inventory matches.
+
+## What happens without it
+
+If you rename an id without migrating, changes that named the old id stop applying. The renamed part shows with your defaults. Nothing breaks, and nothing is lost: if you rename it back, the old changes apply again.
+
+## Removing a part
+
+When you remove a column or card from your page, changes that name it are skipped. They stay stored, so you can bring the part back later. `pliantui doctor` lists stored changes that name ids your pages no longer have, so you can clean them up.
+
+## Upgrading Pliant
+
+Every overlay records the versions it was made with. A newer Pliant reads every older overlay. An older Pliant keeps changes it doesn't understand and skips them, so rolling back never loses users' changes.
+
+## Related
+
+- [Surfaces, nodes and addresses](/docs/concepts/surfaces)
+- [Add Pliant to an existing app](/docs/guides/existing-app)

@@ -1,0 +1,69 @@
+---
+title: Datasets
+description: Describe the data behind a table once, on your server, so Pliant knows each field's type, what users can do with it and who may see it.
+---
+
+A **dataset** describes the data behind a table: its fields, their types, which rows each user may load, and what the AI may be told. You define it once on your server with `defineDataset`, and Pliant uses it to sort, filter, group and calculate safely.
+
+<include cwd lang="ts" meta='title="lib/datasets/orders.ts"'>
+  snippets/data/orders-dataset.ts#dataset
+</include>
+
+`defineDataset` checks the whole definition when your server starts, and throws one error that lists every problem, such as an unknown type or a currency that isn't an ISO code.
+
+## Fields
+
+Each field has a `type`:
+
+| Type                | For                                                 |
+| ------------------- | --------------------------------------------------- |
+| `id`                | Identifiers, such as `ORD-1001`                     |
+| `string`            | Short text, such as a customer name                 |
+| `text`              | Long text, such as notes. Searchable, not sortable  |
+| `enum`              | One of a fixed list of `values`, up to 100          |
+| `number`, `integer` | Numbers, with an optional `unit` such as `kilogram` |
+| `currency`          | Money, with its `currency`, such as `INR`           |
+| `percent`           | Fractions, where `0.25` is 25%                      |
+| `boolean`           | Yes or no                                           |
+| `date`, `datetime`  | Calendar dates, and moments in time                 |
+| `url`, `email`      | Links and email addresses                           |
+
+Give a field a `label` (up to 80 characters) and a `describe` (up to 200) so people and the AI know what it holds.
+
+## What users can do with each field
+
+Each type comes with sensible capabilities, and you can override any of them on a field:
+
+| Capability     | Default                                                                                                                            |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `sortable`     | Every type except `text`                                                                                                           |
+| `filterable`   | Every type. `text` fields allow search only (`"search"`)                                                                           |
+| `groupable`    | `string`, `boolean`, `date` and `enum`                                                                                             |
+| `aggregatable` | Every type except `text`: functions such as `sum` may read it                                                                      |
+| `exposeToAI`   | `true`. Set `false` to leave it out of `describeDataset(…, { audience: "ai" })`. See [What the AI sees](/docs/ai/what-the-ai-sees) |
+
+```ts
+notes: { type: "text", exposeToAI: false },
+customer: { type: "string", groupable: false },
+```
+
+## Rows and keys
+
+Each row needs a key that identifies it. By default, it's the field named `id`. Set `rowKey` to use another field, or up to 10 fields together, such as `["orgId", "orderNumber"]`.
+
+Dates and datetimes are read in the dataset's `timeZone`: `UTC` or an Area/Location name such as `Asia/Kolkata`. It decides which day "today" is for team defaults, and which day a date filter covers.
+
+## Who may see what
+
+Every dataset declares `scope`: the rows each user may load. It's required, so you can't forget it. See [Permissions and row security](/docs/data/permissions).
+
+## Using a dataset
+
+You use the same dataset in three places. In the browser, pass its fields and time zone to `usePliantTable` as `dataset`, so the table can compute calculated columns, totals and highlights ([Client mode](/docs/data/client-mode)). On your server, `authorizeDataset` and `compileQuery` use it to load one page of rows for one user ([Server mode](/docs/data/server-mode)). For the AI, `describeDataset(dataset, { user, audience: "ai" })` returns the field names, types and labels the model may know, without any rows.
+
+`pliantui doctor` lists the fields of each dataset the AI is told about, and warns about any that look sensitive, such as an email or a salary.
+
+## Related
+
+- [Permissions and row security](/docs/data/permissions)
+- [What the AI sees and never sees](/docs/ai/what-the-ai-sees)
