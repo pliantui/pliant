@@ -12,7 +12,7 @@ export default function OrdersPage() {
       <PliantRegion
         id="key-metrics"
         slots={{
-          revenue: <StatCard label="Revenue" value="₹48,21,000" />,
+          revenue: <StatCard label="Revenue" value="₹4,821,000" />,
           orders: <StatCard label="Orders" value="200" />,
           overdue: <StatCard label="Overdue" value="17" />,
         }}

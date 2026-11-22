@@ -16,7 +16,7 @@ export default function DashboardPage() {
       <PliantRegion
         id="key-metrics"
         slots={{
-          revenue: <StatCard label="Revenue" value="₹48,21,000" />,
+          revenue: <StatCard label="Revenue" value="₹4,821,000" />,
           orders: <StatCard label="Orders" value="200" />,
           "average-order-value": (
             <StatCard label="Average order value" value="₹24,105" />

@@ -46,9 +46,9 @@ Return the page's `rows` and the `total` number of rows the user may see.
 
 ## What you must do
 
-- **Apply `scope` to every request.** It's what keeps one org's rows from another's. If your source can't filter by it, don't use it for data that must be kept apart.
-- **Return only `fields`.** Extra fields are dropped before the rows reach the browser, but leaving them out keeps them off the network entirely.
-- **Break ties by the row key**, so pages never overlap or skip rows.
+- Apply `scope` to every request. It's what keeps one org's rows from another's. If your source can't filter by it, don't use it for data that must be kept apart.
+- Return only `fields`. Extra fields are dropped before the rows reach the browser, but leaving them out keeps them off the network entirely.
+- Break ties by the row key, so pages never overlap or skip rows.
 
 ## Without fetchRows
 

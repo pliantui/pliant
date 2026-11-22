@@ -22,9 +22,9 @@ export default defineConfig({
       "An ordering portal for distributors in India. Users work in sales operations and finance.",
     glossary: {
       late: "Orders with status overdue",
-      "big orders": "Orders worth more than ₹1,00,000",
+      "big orders": "Orders worth more than ₹100,000",
     },
-    tone: "Short, plain labels. Indian number formatting.",
+    tone: "Short, plain labels. Amounts in rupees.",
     rules: ["Prefer sorting to filtering when an ask is about priority."],
     surfaces: {
       "/orders": "Users mostly care about overdue and high-value orders.",
@@ -61,9 +61,9 @@ Examples are checked like any change: an example whose operations aren't valid f
 
 ## Write them well
 
-- **Keep them short.** Instructions are sent with every ask, so long ones add cost and latency. `pliantui doctor` warns past about 400 tokens.
-- **Describe, don't enforce.** Instructions guide the model; they don't stop anything. "Never hide the status column" belongs in [flags](/docs/config#flags) too, where Pliant enforces it. `doctor` warns when a rule reads like a constraint but has no matching flag.
-- **Don't put secrets in them.** They're sent to your model provider.
+- Keep them short. Instructions are sent with every ask, so long ones add cost and latency. `pliantui doctor` warns past about 400 tokens.
+- Remember that instructions only guide the model and don't stop anything. "Never hide the status column" belongs in [flags](/docs/config#flags) too, where Pliant enforces it. `doctor` warns when a rule reads like a constraint but has no matching flag.
+- Leave secrets out, because instructions are sent to your model provider.
 
 ## Trusted text only
 

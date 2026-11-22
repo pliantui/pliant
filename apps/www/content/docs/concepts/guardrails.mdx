@@ -3,7 +3,7 @@ title: Guardrails
 description: What users can never change, the parts of a page you can protect, and what Pliant doesn't protect.
 ---
 
-Users reshape the page you built. They can't change what it does. These rules hold for every change, whether a user made it by hand or with the ask panel, so you can let people customize freely without reviewing each change.
+Users can change how your pages look, but not what they do. This page lists the rules every change must follow, whether a user made it by hand or with the ask panel, and the parts you can protect further. Because the rules are enforced for every change, you don't need to review what users do.
 
 ## Only changes from the catalog
 
@@ -11,11 +11,11 @@ A change is a list of [operations](/docs/concepts/operations) from a fixed catal
 
 Each operation has fixed limits: at most 500 per change, layouts of at most four columns, column widths within the limits you set on the column, and so on.
 
-## What you wrote can be hidden, never deleted
+## Users can hide what you built, but not delete it
 
 Users can hide anything you built, and show it again. They can only remove what their own layer added, such as a section they grouped cards into. Clearing every change always brings back your page as you wrote it.
 
-## Visual order is reading order
+## Screen readers follow the visible order
 
 When a user reorders a region, Pliant moves the elements themselves, not just their position on screen. Keyboard focus and screen readers follow the order users see. Tables keep the same promise for their columns.
 
@@ -53,10 +53,10 @@ A change that would break a rule is skipped, and the rest of the change still ap
 
 ## More rules that always hold
 
-- **Shortcuts don't take reserved keys.** A shortcut a user binds can't take keys the browser, the operating system or a screen reader relies on, such as <Kbd>Ctrl</Kbd> <Kbd>T</Kbd>, or keys another action already has. Combinations such as <Kbd>⌘</Kbd> <Kbd>K</Kbd> stay free for users. Pass your app's own shortcuts as `reservedShortcuts` to protect them too.
-- **Variants keep their meaning.** Prop values that carry meaning, such as a button's `destructive` variant, are marked `semantic` in the component's manifest. Only your code assigns them.
-- **Form defaults must be valid.** A default a user or team sets on a form field must pass the field's schema, such as your Zod schema. Otherwise it's skipped.
-- **Form fields stay in their form.** Fields can move and fold into a **More fields** section, but never into another container, so they keep their focus and value.
+- A keyboard shortcut a user binds can't take keys the browser, the operating system or a screen reader relies on, such as <Kbd>Ctrl</Kbd> <Kbd>T</Kbd>, or keys another action already has. Combinations such as <Kbd>⌘</Kbd> <Kbd>K</Kbd> stay free for users. Pass your app's own shortcuts as `reservedShortcuts` to protect them too.
+- Prop values that carry meaning, such as a button's `destructive` variant, are marked `semantic` in the component's manifest. Only your code assigns them.
+- A default a user or team sets on a form field must pass the field's schema, such as your Zod schema. Otherwise it's skipped.
+- Form fields can move and fold into a **More fields** section, but never into another container, so they keep their focus and value.
 
 ## Team defaults aren't locks
 
@@ -64,7 +64,7 @@ A team or organization default is a starting point. Each user can still adjust a
 
 Any lock in a browser is a policy, not a security boundary: the code that applies changes runs on the user's device, and they control it. Anything a user must not see belongs in your server's permissions, so it never reaches the browser.
 
-## Hidden is not secret
+## Hiding a column doesn't protect it
 
 Hiding a column or a card is a display preference. Hidden cards stay on the page, and hidden columns stay in the table's data.
 

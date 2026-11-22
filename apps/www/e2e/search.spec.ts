@@ -9,10 +9,10 @@ test("finds a docs page from the search dialog", async ({ page, errors }) => {
   const dialog = page.getByRole("dialog", { name: /^Search/ })
   await dialog
     .getByRole("combobox", { name: "Search documentation" })
-    .fill("built once")
+    .fill("one mechanism")
 
   const result = dialog.getByRole("option", {
-    name: "Pliant is that layer, built once.",
+    name: "Pliant gives you all of them through one mechanism.",
   })
   await expect(result).toBeVisible()
   await result.click()

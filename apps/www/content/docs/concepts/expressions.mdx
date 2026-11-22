@@ -3,9 +3,9 @@ title: Expressions and functions
 description: How calculated columns, totals and highlights are written as small JSON trees over a fixed list of typed functions.
 ---
 
-Some changes carry a calculation: a calculated column such as each order's share of revenue, a total for each group, or the condition that highlights a row. Pliant writes these as **expressions**: small JSON trees built from a fixed list of functions. There's no formula language to parse and nothing to run. An expression is data.
+Some changes carry a calculation: a calculated column such as each order's share of revenue, a total for each group, or the condition that highlights a row. Pliant writes these as **expressions**: small JSON trees built from a fixed list of functions. Pliant evaluates them itself, so an expression can't run code, and it can be stored and checked like the rest of a change.
 
-This expression is true for orders over ₹1,00,000:
+This expression is true for orders over ₹100,000:
 
 ```json
 { "fn": "gt", "args": [{ "field": "value" }, { "value": 100000 }] }
