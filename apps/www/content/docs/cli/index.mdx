@@ -3,10 +3,10 @@ title: CLI
 description: The pliantui commands, what each one is for, and which page explains it.
 ---
 
-The `pliantui` CLI sets up Pliant in your project, reads your source to describe what's already there, and checks your setup. Run any command with `npx`:
+The `pliantui` CLI sets up Pliant in your project, reads your source to describe what's already there, and checks your setup. Run any command with `npx`, starting with `init` in a Next.js app that uses shadcn/ui:
 
 ```bash
-npx pliantui doctor
+npx pliantui init
 ```
 
 None of the commands that read your project run your code. They read your source files, `components.json` and `tsconfig.json`.
@@ -29,4 +29,8 @@ None of the commands that read your project run your code. They read your source
 
 1. `init` sets up the package and the first component.
 2. `skills add` gives your coding agent the steps for the rest.
-3. `scan` and `doctor` check the result, locally and in CI.
+3. `scan` and `doctor` check the result, locally and in CI:
+
+```bash
+npx pliantui doctor
+```
