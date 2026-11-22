@@ -3,9 +3,14 @@ import Link from "next/link"
 import { cn } from "cn"
 
 import { Callout } from "@/components/callout"
+import { CodeBlockCommand } from "@/components/code-block-command"
+import { CodeTabs } from "@/components/code-tabs"
 import { CopyButton } from "@/components/copy-button"
+import { File, FileTree, Folder } from "@/components/file-tree"
 import { getIconForLanguageExtension } from "@/components/icons"
 import { SiteUrl } from "@/components/site-url"
+import { Kbd } from "@/components/ui/kbd"
+import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 function HeadingAnchor({
   id,
@@ -92,9 +97,30 @@ export const mdxComponents = {
   ),
   code: ({
     __raw__,
+    __npm__,
+    __yarn__,
+    __pnpm__,
+    __bun__,
     ...props
-  }: React.ComponentProps<"code"> & { __raw__?: string }) => {
+  }: React.ComponentProps<"code"> & {
+    __raw__?: string
+    __npm__?: string
+    __yarn__?: string
+    __pnpm__?: string
+    __bun__?: string
+  }) => {
     if (typeof props.children === "string") return <code {...props} />
+
+    if (__npm__ && __yarn__ && __pnpm__ && __bun__) {
+      return (
+        <CodeBlockCommand
+          __npm__={__npm__}
+          __yarn__={__yarn__}
+          __pnpm__={__pnpm__}
+          __bun__={__bun__}
+        />
+      )
+    }
 
     return (
       <>
@@ -103,7 +129,62 @@ export const mdxComponents = {
       </>
     )
   },
+  Step: (props: React.ComponentProps<"h3">) => <h3 {...props} />,
+  Steps: ({ className, ...props }: React.ComponentProps<"div">) => (
+    <div
+      className={cn(
+        "steps mb-12 [counter-reset:step] md:ml-4 md:border-l md:pl-8 [&>h3]:step",
+        className
+      )}
+      {...props}
+    />
+  ),
+  TabsList: ({
+    className,
+    ...props
+  }: React.ComponentProps<typeof TabsList>) => (
+    <TabsList
+      className={cn(
+        "justify-start gap-4 rounded-none bg-transparent px-0",
+        className
+      )}
+      {...props}
+    />
+  ),
+  TabsTrigger: ({
+    className,
+    ...props
+  }: React.ComponentProps<typeof TabsTrigger>) => (
+    <TabsTrigger
+      className={cn(
+        "rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 pb-3 text-base text-muted-foreground hover:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none! dark:data-[state=active]:border-primary dark:data-[state=active]:bg-transparent",
+        className
+      )}
+      {...props}
+    />
+  ),
+  TabsContent: ({
+    className,
+    ...props
+  }: React.ComponentProps<typeof TabsContent>) => (
+    <TabsContent
+      className={cn(
+        "relative *:[figure]:first:mt-0 [&>.steps]:mt-6",
+        className
+      )}
+      {...props}
+    />
+  ),
   Callout,
+  CodeTabs,
+  FileTree,
+  Folder,
+  File,
+  // shadcn's Kbd sets muted text on a muted fill, which is too faint for
+  // body copy.
+  Kbd: ({ className, ...props }: React.ComponentProps<typeof Kbd>) => (
+    <Kbd className={cn("text-foreground", className)} {...props} />
+  ),
   Link,
   LinkedCard: ({ className, ...props }: React.ComponentProps<typeof Link>) => (
     <Link
