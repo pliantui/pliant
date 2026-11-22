@@ -1,0 +1,64 @@
+---
+title: Testing a model
+description: Run Pliant's eval suite against your own model, pages and instructions, and see how often it answers correctly, how fast and at what cost.
+---
+
+`pliantui eval` asks your model a set of typical requests about your own pages and checks every answer. It tells you how often the model gets asks right, how fast it answers and what each ask costs, so you can choose a model with evidence.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how `pliantui eval` will work. It isn't in Pliant yet.
+</Callout>
+
+```bash
+npx pliantui eval --model anthropic:claude-haiku-5-5
+```
+
+```txt
+Evaluating anthropic:claude-haiku-5-5 on 3 surfaces, 48 asks…
+
+  Valid answers      48/48   100%
+  Correct answers    45/48    94%
+  Median latency     1.2 s
+  Cost per ask       ₹0.08
+
+✖ /orders "show me the big ones"  expected setSort value desc, got setFilter value gt 100000
+✖ /orders "hide the extra stuff"  asked to clarify
+✖ /dashboard "two by two"         expected setLayout grid 2, got setLayout row
+
+Results saved to .pliant/eval-results.json
+```
+
+## What it asks
+
+Pliant's built-in asks cover every kind of change, such as sorting, filtering, hiding, moving and layout, plus asks that should be turned away, such as "delete these orders". Your own asks come from each target's `suggestions`, and from the `examples` described in [Writing instructions](/docs/ai/instructions).
+
+Each ask runs against your real targets, with your instructions, so the results reflect what your users will see.
+
+## What it checks
+
+| Result  | Means                                                   |
+| ------- | ------------------------------------------------------- |
+| Valid   | Every operation passed Pliant's checks.                 |
+| Correct | The change matched the expected one.                    |
+| Latency | Time from the ask to the answer.                        |
+| Cost    | Tokens used, priced with the provider's current prices. |
+
+## Options
+
+| Option            | What it does                                         |
+| ----------------- | ---------------------------------------------------- |
+| `--model <model>` | The model to test, as `provider:model`.              |
+| `--surface <s>`   | Test one surface only.                               |
+| `--runs <n>`      | Ask each question `n` times, to measure consistency. |
+| `--json`          | Print the results as JSON, for CI.                   |
+
+A passing run is saved to `.pliant/eval-results.json`. It clears the `pliantui doctor` warning about an unevaluated model until the model or your instructions change.
+
+## Related
+
+- [Choosing a model](/docs/ai/models)
+- [Writing instructions](/docs/ai/instructions)

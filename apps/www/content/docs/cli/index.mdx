@@ -1,0 +1,45 @@
+---
+title: CLI
+description: The pliantui commands, what each one is for, and which page explains it.
+---
+
+The `pliantui` CLI sets up Pliant in your project, reads your source to describe what's already there, and checks your setup. Run any command with `npx`, starting with `init` in a Next.js app that uses shadcn/ui:
+
+```bash
+npx pliantui init
+```
+
+None of the commands that read your project run your code. They read your source files, `components.json` and `tsconfig.json`.
+
+## Commands
+
+| Command                            | What it's for                                                                    |
+| ---------------------------------- | -------------------------------------------------------------------------------- |
+| [`init`](/docs/cli/init)           | Install `@pliantui/react` and the region component in a Next.js and shadcn app   |
+| [`manifest`](/docs/cli/manifest)   | Describe your own components, so Pliant knows which of their props users may set |
+| [`scan`](/docs/cli/scan)           | List the regions, tables, forms and their items on each page                     |
+| [`doctor`](/docs/cli/doctor)       | Check your setup and print how to fix what's wrong                               |
+| [`skills`](/docs/cli/skills)       | Give your coding agent instructions for working with Pliant                      |
+| [`annotate`](/docs/cli/annotate)   | Turn a container's children into a `PliantRegion`                                |
+| [`rename-id`](/docs/cli/rename-id) | Rename an id without losing users' changes                                       |
+| [`eval`](/docs/cli/eval)           | Test a model on your own pages                                                   |
+| [`verify`](/docs/cli/verify)       | Check that a registry component works with Pliant                                |
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  `annotate`, `rename-id`, `eval` and `verify` aren't in the CLI yet. Each one's
+  page shows how it will work.
+</Callout>
+
+## In a new project
+
+1. `init` sets up the package and the first component.
+2. `skills add` gives your coding agent the steps for the rest.
+3. `scan` and `doctor` check the result, locally and in CI:
+
+```bash
+npx pliantui doctor
+```

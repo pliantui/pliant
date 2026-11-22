@@ -333,6 +333,6 @@ export default async function Page() {
 
 ## Docs
 
-- [Layers](https://pliantui.dev/docs/concepts/layers): how org, team, personal and session changes stack.
+- [Overlays and layers](https://pliantui.dev/docs/concepts/layers): how org, team, personal and session changes stack.
 - [Guardrails](https://pliantui.dev/docs/concepts/guardrails): what is never saved, and why hidden is not secret.
-- [Core concepts](https://pliantui.dev/docs/concepts): surfaces, addresses, regions and overlays.
+- [Surfaces, nodes and addresses](https://pliantui.dev/docs/concepts/surfaces): how pages, regions, tables and their items are named.

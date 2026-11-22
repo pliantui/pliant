@@ -1,0 +1,54 @@
+---
+title: Glossary
+description: Short definitions of the terms used across Pliant's docs.
+---
+
+The terms Pliant's docs use, in plain words, with a link to where each one is explained in full.
+
+**Address.** The name of the thing a change targets: a node's id, such as `orders-table`, or an item's path, such as `orders-table/columns/notes`. See [Surfaces, nodes and addresses](/docs/concepts/surfaces#addresses).
+
+**Ask panel.** An optional panel where users describe a change in plain words, see it as a preview, and lock it in or discard it. See [How asking works](/docs/ai).
+
+**Base.** Your page as you wrote it, before any changes apply. Clearing every change brings it back.
+
+**Capability.** A kind of change a component allows, such as `slots` or `data`. Each operation belongs to one. See [Operations](/docs/concepts/operations#a-closed-catalog).
+
+**Catalog.** The fixed list of operations, and the fixed list of functions expressions can use. Nothing outside it can appear in a change.
+
+**Collection.** A named list of items inside a node: `slots`, `columns`, `fields`, `items` or `actions`.
+
+**Dataset.** A description of the fields behind a table, with their types, which Pliant uses to compute calculated columns, totals and highlights.
+
+**Expression.** A calculation written as a small JSON tree, such as a calculated column or the condition for a highlight. See [Expressions and functions](/docs/concepts/expressions).
+
+**Flag.** A mark on a part of the page that protects it, such as `critical` or `destructive`. See [Guardrails](/docs/concepts/guardrails#protecting-parts-of-a-page).
+
+**Guardrail.** A rule every change must follow, whoever made it. See [Guardrails](/docs/concepts/guardrails).
+
+**Item.** One entry in a node's collection: a card in a region, a column in a table, a field in a form.
+
+**Layer.** One level of changes. From lowest to highest: `org`, `team`, `personal` and `session`. Higher layers win. See [Overlays and layers](/docs/concepts/layers#layers).
+
+**Lock in.** Keeping a change previewed in the ask panel, which saves it to the user's personal layer.
+
+**Manifest.** A short JSON description of a component: what kind it is and which capabilities it allows.
+
+**Node.** A part of the page users can change, such as a region, a table, a form or a sidebar. Each has an id that's unique on its surface.
+
+**Operation (op).** One change, such as `hide`, `move` or `setSort`, with the address it targets. See [Operations](/docs/concepts/operations).
+
+**Overlay.** A saved group of operations for one surface and one layer. See [Overlays and layers](/docs/concepts/layers#overlays).
+
+**Pliant interface.** An interface its users can reshape, safely and without code, while the page you wrote stays underneath. See [Why Pliant](/docs/why#what-we-mean-by-a-pliant-interface).
+
+**Point mode.** A mode in which the parts of the page users can change light up, so they can click the one they want to ask about.
+
+**Pre-paint.** A small script that keeps a customized page from flashing its default layout while it loads. See [Rendering modes](/docs/concepts/rendering#pre-paint).
+
+**Region.** A node that holds a group of items users can reorder, hide and lay out, rendered with `PliantRegion`.
+
+**Slot.** One item in a region, such as a card, keyed by its id in `slots`.
+
+**Storage adapter.** Where a surface's changes are loaded from and saved to, such as `localAdapter` for the browser or `serverAdapter` for your server. See [Storage](/docs/storage).
+
+**Surface.** One page or screen, named by its route pattern such as `/orders/[id]`, or by an id. Its changes are kept together. See [Surfaces, nodes and addresses](/docs/concepts/surfaces#surfaces).

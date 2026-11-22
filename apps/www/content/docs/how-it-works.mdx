@@ -1,0 +1,98 @@
+---
+title: How it works in 5 minutes
+description: A short explanation of how Pliant stores each user's changes and applies them to your page, and what the AI does and doesn't do.
+---
+
+Pliant keeps the page you wrote as the base, stores each change as a small piece of data, and stacks those changes on top to show each user their own version. The five short sections below follow a single change, sorting the orders table, from click to screen.
+
+<div
+  data-not-typeset
+  className="mt-6 grid gap-3 rounded-2xl bg-surface p-6 text-sm text-surface-foreground sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-center"
+>
+  <div className="rounded-xl border bg-background p-4">
+    <p className="font-medium">Your page</p>
+    <p className="text-muted-foreground">The base, as you wrote it</p>
+  </div>
+  <span aria-hidden="true" className="text-center text-muted-foreground">
+    +
+  </span>
+  <div className="rounded-xl border bg-background p-4">
+    <p className="font-medium">Layers of changes</p>
+    <p className="text-muted-foreground">Org, team, personal, session</p>
+  </div>
+  <span aria-hidden="true" className="text-center text-muted-foreground">
+    =
+  </span>
+  <div className="rounded-xl border bg-background p-4">
+    <p className="font-medium">What the user sees</p>
+    <p className="text-muted-foreground">Their own version of the page</p>
+  </div>
+</div>
+
+## 1. Your page is the base
+
+You build the page as usual, with your own components. You mark the parts users may change: a table through `usePliantTable`, and a group of cards through `PliantRegion`. Each gets an id, such as `orders-table` or `key-metrics`.
+
+The page as a whole is a **surface**, named by its route, such as `/orders`. Everything a user changes on it is kept together.
+
+## 2. A change is a small piece of data
+
+When a user sorts the table by value, Pliant records that as an **operation**:
+
+```json
+{
+  "op": "setSort",
+  "target": "orders-table",
+  "sort": [{ "field": "value", "dir": "desc" }]
+}
+```
+
+Operations come from a fixed list of 39, such as `hide`, `move`, `setSort` and `setLayout`. None of them contains code, so a change can only rearrange and reshape what you built. A group of operations saved together is an **overlay**.
+
+## 3. Changes stack in layers
+
+Overlays live in four **layers**, from lowest to highest:
+
+| Layer      | Who it's for                           |
+| ---------- | -------------------------------------- |
+| `org`      | Everyone in an organization            |
+| `team`     | Everyone on a team                     |
+| `personal` | One user, on every visit               |
+| `session`  | One user, until the browser tab closes |
+
+When two layers change the same thing, the higher one wins. That's decided for each property, not for the whole page: a team can set the default sort while a user hides a column, and both apply.
+
+## 4. Each user sees the result
+
+On every visit, Pliant loads the surface's overlays from your storage, applies them to your page and renders the result. Your components render as usual, just reordered, hidden or sorted the way the user chose.
+
+With no overlays, the page renders exactly as you wrote it. Clearing a user's changes always brings back your page.
+
+## 5. Where changes are kept
+
+You choose the storage:
+
+- **In the browser**, with `localAdapter`. Nothing to set up.
+- **On your server**, with `serverAdapter` and a route you add. Changes follow users across devices, and you can serve team and organization defaults.
+
+See [Storage](/docs/storage).
+
+## What AI does
+
+AI is optional. With the [ask panel](/docs/ai), a user points at part of the page and describes a change, such as "put overdue orders first".
+
+- Your server sends the model a description of that part: its id, the names of its columns or cards, and the kinds of change it allows. Your rows aren't part of it.
+- The model answers with operations, from the same fixed list.
+- Your server checks every operation, and the browser checks it again.
+- The change shows as a preview. It's saved only when the user locks it in.
+
+## What AI doesn't do
+
+The AI never writes or runs code, CSS or queries, and it never sees your rows. Asks that would change data, such as "delete these orders", are turned away before they reach the model. Its answers are operations like any other change, so the same [guardrails](/docs/concepts/guardrails) apply to them.
+
+## Learn more
+
+- [Surfaces, nodes and addresses](/docs/concepts/surfaces)
+- [Overlays and layers](/docs/concepts/layers)
+- [Operations](/docs/concepts/operations)
+- [Guardrails](/docs/concepts/guardrails)

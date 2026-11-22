@@ -1,0 +1,51 @@
+---
+title: Query safety
+description: The limits that keep any one request from reading too much, running too long or slowing your database, whatever a user or the AI asks for.
+---
+
+Users and the AI can sort and filter your tables however they like, so every query Pliant builds is bounded. Here's what's bounded, and which limits you can set.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how query safety will work. Page size limits work today.
+  Timeouts, index checks and the query cache aren't in Pliant yet.
+</Callout>
+
+## Page size
+
+Every query returns one page. `compileQuery` takes `maxPageSize`, which defaults to 100 and can't be more than 1,000. A request for more rows gets `maxPageSize`. No request can make one query read an unbounded number of rows.
+
+```ts
+compileQuery(ordersDataset, grant, query, {
+  table: "orders",
+  maxPageSize: 200,
+})
+```
+
+## Fixed limits on every request
+
+Every request also has fixed limits, such as 8 sort fields and 100 filters, so no request can ask for an unbounded sort or filter. [Limits](/docs/reference/limits#server-queries) lists them.
+
+## Timeouts
+
+Each query runs with a statement timeout, 5 seconds by default. A query that takes longer is cancelled, and the table shows a message asking the user to narrow their filters. Set `timeout` in milliseconds:
+
+```ts
+compileQuery(ordersDataset, grant, query, { table: "orders", timeout: 2000 })
+```
+
+## Index checks
+
+`pliantui doctor` compares your datasets with your database's indexes, and warns when a sortable or filterable field has no index. Turn sorting or filtering off on a field that shouldn't be used that way, or add the index it suggests.
+
+## Caching
+
+Pages of rows are cached per user and query for a few seconds, so a user paging back and forth doesn't run the same query twice. The cache key includes the user's scope, so cached rows never cross between users.
+
+## Related
+
+- [Server mode](/docs/data/server-mode)
+- [Costs and rate limits](/docs/ai/costs)

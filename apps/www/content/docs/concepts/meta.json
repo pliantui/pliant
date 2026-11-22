@@ -1,4 +1,12 @@
 {
   "title": "Concepts",
-  "pages": ["index", "layers", "operations", "guardrails", "expressions"]
+  "pages": [
+    "surfaces",
+    "layers",
+    "operations",
+    "expressions",
+    "guardrails",
+    "rendering",
+    "glossary"
+  ]
 }

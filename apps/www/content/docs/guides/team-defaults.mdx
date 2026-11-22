@@ -1,0 +1,54 @@
+---
+title: Team and org defaults
+description: Set up a page so a team lead can publish their arrangement as the default for their team, and an admin for the whole organization.
+---
+
+In this guide, you let a team lead arrange the orders page for their team, and an admin for the whole organization. Every member starts from that default, and can still adjust it for themselves.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how this feature will work. Parts of it aren't in Pliant yet.
+</Callout>
+
+<Steps>
+
+<Step>Store changes on your server</Step>
+
+Team defaults need server storage. Set up the [Drizzle store](/docs/storage/drizzle) or another [self-hosted store](/docs/storage/self-hosted).
+
+<Step>Tell the route who's on which team</Step>
+
+Return the user's `org` and `teams` from `getUser`, and decide who may publish with `canPublish`:
+
+<include cwd lang="ts" meta='title="app/api/pliant/storage/route.ts"'>
+  snippets/storage/drizzle-route.ts#route
+</include>
+
+<Step>Rank teams</Step>
+
+If users can be on several teams, pass `teamOrder` to `PliantRoot`, highest precedence first, so it's clear whose default wins.
+
+<Step>Publish from the page</Step>
+
+A team lead arranges the page, then chooses **Publish for my team** from the table toolbar or the ask panel. They see a preview of what their teammates will get, and confirm. Admins also see **Publish for everyone**.
+
+</Steps>
+
+## What members see
+
+- The team's default applies the next time they load the page.
+- Their own changes still win on anything they changed themselves.
+- **Reset** brings them back to the team's default, not your original page.
+
+## Changing or removing a default
+
+Publishing again replaces the team's default. **Remove team default** takes it away, and members go back to the org's default or your page.
+
+## Related
+
+- [Teams and orgs](/docs/storage/teams)
+- [Locks for admins](/docs/guides/locks)
+- [Overlays and layers](/docs/concepts/layers)

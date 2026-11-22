@@ -1,0 +1,63 @@
+---
+title: Prisma
+description: Load pages of rows for a server-mode table through Prisma Client, using the model your schema already defines.
+---
+
+If you read your orders through Prisma, `prismaRows` loads each page for a table in [server mode](/docs/data/server-mode) through a Prisma model, such as `prisma.order`. The user's scope becomes part of the `where` clause Prisma builds, and the sort and page become its `orderBy`, `skip` and `take`.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how this adapter will work. It isn't in Pliant yet. Today,
+  load rows with [`compileQuery` for Postgres](/docs/data/postgres) or [your own
+  query](/docs/data/custom-sources).
+</Callout>
+
+```ts title="app/api/orders/rows/route.ts"
+import { authorizeDataset } from "@pliantui/server/data"
+import { prismaRows } from "@pliantui/server/prisma"
+
+import { ordersDataset } from "@/lib/datasets/orders"
+import { prisma } from "@/lib/prisma"
+import { getSessionUser } from "@/lib/session"
+
+export async function POST(request: Request) {
+  const user = getSessionUser(request)
+  if (!user) return new Response(null, { status: 401 })
+
+  const grant = authorizeDataset(ordersDataset, user)
+  if (!grant) return new Response(null, { status: 403 })
+
+  const query = await request.json()
+  try {
+    const { rows, rowCount } = await prismaRows(
+      prisma.order,
+      ordersDataset,
+      grant,
+      query
+    )
+    return Response.json({ rows, rowCount })
+  } catch (error) {
+    if (error instanceof TypeError) {
+      return Response.json({ message: error.message }, { status: 400 })
+    }
+    throw error
+  }
+}
+```
+
+The route matches the one in [server mode](/docs/data/server-mode): sign-in, the user's grant, then one page of rows with the total count, so pagination knows how many pages there are. The request is checked as `compileQuery` checks it, and a bad one throws a `TypeError`, which the route answers with a 400.
+
+## Notes
+
+- Field ids match your Prisma model's field names, so `@map` column names need no extra setup.
+- Text search uses Prisma's `contains` with `mode: "insensitive"` on databases that support it.
+- Totals and group counts run as Prisma `groupBy` queries.
+
+## Related
+
+- [Server mode](/docs/data/server-mode)
+- [Permissions and row security](/docs/data/permissions)
+- [Query safety](/docs/data/query-safety)

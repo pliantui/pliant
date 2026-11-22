@@ -1,0 +1,24 @@
+---
+title: annotate
+description: Rewrite a container's children into a PliantRegion with a slots object, for you to review as a diff.
+---
+
+`annotate` turns an existing group of cards or sections into a `PliantRegion`, so you don't have to write the `slots` object by hand.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how this command will work. It isn't in Pliant yet.
+</Callout>
+
+```bash
+npx pliantui annotate app/orders/page.tsx
+```
+
+The command finds layout containers it recognizes in the file, such as a `div` with flex or grid classes, a `Card` or a `section`. It moves each container's children into a `slots` object in their current order, and gives each slot an id taken from its heading or label: a card headed "Order summary" becomes `order-summary`. It doesn't touch your logic.
+
+Review the diff before you commit it. The order of the `slots` keys is the default order users start from.
+
+An async Server Component in a slot is wrapped in `<Suspense>` with a skeleton, so it doesn't hold up the rest of the region.

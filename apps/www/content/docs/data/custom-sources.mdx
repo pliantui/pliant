@@ -1,0 +1,65 @@
+---
+title: Custom data sources
+description: Load a table's rows from any source, such as a REST or GraphQL API, a search index or another database, while keeping Pliant's permissions and limits.
+---
+
+When your rows don't come from Postgres, write a `fetchRows` function that loads one page from wherever they live: a REST or GraphQL API, a search index or another database. Pliant checks the request and the user's permissions before calling it, so your function only has to load what it's asked for.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how `fetchRows` will work. It isn't in Pliant yet. Today, call
+  `authorizeDataset` yourself and apply the grant in your own query, as
+  described under [Without fetchRows](#without-fetchrows).
+</Callout>
+
+```ts title="app/api/orders/rows/route.ts"
+import { createRowsHandler } from "@pliantui/server/data"
+
+export const POST = createRowsHandler({
+  dataset: ordersDataset,
+  getUser: getSessionUser,
+  async fetchRows({ scope, fields, sort, filters, page }) {
+    const response = await fetch("https://erp.example.com/api/orders", {
+      method: "POST",
+      body: JSON.stringify({ scope, fields, sort, filters, page }),
+    })
+    const { items, total } = await response.json()
+    return { rows: items, total }
+  },
+})
+```
+
+## What your function receives
+
+| Argument  | What it holds                                                                              |
+| --------- | ------------------------------------------------------------------------------------------ |
+| `scope`   | The conditions every row must match for this user, or `"all"`.                             |
+| `fields`  | The fields this user may read. Return no others.                                           |
+| `sort`    | The sort, most significant first, already checked against each field's capabilities.       |
+| `filters` | The filters, already checked.                                                              |
+| `page`    | The page's `index` and `size`, with `size` capped at `maxPageSize`, 100 unless you set it. |
+
+Return the page's `rows` and the `total` number of rows the user may see.
+
+## What you must do
+
+- Apply `scope` to every request. It's what keeps one org's rows from another's. If your source can't filter by it, don't use it for data that must be kept apart.
+- Return only `fields`. Extra fields are dropped before the rows reach the browser, but leaving them out keeps them off the network entirely.
+- Break ties by the row key, so pages never overlap or skip rows.
+
+## Without fetchRows
+
+To load rows without `createRowsHandler`, call `authorizeDataset` from `@pliantui/server/data` yourself:
+
+1. Call `authorizeDataset(dataset, user)`. Answer 403 when it returns `null`.
+2. Apply every part of the grant: keep only rows matching `grant.scope` (unless it's `"all"`), return only `grant.fields`, and suppress totals over fewer than `grant.minGroupSize` rows.
+3. Check the request yourself: refuse sorts and filters on fields the user can't read, and cap the page size.
+
+## Related
+
+- [Permissions and row security](/docs/data/permissions)
+- [Server mode](/docs/data/server-mode)
+- [Query safety](/docs/data/query-safety)
