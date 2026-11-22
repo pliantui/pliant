@@ -1,4 +1,6 @@
 import type { ShikiTransformer } from "shiki"
+import { createHighlighterCore, type HighlighterCore } from "shiki/core"
+import { createJavaScriptRegexEngine } from "shiki/engine/javascript"
 
 const commands: [npm: string, pnpm: string, yarn: string, bun: string][] = [
   ["npm install ", "pnpm add ", "yarn add ", "bun add "],
@@ -45,22 +47,40 @@ export const transformers: ShikiTransformer[] = [
   },
 ]
 
+// The site's own pages highlight a few languages at runtime, so they load
+// only those and the two themes rather than shiki's full bundle, which would
+// make the worker too big to deploy.
+let highlighter: Promise<HighlighterCore> | undefined
+
+function getHighlighter() {
+  highlighter ??= createHighlighterCore({
+    themes: [
+      import("shiki/themes/vesper.mjs"),
+      import("shiki/themes/github-light-default.mjs"),
+    ],
+    langs: [import("shiki/langs/tsx.mjs"), import("shiki/langs/bash.mjs")],
+    engine: createJavaScriptRegexEngine(),
+  })
+  return highlighter
+}
+
 // Highlights code outside MDX, like a component's source, the way the docs'
 // code blocks are highlighted.
 export async function highlightCode(code: string, language: string) {
-  const { codeToHtml } = await import("shiki")
-  return codeToHtml(code, {
-    lang: language,
+  // TypeScript highlights as TSX, a superset, so one grammar covers both.
+  const lang = language === "ts" ? "tsx" : language
+  return (await getHighlighter()).codeToHtml(code, {
+    lang,
     themes: { dark: "vesper", light: "github-light-default" },
     defaultColor: false,
     transformers: [
       ...transformers,
       {
         pre(node) {
-          node.properties["data-language"] = language
+          node.properties["data-language"] = lang
         },
         code(node) {
-          node.properties["data-language"] = language
+          node.properties["data-language"] = lang
         },
         line(node) {
           node.properties["data-line"] = ""
