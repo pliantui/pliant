@@ -24,7 +24,7 @@ describe("askTargets", () => {
     }
   })
 
-  // The demo route replays recordings keyed by the exact context, so a
+  // Replays are keyed by the exact context, so a
   // context that drifts from the recorded asks has no answer.
   it("are recorded demo asks", async () => {
     const demo = demoAsksSchema.parse(

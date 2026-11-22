@@ -23,7 +23,7 @@ export function OrdersCardTable({ data }: { data: Order[] }) {
       features: pliantDataTableFeatures,
       data,
       columns,
-      initialState: { pagination: { pageIndex: 0, pageSize: 6 } },
+      initialState: { pagination: { pageIndex: 0, pageSize: 12 } },
     },
     { id: nodeId, dataset: ordersDataset }
   )

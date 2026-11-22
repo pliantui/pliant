@@ -76,7 +76,7 @@ describe("CustomizedReset", () => {
     await renderReset()
 
     expect(screen.queryByText("Customized")).toBeNull()
-    expect(reset()).toHaveProperty("disabled", true)
+    expect(reset().getAttribute("aria-disabled")).toBe("true")
   })
 
   it("counts a preview only once it's locked in, and resets it", async () => {
@@ -103,8 +103,11 @@ describe("CustomizedReset", () => {
     })
     expect(screen.getByText("Customized")).toBeTruthy()
 
+    reset().focus()
     fireEvent.click(reset())
     expect(screen.queryByText("Customized")).toBeNull()
+    expect(document.activeElement).toBe(reset())
+    expect(reset().getAttribute("aria-disabled")).toBe("true")
   })
 
   it("ignores changes to other nodes, even ones with a similar id", async () => {

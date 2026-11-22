@@ -339,7 +339,7 @@ test.describe("on a wide screen", () => {
     const main = page.getByRole("main")
 
     await main.getByRole("link", { name: "View components" }).click()
-    await expect(page).toHaveURL("/components")
+    await expect(page).toHaveURL("/examples/orders")
     await page.goto("/")
     await main.getByRole("link", { name: "Get started" }).click()
     await expect(

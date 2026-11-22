@@ -27,7 +27,7 @@ export function ShowcaseCard({
   // The node the card shows, which Reset and the asks change.
   target: string
   asks: readonly string[]
-  className?: string
+  className?: string | undefined
   children: React.ReactNode
 }) {
   return (
@@ -44,7 +44,7 @@ export function ShowcaseCard({
         </CardAction>
       </CardHeader>
       <CardContent className="min-w-0">{children}</CardContent>
-      <CardFooter className="border-t pt-4 [.border-t]:pt-4">
+      <CardFooter className="mt-auto border-t pt-4 [.border-t]:pt-4">
         <AskChips target={target} label={title.toLowerCase()} prompts={asks} />
       </CardFooter>
     </Card>

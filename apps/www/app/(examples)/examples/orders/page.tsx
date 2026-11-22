@@ -35,6 +35,10 @@ export default function OrdersPage() {
           inventory={inventory["/examples/orders"]}
         >
           <PliantPrePaint surface="/examples/orders" />
+          <NotImplementedBanner variant="preview">
+            The Customized badge previews an indicator that isn&apos;t in Pliant
+            yet.
+          </NotImplementedBanner>
           <header className="flex items-start justify-between gap-4">
             <div className="flex flex-col gap-1">
               <h2 className="text-2xl font-semibold tracking-tight">Orders</h2>
@@ -51,10 +55,6 @@ export default function OrdersPage() {
               <DemoAskToolbar targets={askTargets} />
             </div>
           </header>
-          <NotImplementedBanner variant="preview">
-            The Customized badge previews an indicator that isn&apos;t in Pliant
-            yet.
-          </NotImplementedBanner>
           <section aria-label="Key metrics">
             <PliantRegion
               id="key-metrics"

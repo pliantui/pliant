@@ -28,9 +28,7 @@ async function load(page: Page) {
   ).not.toHaveAttribute("data-pliant-pending")
 }
 
-test("leads to the docs, the components and the changelog", async ({
-  page,
-}) => {
+test("leads to the docs and the examples", async ({ page }) => {
   await page.goto("/")
   const main = page.getByRole("main")
 
@@ -43,10 +41,10 @@ test("leads to the docs, the components and the changelog", async ({
   )
   await expect(
     main.getByRole("link", { name: "View components" })
-  ).toHaveAttribute("href", "/components")
+  ).toHaveAttribute("href", "/examples/orders")
   await expect(
     main.getByRole("link", { name: /point at part of a page and ask/i })
-  ).toHaveAttribute("href", "/changelog")
+  ).toHaveAttribute("href", "/docs/ai")
 })
 
 test("says the demo replays recorded answers", async ({ page }) => {
@@ -90,14 +88,18 @@ test("labels scripted asks and discards their preview", async ({
 }) => {
   await load(page)
   const settings = card(page, "Notifications")
-  const ask = chip(page, "Notifications", /hide product news/)
+  const ask = chip(page, "Notifications", /^hide product news ?, Scripted$/)
 
-  await expect(ask).toContainText("Scripted")
+  await expect(ask).toBeVisible()
   await ask.click()
-  await expect(settings.getByLabel("Product news")).toBeHidden()
+  await expect(
+    settings.getByRole("checkbox", { name: "Product news" })
+  ).toBeHidden()
 
   await settings.getByRole("button", { name: "Discard" }).click()
-  await expect(settings.getByLabel("Product news")).toBeVisible()
+  await expect(
+    settings.getByRole("checkbox", { name: "Product news" })
+  ).toBeVisible()
   expect(errors).toEqual([])
 })
 
@@ -122,8 +124,10 @@ test("filters the recent orders with a recorded ask, and resets them", async ({
   await orders.getByRole("button", { name: "Lock in" }).click()
   await expect(orders.getByText("Customized")).toBeVisible()
 
-  await orders.getByRole("button", { name: "Reset recent orders" }).click()
+  const reset = orders.getByRole("button", { name: "Reset recent orders" })
+  await reset.click()
   await expect(orders.getByText("Customized")).toBeHidden()
+  await expect(reset).toBeFocused()
   await expect.poll(() => rows.allTextContents()).toEqual(before)
   expect(errors).toEqual([])
 })

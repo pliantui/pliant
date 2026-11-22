@@ -1,7 +1,7 @@
 import { orderRegions, orderStatuses } from "@/lib/demo/schema"
 import type { PliantAskTarget } from "@/registry/pliant/pliant-ask-panel"
 
-// The demo route replays recorded answers, so it answers exactly these
+// The ask panel replays recorded answers, so it answers exactly these
 // asks; the suggestions list every one of them.
 
 export const askTargets = [

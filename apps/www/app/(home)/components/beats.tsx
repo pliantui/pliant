@@ -25,7 +25,7 @@ export function Beats() {
   return (
     <section
       aria-labelledby="beats-heading"
-      className="container-wrapper border-t"
+      className="container-wrapper mt-12 border-t md:mt-16"
     >
       <div className="container py-12 md:py-16">
         <h2 id="beats-heading" className="sr-only">

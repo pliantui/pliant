@@ -3,6 +3,7 @@
 import * as React from "react"
 import { RotateCcwIcon } from "lucide-react"
 
+import { ScriptedBadge } from "@/components/demo/scripted-badge"
 import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -20,12 +21,27 @@ import type { MonthlyRevenue } from "@/lib/demo/schema"
 
 type Status = "paid" | "pending" | "overdue"
 
-const total = { label: "Order value", color: "var(--chart-2)" }
+const total = {
+  label: "Order value",
+  color: "color-mix(in oklch, var(--foreground) 70%, var(--card))",
+}
 
 const series: { status: Status; label: string; color: string }[] = [
-  { status: "paid", label: "Paid", color: "var(--chart-2)" },
-  { status: "pending", label: "Pending", color: "var(--chart-4)" },
-  { status: "overdue", label: "Overdue", color: "var(--chart-1)" },
+  {
+    status: "paid",
+    label: "Paid",
+    color: "color-mix(in oklch, var(--foreground) 70%, var(--card))",
+  },
+  {
+    status: "pending",
+    label: "Pending",
+    color: "color-mix(in oklch, var(--foreground) 42%, var(--card))",
+  },
+  {
+    status: "overdue",
+    label: "Overdue",
+    color: "color-mix(in oklch, var(--foreground) 20%, var(--card))",
+  },
 ]
 
 const month = new Intl.DateTimeFormat("en-IN", {
@@ -177,10 +193,13 @@ export function RevenueChartCard({ data }: { data: MonthlyRevenue[] }) {
               type="button"
               variant="ghost"
               size="sm"
-              disabled={!customized}
+              // Stays focusable after a reset, so focus doesn't fall back to
+              // the page.
+              aria-disabled={!customized}
               aria-label="Reset revenue"
+              className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
               onClick={() => {
-                setView(original)
+                if (customized) setView(original)
               }}
             >
               <RotateCcwIcon />
@@ -249,12 +268,7 @@ export function RevenueChartCard({ data }: { data: MonthlyRevenue[] }) {
               }}
             >
               {prompt}
-              <Badge
-                variant="secondary"
-                className="-mr-1 h-4 rounded-full px-1.5 text-[10px]"
-              >
-                Scripted
-              </Badge>
+              <ScriptedBadge />
             </Button>
           ))}
         </div>

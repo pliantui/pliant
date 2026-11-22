@@ -5,7 +5,7 @@ import { SparklesIcon } from "lucide-react"
 
 import { usePliantStore, usePliantSurface, usePreview } from "@pliantui/react"
 
-import { Badge } from "@/components/ui/badge"
+import { ScriptedBadge } from "@/components/demo/scripted-badge"
 import { Button } from "@/components/ui/button"
 import { isScriptedAsk, replayAnswer } from "@/lib/replay/replay-fetch"
 
@@ -93,19 +93,16 @@ export function AskChips({
             >
               {!isScripted && <SparklesIcon className="size-3" />}
               {prompt}
-              {isScripted && (
-                <Badge
-                  variant="secondary"
-                  className="-mr-1 h-4 rounded-full px-1.5 text-[10px]"
-                >
-                  Scripted
-                </Badge>
-              )}
+              {isScripted && <ScriptedBadge />}
             </Button>
           )
         })}
       </div>
-      <p role="status" className="min-h-4 text-xs text-muted-foreground">
+      <p
+        role="status"
+        // Out of the layout while empty, so it adds no gap under the asks.
+        className="text-xs text-muted-foreground empty:sr-only"
+      >
         {message}
       </p>
       {previewing && (

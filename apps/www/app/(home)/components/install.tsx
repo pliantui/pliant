@@ -28,7 +28,7 @@ export function Install() {
           </Link>{" "}
           to connect it to your app.
         </p>
-        <div className="w-full max-w-2xl overflow-hidden rounded-xl border bg-code text-left text-code-foreground">
+        <div className="w-full max-w-4xl overflow-hidden rounded-xl border bg-code text-left text-code-foreground">
           <CodeBlockCommand
             __pnpm__={`pnpm dlx shadcn@latest add ${item}`}
             __npm__={`npx shadcn@latest add ${item}`}

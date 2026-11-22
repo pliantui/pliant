@@ -1,13 +1,14 @@
 import { TicketForm } from "../../(examples)/examples/tickets/components/ticket-form"
 import { ShowcaseCard } from "./showcase-card"
 
-export function TicketCard() {
+export function TicketCard({ className }: { className?: string }) {
   return (
     <ShowcaseCard
       title="New ticket"
       description="Tell support what went wrong."
       target="ticket-form"
       asks={["put priority first", "hide the CC field"]}
+      className={className}
     >
       <TicketForm />
     </ShowcaseCard>

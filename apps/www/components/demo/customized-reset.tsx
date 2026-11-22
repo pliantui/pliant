@@ -21,6 +21,7 @@ export function CustomizedReset({
   const store = usePliantStore()
   const { status } = usePliantStatus()
   const customized = useCustomized(targets)
+  const inactive = !customized || status !== "ready"
 
   return (
     <div className="flex items-center gap-2">
@@ -29,9 +30,13 @@ export function CustomizedReset({
         type="button"
         variant="ghost"
         size="sm"
-        disabled={!customized || status !== "ready"}
+        // Stays focusable after a reset, so focus doesn't fall back to the
+        // page.
+        aria-disabled={inactive}
         aria-label={`Reset ${label}`}
+        className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
         onClick={() => {
+          if (inactive) return
           for (const target of targets) store.resetNode(target)
         }}
       >

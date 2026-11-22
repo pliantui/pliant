@@ -49,7 +49,7 @@ export default function HomePage() {
             <Link href={site.links.getStarted}>Get started</Link>
           </Button>
           <Button asChild variant="secondary" className="rounded-4xl px-3">
-            <Link href="/components">View components</Link>
+            <Link href="/examples/orders">View components</Link>
           </Button>
         </PageActions>
       </PageHeader>

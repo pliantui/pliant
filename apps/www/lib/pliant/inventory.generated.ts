@@ -7,6 +7,8 @@ export const inventory = {
       ids: [
         "average-order-value",
         "key-metrics",
+        "low-stock",
+        "new-tickets",
         "notification-settings",
         "order-alerts",
         "order-confirmations",
@@ -21,6 +23,7 @@ export const inventory = {
         "orders-table/columns/value",
         "overdue",
         "product-news",
+        "refund-requests",
         "revenue",
         "ticket-form",
         "ticket-form/fields/cc",
@@ -41,6 +44,8 @@ export const inventory = {
     baseParents: {
       "average-order-value": "key-metrics",
       "key-metrics": null,
+      "low-stock": "notification-settings",
+      "new-tickets": "notification-settings",
       "notification-settings": null,
       "order-alerts": "notification-settings",
       "order-confirmations": "notification-settings",
@@ -48,6 +53,7 @@ export const inventory = {
       "orders-table": null,
       overdue: "key-metrics",
       "product-news": "notification-settings",
+      "refund-requests": "notification-settings",
       revenue: "key-metrics",
       "ticket-form": null,
       "weekly-report": "notification-settings",
@@ -59,6 +65,9 @@ export const inventory = {
         "order-confirmations",
         "order-alerts",
         "weekly-report",
+        "new-tickets",
+        "refund-requests",
+        "low-stock",
         "product-news",
       ],
     },
@@ -70,6 +79,14 @@ export const inventory = {
       "key-metrics": {
         kind: "pliant:region",
         hash: "a530aef6e984296f",
+      },
+      "low-stock": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "new-tickets": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
       },
       "notification-settings": {
         kind: "pliant:region",
@@ -124,6 +141,10 @@ export const inventory = {
         hash: "a220a621c23f938c",
       },
       "product-news": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "refund-requests": {
         kind: "pliant:slot",
         hash: "a220a621c23f938c",
       },
