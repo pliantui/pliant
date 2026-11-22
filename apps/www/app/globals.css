@@ -192,6 +192,15 @@
   @apply mx-auto max-w-[1400px] px-4 3xl:max-w-screen-2xl lg:px-8;
 }
 
+@utility step {
+  counter-increment: step;
+
+  &:before {
+    @apply mr-2 inline-flex size-6 items-center justify-center rounded-full border-background bg-muted text-center -indent-px font-mono text-sm font-medium md:absolute md:mt-[-4px] md:ml-[-50px] md:size-9 md:border-4;
+    content: counter(step);
+  }
+}
+
 @utility extend-touch-target {
   @media (pointer: coarse) {
     @apply relative touch-manipulation after:absolute after:-inset-2;
@@ -199,6 +208,24 @@
 }
 
 @layer components {
+  .steps {
+    &:first-child {
+      @apply !mt-0;
+    }
+
+    &:first-child > h3:first-child {
+      @apply !mt-0;
+    }
+
+    > h3 {
+      @apply !mt-8;
+    }
+
+    > h3 + p {
+      @apply !mt-2;
+    }
+  }
+
   [data-rehype-pretty-code-figure] {
     background-color: var(--color-code);
     color: var(--color-code-foreground);
