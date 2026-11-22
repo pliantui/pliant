@@ -52,9 +52,14 @@ interface Viewport {
   height: number
 }
 
+// A scrollbar appearing or going changes the viewport's width without a
+// `resize` event, so the root element is observed as well.
 function subscribeToResize(onResize: () => void) {
+  const observer = new ResizeObserver(onResize)
+  observer.observe(document.documentElement)
   window.addEventListener("resize", onResize)
   return () => {
+    observer.disconnect()
     window.removeEventListener("resize", onResize)
   }
 }
@@ -155,7 +160,10 @@ function placeLabel(
     ) || placed.some((other) => overlaps(label, grow(other, gap)))
   // A label `inset` in from the outline's start or end, clipped to the screen.
   const at = (top: number, end: boolean, inset: number) => {
-    const width = Math.min(labelWidth, outline.right - outline.left - inset * 2)
+    const width = Math.max(
+      0,
+      Math.min(labelWidth, outline.right - outline.left - inset * 2)
+    )
     const left = end
       ? Math.min(outline.right, viewport.width) - inset - width
       : Math.max(outline.left, 0) + inset
