@@ -1,0 +1,62 @@
+---
+title: Pre-paint
+description: Applies each user's saved layout before the first paint, so a reload never flashes the original.
+---
+
+<ComponentPreview name="pre-paint-demo" />
+
+## Installation
+
+```bash
+npm install @pliantui/react
+```
+
+`PliantPrePaint` ships in the package, so there's nothing to copy.
+
+## Usage
+
+Render it first inside the page's `PliantRoot`, with the same `surface`.
+
+<include cwd lang="tsx">
+  snippets/components/pre-paint.tsx#usage
+</include>
+
+Try it above: change the cards, then reload the page. The cards come back in your order on the first frame.
+
+## What users can ask
+
+Pre-paint doesn't take asks itself. It makes sure the changes users ask for show from the very first paint:
+
+| Ask                               | What changes                                                         |
+| --------------------------------- | -------------------------------------------------------------------- |
+| put the overdue card first        | The Overdue card moves to the front, and stays first after a reload. |
+| hide the average order value card | That card is hidden, with no flash of it on reload.                  |
+
+## Rules and guardrails
+
+- It reads only what `localAdapter` saved for the surface. With server storage, pass `layers` to `PliantRoot` instead.
+- While the layers load, it shows a skeleton in place of each node a change targets, and only those. Every other node renders as usual.
+- Content always shows by `revealAfter`, even if loading fails.
+
+## Examples
+
+### With a Content Security Policy
+
+Pass your policy's nonce, and the script and the style it adds carry it.
+
+```tsx
+<PliantPrePaint surface="/orders" nonce={nonce} />
+```
+
+## Options
+
+| Prop          | Type     | Default | Description                                                                     |
+| ------------- | -------- | ------- | ------------------------------------------------------------------------------- |
+| `surface`     | `string` |         | The surface of the `PliantRoot` whose overlays the script reads.                |
+| `nonce`       | `string` |         | The nonce of the page's Content Security Policy.                                |
+| `revealAfter` | `number` | `4500`  | How long, in milliseconds, a skeleton can last before the content shows anyway. |
+
+## Accessibility
+
+- The skeleton covers only the nodes about to change, so screen readers don't announce a layout that's about to move.
+- Preference changes, like density, text size and motion, apply after hydration.

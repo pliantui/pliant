@@ -28,7 +28,7 @@ async function load(page: Page) {
   ).not.toHaveAttribute("data-pliant-pending")
 }
 
-test("leads to the docs and the examples", async ({ page }) => {
+test("leads to the docs and the components", async ({ page }) => {
   await page.goto("/")
   const main = page.getByRole("main")
 
@@ -41,7 +41,7 @@ test("leads to the docs and the examples", async ({ page }) => {
   )
   await expect(
     main.getByRole("link", { name: "View components" })
-  ).toHaveAttribute("href", "/examples/orders")
+  ).toHaveAttribute("href", "/docs/components")
   await expect(
     main.getByRole("link", { name: /point at part of a page and ask/i })
   ).toHaveAttribute("href", "/docs/ai")

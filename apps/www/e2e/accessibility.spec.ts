@@ -87,6 +87,25 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
+    for (const [slug, name] of [
+      ["", "Components"],
+      ["/region", "Region"],
+      ["/data-table", "Data Table"],
+      ["/form", "Form"],
+      ["/nav", "Nav"],
+      ["/point-mode", "Point mode"],
+    ] as const) {
+      test(`the ${name} component page has no accessibility violations`, async ({
+        page,
+      }) => {
+        await page.goto(`/docs/components${slug}`)
+        await expect(
+          page.getByRole("heading", { level: 1, name, exact: true })
+        ).toBeVisible()
+        expect(await violations(page, colorScheme)).toEqual([])
+      })
+    }
+
     for (const [path, name] of [
       ["/charts", "Charts"],
       ["/templates", "Templates"],

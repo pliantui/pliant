@@ -1,0 +1,69 @@
+---
+title: PliantRoot
+description: Loads a page's layers and gives every Pliant component on it the user's changes.
+---
+
+<ComponentPreview name="pliant-root-demo" />
+
+## Installation
+
+```bash
+npm install @pliantui/react
+```
+
+`PliantRoot` ships in the package, so there's nothing to copy.
+
+## Usage
+
+Wrap each page, or each part of the app with its own saved layout, in a `PliantRoot`. Give it a `surface`, usually the route, and somewhere to keep the layers.
+
+<include cwd lang="tsx">
+  snippets/components/root.tsx#usage
+</include>
+
+`localAdapter` keeps each user's changes in their browser. To keep them on your server, pass `serverAdapter({ endpoint })` instead. See [storage](/docs/storage).
+
+## What users can ask
+
+The root doesn't change anything itself: it carries the changes users make to the components inside it. The preview above shows two recorded asks on a region:
+
+| Ask                               | What changes                               |
+| --------------------------------- | ------------------------------------------ |
+| put the overdue card first        | The Overdue card moves to the front.       |
+| hide the average order value card | That card is hidden. Reset brings it back. |
+
+## Rules and guardrails
+
+- Layers apply in order: your base, then team defaults, then the user's own changes. A user's change never edits a team default.
+- Every change is checked against the components' manifests and your rules before it applies. A change that would break a rule is skipped, and the rest still applies.
+- Changes are saved per surface, so two pages with the same component ids keep separate layouts.
+
+## Examples
+
+### Layers loaded on the server
+
+Load the layers while the page renders and pass them as `layers`, so the first HTML already shows the user's layout.
+
+```tsx
+<PliantRoot surface="/orders" storage={storage} layers={layers}>
+  <OrdersTable data={orders} />
+</PliantRoot>
+```
+
+## Options
+
+| Prop        | Type                                     | Description                                                                                                                                             |
+| ----------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `surface`   | `string`                                 | The surface the layers belong to: a route pattern or a surface id.                                                                                      |
+| `storage`   | `StorageAdapter \| () => StorageAdapter` | Where the layers are loaded from and personal changes saved to, such as `localAdapter` or `serverAdapter(options)`. Read once, when the surface mounts. |
+| `layers`    | `StoredLayers`                           | The layers, loaded on the server, so the first render shows them.                                                                                       |
+| `teamOrder` | `string[]`                               | Team ids, highest precedence first.                                                                                                                     |
+| `lang`      | `string`                                 | The UI language as a BCP 47 tag. Defaults to the page's `<html lang>`.                                                                                  |
+| `messages`  | `Partial<PliantMessages>`                | Text to show in place of the English defaults.                                                                                                          |
+| `inventory` | `PliantInventory`                        | The nodes `pliantui scan` found on the surface, checked in development.                                                                                 |
+| `onError`   | `(error: unknown) => void`               | Called when saving or loading fails. Defaults to `console.error`.                                                                                       |
+
+## Accessibility
+
+- The root renders no markup of its own, so it doesn't change your page's structure.
+- Status changes, like a saved change, are announced by the components that show them.

@@ -44,3 +44,29 @@ export const transformers: ShikiTransformer[] = [
     },
   },
 ]
+
+// Highlights code outside MDX, like a component's source, the way the docs'
+// code blocks are highlighted.
+export async function highlightCode(code: string, language: string) {
+  const { codeToHtml } = await import("shiki")
+  return codeToHtml(code, {
+    lang: language,
+    themes: { dark: "vesper", light: "github-light-default" },
+    defaultColor: false,
+    transformers: [
+      ...transformers,
+      {
+        pre(node) {
+          node.properties["data-language"] = language
+          delete node.properties["tabindex"]
+        },
+        code(node) {
+          node.properties["data-language"] = language
+        },
+        line(node) {
+          node.properties["data-line"] = ""
+        },
+      },
+    ],
+  })
+}

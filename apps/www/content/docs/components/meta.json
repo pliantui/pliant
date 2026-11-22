@@ -1,0 +1,14 @@
+{
+  "title": "Components",
+  "pages": [
+    "index",
+    "pliant-root",
+    "region",
+    "pre-paint",
+    "data-table",
+    "form",
+    "nav",
+    "ask-panel",
+    "point-mode"
+  ]
+}

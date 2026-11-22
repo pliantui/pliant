@@ -1,0 +1,132 @@
+---
+title: Data Table
+description: A TanStack table your users can sort, filter, group, reorder and hide columns in, by hand or by asking.
+---
+
+<ComponentPreview name="data-table-demo" align="start" />
+
+## Installation
+
+<CodeTabs>
+
+<TabsList>
+  <TabsTrigger value="cli">Command</TabsTrigger>
+  <TabsTrigger value="manual">Manual</TabsTrigger>
+</TabsList>
+<TabsContent value="cli">
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-data-table.json
+```
+
+For the toolbar with filters, sort options and presets, add it too:
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-data-table-toolbar.json
+```
+
+</TabsContent>
+<TabsContent value="manual">
+
+<Steps className="mb-0 pt-2">
+
+<Step>Install the dependencies.</Step>
+
+```bash
+npm install @pliantui/react @tanstack/react-table
+```
+
+<Step>Copy and paste the following code into your project.</Step>
+
+<ComponentSource
+  src="registry/pliant/pliant-data-table.tsx"
+  title="components/pliant/pliant-data-table.tsx"
+/>
+
+<Step>
+  Add the column header, view options, pagination, features and format files
+  from the registry item the same way.
+</Step>
+
+<Step>Update the import paths to match your project setup.</Step>
+
+</Steps>
+
+</TabsContent>
+</CodeTabs>
+
+## Usage
+
+Build the table with TanStack Table's `useTable` and the options `usePliantTable` returns, then render it with `PliantDataTable`.
+
+<include cwd lang="tsx">
+  snippets/first-table/orders-table.tsx#table
+</include>
+
+[Your first editable table](/docs/first-editable-table) walks through the columns and data.
+
+## What users can ask
+
+These asks have recorded answers, so the preview above plays them:
+
+| Ask                          | What changes                            |
+| ---------------------------- | --------------------------------------- |
+| sort by value, highest first | The table sorts by value, descending.   |
+| only show overdue orders     | A filter keeps only overdue orders.     |
+| hide the notes column        | The Notes column is hidden.             |
+| put customer before order    | The Customer column moves to the front. |
+
+Users can also group rows, add totals, highlight rows that match a rule, pin and resize columns, and save filters as presets.
+
+## Rules and guardrails
+
+- Users change how the table shows your data, never the data itself. Sorting, filtering and grouping run on the rows you already pass in, or through your server's permissions in [server mode](/docs/data/server-mode).
+- A column a user isn't allowed to see stays out of the table, the menus and what the AI is told.
+- Filters and calculated columns use Pliant's expression format, which can only read the fields you describe. It never runs code or SQL.
+
+## Examples
+
+### Toolbar with filters and presets
+
+```tsx
+<PliantDataTableToolbar
+  table={table}
+  node="orders-table"
+  filters={[
+    { field: "customer", control: "search" },
+    { field: "status", control: "multi-select" },
+  ]}
+  presets={[
+    {
+      id: "to-chase",
+      label: "To chase",
+      filters: [{ field: "status", operator: "in", value: ["overdue"] }],
+      sort: [{ field: "value", dir: "desc" }],
+    },
+  ]}
+/>
+```
+
+The full toolbar runs on the [orders example](/examples/orders).
+
+## Options
+
+### PliantDataTable
+
+| Prop                             | Type                              | Description                                                        |
+| -------------------------------- | --------------------------------- | ------------------------------------------------------------------ |
+| `table`                          | `Table`                           | The table from `useTable`, with the options from `usePliantTable`. |
+| `formatAggregate`                | `(value, unit, format) => string` | Formats a group's total. Defaults to the column's format.          |
+| `formatNumber`                   | `(value: number) => string`       | Formats the number of rows in a group.                             |
+| `formatHighlight`                | `(highlight) => string`           | Names a highlight for screen readers.                              |
+| `aria-label` / `aria-labelledby` | `string`                          | The table's accessible name.                                       |
+
+### usePliantTable
+
+`usePliantTable(options, { id, dataset })` takes TanStack's table options and returns them with the user's layers applied. `id` is the table's node id; `dataset` describes the fields users can filter and ask about.
+
+## Accessibility
+
+- It renders a real `<table>`, with sortable headers as buttons that announce their sort direction.
+- Highlighted rows are named for screen readers, as in "Highlighted: Overdue", not only shown in colour.
+- Column menus and the view options are Radix menus, with full keyboard support.
