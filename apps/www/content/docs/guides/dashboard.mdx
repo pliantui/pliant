@@ -3,17 +3,26 @@ title: Make a dashboard customizable
 description: Let each user arrange a dashboard's metric cards and charts their way, by reordering them, hiding what they don't need and choosing the layout.
 ---
 
-A dashboard is where users most want things their way: the metrics they watch first at the top, and the charts they never look at gone. This guide makes a dashboard's cards and charts customizable with two regions.
+On an orders dashboard, a finance lead might want the overdue count first and the regional chart gone, while a sales manager wants revenue by month at the top. This guide puts the dashboard's metric cards and charts in two regions, so each person can arrange them their own way.
 
 <include cwd lang="tsx" meta='title="app/dashboard/page.tsx"'>
   snippets/guides/dashboard-page.tsx#page
 </include>
 
-Each `PliantRegion` holds a group of cards. The order of the `slots` keys is the default order, and the `className` sets your default layout. Users can now, through the ask panel:
+Each `PliantRegion` holds a group of cards. The order of the `slots` keys is the default order, and the `className` sets your default layout. Users can now make these changes by dragging a card or from its menu, or by asking in the ask panel:
 
 - reorder the cards, or pin one to the start;
 - hide cards they don't need;
 - switch a region between a stack, a row and a grid of up to four columns, from the `md` breakpoint up.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Dragging cards and the card and region menus aren't in Pliant yet. Today,
+  users make these changes through the ask panel.
+</Callout>
 
 Give regions their spacing with `gap-*` classes. `space-*` and `divide-*` don't reach the cards.
 
@@ -37,8 +46,8 @@ A card users must always see, such as a compliance notice, shouldn't sit in a re
   data-unfinished="not-implemented"
 >
   This section shows how customizable charts will work. They aren't in Pliant
-  yet. Today, a chart is a card in a region: users can move, hide and resize it,
-  but not change what it shows.
+  yet. Today, a chart is a card in a region: users can move and hide it, but not
+  change what it shows.
 </Callout>
 
 A Pliant chart is a view of a dataset, like a table. Users can ask to change it:

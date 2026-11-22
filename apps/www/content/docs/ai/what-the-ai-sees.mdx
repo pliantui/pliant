@@ -8,7 +8,7 @@ When a user asks for a change, your server sends the model two things: a short d
 For the orders table, the model receives something like this:
 
 ```txt
-Target: {"address":"orders-table","kind":"data-table","description":"A table of orders","columns":[{"id":"customer","label":"Customer"},{"id":"status","label":"Status"},{"id":"value","label":"Value"}],"fields":[{"id":"status","label":"Status","type":"enum","values":["paid","pending","overdue","refunded"]},{"id":"value","label":"Value","type":"number"}],"sort":[{"field":"createdAt","dir":"desc"}]}
+Target: {"address":"orders-table","kind":"data-table","description":"A table of orders","columns":[{"id":"id","label":"Order"},{"id":"customer","label":"Customer"},{"id":"status","label":"Status"},{"id":"value","label":"Value"}],"fields":[{"id":"customer","label":"Customer","type":"text"},{"id":"status","label":"Status","type":"enum","values":["paid","pending","overdue","refunded"]},{"id":"value","label":"Value","type":"number"}],"sort":[{"field":"createdAt","dir":"desc"}]}
 Ask: "only overdue orders"
 ```
 
@@ -30,20 +30,34 @@ All of it comes from the target you describe, and from what the user typed.
 
 - Your rows. No order, customer name or amount is sent.
 - Anything about the user, such as their id, name or email.
-- Dataset fields with `exposeToAI: false`, and fields the user may not read.
 - Your code, other users' asks, or other pages.
+
+## Fields from your datasets
+
+The ask route builds each target's `fields` from your [dataset](/docs/data/datasets), for the user who asked, with `describeDataset(dataset, { user, audience: "ai" })`. That leaves out every field marked `exposeToAI: false`, and every field the user may not read, so the model is never told those fields exist.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The ask route doesn't read datasets yet. Today, each target's `fields` are
+  sent exactly as you write them in the target. Build them from
+  `describeDataset(dataset, { user, audience: "ai" })` yourself to leave out
+  hidden and restricted fields.
+</Callout>
 
 ## Things to check
 
 - Enum values are sent. If the names of a field's values are sensitive, such as customer names used as an enum, make it a `string` field instead, or set `exposeToAI: false`.
-- Filter values are sent too. The current filters are part of the description. A user who searched for a customer's name sends that name with their next ask.
+- Filter values are sent too, because the current filters are part of the description. A user who searched for a customer's name sends that name with their next ask.
 - Labels and descriptions are sent, so keep them about the page, not your business secrets.
 
 `pliantui doctor` lists every dataset field the AI is told about, and warns when one looks sensitive, such as an email, phone number, address or salary.
 
-## Safe whatever the answer
+## What an answer can do
 
-The model's answer can't do harm, whatever it says. It can only contain operations from the fixed catalog, and only those the target allows. Every answer is checked on your server and again in the browser, and shown as a preview the user must lock in. A user's ask, and labels on the page, are passed to the model as data, so text that tries to give the model new instructions is treated as text.
+The model can only propose operations from the fixed catalog, and only those the target allows. Every answer is checked on your server and again in the browser, and shown as a preview the user must lock in. The user's ask and the labels on the page are passed to the model as data, inside JSON, so text that tries to give the model new instructions arrives as text.
 
 ## Related
 

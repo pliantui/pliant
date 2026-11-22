@@ -1,9 +1,9 @@
 ---
 title: MySQL
-description: Load pages of rows from MySQL and MariaDB, with the user's permissions applied.
+description: Load pages of rows for a server-mode table from MySQL or MariaDB, with the same checks compileQuery applies for Postgres.
 ---
 
-If your orders live in MySQL or MariaDB, this adapter loads each page of rows for the table in server mode. Your route stays the same as in [server mode](/docs/data/server-mode); only the line that loads rows changes.
+If your orders are in MySQL or MariaDB, `compileMysqlQuery` does what [`compileQuery`](/docs/data/postgres) does for Postgres: it turns a table's request into one parameterized query with the user's scope, sort, filters and page. It also returns `count`, a second query that counts every row the user may see with the same filters. Pass both to `mysql2`.
 
 <Callout
   variant="warning"
@@ -17,31 +17,49 @@ If your orders live in MySQL or MariaDB, this adapter loads each page of rows fo
 
 ```ts title="app/api/orders/rows/route.ts"
 import { authorizeDataset } from "@pliantui/server/data"
-import { mysqlRows } from "@pliantui/server/mysql"
+import { compileMysqlQuery } from "@pliantui/server/mysql"
 
-const db = mysql.createPool(process.env.DATABASE_URL)
+import { ordersDataset } from "@/lib/datasets/orders"
+import { pool } from "@/lib/mysql"
+import { getSessionUser } from "@/lib/session"
 
 export async function POST(request: Request) {
-  const user = await getSessionUser(request)
+  const user = getSessionUser(request)
+  if (!user) return new Response(null, { status: 401 })
+
   const grant = authorizeDataset(ordersDataset, user)
   if (!grant) return new Response(null, { status: 403 })
 
-  const rows = await mysqlRows(db, ordersDataset, grant, await request.json(), {
-    table: "orders",
-  })
-  return Response.json(rows)
+  const query = await request.json()
+  try {
+    const compiled = compileMysqlQuery(ordersDataset, grant, query, {
+      table: "orders",
+    })
+    const [rows] = await pool.query(compiled.text, compiled.values)
+    const [[total]] = await pool.query(
+      compiled.count.text,
+      compiled.count.values
+    )
+    return Response.json({ rows, rowCount: total.count })
+  } catch (error) {
+    if (error instanceof TypeError) {
+      return Response.json({ message: error.message }, { status: 400 })
+    }
+    throw error
+  }
 }
 ```
 
-The adapter applies the user's scope to every query, checks the request as `compileQuery` does, and returns one page with the total row count, so pagination knows how many pages there are.
+The route matches the one in [server mode](/docs/data/server-mode): sign-in, the user's grant, then one page of rows with the total count, so pagination knows how many pages there are. The request is checked as `compileQuery` checks it, and a bad one throws a `TypeError`, which the route answers with a 400.
 
 ## Notes
 
-- Store datetimes in UTC as `DATETIME`, and set the dataset's time zone for display.
-- Index the fields users sort and filter by most, and your scope columns.
-- The same limits apply as for every adapter. See [Query safety](/docs/data/query-safety).
+- Store datetimes in UTC as `DATETIME`, and set the dataset's `timeZone` for how dates are read.
+- Text sorts in the column's collation. A case-insensitive collation also makes `eq` ignore case.
+- `median` and `percentile` totals need MySQL 8 or MariaDB 10.3 or later.
 
 ## Related
 
 - [Server mode](/docs/data/server-mode)
 - [Permissions and row security](/docs/data/permissions)
+- [Query safety](/docs/data/query-safety)

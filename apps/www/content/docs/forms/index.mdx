@@ -1,6 +1,6 @@
 ---
 title: Forms
-description: Let users reorder, hide and fold away the fields of your forms, and set their own defaults, without losing what they've typed.
+description: How PliantForm fits around your form library's fields, what users can change about a form, and which fields stay protected.
 ---
 
 `PliantForm` lets each user arrange your forms their way: put the fields they use first at the top, hide optional ones they never fill in, or fold them into a **More fields** section. They can also keep their own default values, such as always CC'ing their manager. Required fields always stay visible.
@@ -33,7 +33,16 @@ npx shadcn@latest add https://pliantui.dev/r/pliant-form.json
 | Fold fields into **More fields**  | It opens by itself when a field inside is invalid |
 | Set their own default for a field | The default must pass the field's schema          |
 
-A field is required when its schema rejects a missing value. Mark a field `.optional()` or give it a `.default()` to let users hide it.
+Users make these changes from each field's menu, or by asking in the ask panel. A field is required when its schema rejects a missing value. Mark a field `.optional()` or give it a `.default()` to let users hide it.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The field menu and asking about forms aren't in Pliant yet. Today, forms apply
+  these changes when they come from team or organization defaults.
+</Callout>
 
 ## Fields keep their values
 
@@ -43,7 +52,7 @@ Submit through the `<form>` element, with a submit button or `form.requestSubmit
 
 ## User defaults
 
-`usePliantFormDefaults` returns your default values with each user's own defaults in place. Pass the result to your form library so the form starts from them. Only fields you list in your defaults can take one, and only a value the field's schema accepts.
+When a user sets a default, such as always CC'ing their manager, `usePliantFormDefaults` returns your default values with that default in place. Pass the result to your form library so the form starts from them. Only fields you list in your defaults can take one, and only a value the field's schema accepts.
 
 ## Choose your library
 

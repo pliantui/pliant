@@ -3,7 +3,7 @@ title: Costs and rate limits
 description: What an ask costs, and how to cap requests and tokens per user so the ask panel stays affordable.
 ---
 
-Each ask is one short request to your model, sometimes two when the first answer needs a correction. This page shows how to estimate the cost, and how to cap it per user.
+Each ask is one short request to your model, sometimes two when the first answer needs a correction. A typical ask costs a fraction of a cent, and you can cap how many each user makes.
 
 <Callout
   variant="warning"
@@ -36,10 +36,7 @@ export default defineConfig({
 })
 ```
 
-| Limit                | What happens when a user reaches it                                      |
-| -------------------- | ------------------------------------------------------------------------ |
-| `requestsPerMinute`  | The panel asks them to wait a moment before asking again.                |
-| `dailyTokensPerUser` | The panel says they've reached today's limit. It resets at midnight UTC. |
+`requestsPerMinute` caps asks per user per minute, and `dailyTokensPerUser` caps the model tokens each user can spend in a day, resetting at midnight UTC. When a user reaches either, the ask panel tells them so. The [pliant.config.ts reference](/docs/config#limits) lists both.
 
 Users who reach a limit can still change the page by hand.
 

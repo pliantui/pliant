@@ -17,8 +17,6 @@ Render the page with an in-memory storage adapter, change it as a user would, th
 - Changes save about a second after the last one, so wait for the save before rendering again.
 - Query by role and label, as users perceive the page.
 
-This test runs with this site's own tests, so it stays correct as Pliant changes.
-
 ## Test your storage route
 
 `memoryOverlayStore()` from `@pliantui/server/storage` keeps overlays in memory. Create your storage handler with it in a test, and call it with `Request` objects, as your framework would:

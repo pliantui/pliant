@@ -1,9 +1,18 @@
 ---
 title: How asking works
-description: Let users describe a change in plain words, see it on the page as a preview, and keep it only if they like it.
+description: Set up the ask route, the ask panel and point mode, and follow an ask from the user's words to a saved change.
 ---
 
-With the ask panel, a user points at part of the page and types what they want, such as "only overdue orders" or "put the overdue card first". The change shows on the page as a preview, and it's saved only when they choose **Lock in**. AI is optional: everything it can do, Pliant also does without it.
+With the ask panel, a user points at part of the page and types what they want, such as "only overdue orders" or "put the overdue card first". The change shows on the page as a preview, and it's saved only when they choose **Lock in**. AI is optional: everything it can do, users can also do by hand with the controls on the page.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Regions, forms and sidebar links don't have controls of their own yet, so
+  today they change only through the ask panel. Tables can be changed by hand.
+</Callout>
 
 <Steps>
 
@@ -45,7 +54,7 @@ Render them inside `PliantRoot`, such as in the page header:
 
 ## What the user sees
 
-1. They hold <Kbd>Alt</Kbd>, press <Kbd>⌘</Kbd> <Kbd>.</Kbd> or click the point mode button. The parts they can ask about light up, and they click one. Or they open the panel and pick a part from its list.
+1. They turn on point mode in one of three ways: hold <Kbd>Alt</Kbd> (<Kbd>Option</Kbd> on a Mac), press <Kbd>Ctrl</Kbd> <Kbd>.</Kbd> (<Kbd>⌘</Kbd> <Kbd>.</Kbd> on a Mac), or click the point mode button. The parts they can ask about light up, and they click one. They can also open the panel and pick a part from its list.
 2. They type an ask, or pick a suggestion, and press <Kbd>Enter</Kbd>. <Kbd>Shift</Kbd> <Kbd>Enter</Kbd> adds a new line.
 3. The change appears on the page as a preview, with a short sentence describing it.
 4. **Lock in** saves it. **Discard** drops it. Until then, nothing is saved.

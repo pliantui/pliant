@@ -3,7 +3,7 @@ title: How customizations are saved
 description: Where each user's changes are kept, how to choose between the browser and your own server, and what Pliant expects from storage.
 ---
 
-Every change a user makes, such as sorting the orders table, is saved as a small JSON document called an overlay. You choose where overlays are kept by passing a **storage adapter** to `PliantRoot`. This page helps you choose one.
+Every change a user makes, such as sorting the orders table, is saved as a small JSON document called an overlay. You choose where overlays are kept by passing a **storage adapter** to `PliantRoot`. Choosing one comes down to whether changes should follow users across devices, and whether you need team defaults.
 
 ```tsx
 <PliantRoot surface="/orders" storage={localAdapter}>

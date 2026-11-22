@@ -73,6 +73,8 @@ Instructions tell the AI about your product, so its answers fit how your users t
 | `rules`    | Preferences for answers, such as "prefer tables to charts". |
 | `surfaces` | Extra notes for one page, by surface.                       |
 
+Next to `instructions`, `examples` lists asks with the operations you expect, such as `{ target: "orders-table", ask: "late ones first", ops: [...] }`, to show the model your style.
+
 Instructions guide the model. They don't enforce anything: a rule such as "never hide the status column" belongs in `flags` as well, where Pliant enforces it. `pliantui doctor` warns when a rule reads like a constraint but has no matching flag, and when instructions grow long enough to add noticeable cost to each ask.
 
 ## Model

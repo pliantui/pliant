@@ -1,9 +1,9 @@
 ---
 title: SQLite
-description: Load pages of rows from SQLite, including Turso and Cloudflare D1, with the user's permissions applied.
+description: Load pages of rows for a server-mode table from SQLite, Turso or Cloudflare D1.
 ---
 
-If your orders live in SQLite, Turso or Cloudflare D1, this adapter loads each page of rows for the table in server mode. Your route stays the same as in [server mode](/docs/data/server-mode); only the line that loads rows changes.
+If your orders are in SQLite, including Turso and Cloudflare D1, `compileSqliteQuery` turns a table's request into one parameterized query with the user's scope, sort, filters and page, ready for `better-sqlite3`, libSQL or D1's `prepare`, and a second `count` query for the total.
 
 <Callout
   variant="warning"
@@ -17,37 +17,46 @@ If your orders live in SQLite, Turso or Cloudflare D1, this adapter loads each p
 
 ```ts title="app/api/orders/rows/route.ts"
 import { authorizeDataset } from "@pliantui/server/data"
-import { sqliteRows } from "@pliantui/server/sqlite"
+import { compileSqliteQuery } from "@pliantui/server/sqlite"
 
-const db = new Database("orders.db")
+import { ordersDataset } from "@/lib/datasets/orders"
+import { getSessionUser } from "@/lib/session"
+import { db } from "@/lib/sqlite"
 
 export async function POST(request: Request) {
-  const user = await getSessionUser(request)
+  const user = getSessionUser(request)
+  if (!user) return new Response(null, { status: 401 })
+
   const grant = authorizeDataset(ordersDataset, user)
   if (!grant) return new Response(null, { status: 403 })
 
-  const rows = await sqliteRows(
-    db,
-    ordersDataset,
-    grant,
-    await request.json(),
-    {
+  const query = await request.json()
+  try {
+    const compiled = compileSqliteQuery(ordersDataset, grant, query, {
       table: "orders",
+    })
+    const rows = db.prepare(compiled.text).all(...compiled.values)
+    const total = db.prepare(compiled.count.text).get(...compiled.count.values)
+    return Response.json({ rows, rowCount: total.count })
+  } catch (error) {
+    if (error instanceof TypeError) {
+      return Response.json({ message: error.message }, { status: 400 })
     }
-  )
-  return Response.json(rows)
+    throw error
+  }
 }
 ```
 
-The adapter applies the user's scope to every query, checks the request as `compileQuery` does, and returns one page with the total row count, so pagination knows how many pages there are.
+The route matches the one in [server mode](/docs/data/server-mode): sign-in, the user's grant, then one page of rows with the total count, so pagination knows how many pages there are. The request is checked as `compileQuery` checks it, and a bad one throws a `TypeError`, which the route answers with a 400.
 
 ## Notes
 
-- SQLite has no percentile functions, so `median` and `percentile` totals are computed approximately.
-- Index the fields users sort and filter by most, and your scope columns.
-- The same limits apply as for every adapter. See [Query safety](/docs/data/query-safety).
+- SQLite has no date type. Store dates as `YYYY-MM-DD` text and datetimes as ISO 8601 text with an offset.
+- `median` and `percentile` totals are computed approximately, because SQLite has no percentile functions.
+- On D1, each page is one `prepare(...).bind(...).all()` call, so it counts as one query against your limits.
 
 ## Related
 
 - [Server mode](/docs/data/server-mode)
 - [Permissions and row security](/docs/data/permissions)
+- [Query safety](/docs/data/query-safety)

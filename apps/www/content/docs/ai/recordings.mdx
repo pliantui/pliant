@@ -1,6 +1,6 @@
 ---
 title: Recordings and replay
-description: Record your model's answers once, then replay them in demos, tests and previews without calling the model or needing an API key.
+description: Set up recordingMiddleware to record and replay model answers, replay without a file system, and what changes a recording's key.
 ---
 
 `recordingMiddleware` records each answer your model gives to a JSON file, and can replay those answers later without calling the model. Use it for demos that need no API key, for tests that always get the same answer, and for previews that cost nothing.
@@ -35,7 +35,7 @@ recordingMiddleware({ mode: "replay", recordings })
 - Recordings hold the model's answer, never your rows, because the model never sees them.
 - A change to your targets, your model or Pliant's prompt changes the key, so record again after upgrading.
 
-This site's demos replay recorded answers in exactly this way.
+The demos on this site replay recorded answers this way, so they need no API key.
 
 ## Related
 

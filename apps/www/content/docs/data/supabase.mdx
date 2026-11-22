@@ -1,9 +1,9 @@
 ---
 title: Supabase
-description: Load pages of rows from Supabase, with the user's permissions and your row-level security applied.
+description: Load pages of rows for a server-mode table from Supabase, alongside your row-level security policies.
 ---
 
-If your orders live in Supabase, this adapter loads each page of rows for the table in server mode. Your route stays the same as in [server mode](/docs/data/server-mode); only the line that loads rows changes.
+If your orders are in Supabase, `supabaseRows` loads each page for a table in [server mode](/docs/data/server-mode) with the Supabase client for the signed-in user. Your row-level security policies apply as usual, and the dataset's scope applies on top of them, so a row has to pass both.
 
 <Callout
   variant="warning"
@@ -19,35 +19,46 @@ If your orders live in Supabase, this adapter loads each page of rows for the ta
 import { authorizeDataset } from "@pliantui/server/data"
 import { supabaseRows } from "@pliantui/server/supabase"
 
-const db = createClient(url, key)
+import { ordersDataset } from "@/lib/datasets/orders"
+import { getSessionUser } from "@/lib/session"
+import { createServerClient } from "@/lib/supabase"
 
 export async function POST(request: Request) {
-  const user = await getSessionUser(request)
+  const user = getSessionUser(request)
+  if (!user) return new Response(null, { status: 401 })
+
   const grant = authorizeDataset(ordersDataset, user)
   if (!grant) return new Response(null, { status: 403 })
 
-  const rows = await supabaseRows(
-    db,
-    ordersDataset,
-    grant,
-    await request.json(),
-    {
-      table: "orders",
+  const query = await request.json()
+  try {
+    const { rows, rowCount } = await supabaseRows(
+      createServerClient(request),
+      "orders",
+      ordersDataset,
+      grant,
+      query
+    )
+    return Response.json({ rows, rowCount })
+  } catch (error) {
+    if (error instanceof TypeError) {
+      return Response.json({ message: error.message }, { status: 400 })
     }
-  )
-  return Response.json(rows)
+    throw error
+  }
 }
 ```
 
-The adapter applies the user's scope to every query, checks the request as `compileQuery` does, and returns one page with the total row count, so pagination knows how many pages there are.
+The route matches the one in [server mode](/docs/data/server-mode): sign-in, the user's grant, then one page of rows with the total count, so pagination knows how many pages there are. The request is checked as `compileQuery` checks it, and a bad one throws a `TypeError`, which the route answers with a 400.
 
 ## Notes
 
-- Pliant's scope runs alongside your Postgres row-level security policies. Both apply.
-- Index the fields users sort and filter by most, and your scope columns.
-- The same limits apply as for every adapter. See [Query safety](/docs/data/query-safety).
+- Use a client created for the signed-in user, not the service role, so row-level security applies.
+- Field ids are column names. Use a Postgres view to rename columns or join tables.
+- Supabase is Postgres, so you can also use [`compileQuery`](/docs/data/postgres) with a direct database connection.
 
 ## Related
 
 - [Server mode](/docs/data/server-mode)
 - [Permissions and row security](/docs/data/permissions)
+- [Query safety](/docs/data/query-safety)

@@ -1,6 +1,6 @@
 ---
 title: Choosing a model
-description: Pick the model that answers your users' asks. Any AI SDK model works, and safety never depends on which one you choose.
+description: Which language models the ask route accepts, what to look for in one, and how answers are checked whichever model you use.
 ---
 
 The ask route works with any language model the [AI SDK](https://ai-sdk.dev) supports: Anthropic, OpenAI, Google, Mistral, models on your own servers, and more. Pass the model to `createPliantHandler`:
@@ -21,9 +21,9 @@ Asks are short, and answers are a few small tool calls, so you don't need a larg
 
 Small, fast models from the major providers handle most asks well. Try yours on your own pages with [`pliantui eval`](/docs/ai/eval).
 
-## Safety doesn't depend on the model
+## Every model's answers are checked the same way
 
-A weaker model gives worse answers, never unsafe ones. Every answer is checked against the same catalog, the same capabilities and the same guardrails, whichever model wrote it. An answer that fails the check gets one retry, then an error.
+Every answer is checked against the same catalog, the same capabilities and the same guardrails, whichever model wrote it. A weaker model gets more answers wrong or asks for clarification more often, but it can't make a change those checks reject. An answer that fails the check gets one retry, then an error.
 
 ## Recommended models
 

@@ -34,13 +34,13 @@ export const POST = createRowsHandler({
 
 ## What your function receives
 
-| Argument  | What it holds                                                                        |
-| --------- | ------------------------------------------------------------------------------------ |
-| `scope`   | The conditions every row must match for this user, or `"all"`.                       |
-| `fields`  | The fields this user may read. Return no others.                                     |
-| `sort`    | The sort, most significant first, already checked against each field's capabilities. |
-| `filters` | The filters, already checked.                                                        |
-| `page`    | The page's `index` and `size`, with `size` capped at the dataset's page limit.       |
+| Argument  | What it holds                                                                              |
+| --------- | ------------------------------------------------------------------------------------------ |
+| `scope`   | The conditions every row must match for this user, or `"all"`.                             |
+| `fields`  | The fields this user may read. Return no others.                                           |
+| `sort`    | The sort, most significant first, already checked against each field's capabilities.       |
+| `filters` | The filters, already checked.                                                              |
+| `page`    | The page's `index` and `size`, with `size` capped at `maxPageSize`, 100 unless you set it. |
 
 Return the page's `rows` and the `total` number of rows the user may see.
 
@@ -52,7 +52,7 @@ Return the page's `rows` and the `total` number of rows the user may see.
 
 ## Without fetchRows
 
-You can build the same thing yourself today with `authorizeDataset` from `@pliantui/server/data`:
+To load rows without `createRowsHandler`, call `authorizeDataset` from `@pliantui/server/data` yourself:
 
 1. Call `authorizeDataset(dataset, user)`. Answer 403 when it returns `null`.
 2. Apply every part of the grant: keep only rows matching `grant.scope` (unless it's `"all"`), return only `grant.fields`, and suppress totals over fewer than `grant.minGroupSize` rows.

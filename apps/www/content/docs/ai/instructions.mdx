@@ -48,16 +48,7 @@ export default defineConfig({
 
 ## Fields
 
-| Field      | What to write                                                  |
-| ---------- | -------------------------------------------------------------- |
-| `product`  | One or two sentences: what the app is and who uses it.         |
-| `glossary` | Words your users use, and what they mean on your pages.        |
-| `tone`     | How labels the model writes should read.                       |
-| `rules`    | Preferences for answers.                                       |
-| `surfaces` | Extra notes for one page, by surface.                          |
-| `examples` | Asks and the changes you expect, to show the model your style. |
-
-Examples are checked like any change: an example whose operations aren't valid fails `pliantui doctor`.
+Each field of `instructions`, and `examples`, is listed in the [pliant.config.ts reference](/docs/config#instructions). Examples are checked like any change: an example whose operations aren't valid fails `pliantui doctor`.
 
 ## Write them well
 

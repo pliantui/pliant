@@ -16,8 +16,8 @@ export const ordersDataset = defineDataset({
     customer: { type: "string" },
     region: { type: "enum", values: ["North", "South", "East", "West"] },
     value: { type: "currency", currency: "INR" },
-    margin: {
-      type: "percent",
+    notes: {
+      type: "text",
       access: (user: User) => user.role !== "sales",
     },
   },

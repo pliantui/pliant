@@ -3,7 +3,7 @@ title: Query safety
 description: The limits that keep any one request from reading too much, running too long or slowing your database, whatever a user or the AI asks for.
 ---
 
-Users and the AI can sort and filter your tables however they like, so every query Pliant builds is bounded. This page lists the limits, and how to set them.
+Users and the AI can sort and filter your tables however they like, so every query Pliant builds is bounded. Here's what's bounded, and which limits you can set.
 
 <Callout
   variant="warning"
@@ -27,12 +27,7 @@ compileQuery(ordersDataset, grant, query, {
 
 ## Fixed limits on every request
 
-| Limit                    | Value     |
-| ------------------------ | --------- |
-| Sort fields              | 8         |
-| Filters                  | 100       |
-| Values in an `in` filter | 100       |
-| Page number              | 1,000,000 |
+Every request also has fixed limits, such as 8 sort fields and 100 filters, so no request can ask for an unbounded sort or filter. [Limits](/docs/reference/limits#server-queries) lists them.
 
 ## Timeouts
 

@@ -1,9 +1,9 @@
 ---
 title: Permissions and row security
-description: Decide which rows and fields each user may load, on your server, so a user never receives data they shouldn't see.
+description: The scope, access and privacy options of a dataset, and how compileQuery applies them to every request on your server.
 ---
 
-Every dataset says which rows each user may load, which fields they may read, and whether they may use it at all. Pliant applies these rules on your server, to every query, total and load, so data a user mustn't see never reaches their browser.
+A sales rep in the North region should see North's orders and nothing else. You express that once, in the dataset, and Pliant applies it on your server to every query it builds, so rows and fields a user mustn't see never reach their browser.
 
 <include cwd lang="ts" meta='title="lib/datasets/orders.ts"'>
   snippets/data/permissions.ts#permissions
@@ -12,9 +12,8 @@ Every dataset says which rows each user may load, which fields they may read, an
 With this dataset:
 
 - Support staff can't use it at all.
-- Sales staff see only orders from their own org and region, and never the margin.
+- Sales staff see only orders from their own org and region, and never the notes.
 - Admins see every order.
-- No total covers fewer than five orders.
 
 ## Rows: `scope`
 
@@ -38,7 +37,17 @@ A row key field can't set `access`, because every row needs its key.
 
 ## Small groups: `privacy`
 
-`privacy.minGroupSize` is the fewest rows a total may summarize. Totals over smaller groups are suppressed, so nobody can work out a single person's salary from the average of a group of one.
+`privacy.minGroupSize` is the fewest rows a total may summarize. With `minGroupSize: 5`, a grouped table never shows the total for a customer with fewer than five orders, so nobody can work out a single order's value from the total of a group of one. Pliant suppresses those totals on your server, in client and server mode alike.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Suppressing small totals isn't in Pliant yet. Today, `authorizeDataset` puts
+  `minGroupSize` in the grant, and you apply it in any aggregate query you
+  write. Totals computed in the browser have no threshold.
+</Callout>
 
 ## Applying the rules
 
