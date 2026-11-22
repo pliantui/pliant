@@ -1,0 +1,51 @@
+---
+title: Guardrails and limits
+description: A security summary of what users can't change on a page, the size limits on every change, and why none of it is access control.
+---
+
+Guardrails stop users, team defaults and AI answers from breaking a page by mistake: hiding a status column users rely on, or moving **Delete** next to **Save**. Limits keep every change small. Both are useful, and neither is a security boundary. [Guardrails](/docs/concepts/guardrails) explains them for everyday use, and [Guardrail rules](/docs/reference/guardrails) gives the exact behaviour.
+
+## What guardrails enforce
+
+- Parts flagged `critical`, and required form fields, stay visible.
+- An action flagged `destructive` never moves closer to the `primary` action.
+- A prop value that carries meaning, such as a `destructive` variant, can only be set by your code.
+- Shortcuts can't take keys the browser, the operating system or a screen reader needs.
+- Form field defaults must pass the field's schema, and fields stay inside their form.
+- Users can hide what you built, but never delete it, and clearing their changes always brings back your page.
+
+A change that breaks a rule is skipped, and the rest of the change applies.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  `PliantRoot` doesn't apply flags yet, so in an app any part a user can see can
+  be hidden or moved. Today the flag rules apply when you pass flags to
+  `resolveLayers` or `validateOverlay` from `@pliantui/core`.
+</Callout>
+
+## Limits
+
+Every change has fixed bounds: at most 500 operations, labels of at most 80 characters, expressions of at most 128 nodes, column widths from 16 to 2,000 pixels, and so on. A change past a limit is rejected. Server-mode queries have their own caps, such as a maximum page size. [Limits](/docs/reference/limits) lists them all.
+
+## Why guardrails aren't access control
+
+Guardrails run in the user's browser, on code the user controls. A determined user can change what runs there, remove a guardrail, or read anything your server sent. Locks for team and organization defaults are the same: a policy that keeps a page consistent, not a barrier.
+
+So treat guardrails as protection against mistakes, and keep every real restriction on your server:
+
+| You want to                      | Use                                                         |
+| -------------------------------- | ----------------------------------------------------------- |
+| Keep a field from a user         | Field `access` in the [dataset](/docs/security/permissions) |
+| Keep rows from a user            | The dataset's `scope`                                       |
+| Stop a user saving team defaults | `canPublish` in the storage route                           |
+| Keep a notice on screen          | A `critical` flag, or render it outside Pliant's regions    |
+| Stop accidental deletes          | `destructive` and `primary` flags                           |
+
+## Related
+
+- [Guardrail rules](/docs/reference/guardrails)
+- [Limits](/docs/reference/limits)
+- [Locks for admins](/docs/guides/locks)

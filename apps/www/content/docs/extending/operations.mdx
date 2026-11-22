@@ -1,0 +1,73 @@
+---
+title: Custom operations
+description: Add your own operations, such as starring a record, that users and the AI can apply and that stack and save like the built-in ones.
+---
+
+Some products need a change the [built-in operations](/docs/reference/operations) don't describe, such as starring a record or marking a column as "mine". A custom operation lets you add one: users and the AI apply it like any other operation, and your component decides what it does.
+
+## Names and unknown operations
+
+A custom operation has a namespaced name, `namespace:name` with a camelCase name, such as `crm:star`. Bare names and the `pliant:` namespace belong to the built-in operations.
+
+```json
+{ "op": "crm:star", "target": "deal-card", "starred": true }
+```
+
+A manifest allows a custom operation through a namespaced capability, such as `"crm:starrable": true`. Manifests keep namespaced capabilities they don't know, so a manifest written for your extension still loads where it isn't installed.
+
+When an overlay contains a custom operation your app doesn't register, Pliant skips that operation, applies the rest, and keeps it unchanged when the overlay is saved again. It's reported as `extension-not-installed`, not as an operation that needs a newer Pliant, because updating Pliant won't fix it.
+
+## Register an operation
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  `defineOp`, the `operations` options, `useExtension` and custom operations in
+  the ask route aren't in Pliant yet. Today a custom operation is always skipped
+  as `extension-not-installed`, and the example operation above is kept as is.
+</Callout>
+
+Each custom operation writes exactly one value on its target, named `ext.<namespace>.<name>`, such as `ext.crm.star`, and that value is the operation's arguments. When several layers set it, the highest layer wins, as with any built-in property. A custom operation can't write any other property, so it can't hide a critical part, move a destructive action or get around any other [guardrail](/docs/reference/guardrails).
+
+Define the operation with the schema of its arguments, the capability a manifest must declare, and a description for the model:
+
+```ts title="lib/pliant/operations.ts"
+import * as z from "zod"
+
+import { defineOp } from "@pliantui/core"
+
+export const star = defineOp({
+  name: "crm:star",
+  capability: "crm:starrable",
+  args: z.object({ starred: z.boolean() }),
+  describe: "Stars or unstars a record card, so it shows first.",
+})
+```
+
+Pass it to `PliantRoot` and to `createPliantHandler`. The ask route offers the operation to the model only for a target whose manifest declares its capability, and checks every answer against the schema.
+
+```tsx title="app/deals/page.tsx"
+<PliantRoot surface="/deals" storage={localAdapter} operations={[star]}>
+```
+
+## Read it in your component
+
+A component reads the resolved value with `useExtension`, and decides what it means:
+
+```tsx title="components/deal-card.tsx"
+const starred = useExtension(star, "deal-card")?.starred ?? false
+```
+
+Applying the operation works like any other change: `usePliantStore().applyOps` previews it, and the user locks it in.
+
+## Choosing between a custom operation and a built-in one
+
+Use a built-in operation when one fits, because every Pliant component already renders it. Reach for a custom operation when the change is specific to your product's domain and a component of yours will render it. If the change is a calculation, a [custom function](/docs/extending/functions) is simpler.
+
+## Related
+
+- [Custom functions](/docs/extending/functions)
+- [Manifest reference](/docs/extending/manifest)
+- [Operations](/docs/concepts/operations)

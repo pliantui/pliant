@@ -1,0 +1,23 @@
+---
+title: Reporting vulnerabilities
+description: How to report a security vulnerability in Pliant privately, and what to include.
+---
+
+If you find a security vulnerability in Pliant's packages, CLI, registry components or this site, report it privately through GitHub. Don't open a public issue.
+
+1. Go to [Report a vulnerability](https://github.com/pliantui/pliant/security/advisories/new) in the repository's security tab.
+2. Describe the problem, the affected package and version, and the steps to reproduce it.
+3. Include what an attacker could do with it, if you know.
+
+Every legitimate report is investigated, and the maintainers aim to fix confirmed problems quickly. The repository's [security policy](https://github.com/pliantui/pliant/blob/main/SECURITY.md) has the full process.
+
+## What counts as a vulnerability
+
+Report anything that lets someone get past a control on the [threat model](/docs/security/threat-model), such as reading rows outside their scope, getting a script into a stored change, or making the model receive row data.
+
+A guardrail that a user gets past by changing code in their own browser isn't a vulnerability, because guardrails aren't a security boundary. A guardrail that a stored change, a share link or an AI answer gets past is a bug, so open an issue for it.
+
+## Related
+
+- [Security and privacy](/docs/security)
+- [Threat model](/docs/security/threat-model)

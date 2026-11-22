@@ -1,0 +1,64 @@
+---
+title: The contract
+description: An overview of Pliant's data format, covering overlays, operations, expressions, manifests and stored records, and the rules that keep it compatible across versions.
+---
+
+The **contract** is Pliant's data format: the JSON that describes users' changes and the components they change. Everything Pliant stores, shares or accepts from a model is written in it. Because it's plain JSON with published schemas, other tools and other languages can read and write it too.
+
+The contract is defined in `@pliantui/contract` as Zod schemas and catalogs, and published as [JSON Schemas](/docs/registry/json-schemas).
+
+## The parts
+
+| Part                   | What it describes                                                                                                      | Reference                                         |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Surfaces and addresses | A surface is a page or screen, such as `/orders`. An address names a part of it, such as `orders-table/columns/status` | [Surfaces](/docs/concepts/surfaces)               |
+| Overlays               | One set of changes, for one surface and one layer                                                                      | [Overlay format](/docs/reference/overlay)         |
+| Layers                 | Who an overlay belongs to: `org`, `team`, `personal` or `session`, applied in that order                               | [Overlays and layers](/docs/concepts/layers)      |
+| Operations             | The fixed catalog of changes an overlay can contain                                                                    | [Operation reference](/docs/reference/operations) |
+| Expressions            | Calculations as JSON trees over a fixed list of functions                                                              | [Expression rules](/docs/reference/expressions)   |
+| Manifests              | What a component lets users change                                                                                     | [Manifest reference](/docs/extending/manifest)    |
+| Stored overlays        | An overlay as storage keeps it, with its etag, version and timestamps                                                  | [Overlay format](/docs/reference/overlay)         |
+| Saved views            | A named set of overlays for one surface                                                                                | [JSON Schemas](/docs/registry/json-schemas)       |
+
+A small overlay that sorts the orders table looks like this:
+
+```json
+{
+  "v": 1,
+  "id": "01JD5Z8Q9W3X4Y5Z6A7B8C9D0E",
+  "surface": "/orders",
+  "layer": "personal",
+  "ops": [
+    {
+      "op": "setSort",
+      "target": "orders-table",
+      "sort": [{ "field": "value", "dir": "desc" }]
+    }
+  ],
+  "basis": { "contract": 1, "core": "0.0.0", "manifests": {} },
+  "source": "manual",
+  "createdBy": "user_123",
+  "createdAt": "2026-11-20T09:30:00Z"
+}
+```
+
+## How compatibility works
+
+The contract has a version, recorded in every overlay's `basis.contract`, and it's `1`. Within contract 1, changes are additive, so data written by one version of Pliant keeps working in another:
+
+- New operations, fields and functions can be added. Readers ignore keys they don't know, and keep them when they save the data again.
+- An operation from a newer version, or one Pliant doesn't know, is kept unchanged and skipped, and the rest of its overlay still applies. An overlay is never thrown away because of one operation.
+- Names and documented meanings don't change. A different behaviour gets a new name.
+- Bare names and the `pliant:` namespace belong to Pliant. Extensions use their own namespace, such as `acme:rating`, for component kinds, functions, views, controls and operations.
+
+Stored changes and AI answers are treated differently. A saved overlay loads leniently, applying what it can. An AI answer or an import is accepted only when every operation in it is valid.
+
+## What the contract doesn't cover
+
+The contract is data only. How a component renders an operation, the storage adapter interface and the ask route's request shape belong to `@pliantui/react` and `@pliantui/server`, and can change with those packages.
+
+## Related
+
+- [JSON Schemas](/docs/registry/json-schemas)
+- [Implementing Pliant in other languages](/docs/registry/other-languages)
+- [@pliantui/contract](/docs/reference/contract)

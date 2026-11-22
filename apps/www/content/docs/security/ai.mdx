@@ -1,0 +1,50 @@
+---
+title: What the AI sees
+description: A security summary of what Pliant sends to the model when a user asks for a change, what it never sends, and what an answer can do.
+---
+
+When a user asks for a change, your server sends the model a description of the part of the page they pointed at and the text of their ask. It never sends rows. [What the AI sees and never sees](/docs/ai/what-the-ai-sees) shows the exact payload; this page covers what matters for a security review.
+
+## Sent to the model
+
+- The address, kind and description of the part the user pointed at.
+- The ids and labels of its items, such as columns or cards.
+- The fields it can sort and filter by, with their types and, for `enum` fields, their values.
+- The current sort and filters, including filter values the user typed.
+- The user's ask.
+
+## Never sent
+
+- Rows of data.
+- The user's id, name, email or any other detail about them.
+- Your code, other pages, or other users' asks.
+
+## What to review
+
+- Enum values and current filter values reach the model. If the values of a field are sensitive, such as customer names used as an enum, make it a `string` field or set `exposeToAI: false` on it.
+- Labels and descriptions reach the model, so keep them about the page.
+- `pliantui doctor` lists every dataset field the AI is told about, and warns about fields that look sensitive, such as an email, phone number or salary.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The ask route doesn't build a target's fields from your datasets yet, so
+  `exposeToAI: false` and field permissions don't filter what the model is
+  told. Today it sends each target's `fields` exactly as you write them. Build
+  them with `describeDataset(dataset, { user, audience: "ai" })` to leave out
+  hidden and restricted fields.
+</Callout>
+
+## What an answer can do
+
+The model can only propose operations, and only those the target's manifest allows. It can't read or change data, call your APIs or run code. Asks to act on data, such as "refund this order", are turned away.
+
+Every answer is checked on your server, then again in the browser, and shown as a preview. Nothing is saved until the user locks it in. The user's ask and your labels reach the model as data inside JSON, so text that tries to give the model new instructions arrives as text, and the worst it can produce is an operation the user could have made by hand.
+
+## Related
+
+- [What the AI sees and never sees](/docs/ai/what-the-ai-sees)
+- [Choosing a model](/docs/ai/models)
+- [Threat model](/docs/security/threat-model)

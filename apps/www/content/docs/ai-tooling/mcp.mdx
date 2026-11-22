@@ -1,0 +1,55 @@
+---
+title: MCP server
+description: Connect your coding agent to Pliant's MCP server to browse the registry, read schemas and catalogs, and validate overlays without leaving the editor.
+---
+
+The Model Context Protocol (MCP) lets a coding agent call tools that a server provides. Pliant's MCP server gives your agent the registry, the JSON Schemas, the operation and function catalogs, and a validator, so it can look up exact rules instead of guessing them.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how the MCP server will work. `pliantui mcp` isn't in Pliant
+  yet. Today, agents can read these docs and the skills from `pliantui skills
+  add`.
+</Callout>
+
+## Set it up
+
+Run the server with `npx pliantui mcp`. Most agents read the server from a config file in your project. For Claude Code, add it to `.mcp.json`:
+
+```json title=".mcp.json"
+{
+  "mcpServers": {
+    "pliant": {
+      "command": "npx",
+      "args": ["pliantui", "mcp"]
+    }
+  }
+}
+```
+
+Cursor reads the same shape from `.cursor/mcp.json`, and VS Code from `.vscode/mcp.json` under `servers`. The server runs on your machine, reads your project's `components.json` and `pliant.config.ts`, and sends nothing anywhere else.
+
+## Tools
+
+| Tool               | What it gives the agent                                                            |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `list_components`  | The components in the Pliant registry, with their descriptions                     |
+| `get_component`    | One component's files, dependencies and manifest, and the command that installs it |
+| `get_schema`       | A JSON Schema: overlay, op, manifest, saved view or stored overlay                 |
+| `get_op`           | One operation's arguments, capability and example                                  |
+| `get_function`     | One function's signature, semantics and handling of null                           |
+| `validate_overlay` | Whether an overlay is valid, with readable errors                                  |
+| `search_docs`      | Matching docs pages, as Markdown                                                   |
+
+## With the shadcn MCP server
+
+The shadcn MCP server browses and installs from any registry in your `components.json`. Add the Pliant registry there, as [Installing from the Pliant registry](/docs/registry) shows, and it lists Pliant's components next to shadcn's. Pliant's server adds what shadcn's doesn't know about: schemas, catalogs and validation.
+
+## Related
+
+- [Agent skills](/docs/ai-tooling/skills)
+- [llms.txt](/docs/ai-tooling/llms-txt)
+- [JSON Schemas](/docs/registry/json-schemas)

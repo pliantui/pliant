@@ -1,0 +1,82 @@
+---
+title: Troubleshooting
+description: Fixes for the warnings and errors Pliant prints, and for changes that don't show, don't save or don't apply.
+---
+
+Start with `npx pliantui doctor`. It checks your setup and prints how to fix each problem it finds, and it's safe to run as often as you like. The sections below cover the messages Pliant prints in the browser console and the ask panel, in development.
+
+## Errors
+
+### "must be used within a PliantRoot"
+
+A Pliant hook or component rendered outside a `PliantRoot`. Wrap the route, or the part of the page that uses Pliant, in `PliantRoot` with a `surface`.
+
+### "PliantRoot needs `storage`"
+
+`storage` is required. Pass `localAdapter` from `@pliantui/react/local` to keep changes in the browser, or `serverAdapter(...)` to keep them on your server:
+
+```tsx
+<PliantRoot surface="/orders" storage={localAdapter}>
+```
+
+## Warnings in the console
+
+### "two mounted regions use the id …"
+
+Region ids must be unique within a surface. Give each `PliantRegion` its own `id`. The same applies to slot ids across regions on one surface.
+
+### "region … has a slot … Slot ids must be kebab-case"
+
+Slot keys must be kebab-case and start with a letter, such as `overdue-orders`. Keys that look like numbers, such as `"1"`, change the order JavaScript keeps them in, so the base order would differ from what you wrote.
+
+### "column … has an id ops can't name, so its state isn't saved"
+
+Column ids may contain only letters, digits, `-` and `_`, and must start with a letter. A column with an `accessorKey` such as `customer.name` gets an id with a dot. Give it an explicit `id`, such as `customerName`.
+
+### "the state passed to … changes on every render, so Pliant stopped syncing it"
+
+You passed `usePliantTable` state that's a new object on every render, such as an inline `{ sorting: [] }`. Define it outside the component, or keep it in `useState`.
+
+### "the filter on column … isn't applied"
+
+The column has its own `filterFn`, which only reads `custom` filters. Remove the `filterFn` to use Pliant's operators, or set filters on that column with the `custom` operator.
+
+### "mounted on the surface …, but the surface's inventory doesn't list it"
+
+The inventory from `pliantui scan` is out of date. Run `npx pliantui scan` again. If it's current, the scan couldn't follow how the node is rendered; see [what scan reads](/docs/cli/scan).
+
+## The ask panel
+
+| Message                                    | What to do                                                                                 |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| "Sign in to ask" (401)                     | Your `getUser` returned `null`. Check that the request carries the user's session          |
+| "The body must be application/json" (415)  | Send the ask with `content-type: application/json`. `pliant-ask-panel` does this for you   |
+| "The request is too large" (413)           | Asks are capped at 32 KB. Trim the target's description, items or fields                   |
+| "The model took too long to answer" (504)  | The model call passed `timeout`, 15 seconds by default. Raise it, or choose a faster model |
+| "The model couldn't answer this ask" (502) | The provider failed. Your `onError` receives the cause                                     |
+
+## Changes don't show
+
+- If a change applies to the wrong part, or to none, check its address. `pliantui scan` lists every region, slot, column and field on each page with its address.
+- If a team default doesn't show, the user may have changed the same thing: a personal change to the same property wins over a team one. Reset the part to see the team default.
+- If a calculated column, total or highlight doesn't show, pass the table's `dataset` to `usePliantTable`, with each field's type, so Pliant can check and compute expressions.
+- If a part that should stay visible was hidden, check that its flags reach the code that resolves changes. See [Guardrails](/docs/concepts/guardrails#protecting-parts-of-a-page).
+
+## Changes don't save
+
+- With `localAdapter`, changes are saved in `localStorage`, per browser and origin. A private window starts empty, and clearing site data removes them.
+- With `serverAdapter`, check your storage route in the browser's network panel. A 401 means `getUser` returned `null`, and a 403 on a team or organization layer means `canPublish` refused or the user isn't a member.
+- Page numbers are never saved, by design. Filters are saved only with `persistFilters`.
+
+## The layout flashes on load
+
+Add `PliantPrePaint` with the same `surface` as `PliantRoot`, so changes saved in the browser apply before the first paint. With server storage, load the user's layers on the server and pass them to `PliantRoot`. See [Rendering modes](/docs/concepts/rendering).
+
+## Still stuck
+
+Search the [GitHub issues](https://github.com/pliantui/pliant/issues), or open one with the message you see and what you expected.
+
+## Related
+
+- [`pliantui doctor`](/docs/cli/doctor)
+- [FAQ](/docs/faq)

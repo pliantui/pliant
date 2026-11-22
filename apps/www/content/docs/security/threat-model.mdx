@@ -1,0 +1,56 @@
+---
+title: Threat model
+description: The threats Pliant is designed against, the control for each, and the threats that stay your responsibility.
+---
+
+This page lists what an attacker, a careless user or a misbehaving model could try through Pliant, and what stops each attempt. Use it when you review an integration or answer a security questionnaire.
+
+## Assumptions
+
+- Your server authenticates users, and `getUser` returns only a signed-in user.
+- Your datasets declare `access` and `scope` correctly.
+- The browser is under the user's control. Anything sent to it can be read, and any code in it can be changed.
+- The model is untrusted: its answers are treated like input from the user.
+
+## Threats and controls
+
+| Threat                                            | Control                                                                                                                                           |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| An ask tries to read data the user may not see    | The model never sees rows, and can only propose display operations. Rows come from your server, scoped to the user                                |
+| Restricted fields reach the browser               | Fields a user may not read are left out of what your server sends                                                                                 |
+| A change or share link carries a script or markup | Changes are operations from a fixed catalog, validated on your server and in the browser. Labels are plain text                                   |
+| An expression runs code                           | Expressions are interpreted from a fixed function list. Nothing is passed to `eval` or `new Function`                                             |
+| A filter value injects SQL                        | `compileQuery` builds parameterized queries                                                                                                       |
+| Text in an ask or a label instructs the model     | Asks and labels are passed as data inside JSON. The worst outcome is an operation the user could make by hand, shown as a preview                 |
+| A user saves a team or organization default       | The storage route saves to those layers only when `canPublish` allows                                                                             |
+| A forged author on a stored change                | The storage route records the signed-in user as the author of each version                                                                        |
+| A cross-site form spends a user's model budget    | The ask route accepts only JSON bodies                                                                                                            |
+| Oversized requests                                | Ask bodies are capped at 32 KB, overlays at 500 operations, and server-mode pages at `maxPageSize` rows                                           |
+| A totals view reveals a single row's value        | `privacy.minGroupSize` suppresses totals over too few rows                                                                                        |
+| Endpoint abuse runs up model costs                | Per-user request and daily token limits on the ask route                                                                                          |
+| Sensitive enum values or labels reach the model   | `exposeToAI: false` and field permissions remove fields from what the model is told, and `pliantui doctor` warns about fields that look sensitive |
+| A role change leaves a user with access they lost | Permissions are checked on every request, not cached in overlays                                                                                  |
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Three controls in this table aren't in Pliant yet: suppressing small totals
+  with `minGroupSize`, the built-in request and token limits, and building the
+  model's field list from datasets so `exposeToAI` and field permissions apply.
+  Until then, apply `minGroupSize` in your own aggregate queries, rate limit the
+  ask route yourself, and build each target's fields with `describeDataset`.
+</Callout>
+
+## Not in scope
+
+- Hiding parts of the page from a user. Guardrails and locks run in the browser and prevent mistakes, not determined users. See [Guardrails and limits](/docs/security/guardrails).
+- Authentication, sessions and CSRF protection for your own routes.
+- Rate limiting and quotas on the storage route.
+- What your model provider does with the asks it receives.
+
+## Related
+
+- [Security and privacy](/docs/security)
+- [Reporting vulnerabilities](/docs/security/reporting)

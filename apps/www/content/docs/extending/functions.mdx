@@ -1,0 +1,96 @@
+---
+title: Custom functions
+description: Add your own functions to expressions, such as a business-day count, typed and evaluated like the built-in ones.
+---
+
+When the [built-in functions](/docs/reference/functions) don't cover a calculation your users need, such as the number of business days between two dates, you can add your own. A custom function is typed like a built-in one, so users and the AI can use it in calculated columns, totals and highlights, and Pliant still checks every expression before computing it.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how custom functions will work. `defineFunction` and the
+  `functions` options aren't in Pliant yet. Today, an expression that calls a
+  namespaced function such as `acme:businessDays` passes validation and is
+  saved, but a table skips it, because the function is unknown.
+</Callout>
+
+## Define a function
+
+A custom function has a namespaced name, `namespace:camelCase`, such as `acme:businessDays`. Bare names and the `pliant:` namespace belong to the built-in functions. The rest of the definition has the same shape as an entry in `functionCatalog`, plus the code that computes it.
+
+```ts title="lib/pliant/functions.ts"
+import { defineFunction } from "@pliantui/core"
+
+export const businessDays = defineFunction({
+  name: "acme:businessDays",
+  kind: "row",
+  args: [
+    { name: "start", type: ["date", "datetime"] },
+    { name: "end", type: ["date", "datetime"] },
+  ],
+  returns: "integer",
+  unit: "none",
+  nulls: "propagate",
+  describe:
+    "The number of weekdays from start to end, counting start but not end.",
+  evaluate: (start, end) => countWeekdays(start, end),
+})
+```
+
+| Field      | What it sets                                                                                   |
+| ---------- | ---------------------------------------------------------------------------------------------- |
+| `kind`     | `row`, `aggregate` or `window`                                                                 |
+| `args`     | Each argument's name and type, as in the [function reference](/docs/reference/functions)       |
+| `returns`  | The result type                                                                                |
+| `unit`     | The result's unit: `none`, `percent`, or the unit of an argument                               |
+| `nulls`    | `propagate` to return `null` when an argument is `null`, or `custom` to receive nulls yourself |
+| `describe` | What it returns, in one or two sentences. The model reads this, so be exact                    |
+| `evaluate` | The code that computes it. It must be pure: the same arguments always give the same result     |
+
+An aggregate function takes `evaluate` over the group's values instead of one row's. Window functions also get the partition.
+
+## Register it
+
+Pass your functions to `PliantRoot`, so tables can compute them in the browser, and to `createPliantHandler`, so the ask panel can offer them to the model:
+
+```tsx title="app/orders/page.tsx"
+<PliantRoot surface="/orders" storage={localAdapter} functions={[businessDays]}>
+```
+
+```ts title="app/api/pliant/route.ts"
+export const POST = createPliantHandler({
+  model,
+  getUser,
+  functions: [businessDays],
+})
+```
+
+An expression can then call it like any other function:
+
+```json
+{
+  "op": "addDerived",
+  "target": "orders-table",
+  "id": "days-open",
+  "label": "Business days open",
+  "expr": {
+    "fn": "acme:businessDays",
+    "args": [{ "field": "createdAt" }, { "fn": "today", "args": [] }]
+  }
+}
+```
+
+## What stays safe
+
+- A custom function only computes a value from its arguments. It can't read other rows, fetch data or change anything, and Pliant calls it only with values the user may already see.
+- Expressions that call it are type-checked against its signature before they run, just like built-in calls.
+- An overlay that uses a function your app doesn't register still loads and saves unchanged. The calculation that needs it is skipped and the rest of the overlay applies, so removing a function never breaks a user's page.
+- In server mode, your database computes expressions, so a custom function works only on the rows loaded in the browser, unless your data adapter can translate it.
+
+## Related
+
+- [Expressions and functions](/docs/concepts/expressions)
+- [Function reference](/docs/reference/functions)
+- [Expression rules](/docs/reference/expressions)

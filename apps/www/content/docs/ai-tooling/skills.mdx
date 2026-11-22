@@ -1,0 +1,48 @@
+---
+title: Agent skills
+description: Give your coding agent Pliant's skills, so it can set up Pliant, make tables customizable and configure storage the way the docs describe.
+---
+
+Pliant ships skills for coding agents such as Claude Code, Codex, Cursor and GitHub Copilot. A **skill** is a folder with a `SKILL.md` file of instructions, which the agent loads when your request matches the skill's description. With Pliant's skills, an agent asked to "make this table customizable" follows the same steps as the docs instead of guessing.
+
+## Add the skills
+
+```bash
+npx pliantui skills add
+```
+
+This copies the skills into `.claude/skills` when your project has a `.claude` folder, and into `.agents/skills` otherwise. Pass `--dir .github/skills` for GitHub Copilot. Run it again after you update `pliantui` to refresh them. [`pliantui skills`](/docs/cli/skills) lists every option.
+
+## The skills
+
+| Skill     | Your agent uses it to                                                                                            |
+| --------- | ---------------------------------------------------------------------------------------------------------------- |
+| `setup`   | Add Pliant to a Next.js app with shadcn/ui, wrap a page in `PliantRoot`, add a region, and check it works        |
+| `tables`  | Make a data table customizable: column ids, the toolbar's filters, sort options and presets, grouping and totals |
+| `storage` | Choose where users' changes are stored, and set up server storage with team and organization defaults            |
+
+Each skill links to the docs pages it follows, so the agent can read more when your case differs.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  These skills aren't in `pliantui` yet: `forms`, `navigation`, `actions`,
+  `dialogs`, `data` (datasets, permissions and database adapters), `extending`
+  (custom functions, views, controls and operations), `maintenance` (renames,
+  upgrades and `doctor`) and `security-review` (a permissions and data-exposure
+  checklist for your integration).
+</Callout>
+
+## Tips
+
+- Ask for one thing at a time, such as "make the orders table customizable", so the agent loads the right skill.
+- Let the agent run `npx pliantui doctor` after a change. It prints exact fixes, and it's safe to run as often as needed.
+- Keep the skills in version control, so everyone on your team gets the same instructions.
+
+## Related
+
+- [`pliantui skills`](/docs/cli/skills)
+- [MCP server](/docs/ai-tooling/mcp)
+- [llms.txt](/docs/ai-tooling/llms-txt)

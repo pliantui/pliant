@@ -1,0 +1,525 @@
+---
+title: Operation reference
+description: Every operation in the catalog, with its arguments, the capability it needs, an example, and the components that render it.
+---
+
+An overlay is a list of operations, or ops, from this catalog and nothing else. Each entry gives the op's arguments and the capability the component's manifest must allow. [Operations](/docs/concepts/operations) explains how ops are checked and stacked.
+
+Every op has an `op` name and a `target` [address](/docs/concepts/surfaces). Ops on an item, such as a column, a slot or a field, target the item, and the capability is checked on the item's parent. Ops on a whole node target the node. Every op is allowed in every layer, except `setPage`, which is allowed only in the `session` layer.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Every op on this page validates, loads, saves and stacks today, but Pliant's
+  components don't render all of them yet. The ones without a renderer are
+  `setProp`, `rename`, `setPresentation`, `setSize`, `promote`, `demote`,
+  `bindShortcut`, `formatField`, `setViewKind`, `configureChart`,
+  `configureStat`, `setDensity`, `setTextScale` and `setMotion`. An `insert`
+  shows a placeholder instead of its chart, stat or list, and the table toolbar
+  doesn't render the `range` and `date-range` filter controls. The ask panel
+  offers the model only `setSort`, `setFilter`, `clearFilter`, `hide`, `show`,
+  `move`, `pin`, `setColumnWidth` and `setLayout`.
+</Callout>
+
+## Any component
+
+### `setProp`
+
+Sets one of a component's props to a value its manifest lists. Values the manifest marks `semantic` can't be set. Needs `props`.
+
+```json
+{
+  "op": "setProp",
+  "target": "key-metrics/slots/revenue",
+  "prop": "variant",
+  "value": "outline"
+}
+```
+
+| Argument | Type                           |
+| -------- | ------------------------------ |
+| `prop`   | A camelCase prop name          |
+| `value`  | A string of 1 to 64 characters |
+
+### `rename`
+
+Gives a part a new label, as plain text. Needs `label`.
+
+```json
+{
+  "op": "rename",
+  "target": "orders-table/columns/value",
+  "label": "Order value"
+}
+```
+
+`label` is plain text of up to 80 characters.
+
+### `hide`
+
+Hides a part. It stays on the page, unseen, and `show` brings it back. Needs `hideable`.
+
+```json
+{ "op": "hide", "target": "orders-table/columns/notes" }
+```
+
+### `show`
+
+Shows a part that a lower layer hid. Needs `hideable`.
+
+```json
+{ "op": "show", "target": "orders-table/columns/notes" }
+```
+
+## Structure
+
+### `move`
+
+Moves an item before or after another item, to an index, or into another node. Moving into another node works only for a slot outside a [template](/docs/concepts/surfaces), and never into itself. Needs `slots` on the parent.
+
+```json
+{
+  "op": "move",
+  "target": "key-metrics/slots/overdue",
+  "to": { "before": "revenue" }
+}
+```
+
+`to` is `{ "before": id }`, `{ "after": id }`, `{ "index": n }` or `{ "into": address }`.
+
+### `collapse`
+
+Folds items into a "More" section, an accordion or tabs. `into: "none"` undoes a lower layer's collapse of the same items. Needs `slots`.
+
+```json
+{
+  "op": "collapse",
+  "target": "ticket-form",
+  "items": ["cc", "tags"],
+  "into": "more",
+  "label": "More fields"
+}
+```
+
+| Argument | Type                                    |
+| -------- | --------------------------------------- |
+| `items`  | 1 to 32 item ids                        |
+| `into`   | `more`, `accordion`, `tabs` or `none`   |
+| `label`  | Optional label, not allowed with `none` |
+
+### `pin`
+
+Pins an item to the start or end of its container, makes it sticky, or undoes a lower layer's pin with `none`. Needs `slots` on the parent.
+
+```json
+{ "op": "pin", "target": "orders-table/columns/customer", "where": "start" }
+```
+
+### `setLayout`
+
+Lays a node's children out as a stack, a row or a grid, at one breakpoint or all. Needs `layout`.
+
+```json
+{
+  "op": "setLayout",
+  "target": "key-metrics",
+  "mode": "grid",
+  "columns": 2,
+  "at": "md"
+}
+```
+
+| Argument  | Type                                              |
+| --------- | ------------------------------------------------- |
+| `mode`    | `stack`, `row` or `grid`                          |
+| `columns` | 1 to 4, only in `grid` mode                       |
+| `align`   | Optional: `start`, `center`, `end` or `between`   |
+| `at`      | Optional: `base`, `sm`, `md`, `lg`, `xl` or `2xl` |
+
+### `span`
+
+Makes an item span 1 to 4 columns of its parent's grid, at one breakpoint or all. Needs `layout` on the parent.
+
+```json
+{ "op": "span", "target": "key-metrics/slots/revenue", "columns": 2 }
+```
+
+### `insert`
+
+Adds a chart, stat or list over a dataset the surface already shows, or a node of a [registered kind](/docs/extending/views). Needs `insertable`.
+
+```json
+{
+  "op": "insert",
+  "target": "key-metrics",
+  "node": {
+    "id": "revenue-by-region",
+    "kind": "chart",
+    "dataset": "orders",
+    "label": "Revenue by region"
+  },
+  "at": { "after": "revenue" }
+}
+```
+
+`node` has a kebab-case `id`, a `kind`, a `dataset` (required for `chart`, `stat` and `list`) and an optional `label`. `at` places it like `move`'s `to`, without `into`.
+
+### `wrap`
+
+Groups 2 to 12 items into a new section with its own layout. The new section has its own `id`, so later ops can target it. Needs `insertable`.
+
+```json
+{
+  "op": "wrap",
+  "target": "key-metrics",
+  "id": "money",
+  "items": ["revenue", "refunds"],
+  "mode": "row"
+}
+```
+
+### `remove`
+
+Removes a node that a user, team or organization added with `insert` or `wrap`, from the layer that added it. Parts you built can only be hidden. Needs `insertable` on the parent.
+
+```json
+{ "op": "remove", "target": "money" }
+```
+
+## Forms and defaults
+
+### `setDefault`
+
+Without `prop`, sets a form field's default value, which must pass the field's schema; this needs `form` on the form. With `prop`, sets one of a component's declared default states, such as a tab's `defaultValue`, to a value its manifest allows; this needs `defaults`.
+
+```json
+{ "op": "setDefault", "target": "ticket-form/fields/priority", "value": "high" }
+```
+
+## Presentation
+
+### `setPresentation`
+
+Shows a node as a dialog, a sheet, a drawer or a page. A sheet or drawer can take a `side`: `top`, `end`, `bottom` or `start`, where `start` and `end` follow the writing direction. Needs `presentation`.
+
+```json
+{
+  "op": "setPresentation",
+  "target": "order-details",
+  "as": "sheet",
+  "side": "end"
+}
+```
+
+### `setSize`
+
+Sets the size of a dialog, sheet or drawer: `sm`, `md`, `lg`, `xl` or `full`. Needs `presentation`.
+
+```json
+{ "op": "setSize", "target": "order-details", "size": "lg" }
+```
+
+## Navigation
+
+### `setLanding`
+
+Makes a nav item the page a user lands on. Needs `nav` on the nav.
+
+```json
+{ "op": "setLanding", "target": "app-sidebar/items/reports" }
+```
+
+## Actions
+
+### `promote`
+
+Moves an action out of the overflow menu into the toolbar. Needs `actions` on its parent.
+
+```json
+{ "op": "promote", "target": "orders-toolbar/actions/export" }
+```
+
+### `demote`
+
+Moves an action from the toolbar into the overflow menu. Needs `actions` on its parent.
+
+```json
+{ "op": "demote", "target": "orders-toolbar/actions/print" }
+```
+
+### `bindShortcut`
+
+Binds a keyboard shortcut to an action. `keys` lists modifiers in the order `mod` or `ctrl`, `alt`, `shift`, `meta`, then one key, joined by `+`. Reserved keys are skipped; see [Guardrail rules](/docs/reference/guardrails#shortcuts-dont-take-reserved-keys). Needs `actions` on its parent.
+
+```json
+{
+  "op": "bindShortcut",
+  "target": "orders-toolbar/actions/export",
+  "keys": "mod+shift+e"
+}
+```
+
+## Data
+
+All data ops need `data`, and target the table, chart, stat or list, except `setColumnWidth`, which targets a column. Field ids in data ops name dataset fields, which aren't always visible columns.
+
+### `setSort`
+
+Sorts by up to 8 fields, each once. An empty list clears the sort. Text sorts by locale-aware collation.
+
+```json
+{
+  "op": "setSort",
+  "target": "orders-table",
+  "sort": [{ "field": "value", "dir": "desc" }]
+}
+```
+
+### `setFilter`
+
+Sets the filter on one field, replacing any earlier filter on it. [Expression rules](/docs/reference/expressions#filters) lists the operators.
+
+```json
+{
+  "op": "setFilter",
+  "target": "orders-table",
+  "filter": {
+    "field": "status",
+    "operator": "in",
+    "value": ["overdue", "pending"]
+  }
+}
+```
+
+### `clearFilter`
+
+Clears the filter on one field.
+
+```json
+{ "op": "clearFilter", "target": "orders-table", "field": "status" }
+```
+
+### `setPage`
+
+Moves to a page, and optionally sets the page size (1 to 1,000). Allowed only in the `session` layer, so a page number is never saved.
+
+```json
+{ "op": "setPage", "target": "orders-table", "index": 2, "size": 50 }
+```
+
+### `setGroupBy`
+
+Groups rows by up to 4 fields. An empty list clears the grouping.
+
+```json
+{ "op": "setGroupBy", "target": "orders-table", "fields": ["region"] }
+```
+
+### `addDerived`
+
+Adds a calculated column from a row [expression](/docs/reference/expressions), with an optional display format.
+
+```json
+{
+  "op": "addDerived",
+  "target": "orders-table",
+  "id": "share",
+  "label": "Share of value",
+  "expr": { "fn": "share", "args": [{ "field": "value" }] },
+  "format": { "type": "percent", "decimals": 1 }
+}
+```
+
+### `addAggregate`
+
+Adds a total for each group and for the whole table, from an aggregate expression.
+
+```json
+{
+  "op": "addAggregate",
+  "target": "orders-table",
+  "id": "total-value",
+  "label": "Total value",
+  "expr": { "fn": "sum", "args": [{ "field": "value" }] }
+}
+```
+
+### `formatField`
+
+Sets how a field's values display: as a number, percent, currency or date.
+
+```json
+{
+  "op": "formatField",
+  "target": "orders-table",
+  "field": "createdAt",
+  "format": { "type": "date", "style": "relative" }
+}
+```
+
+| Format     | Options                                                            |
+| ---------- | ------------------------------------------------------------------ |
+| `number`   | `decimals` (0 to 10), `notation` (`standard` or `compact`), `unit` |
+| `percent`  | `decimals`                                                         |
+| `currency` | `currency` (an ISO 4217 code), `display`, `decimals`               |
+| `date`     | `style` (`short`, `medium`, `long`, `full` or `relative`), `time`  |
+
+### `addHighlight`
+
+Gives rows a tone, `emphasis`, `success`, `warning` or `danger`, when a row expression is true.
+
+```json
+{
+  "op": "addHighlight",
+  "target": "orders-table",
+  "id": "large-orders",
+  "when": { "fn": "gt", "args": [{ "field": "value" }, { "value": 100000 }] },
+  "tone": "emphasis"
+}
+```
+
+### `addSortOption`
+
+Adds a named choice to the table toolbar's sort menu.
+
+```json
+{
+  "op": "addSortOption",
+  "target": "orders-table",
+  "id": "largest",
+  "label": "Largest first",
+  "sort": [{ "field": "value", "dir": "desc" }]
+}
+```
+
+### `addFilterControl`
+
+Adds a filter control for one field to the table toolbar: `select`, `multi-select`, `search`, `range`, `date-range`, `toggle`, or a [registered control](/docs/extending/controls).
+
+```json
+{
+  "op": "addFilterControl",
+  "target": "orders-table",
+  "id": "region-filter",
+  "field": "region",
+  "control": "multi-select",
+  "label": "Region"
+}
+```
+
+### `addPreset`
+
+Adds a named set of 1 to 8 filters, and optionally a sort, to the toolbar's presets menu.
+
+```json
+{
+  "op": "addPreset",
+  "target": "orders-table",
+  "id": "needs-follow-up",
+  "label": "Needs follow-up",
+  "filters": [{ "field": "status", "operator": "eq", "value": "overdue" }],
+  "sort": [{ "field": "value", "dir": "desc" }]
+}
+```
+
+### `setViewKind`
+
+Shows the data as a `table`, `chart`, `stat` or `list`, or as a [registered view](/docs/extending/views).
+
+```json
+{ "op": "setViewKind", "target": "orders-table", "kind": "chart" }
+```
+
+### `configureChart`
+
+Sets a chart's type, axes, series and stacking.
+
+```json
+{
+  "op": "configureChart",
+  "target": "revenue-chart",
+  "type": "bar",
+  "x": "region",
+  "y": ["value"],
+  "stacking": "stacked",
+  "series": "status"
+}
+```
+
+| Argument   | Type                                              |
+| ---------- | ------------------------------------------------- |
+| `type`     | `area`, `bar`, `line`, `pie`, `radar` or `radial` |
+| `x`        | The field along the x axis                        |
+| `y`        | 1 to 8 fields to plot                             |
+| `series`   | Optional field that splits the data into series   |
+| `stacking` | Optional: `none`, `stacked` or `percent`          |
+| `format`   | Optional display format for the values            |
+
+### `configureStat`
+
+Sets which value a stat card shows, and optionally a comparison with another value, as a difference or a percent.
+
+```json
+{
+  "op": "configureStat",
+  "target": "revenue-stat",
+  "metric": "total-value",
+  "comparison": { "metric": "last-month", "display": "percent" }
+}
+```
+
+### `removeUserItem`
+
+Removes a calculated column, total, highlight, sort option, filter control or preset that the same layer added, by its id.
+
+```json
+{ "op": "removeUserItem", "target": "orders-table", "id": "share" }
+```
+
+### `setColumnWidth`
+
+Sets a column's width, from 16 to 2,000 pixels, clamped to the column's own `minSize` and `maxSize`. Targets the column.
+
+```json
+{
+  "op": "setColumnWidth",
+  "target": "orders-table/columns/customer",
+  "width": 240
+}
+```
+
+## Preferences
+
+These need no capability.
+
+### `setDensity`
+
+Sets the spacing of a whole surface: `compact`, `default` or `comfortable`. Targets `@surface`.
+
+```json
+{ "op": "setDensity", "target": "@surface", "density": "compact" }
+```
+
+### `setTextScale`
+
+Scales text across the app: `1`, `1.125`, `1.25` or `1.5`. Targets `@app`, in an overlay whose surface is `@app`.
+
+```json
+{ "op": "setTextScale", "target": "@app", "scale": 1.25 }
+```
+
+### `setMotion`
+
+Sets animation across the app to `full` or `reduced`. Targets `@app`, in an overlay whose surface is `@app`.
+
+```json
+{ "op": "setMotion", "target": "@app", "motion": "reduced" }
+```
+
+## Related
+
+- [Operations](/docs/concepts/operations)
+- [Guardrail rules](/docs/reference/guardrails)
+- [Limits](/docs/reference/limits)

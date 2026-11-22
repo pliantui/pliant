@@ -23,10 +23,23 @@
     "forms",
     "---Guides---",
     "guides",
+    "---Extending---",
+    "extending",
+    "---Security and privacy---",
+    "security",
+    "---CLI---",
+    "cli",
+    "---AI tooling---",
+    "ai-tooling",
+    "---Registry and contract---",
+    "registry",
     "---Reference---",
     "config",
     "reference",
-    "cli",
-    "roadmap"
+    "---Resources---",
+    "examples",
+    "roadmap",
+    "faq",
+    "troubleshooting"
   ]
 }

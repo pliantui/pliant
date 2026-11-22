@@ -1,0 +1,66 @@
+---
+title: FAQ
+description: Short answers to common questions about Pliant, covering what it changes, AI, storage, frameworks, accessibility and licensing.
+---
+
+## Can users change what my app does?
+
+No. Users change how your pages look: the order of cards and columns, what's shown or hidden, sorting, filters, groupings, calculated columns and defaults. A change is a list of operations from a fixed catalog, and none of them can run code, call your APIs or change your data. See [Guardrails](/docs/concepts/guardrails).
+
+## Do I need an AI model?
+
+No. Users can customize by hand, with the table toolbar and menus, and every change they make that way works without a model. The [ask panel](/docs/ai) is optional, and it works with any model the Vercel AI SDK supports.
+
+## Does the AI see my data?
+
+No rows are ever sent. The model gets the labels and field names of the part the user pointed at, and the user's ask. [What the AI sees and never sees](/docs/ai/what-the-ai-sees) shows the exact payload.
+
+## Where are users' changes stored?
+
+Wherever you choose. `localAdapter` keeps them in the browser, and server storage keeps them in your own database, so they follow users across devices and support team defaults. Pliant has no hosted service. See [How customizations are saved](/docs/storage).
+
+## What happens to users' changes when I change my page?
+
+They keep working. Changes refer to parts by their ids, not their position, so a card you add shows up and a moved card keeps its place relative to its neighbours. A change to a part you removed waits unused, and applies again if the part comes back. Clearing a user's changes always brings back your page as you wrote it.
+
+## Can I hide something from certain users with Pliant?
+
+Not as a security measure. Hiding is a display preference, and anything in the browser can be read. Keep restricted rows and fields out of what your server sends with [dataset permissions](/docs/data/permissions).
+
+## Does it work with my existing shadcn components?
+
+Yes. A region can hold any component, and the table works with your TanStack Table columns. [`pliantui manifest`](/docs/cli/manifest) reads your components' `cva` variants so users can change their props safely.
+
+## Which frameworks are supported?
+
+Pliant needs React 19.2 or later, shadcn/ui and Tailwind CSS v4. The CLI and the guides target the Next.js App Router.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Vite, React Router and TanStack Start aren't tested yet, and their
+  installation pages are in beta.
+</Callout>
+
+## Does it work with server rendering?
+
+Yes. Pages render on the server as you wrote them, and `PliantPrePaint` applies changes saved in the browser before the first paint, so there's no flash of the default layout. With server storage, you can load the user's layers on the server and render their layout directly. See [Rendering modes](/docs/concepts/rendering).
+
+## Is it accessible?
+
+When a user reorders cards or columns, Pliant moves the elements themselves, not just their position on screen, so keyboard focus and screen readers follow the order users see. The components are built on shadcn/ui and Radix.
+
+## Is the API stable?
+
+Not yet. Pliant is pre-1.0, and the APIs of `@pliantui/react` and `@pliantui/server` are marked experimental, so a minor release can change them. The [changelog](/docs/changelog) calls out every breaking change. The data format is versioned, and saved changes keep loading across versions.
+
+## What does it cost?
+
+Pliant is open source under the [MIT license](https://github.com/pliantui/pliant/blob/main/LICENSE.md). Your only costs are your own hosting and, if you use the ask panel, your model provider.
+
+## Related
+
+- [Troubleshooting](/docs/troubleshooting)
+- [How it works in 5 minutes](/docs/how-it-works)

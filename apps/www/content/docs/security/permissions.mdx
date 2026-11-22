@@ -1,0 +1,50 @@
+---
+title: Permissions
+description: A security summary of how datasets decide which rows and fields each user may load, enforced on your server before anything reaches the browser.
+---
+
+Which rows and fields a user may see is decided once, in your [dataset](/docs/data/datasets), and applied on your server to every request. Nothing a user changes on the page, and nothing the AI proposes, can widen it. [Permissions and row security](/docs/data/permissions) is the full guide; this page summarizes what a security review needs.
+
+## The three checks
+
+| Check   | Set with            | What it decides                               |
+| ------- | ------------------- | --------------------------------------------- |
+| Dataset | `access`            | Whether the user may use the dataset at all   |
+| Rows    | `scope`             | The conditions every row they load must match |
+| Fields  | `access` on a field | Whether they may read that field              |
+
+`authorizeDataset` turns these into a grant for one user, and `compileQuery` applies the grant to every query it builds. A user without access gets `null`, and your route answers 403.
+
+## Failing closed
+
+- `scope` is required. Returning `undefined` or `{}` throws, so a forgotten scope can't expose every row.
+- Only `true` from an `access` function allows. Any other value denies.
+- To let a user load every row, `scope` returns `allRows`, a value only Pliant exports. A value read from your database or a request can never widen a scope by accident.
+
+## What permissions protect, and what hiding doesn't
+
+Fields a user may not read are left out of what your server sends, so they never reach the browser and the user can't add them back. A column a user hides is a display preference: its data is still in the browser.
+
+<Callout variant="warning" title="Never use hide to protect data">
+  If a user mustn't see a field or a row, leave it out with your dataset's
+  permissions.
+</Callout>
+
+## Small groups
+
+`privacy.minGroupSize` sets the fewest rows a total may summarize, so nobody can work out a single row's value from the total of a tiny group.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Pliant doesn't suppress small totals yet. `authorizeDataset` returns
+  `minGroupSize` in the grant, and you apply it in your own aggregate queries.
+</Callout>
+
+## Related
+
+- [Permissions and row security](/docs/data/permissions)
+- [Query safety](/docs/data/query-safety)
+- [Threat model](/docs/security/threat-model)
