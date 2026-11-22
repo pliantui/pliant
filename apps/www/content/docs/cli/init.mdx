@@ -1,6 +1,6 @@
 ---
 title: init
-description: Add Pliant to a Next.js App Router project that uses shadcn/ui. It installs the package and the region component, then shows how to wrap a page.
+description: Installs the package and the region component, then shows how to wrap your first page.
 ---
 
 Use the `init` command to add Pliant to a Next.js App Router project that already uses shadcn/ui.
@@ -78,7 +78,7 @@ Other frameworks and the Next.js Pages Router aren't supported by `init`. In the
   snippets/cli/init-page.tsx#page
 </include>
 
-The `surface` is the page's route pattern, such as `/orders/[id]`. `PliantRoot` and `PliantPrePaint` must receive the same `surface`. `storage={localAdapter}` keeps each user's changes in their browser. `PliantRegion` is the component `init` added: its `slots` are the parts of the page that users can reorder, hide and resize.
+The `surface` is the page's route pattern, such as `/orders/[id]`. `PliantRoot` and `PliantPrePaint` must receive the same `surface`. `storage={localAdapter}` keeps each user's changes in their browser. `PliantRegion` is the component `init` added: its `slots` are the parts of the page that users can rearrange, for example through the [ask panel](/docs/ai).
 
 `PliantPrePaint` keeps a customized page from flashing its original layout before Pliant applies the user's changes.
 
