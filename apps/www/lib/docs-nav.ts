@@ -1,7 +1,5 @@
 import type { Folder, Item, Node, Root } from "fumadocs-core/page-tree"
 
-import { componentPages } from "@/lib/components/component-groups"
-
 export interface DocsGroup {
   id: string
   name: Folder["name"]
@@ -39,33 +37,5 @@ export function getDocsGroups(tree: Root): DocsGroup[] {
     }
     group.pages.push(...pagesOf(node))
   }
-  // The components sit in the docs, as on ui.shadcn.com, right after the
-  // first steps. Their folder keeps its own order, so it's listed here.
-  groups.splice(1, 0, {
-    id: "components",
-    name: "Components",
-    pages: [
-      { type: "page", name: "Components", url: "/docs/components" },
-      ...componentPages.map(({ slug, title }): Item => ({
-        type: "page",
-        name: title,
-        url: `/docs/components/${slug}`,
-      })),
-    ],
-  })
   return groups.filter((group) => group.pages.length > 0)
-}
-
-// The pages before and after a component page, in the components' order.
-export function getComponentNeighbours(url: string) {
-  const pages = [
-    { name: "Components", url: "/docs/components" },
-    ...componentPages.map(({ slug, title }) => ({
-      name: title,
-      url: `/docs/components/${slug}`,
-    })),
-  ]
-  const index = pages.findIndex((page) => page.url === url)
-  if (index === -1) return undefined
-  return { previous: pages[index - 1], next: pages[index + 1] }
 }

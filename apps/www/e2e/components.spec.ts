@@ -251,3 +251,30 @@ test.describe("on a phone", () => {
     })
   }
 })
+
+test("lists the components in the sidebar after the first steps, and steps through them in order", async ({
+  page,
+}) => {
+  await page.goto("/docs/components/region")
+  const sidebar = page.getByRole("navigation", { name: "Docs" })
+  const links = await sidebar.getByRole("link").allTextContents()
+  const start = links.indexOf("Components")
+  expect(links.slice(start, start + 4)).toEqual([
+    "Components",
+    "PliantRoot",
+    "Region",
+    "Pre-paint",
+  ])
+  expect(links.indexOf("Introduction")).toBeLessThan(start)
+  expect(links.filter((link) => link === "PliantRoot")).toHaveLength(1)
+
+  await page.getByRole("link", { name: "Next page" }).click()
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Pre-paint" })
+  ).toBeVisible()
+  await page.getByRole("link", { name: "Previous page" }).click()
+  await page.getByRole("link", { name: "Previous page" }).click()
+  await expect(
+    page.getByRole("heading", { level: 1, name: "PliantRoot" })
+  ).toBeVisible()
+})

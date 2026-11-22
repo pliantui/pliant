@@ -1,44 +1,46 @@
 import type { Root } from "fumadocs-core/page-tree"
 import { describe, expect, it } from "vitest"
 
-import { getComponentNeighbours, getDocsGroups } from "@/lib/docs-nav"
+import { getDocsGroups } from "@/lib/docs-nav"
 
 const tree: Root = {
   name: "Docs",
   children: [
     { type: "separator", name: "Get started" },
     { type: "page", name: "Introduction", url: "/docs" },
+    { type: "separator", name: "Components" },
+    {
+      type: "folder",
+      name: "Components",
+      index: { type: "page", name: "Overview", url: "/docs/components" },
+      children: [
+        {
+          type: "page",
+          name: "PliantRoot",
+          url: "/docs/components/pliant-root",
+        },
+        { type: "page", name: "Region", url: "/docs/components/region" },
+      ],
+    },
     { type: "separator", name: "Concepts" },
     { type: "page", name: "Layers", url: "/docs/concepts/layers" },
   ],
 }
 
 describe("getDocsGroups", () => {
-  it("lists the components right after the first steps", () => {
-    const groups = getDocsGroups(tree)
-
-    expect(groups.map((group) => group.name)).toEqual([
+  it("splits the top level into groups at each separator", () => {
+    expect(getDocsGroups(tree).map((group) => group.name)).toEqual([
       "Get started",
       "Components",
       "Concepts",
     ])
-    expect(groups[1]?.pages.slice(0, 3).map((page) => page.url)).toEqual([
-      "/docs/components",
-      "/docs/components/pliant-root",
-      "/docs/components/region",
+  })
+
+  it("lists a folder by its index, under the folder's name, then its pages", () => {
+    expect(getDocsGroups(tree)[1]?.pages).toEqual([
+      { type: "page", name: "Components", url: "/docs/components" },
+      { type: "page", name: "PliantRoot", url: "/docs/components/pliant-root" },
+      { type: "page", name: "Region", url: "/docs/components/region" },
     ])
-  })
-})
-
-describe("getComponentNeighbours", () => {
-  it("steps through the components in order", () => {
-    expect(getComponentNeighbours("/docs/components/region")).toEqual({
-      previous: { name: "PliantRoot", url: "/docs/components/pliant-root" },
-      next: { name: "Pre-paint", url: "/docs/components/pre-paint" },
-    })
-  })
-
-  it("leaves other docs pages to the page tree", () => {
-    expect(getComponentNeighbours("/docs/concepts/layers")).toBeUndefined()
   })
 })
