@@ -4,6 +4,8 @@ import { expect, test } from "./fixtures"
 
 const surface = "app-shell"
 const titles = ["Inbox", "Tickets", "Customers", "Reports", "Settings"]
+// The Support team's published default moves Tickets to the top.
+const teamOrder = ["Tickets", "Inbox", "Customers", "Reports", "Settings"]
 
 async function seed(page: Page, ops: unknown[]) {
   await page.addInitScript(
@@ -38,7 +40,7 @@ function sidebarNav(page: Page) {
   return page.getByRole("navigation", { name: "Support desk" })
 }
 
-async function load(page: Page, path = "/examples/app/inbox") {
+async function load(page: Page, path = "/examples/team-workspace/inbox") {
   await page.goto(path)
   await expect(
     page.locator('[data-pliant-id="app-sidebar"]')
@@ -58,12 +60,12 @@ async function shownLinks(page: Page) {
   return shown.sort((a, b) => a.y - b.y).map(({ title }) => title)
 }
 
-test("renders the links in their base order, marking the current page", async ({
+test("renders the links in the team's order, marking the current page", async ({
   page,
   errors,
 }) => {
-  await load(page, "/examples/app/tickets")
-  expect(await shownLinks(page)).toEqual(titles)
+  await load(page, "/examples/team-workspace/tickets")
+  expect(await shownLinks(page)).toEqual(teamOrder)
   await expect(
     sidebarNav(page).getByRole("link", { name: "Tickets" })
   ).toHaveAttribute("aria-current", "page")
@@ -89,9 +91,9 @@ test("shows the links in the user's order without hidden ones, and tabs in that 
   ])
   await load(page)
   expect(await shownLinks(page)).toEqual([
+    "Tickets",
     "Reports",
     "Inbox",
-    "Tickets",
     "Settings",
   ])
   await expect(
@@ -118,24 +120,24 @@ test("collapses links behind More", async ({ page }) => {
   await load(page)
   const more = sidebarNav(page).getByRole("button", { name: "More" })
   await expect(more).toHaveAttribute("aria-expanded", "false")
-  expect(await shownLinks(page)).toEqual(["Inbox", "Tickets", "Customers"])
+  expect(await shownLinks(page)).toEqual(["Tickets", "Inbox", "Customers"])
   await more.click()
   await expect(more).toHaveAttribute("aria-expanded", "true")
-  expect(await shownLinks(page)).toEqual(titles)
+  expect(await shownLinks(page)).toEqual(teamOrder)
 })
 
 test.describe("the start page", () => {
   test("is the inbox until the user picks one", async ({ page }) => {
-    await page.goto("/examples/app")
-    await expect(page).toHaveURL("/examples/app/inbox")
+    await page.goto("/examples/team-workspace")
+    await expect(page).toHaveURL("/examples/team-workspace/inbox")
   })
 
   test("is the one the user picked", async ({ page }) => {
     await seed(page, [
       { op: "setLanding", target: "app-sidebar/items/reports" },
     ])
-    await page.goto("/examples/app")
-    await expect(page).toHaveURL("/examples/app/reports")
+    await page.goto("/examples/team-workspace")
+    await expect(page).toHaveURL("/examples/team-workspace/reports")
   })
 
   test("falls back to the inbox when the picked link is hidden", async ({
@@ -145,8 +147,8 @@ test.describe("the start page", () => {
       { op: "setLanding", target: "app-sidebar/items/reports" },
       { op: "hide", target: "app-sidebar/items/reports" },
     ])
-    await page.goto("/examples/app")
-    await expect(page).toHaveURL("/examples/app/inbox")
+    await page.goto("/examples/team-workspace")
+    await expect(page).toHaveURL("/examples/team-workspace/inbox")
   })
 
   test("is the inbox when the layers fail to load", async ({ page }) => {
@@ -156,8 +158,8 @@ test.describe("the start page", () => {
         throw new Error("Storage is blocked")
       }
     })
-    await page.goto("/examples/app")
-    await expect(page).toHaveURL("/examples/app/inbox")
+    await page.goto("/examples/team-workspace")
+    await expect(page).toHaveURL("/examples/team-workspace/inbox")
   })
 
   test("is picked from a link's options and kept", async ({ page }) => {
@@ -173,8 +175,8 @@ test.describe("the start page", () => {
     await expect(startPage).toBeHidden()
     await expect(options).toBeFocused()
 
-    await page.goto("/examples/app")
-    await expect(page).toHaveURL("/examples/app/customers")
+    await page.goto("/examples/team-workspace")
+    await expect(page).toHaveURL("/examples/team-workspace/customers")
   })
 })
 

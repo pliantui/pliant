@@ -11,6 +11,7 @@ export function CustomizedReset({
   targets,
   label,
   scripted,
+  onReset,
 }: {
   // The nodes this control covers.
   targets: readonly string[]
@@ -18,6 +19,8 @@ export function CustomizedReset({
   label: string
   // The scripted asks of the demo's mocked parts, which Reset also clears.
   scripted?: ScriptedAsksState | undefined
+  // Runs after Reset, such as to clear a list of the changes.
+  onReset?: (() => void) | undefined
 }) {
   const store = usePliantStore()
   const { status } = usePliantStatus()
@@ -31,6 +34,7 @@ export function CustomizedReset({
       onReset={() => {
         for (const target of targets) store.resetNode(target)
         scripted?.reset()
+        onReset?.()
       }}
     />
   )

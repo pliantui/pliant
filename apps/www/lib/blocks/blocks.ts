@@ -34,6 +34,10 @@ export const blocks = [
         target: "components/analytics-dashboard.tsx",
       },
       {
+        src: "registry/blocks/analytics-dashboard/key-metrics.tsx",
+        target: "components/key-metrics.tsx",
+      },
+      {
         src: "registry/blocks/analytics-dashboard/kpi-card.tsx",
         target: "components/kpi-card.tsx",
       },

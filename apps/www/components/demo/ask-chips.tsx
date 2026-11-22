@@ -3,7 +3,12 @@
 import * as React from "react"
 import { SparklesIcon } from "lucide-react"
 
-import { usePliantStore, usePliantSurface, usePreview } from "@pliantui/react"
+import {
+  usePliantStore,
+  usePliantSurface,
+  usePreview,
+  type Overlay,
+} from "@pliantui/react"
 
 import { ScriptedBadge } from "@/components/demo/scripted-badge"
 import { Button } from "@/components/ui/button"
@@ -17,12 +22,19 @@ export function AskChips({
   target,
   label,
   prompts,
+  lockInAtOnce = false,
+  onLockIn,
 }: {
   // The node the asks change.
   target: string
   // The node's name, as the asks' group label reads it.
   label: string
   prompts: readonly string[]
+  // Keeps each answer at once instead of previewing it to lock in or
+  // discard.
+  lockInAtOnce?: boolean
+  // Runs with the personal version an answer became, once it's locked in.
+  onLockIn?: ((overlay: Overlay) => void) | undefined
 }) {
   const store = usePliantStore()
   const surface = usePliantSurface()
@@ -36,6 +48,19 @@ export function AskChips({
   const scripted = prompts.some((prompt) => isScriptedAsk(target, prompt))
   const message =
     asked && (previewing || asked.id === null) ? asked.message : ""
+
+  // Keeps the previewed answer. Returns the message to show.
+  function lockIn(explain: string) {
+    const result = store.lockIn()
+    if (!result.success) {
+      store.discard()
+      return unavailable
+    }
+    if (result.overlay) onLockIn?.(result.overlay)
+    return result.keptInSession.length > 0
+      ? "Some of this change stays for this session only."
+      : explain
+  }
 
   // The buttons that end a preview go away, so focus goes back to the asks.
   function settle(next: { id: null; message: string } | null) {
@@ -81,13 +106,15 @@ export function AskChips({
                   return
                 }
                 const result = store.preview(answer.overlay)
+                const explain = answer.explain.join(" ")
+                if (!result.success) {
+                  setAsked({ id: null, message: unavailable })
+                  return
+                }
                 setAsked(
-                  result.success
-                    ? {
-                        id: answer.overlay.id,
-                        message: answer.explain.join(" "),
-                      }
-                    : { id: null, message: unavailable }
+                  lockInAtOnce
+                    ? { id: null, message: lockIn(explain) }
+                    : { id: answer.overlay.id, message: explain }
                 )
               }}
             >
@@ -112,21 +139,8 @@ export function AskChips({
             size="sm"
             className="h-7"
             onClick={() => {
-              const result = store.lockIn()
-              if (!result.success) {
-                store.discard()
-                settle({ id: null, message: unavailable })
-                return
-              }
-              settle(
-                result.keptInSession.length > 0
-                  ? {
-                      id: null,
-                      message:
-                        "Some of this change stays for this session only.",
-                    }
-                  : null
-              )
+              const message = lockIn("")
+              settle(message ? { id: null, message } : null)
             }}
           >
             Lock in

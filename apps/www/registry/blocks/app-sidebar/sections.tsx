@@ -7,25 +7,29 @@ import {
 } from "lucide-react"
 
 export const sections = {
-  inbox: { title: "Inbox", url: "/examples/app/inbox", icon: <InboxIcon /> },
+  inbox: {
+    title: "Inbox",
+    url: "/examples/team-workspace/inbox",
+    icon: <InboxIcon />,
+  },
   tickets: {
     title: "Tickets",
-    url: "/examples/app/tickets",
+    url: "/examples/team-workspace/tickets",
     icon: <TicketIcon />,
   },
   customers: {
     title: "Customers",
-    url: "/examples/app/customers",
+    url: "/examples/team-workspace/customers",
     icon: <UsersIcon />,
   },
   reports: {
     title: "Reports",
-    url: "/examples/app/reports",
+    url: "/examples/team-workspace/reports",
     icon: <ChartColumnIcon />,
   },
   settings: {
     title: "Settings",
-    url: "/examples/app/settings",
+    url: "/examples/team-workspace/settings",
     icon: <SettingsIcon />,
   },
 }

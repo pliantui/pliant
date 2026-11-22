@@ -591,6 +591,129 @@ export const inventory = {
       },
     },
   },
+  "/examples/analytics": {
+    baseIds: {
+      ids: [
+        "average-order-value",
+        "key-metrics",
+        "orders",
+        "orders-table",
+        "orders-table/columns/createdAt",
+        "orders-table/columns/customer",
+        "orders-table/columns/id",
+        "orders-table/columns/notes",
+        "orders-table/columns/region",
+        "orders-table/columns/status",
+        "orders-table/columns/value",
+        "overdue",
+        "revenue",
+      ],
+      source: "mounted",
+    },
+    baseParents: {
+      "average-order-value": "key-metrics",
+      "key-metrics": null,
+      orders: "key-metrics",
+      "orders-table": null,
+      overdue: "key-metrics",
+      revenue: "key-metrics",
+    },
+    baseOrder: {
+      "key-metrics": ["revenue", "orders", "average-order-value", "overdue"],
+    },
+    ids: {
+      "average-order-value": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "key-metrics": {
+        kind: "pliant:region",
+        hash: "a530aef6e984296f",
+      },
+      orders: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "orders-table": {
+        kind: "pliant:table",
+        hash: "f873f0295ae458a8",
+      },
+      "orders-table/columns/createdAt": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/customer": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/id": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/notes": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/region": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/status": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/value": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      overdue: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      revenue: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+    },
+  },
+  "/examples/crm": {
+    baseIds: {
+      ids: ["crm-pipeline", "lead", "proposal", "qualified", "won"],
+      source: "mounted",
+    },
+    baseParents: {
+      "crm-pipeline": null,
+      lead: "crm-pipeline",
+      proposal: "crm-pipeline",
+      qualified: "crm-pipeline",
+      won: "crm-pipeline",
+    },
+    baseOrder: {
+      "crm-pipeline": ["lead", "qualified", "proposal", "won"],
+    },
+    ids: {
+      "crm-pipeline": {
+        kind: "pliant:region",
+        hash: "a530aef6e984296f",
+      },
+      lead: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      proposal: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      qualified: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      won: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+    },
+  },
   "/examples/orders": {
     baseIds: {
       ids: [
@@ -676,6 +799,62 @@ export const inventory = {
       },
     },
   },
+  "/examples/settings": {
+    baseIds: {
+      ids: [
+        "notification-settings",
+        "order-alerts",
+        "order-confirmations",
+        "product-news",
+        "refund-requests",
+        "weekly-report",
+      ],
+      source: "mounted",
+    },
+    baseParents: {
+      "notification-settings": null,
+      "order-alerts": "notification-settings",
+      "order-confirmations": "notification-settings",
+      "product-news": "notification-settings",
+      "refund-requests": "notification-settings",
+      "weekly-report": "notification-settings",
+    },
+    baseOrder: {
+      "notification-settings": [
+        "order-confirmations",
+        "order-alerts",
+        "weekly-report",
+        "refund-requests",
+        "product-news",
+      ],
+    },
+    ids: {
+      "notification-settings": {
+        kind: "pliant:region",
+        hash: "a530aef6e984296f",
+      },
+      "order-alerts": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "order-confirmations": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "product-news": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "refund-requests": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "weekly-report": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+    },
+  },
   "/examples/tickets": {
     baseIds: {
       ids: [
@@ -718,6 +897,24 @@ export const inventory = {
         hash: "7d402f36c14e4108",
       },
     },
+  },
+  "/playground": {
+    baseIds: {
+      ids: [],
+      source: "mounted",
+    },
+    baseParents: {},
+    baseOrder: {},
+    ids: {},
+  },
+  "/playground/before": {
+    baseIds: {
+      ids: [],
+      source: "mounted",
+    },
+    baseParents: {},
+    baseOrder: {},
+    ids: {},
   },
   "app-shell": {
     baseIds: {
