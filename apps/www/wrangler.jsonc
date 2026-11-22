@@ -8,8 +8,8 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS",
   },
-  // The ask endpoint has no rate limits, so it stays off. Previews don't
-  // inherit `vars`, so they turn it off again.
+  // Nothing on the site reads this variable. It stays set, off, to match
+  // the worker's deployed settings. Previews don't inherit `vars`.
   "vars": {
     "PLIANT_ASK_ENABLED": "0",
   },
