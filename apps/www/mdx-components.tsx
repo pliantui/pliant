@@ -12,6 +12,8 @@ import { ComponentsIndex } from "@/components/components-index"
 import { CopyButton } from "@/components/copy-button"
 import { File, FileTree, Folder } from "@/components/file-tree"
 import { getIconForLanguageExtension } from "@/components/icons"
+import { MockupSection } from "@/components/mockup-section"
+import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { SiteUrl } from "@/components/site-url"
 import { Kbd } from "@/components/ui/kbd"
 import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -194,6 +196,8 @@ export const mdxComponents = {
     <Kbd className={cn("text-foreground", className)} {...props} />
   ),
   Link,
+  MockupSection,
+  NotImplementedBanner,
   LinkedCard: ({ className, ...props }: React.ComponentProps<typeof Link>) => (
     <Link
       data-not-typeset

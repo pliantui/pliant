@@ -97,6 +97,10 @@ for (const colorScheme of ["light", "dark"] as const) {
       ["/form", "Form"],
       ["/nav", "Nav"],
       ["/point-mode", "Point Mode"],
+      ["/chart", "Chart"],
+      ["/dialog", "Dialog"],
+      ["/actions", "Actions"],
+      ["/text-size-density-motion", "Text Size, Density and Motion"],
     ] as const) {
       test(`the ${name} component page has no accessibility violations`, async ({
         page,
