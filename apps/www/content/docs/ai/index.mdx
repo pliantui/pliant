@@ -86,6 +86,24 @@ The route never changes your data, and the model never sees your rows. See [What
   own limits before you expose it. See [Costs and rate limits](/docs/ai/costs).
 </Callout>
 
+## Panel options
+
+| Prop             | Default             | What it does                                                         |
+| ---------------- | ------------------- | -------------------------------------------------------------------- |
+| `endpoint`       | Required            | The URL of your ask route, such as `/api/pliant`                     |
+| `targets`        | Required            | The parts users can ask about, in the order the picker lists them    |
+| `target`         | None                | The id of the picked target, when you control it, as with point mode |
+| `defaultTarget`  | The first target    | The target picked first, when you don't control it                   |
+| `onTargetChange` | None                | Called with the id of the target the user picks                      |
+| `open`           | None                | Whether the panel is open, when you control it                       |
+| `defaultOpen`    | `false`             | Whether the panel starts open, when you don't control it             |
+| `onOpenChange`   | None                | Called when the panel opens or closes                                |
+| `placeholder`    | "Describe a change" | The prompt's placeholder                                             |
+| `trigger`        | An **Ask** button   | The element that opens the panel                                     |
+| `fetch`          | The global `fetch`  | Sends each ask in place of the global `fetch`                        |
+
+`fetch` has the type of the global `fetch`. The panel calls it with `endpoint` and a `POST` request whose JSON body is the ask, then reads the answer from the response. Pass your own to add headers, to stub answers in tests, or to answer asks without a network request, as [Recordings and replay](/docs/ai/recordings#replaying-in-the-browser) shows.
+
 ## Making room for the panel
 
 From the `sm` breakpoint up, the panel docks to the right edge; on small screens it's a sheet at the bottom. Give your page room while it's open:
