@@ -135,4 +135,16 @@ describe("CustomizedReset", () => {
     fireEvent.click(reset())
     expect(screen.queryByText("Customized")).toBeNull()
   })
+
+  it("doesn't count hiding or moving the node itself, which Reset leaves", async () => {
+    await renderReset()
+
+    act(() => {
+      store?.applyOps("personal", [
+        { op: "hide", target: "page/slots/orders-table" },
+        { op: "move", target: "page/slots/orders-table", to: { index: 1 } },
+      ])
+    })
+    expect(screen.queryByText("Customized")).toBeNull()
+  })
 })
