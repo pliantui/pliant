@@ -7,7 +7,6 @@ import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react"
 import { DocsCopyPage } from "@/components/docs-copy-page"
 import { DocsTableOfContents } from "@/components/docs-toc"
 import { Button } from "@/components/ui/button"
-import { getComponentNeighbours } from "@/lib/docs-nav"
 import { source } from "@/lib/source"
 import { mdxComponents } from "@/mdx-components"
 
@@ -40,9 +39,7 @@ export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
 
   const doc = page.data
   const MDX = doc.body
-  const neighbours =
-    getComponentNeighbours(page.url) ??
-    findNeighbour(source.getPageTree(), page.url)
+  const neighbours = findNeighbour(source.getPageTree(), page.url)
   const raw = await doc.getText("raw")
 
   return (

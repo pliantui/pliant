@@ -266,6 +266,7 @@ test("lists the components in the sidebar after the first steps, and steps throu
     "Pre-paint",
   ])
   expect(links.indexOf("Introduction")).toBeLessThan(start)
+  expect(links.filter((link) => link === "PliantRoot")).toHaveLength(1)
 
   await page.getByRole("link", { name: "Next page" }).click()
   await expect(
