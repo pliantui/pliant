@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { opSchema, type Op, type Overlay } from "@pliantui/contract"
+import type { OpPropertyKey } from "@pliantui/core"
 
 import {
   memoryStorage,
@@ -1038,6 +1039,109 @@ describe("createLayerStore", () => {
       expect(winner(reloaded.getResolved(), "orders-table", "visible")).toEqual(
         { layer: "personal", op: "hide" }
       )
+    })
+
+    describe("for a region", () => {
+      const ops: Op[] = [
+        { op: "move", target: "key-metrics/slots/overdue", to: { index: 0 } },
+        { op: "hide", target: "key-metrics/slots/revenue" },
+        {
+          op: "span",
+          target: "dashboard/slots/key-metrics/slots/orders",
+          columns: 2,
+        },
+        { op: "move", target: "dashboard/slots/key-metrics", to: { index: 1 } },
+        {
+          op: "setSort",
+          target: "dashboard/slots/orders-table",
+          sort: [{ field: "total", dir: "desc" }],
+        },
+        {
+          op: "setColumnWidth",
+          target: "dashboard/slots/orders-table/columns/notes",
+          width: 240,
+        },
+        { op: "hide", target: "dashboard/slots/orders-table/columns/status" },
+      ]
+
+      function reset(layer: "personal" | "session", node: string) {
+        const { storage } = memoryStorage({
+          personal:
+            layer === "personal"
+              ? [personalOverlay("01KAB0000000000000000000P1", ops)]
+              : [],
+        })
+        const store = createLayerStore({ surface, storage })
+        store.connect()
+        if (layer === "session") {
+          expect(store.actions.applyOps("session", ops)).toMatchObject({
+            success: true,
+          })
+        }
+        expect(store.actions.resetNode(node)).toEqual({ success: true })
+        const { properties, placements } = store.getResolved()
+        return {
+          moved: (id: string) => placements.get(id)?.winner !== undefined,
+          has: (id: string, property: OpPropertyKey) =>
+            properties.get(id)?.has(property) ?? false,
+        }
+      }
+
+      it.each(["personal", "session"] as const)(
+        "drops the %s moves, hides and spans of its slots, at any depth",
+        (layer) => {
+          const after = reset(layer, "key-metrics")
+
+          expect(after.moved("overdue")).toBe(false)
+          expect(after.has("revenue", "visible")).toBe(false)
+          expect(after.has("orders", "span")).toBe(false)
+          // Where the region itself sits belongs to its container.
+          expect(after.moved("key-metrics")).toBe(true)
+        }
+      )
+
+      it("keeps the removal of a node inserted into it", async () => {
+        const store = createLayerStore({
+          surface,
+          storage: memoryStorage().storage,
+        })
+        store.connect()
+        store.registerNodes(["key-metrics"])
+        await Promise.resolve()
+        store.actions.applyOps("personal", [
+          opSchema.parse({
+            op: "insert",
+            target: "key-metrics",
+            node: { id: "my-chart", kind: "chart", dataset: "orders" },
+            at: { index: 0 },
+          }),
+        ])
+        store.actions.applyOps("personal", [
+          opSchema.parse({
+            op: "remove",
+            target: "key-metrics/slots/my-chart",
+          }),
+        ])
+
+        expect(store.actions.resetNode("key-metrics")).toEqual({
+          success: true,
+        })
+        expect(
+          store.getResolved().properties.get("my-chart")?.get("inserted")
+            ?.winner.check.op.op
+        ).toBe("remove")
+      })
+
+      it("keeps the changes its slots make to themselves", () => {
+        const after = reset("personal", "dashboard")
+
+        expect(after.moved("key-metrics")).toBe(false)
+        expect(after.has("orders-table", "sort")).toBe(true)
+        expect(after.has("orders-table/columns/notes", "width")).toBe(true)
+        expect(after.has("orders-table/columns/status", "visible")).toBe(true)
+        // A slot of a slot belongs to the inner region.
+        expect(after.has("orders", "span")).toBe(true)
+      })
     })
 
     it("keeps the ops it saves again in their place among later versions", async () => {

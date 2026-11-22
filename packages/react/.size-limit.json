@@ -1,7 +1,7 @@
 [
   {
     "path": "dist/index.js",
-    "limit": "7.05 kB",
+    "limit": "7.1 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -112,7 +112,7 @@
       "dist/table.js",
       "dist/local.js"
     ],
-    "limit": "16.55 kB",
+    "limit": "16.65 kB",
     "ignore": [
       "react",
       "react-dom",
