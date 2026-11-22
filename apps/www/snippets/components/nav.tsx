@@ -1,13 +1,11 @@
 // #region usage
 import { InboxIcon, TicketIcon, UsersIcon } from "lucide-react"
 
-import { PliantNav } from "@/components/pliant/pliant-nav"
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
+  PliantNav,
+  PliantSidebarProvider,
+} from "@/components/pliant/pliant-nav"
+import { Sidebar, SidebarContent, SidebarGroup } from "@/components/ui/sidebar"
 
 const items = {
   inbox: { title: "Inbox", url: "/inbox", icon: <InboxIcon /> },
@@ -17,7 +15,7 @@ const items = {
 
 export function AppSidebar() {
   return (
-    <SidebarProvider>
+    <PliantSidebarProvider id="app-sidebar" defaultOpen>
       <Sidebar>
         <SidebarContent>
           <SidebarGroup>
@@ -27,7 +25,7 @@ export function AppSidebar() {
           </SidebarGroup>
         </SidebarContent>
       </Sidebar>
-    </SidebarProvider>
+    </PliantSidebarProvider>
   )
 }
 // #endregion usage

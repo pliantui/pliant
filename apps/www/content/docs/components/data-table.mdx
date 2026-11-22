@@ -30,25 +30,7 @@ npx shadcn@latest add https://pliantui.dev/r/pliant-data-table-toolbar.json
 
 <Steps className="mb-0 pt-2">
 
-<Step>Install the dependencies.</Step>
-
-```bash
-npm install @pliantui/react @tanstack/react-table
-```
-
-<Step>Copy and paste the following code into your project.</Step>
-
-<ComponentSource
-  src="registry/pliant/pliant-data-table.tsx"
-  title="components/pliant/pliant-data-table.tsx"
-/>
-
-<Step>
-  Add the column header, view options, pagination, features and format files
-  from the registry item the same way.
-</Step>
-
-<Step>Update the import paths to match your project setup.</Step>
+<ComponentManualInstall name="pliant-data-table" />
 
 </Steps>
 
@@ -76,36 +58,21 @@ These asks have recorded answers, so the preview above plays them:
 | hide the notes column        | The Notes column is hidden.             |
 | put customer before order    | The Customer column moves to the front. |
 
-Users can also group rows, add totals, highlight rows that match a rule, pin and resize columns, and save filters as presets.
+Users can also ask to group rows, add totals and highlight rows that match a rule. The [orders example](/examples/orders) adds menus for these beside the toolbar.
 
 ## Rules and guardrails
 
 - Users change how the table shows your data, never the data itself. Sorting, filtering and grouping run on the rows you already pass in, or through your server's permissions in [server mode](/docs/data/server-mode).
-- A column a user isn't allowed to see stays out of the table, the menus and what the AI is told.
+- In [server mode](/docs/data/server-mode), a field a user isn't allowed to see stays out of the table, the menus and what the AI is told. See [permissions](/docs/data/permissions). In client mode, hiding a column only changes what's shown.
 - Filters and calculated columns use Pliant's expression format, which can only read the fields you describe. It never runs code or SQL.
 
 ## Examples
 
 ### Toolbar with filters and presets
 
-```tsx
-<PliantDataTableToolbar
-  table={table}
-  node="orders-table"
-  filters={[
-    { field: "customer", control: "search" },
-    { field: "status", control: "multi-select" },
-  ]}
-  presets={[
-    {
-      id: "to-chase",
-      label: "To chase",
-      filters: [{ field: "status", operator: "in", value: ["overdue"] }],
-      sort: [{ field: "value", dir: "desc" }],
-    },
-  ]}
-/>
-```
+<include cwd lang="tsx">
+  snippets/components/data-table-toolbar.tsx#toolbar
+</include>
 
 The full toolbar runs on the [orders example](/examples/orders).
 
@@ -119,7 +86,7 @@ The full toolbar runs on the [orders example](/examples/orders).
 | `formatAggregate`                | `(value, unit, format) => string` | Formats a group's total. Defaults to the column's format.          |
 | `formatNumber`                   | `(value: number) => string`       | Formats the number of rows in a group.                             |
 | `formatHighlight`                | `(highlight) => string`           | Names a highlight for screen readers.                              |
-| `aria-label` / `aria-labelledby` | `string`                          | The table's accessible name.                                       |
+| `aria-label` / `aria-labelledby` | `string`                          | The table's accessible name. One of them is required.              |
 
 ### usePliantTable
 
@@ -128,5 +95,5 @@ The full toolbar runs on the [orders example](/examples/orders).
 ## Accessibility
 
 - It renders a real `<table>`, with sortable headers as buttons that announce their sort direction.
-- Highlighted rows are named for screen readers, as in "Highlighted: Overdue", not only shown in colour.
+- Highlighted rows are named for screen readers, not only shown in colour. Pass `formatHighlight` to name them by rule, as in "Highlighted: Overdue".
 - Column menus and the view options are Radix menus, with full keyboard support.

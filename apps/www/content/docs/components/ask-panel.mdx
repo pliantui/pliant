@@ -1,5 +1,5 @@
 ---
-title: Ask panel
+title: Ask Panel
 description: A panel where users ask for a change in their own words, preview it, and lock it in or discard it.
 ---
 
@@ -24,20 +24,7 @@ npx shadcn@latest add https://pliantui.dev/r/pliant-ask-panel.json
 
 <Steps className="mb-0 pt-2">
 
-<Step>Install the dependencies.</Step>
-
-```bash
-npm install @pliantui/react ai
-```
-
-<Step>Copy and paste the following code into your project.</Step>
-
-<ComponentSource
-  src="registry/pliant/pliant-ask-panel.tsx"
-  title="components/pliant/pliant-ask-panel.tsx"
-/>
-
-<Step>Update the import paths to match your project setup.</Step>
+<ComponentManualInstall name="pliant-ask-panel" />
 
 </Steps>
 
@@ -64,7 +51,7 @@ Open the panel above and pick a suggestion, or type one of these. This page repl
 | hide the average order value card   | That card is hidden.                 |
 | show the cards in a two-column grid | The cards lay out in two columns.    |
 
-An ask that isn't recorded gets a friendly reply pointing at the suggestions.
+On this page, an ask that isn't recorded gets a reply that lists the suggestions.
 
 ## Rules and guardrails
 
@@ -76,13 +63,9 @@ An ask that isn't recorded gets a friendly reply pointing at the suggestions.
 
 ### Open the panel from your own button
 
-```tsx
-<PliantAskPanel
-  endpoint="/api/pliant"
-  targets={targets}
-  trigger={<Button variant="ghost">Customize</Button>}
-/>
-```
+<include cwd lang="tsx">
+  snippets/components/ask-panel-trigger.tsx#trigger
+</include>
 
 ## Options
 

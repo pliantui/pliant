@@ -11,21 +11,21 @@ import { highlightCode } from "@/lib/highlight-code"
 export async function ComponentSource({
   src,
   title,
-  language,
   className,
 }: {
   // The file's path from the site's root, like `registry/pliant/pliant-region.tsx`.
   src: string
   title?: string | undefined
-  language?: string | undefined
   className?: string | undefined
 }) {
   const source = await readFile(join(process.cwd(), src), "utf8")
   const code = source
+    // Regions mark the parts docs include; the whole file is shown here.
+    .replace(/^\s*\/\/ #(end)?region.*\n/gm, "")
     .replaceAll("@/registry/pliant/", "@/components/pliant/")
     .replaceAll("@/registry/examples/", "@/components/")
     .trimEnd()
-  const lang = language ?? src.split(".").pop() ?? "tsx"
+  const lang = src.split(".").pop() ?? "tsx"
   const html = await highlightCode(code, lang)
 
   return (

@@ -58,7 +58,6 @@ export async function highlightCode(code: string, language: string) {
       {
         pre(node) {
           node.properties["data-language"] = language
-          delete node.properties["tabindex"]
         },
         code(node) {
           node.properties["data-language"] = language

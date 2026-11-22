@@ -26,6 +26,6 @@ export const componentPages: ComponentEntry[] = [
   { slug: "data-table", title: "Data Table", group: "Data" },
   { slug: "form", title: "Form", group: "Forms" },
   { slug: "nav", title: "Nav", group: "Navigation" },
-  { slug: "ask-panel", title: "Ask panel", group: "AI" },
-  { slug: "point-mode", title: "Point mode", group: "AI" },
+  { slug: "ask-panel", title: "Ask Panel", group: "AI" },
+  { slug: "point-mode", title: "Point Mode", group: "AI" },
 ]

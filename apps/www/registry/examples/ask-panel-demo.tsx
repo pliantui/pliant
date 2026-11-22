@@ -13,8 +13,7 @@ export function AskPanelDemo() {
 
   return (
     <PliantAskPanel
-      // In your app, point `endpoint` at your ask route and leave out
-      // `fetch`. This page answers from recorded answers instead.
+      // Answers from recorded answers, so no request leaves the page.
       endpoint="/replay"
       fetch={replayFetch}
       targets={targets}

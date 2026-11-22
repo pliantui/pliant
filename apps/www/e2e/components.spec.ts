@@ -9,8 +9,8 @@ const pages = [
   ["data-table", "Data Table"],
   ["form", "Form"],
   ["nav", "Nav"],
-  ["ask-panel", "Ask panel"],
-  ["point-mode", "Point mode"],
+  ["ask-panel", "Ask Panel"],
+  ["point-mode", "Point Mode"],
 ] as const
 
 const sections = [
@@ -22,10 +22,6 @@ const sections = [
   "Options",
   "Accessibility",
 ]
-
-const sectionIds = sections.map((section) =>
-  section.toLowerCase().replaceAll(" ", "-")
-)
 
 function preview(page: Page) {
   return page.getByRole("tabpanel", { name: "Preview" })
@@ -71,11 +67,16 @@ for (const [slug, title] of pages) {
     await expect(
       preview(page).getByRole("button", { name: /^Reset / })
     ).toBeVisible()
-    const headings = await page
-      .getByRole("main")
-      .getByRole("heading", { level: 2 })
-      .evaluateAll((elements) => elements.map((element) => element.id))
-    expect(headings.filter((id) => sectionIds.includes(id))).toEqual(sectionIds)
+    let previous = 0
+    for (const section of sections) {
+      const heading = page
+        .getByRole("main")
+        .getByRole("heading", { level: 2, name: section, exact: true })
+      const box = await heading.boundingBox()
+      expect(box, section).not.toBeNull()
+      expect(box?.y ?? 0, `${section} comes next`).toBeGreaterThan(previous)
+      previous = box?.y ?? 0
+    }
     expect(errors).toEqual([])
   })
 }
@@ -112,6 +113,10 @@ test("shows the example's source in the Code tab", async ({ page, errors }) => {
     'import { PliantRegion } from "@/components/pliant/pliant-region"'
   )
   await expect(code.getByRole("button", { name: /copy/i })).toBeVisible()
+  // The Code tab shows code a reader can copy, not the site's demo wiring.
+  await expect(code).not.toContainText("DemoFrame")
+  await expect(code).not.toContainText("/replay")
+  await expect(code).not.toContainText("@/lib/demo")
   expect(errors).toEqual([])
 })
 

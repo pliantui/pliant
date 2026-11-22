@@ -9,14 +9,12 @@ export function ComponentPreviewTabs({
   className,
   previewClassName,
   align = "center",
-  hideCode = false,
   component,
   source,
   ...props
 }: React.ComponentProps<"div"> & {
   previewClassName?: string | undefined
   align?: "center" | "start" | "end" | undefined
-  hideCode?: boolean | undefined
   component: React.ReactNode
   source: React.ReactNode
 }) {
@@ -28,19 +26,17 @@ export function ComponentPreviewTabs({
       {...props}
     >
       <Tabs defaultValue="preview" className="gap-4">
-        {!hideCode && (
-          <TabsList className="justify-start gap-4 rounded-none bg-transparent px-0">
-            {["preview", "code"].map((value) => (
-              <TabsTrigger
-                key={value}
-                value={value}
-                className="rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 pb-3 text-base text-muted-foreground capitalize hover:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none! dark:data-[state=active]:border-primary dark:data-[state=active]:bg-transparent"
-              >
-                {value}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        )}
+        <TabsList className="justify-start gap-4 rounded-none bg-transparent px-0">
+          {["preview", "code"].map((value) => (
+            <TabsTrigger
+              key={value}
+              value={value}
+              className="rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 pb-3 text-base text-muted-foreground capitalize hover:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none! dark:data-[state=active]:border-primary dark:data-[state=active]:bg-transparent"
+            >
+              {value}
+            </TabsTrigger>
+          ))}
+        </TabsList>
         <TabsContent
           value="preview"
           className="rounded-2xl border"
@@ -57,14 +53,12 @@ export function ComponentPreviewTabs({
             {component}
           </div>
         </TabsContent>
-        {!hideCode && (
-          <TabsContent
-            value="code"
-            className="*:data-rehype-pretty-code-figure:mx-0 *:data-rehype-pretty-code-figure:mt-0"
-          >
-            {source}
-          </TabsContent>
-        )}
+        <TabsContent
+          value="code"
+          className="*:data-rehype-pretty-code-figure:mx-0 *:data-rehype-pretty-code-figure:mt-0"
+        >
+          {source}
+        </TabsContent>
       </Tabs>
     </div>
   )

@@ -24,20 +24,7 @@ npx shadcn@latest add https://pliantui.dev/r/pliant-region.json
 
 <Steps className="mb-0 pt-2">
 
-<Step>Install the dependencies.</Step>
-
-```bash
-npm install @pliantui/react
-```
-
-<Step>Copy and paste the following code into your project.</Step>
-
-<ComponentSource
-  src="registry/pliant/pliant-region.tsx"
-  title="components/pliant/pliant-region.tsx"
-/>
-
-<Step>Update the import paths to match your project setup.</Step>
+<ComponentManualInstall name="pliant-region" />
 
 </Steps>
 
@@ -77,13 +64,9 @@ Users can also move, hide, resize and collapse slots by hand.
 
 A region takes any grid classes. Users' layout changes apply on top of yours.
 
-```tsx
-<PliantRegion
-  id="settings-sections"
-  className="grid-cols-1 md:grid-cols-2"
-  slots={{ profile: <Profile />, notifications: <Notifications /> }}
-/>
-```
+<include cwd lang="tsx">
+  snippets/components/region-layout.tsx#layout
+</include>
 
 ## Options
 

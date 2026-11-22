@@ -24,20 +24,7 @@ npx shadcn@latest add https://pliantui.dev/r/pliant-nav.json
 
 <Steps className="mb-0 pt-2">
 
-<Step>Install the dependencies.</Step>
-
-```bash
-npm install @pliantui/react
-```
-
-<Step>Copy and paste the following code into your project.</Step>
-
-<ComponentSource
-  src="registry/pliant/pliant-nav.tsx"
-  title="components/pliant/pliant-nav.tsx"
-/>
-
-<Step>Update the import paths to match your project setup.</Step>
+<ComponentManualInstall name="pliant-nav" />
 
 </Steps>
 
@@ -46,7 +33,7 @@ npm install @pliantui/react
 
 ## Usage
 
-Render `PliantNav` in place of shadcn's `SidebarMenu`, with each link by its id.
+Render `PliantNav` in place of shadcn's `SidebarMenu`, with each link by its id. `PliantSidebarProvider` takes the place of `SidebarProvider` and saves whether the sidebar is open as the user's own default.
 
 <include cwd lang="tsx">
   snippets/components/nav.tsx#usage
@@ -54,31 +41,29 @@ Render `PliantNav` in place of shadcn's `SidebarMenu`, with each link by its id.
 
 ## What users can ask
 
-The nav's asks have no recorded answers yet. The preview plays the first two as scripted answers, marked Scripted:
+These are the asks the preview plays:
 
-| Ask                        | What changes                                       |
-| -------------------------- | -------------------------------------------------- |
-| pin customers to the top   | Customers moves to the top of the list.            |
-| hide reports               | Reports is hidden from the sidebar.                |
-| make tickets my start page | Tickets opens when the user comes back to the app. |
+| Ask                      | What changes                            |
+| ------------------------ | --------------------------------------- |
+| pin customers to the top | Customers moves to the top of the list. |
+| hide reports             | Reports is hidden from the sidebar.     |
 
-Each link's options menu offers the same changes by hand.
+Each link's options menu lets users make it their start page.
 
 ## Rules and guardrails
 
 - Users change order, visibility and their start page. They can't add links or change where a link goes.
 - A hidden link only leaves the sidebar. The page is still there, and your own permissions decide who can open it.
-- The sidebar's open state is saved as the user's own default when you use `PliantSidebarProvider`.
 
 ## Examples
 
-### Remember whether the sidebar is open
+### Send users to their start page
 
-```tsx
-<PliantSidebarProvider id="app-sidebar" defaultOpen>
-  <AppSidebar />
-</PliantSidebarProvider>
-```
+Read the start page with `usePliantNav` where your app's start route renders, and redirect to it.
+
+<include cwd lang="tsx">
+  snippets/components/nav-start-page.tsx#start
+</include>
 
 ## Options
 

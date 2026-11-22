@@ -24,20 +24,7 @@ npx shadcn@latest add https://pliantui.dev/r/pliant-form.json
 
 <Steps className="mb-0 pt-2">
 
-<Step>Install the dependencies.</Step>
-
-```bash
-npm install @pliantui/react
-```
-
-<Step>Copy and paste the following code into your project.</Step>
-
-<ComponentSource
-  src="registry/pliant/pliant-form.tsx"
-  title="components/pliant/pliant-form.tsx"
-/>
-
-<Step>Update the import paths to match your project setup.</Step>
+<ComponentManualInstall name="pliant-form" />
 
 </Steps>
 
@@ -56,13 +43,12 @@ See [forms](/docs/forms) for React Hook Form and TanStack Form.
 
 ## What users can ask
 
-The form's asks have no recorded answers yet. The preview plays the first two as scripted answers, marked Scripted:
+These are the asks the preview plays:
 
-| Ask                                | What changes                                     |
-| ---------------------------------- | ------------------------------------------------ |
-| put priority first                 | The Priority field moves to the top.             |
-| hide the CC field                  | The CC field is hidden. Its value stays.         |
-| move order number into more fields | Order number folds into the More fields section. |
+| Ask                | What changes                             |
+| ------------------ | ---------------------------------------- |
+| put priority first | The Priority field moves to the top.     |
+| hide the CC field  | The CC field is hidden. Its value stays. |
 
 ## Rules and guardrails
 
@@ -72,15 +58,13 @@ The form's asks have no recorded answers yet. The preview plays the first two as
 
 ## Examples
 
-### Default values per user
+### Fields users can hide
 
-`usePliantFormDefaults` lets users save their own defaults, like a usual priority, checked against your schema.
+Your schema decides which fields users can hide. A required field always stays.
 
-```tsx
-const values = usePliantFormDefaults("ticket-form", ticketDefaults, {
-  schema: ticketSchema,
-})
-```
+<include cwd lang="ts">
+  snippets/components/form-schema.ts#schema
+</include>
 
 ## Options
 

@@ -1,5 +1,5 @@
 ---
-title: Point mode
+title: Point Mode
 description: Users point at the part of the page they want to change instead of picking it from a list.
 ---
 
@@ -24,20 +24,7 @@ npx shadcn@latest add https://pliantui.dev/r/pliant-point-mode.json
 
 <Steps className="mb-0 pt-2">
 
-<Step>Install the dependencies.</Step>
-
-```bash
-npm install @pliantui/react
-```
-
-<Step>Copy and paste the following code into your project.</Step>
-
-<ComponentSource
-  src="registry/pliant/pliant-point-mode.tsx"
-  title="components/pliant/pliant-point-mode.tsx"
-/>
-
-<Step>Update the import paths to match your project setup.</Step>
+<ComponentManualInstall name="pliant-point-mode" />
 
 </Steps>
 
@@ -49,7 +36,7 @@ npm install @pliantui/react
 Put it next to the [ask panel](/docs/components/ask-panel), with the same targets. Picking a part opens the panel on it.
 
 <include cwd lang="tsx">
-  snippets/components/point-mode.tsx#usage
+  snippets/ai/ask-toolbar.tsx#toolbar
 </include>
 
 ## What users can ask
@@ -71,13 +58,9 @@ Press Point above, or hold <Kbd>Alt</Kbd>, and click the key metrics. The panel 
 
 ### Your own toggle
 
-```tsx
-<PliantPointMode
-  targets={targets}
-  onPick={pick}
-  trigger={<Button size="icon" variant="ghost" aria-label="Point" />}
-/>
-```
+<include cwd lang="tsx">
+  snippets/components/point-mode-trigger.tsx#trigger
+</include>
 
 ## Options
 
@@ -89,7 +72,7 @@ Press Point above, or hold <Kbd>Alt</Kbd>, and click the key metrics. The panel 
 
 ## Accessibility
 
-- Started from the toggle or <Kbd>⌘</Kbd> <Kbd>.</Kbd>, point mode is a modal dialog: the rest of the page is inert, and focus moves to the first outline.
+- Started from the toggle or <Kbd>⌘</Kbd> <Kbd>.</Kbd> (<Kbd>Ctrl</Kbd> <Kbd>.</Kbd> on Windows and Linux), point mode is a modal dialog: the rest of the page is inert, and focus moves to the first outline.
 - <Kbd>Tab</Kbd> and the arrow keys move between outlines, <Kbd>Enter</Kbd>
   picks, and <Kbd>Escape</Kbd> leaves and returns focus.
 - The toggle is the way in that always works, and the only one on touch screens.

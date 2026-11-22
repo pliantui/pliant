@@ -1,106 +1,141 @@
 import { PliantRoot } from "@pliantui/react"
 import { localAdapter } from "@pliantui/react/local"
+import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
+import { askTargets } from "@/app/(examples)/examples/orders/ask-targets"
+import { TicketForm } from "@/app/(examples)/examples/tickets/components/ticket-form"
+import { WorkspaceSidebar } from "@/app/(home)/components/sidebar-card"
+import { DemoAskToolbar } from "@/components/demo/demo-ask-toolbar"
 import { DemoFrame } from "@/components/demo/demo-frame"
+import { orders, team } from "@/lib/demo/data"
+import { AskPanelDemo } from "@/registry/examples/ask-panel-demo"
+import { KeyMetrics } from "@/registry/examples/key-metrics"
+import { OrdersTableDemo } from "@/registry/examples/orders-table-demo"
 
 const keyMetricsAsks = [
   "put the overdue card first",
   "hide the average order value card",
+  "show the cards in a two-column grid",
 ]
 
-// The live examples component pages show, by name. `file` is the source the
-// Code tab shows: the example itself, or the component it's built around.
+function KeyMetricsDemo({
+  surface,
+  prePaint = false,
+  toolbar,
+}: {
+  surface: string
+  prePaint?: boolean
+  toolbar?: React.ReactNode
+}) {
+  return (
+    <PliantRoot surface={surface} storage={localAdapter}>
+      {prePaint && <PliantPrePaint surface={surface} />}
+      <DemoFrame
+        target="key-metrics"
+        label="key metrics"
+        asks={keyMetricsAsks}
+        toolbar={toolbar}
+      >
+        <KeyMetrics />
+      </DemoFrame>
+    </PliantRoot>
+  )
+}
+
+// The live previews component pages show, by name. Each renders the
+// component in the shared demo company's app, with its asks and a Reset.
+// `file` is the source the Code tab shows: a standalone version of the
+// same usage, from the checked snippets.
 export const examples = {
   "pliant-root-demo": {
-    file: "registry/examples/pliant-root-demo.tsx",
-    render: async () => {
-      const { PliantRootDemo } = await import("./pliant-root-demo")
-      return <PliantRootDemo />
-    },
+    file: "snippets/components/root.tsx",
+    render: () => <KeyMetricsDemo surface="/docs/components/pliant-root" />,
   },
   "region-demo": {
-    file: "registry/examples/region-demo.tsx",
-    render: async () => {
-      const { RegionDemo } = await import("./region-demo")
-      return <RegionDemo />
-    },
+    file: "snippets/components/region.tsx",
+    render: () => <KeyMetricsDemo surface="/docs/components/region" />,
   },
   "pre-paint-demo": {
-    file: "registry/examples/pre-paint-demo.tsx",
-    render: async () => {
-      const { PrePaintDemo } = await import("./pre-paint-demo")
-      return <PrePaintDemo />
-    },
+    file: "snippets/components/pre-paint.tsx",
+    render: () => (
+      <KeyMetricsDemo surface="/docs/components/pre-paint" prePaint />
+    ),
   },
   "data-table-demo": {
-    file: "registry/examples/orders-table-demo.tsx",
-    render: async () => {
-      const { DataTableDemo } = await import("./data-table-demo")
-      return <DataTableDemo />
-    },
+    file: "snippets/first-table/orders-table.tsx",
+    render: () => (
+      <PliantRoot surface="/docs/components/data-table" storage={localAdapter}>
+        <DemoFrame
+          target="orders-table"
+          label="orders table"
+          asks={[
+            "sort by value, highest first",
+            "only show overdue orders",
+            "hide the notes column",
+            "put customer before order",
+          ]}
+        >
+          <OrdersTableDemo data={orders.slice(0, 48)} />
+        </DemoFrame>
+      </PliantRoot>
+    ),
   },
   "form-demo": {
     file: "app/(examples)/examples/tickets/components/ticket-form.tsx",
-    render: async () => {
-      const { FormDemo } = await import("./form-demo")
-      return <FormDemo />
-    },
+    render: () => (
+      <PliantRoot surface="/docs/components/form" storage={localAdapter}>
+        <DemoFrame
+          target="ticket-form"
+          label="ticket form"
+          asks={["put priority first", "hide the CC field"]}
+        >
+          <div className="mx-auto w-full max-w-md">
+            <TicketForm />
+          </div>
+        </DemoFrame>
+      </PliantRoot>
+    ),
   },
   "nav-demo": {
-    file: "app/(home)/components/sidebar-card.tsx",
-    render: async () => {
-      const { NavDemo } = await import("./nav-demo")
-      return <NavDemo />
-    },
+    file: "snippets/components/nav.tsx",
+    render: () => (
+      <PliantRoot surface="/docs/components/nav" storage={localAdapter}>
+        <DemoFrame
+          target="workspace-nav"
+          label="support desk sidebar"
+          asks={["pin customers to the top", "hide reports"]}
+        >
+          <div className="mx-auto w-full max-w-64">
+            <WorkspaceSidebar
+              user={team.find((member) => member.team === "Support")}
+            />
+          </div>
+        </DemoFrame>
+      </PliantRoot>
+    ),
   },
   "ask-panel-demo": {
-    file: "registry/examples/ask-panel-demo.tsx",
-    render: async () => {
-      const [{ AskPanelDemo }, { KeyMetrics }] = await Promise.all([
-        import("./ask-panel-demo"),
-        import("./key-metrics"),
-      ])
-      return (
-        <PliantRoot surface="/docs/components/ask-panel" storage={localAdapter}>
-          <DemoFrame
-            target="key-metrics"
-            label="key metrics"
-            asks={keyMetricsAsks}
-            toolbar={<AskPanelDemo />}
-          >
-            <KeyMetrics />
-          </DemoFrame>
-        </PliantRoot>
-      )
-    },
+    file: "snippets/components/ask-panel.tsx",
+    render: () => (
+      <KeyMetricsDemo
+        surface="/docs/components/ask-panel"
+        toolbar={<AskPanelDemo />}
+      />
+    ),
   },
   "point-mode-demo": {
-    file: "registry/examples/point-mode-demo.tsx",
-    render: async () => {
-      const [{ PointModeDemo }, { KeyMetrics }] = await Promise.all([
-        import("./point-mode-demo"),
-        import("./key-metrics"),
-      ])
-      return (
-        <PliantRoot
-          surface="/docs/components/point-mode"
-          storage={localAdapter}
-        >
-          <DemoFrame
-            target="key-metrics"
-            label="key metrics"
-            asks={keyMetricsAsks}
-            toolbar={<PointModeDemo />}
-          >
-            <KeyMetrics />
-          </DemoFrame>
-        </PliantRoot>
-      )
-    },
+    file: "snippets/ai/ask-toolbar.tsx",
+    render: () => (
+      <KeyMetricsDemo
+        surface="/docs/components/point-mode"
+        toolbar={
+          <DemoAskToolbar
+            targets={askTargets.filter(({ id }) => id === "key-metrics")}
+          />
+        }
+      />
+    ),
   },
-} satisfies Record<
-  string,
-  { file: string; render: () => Promise<React.ReactNode> }
->
+} satisfies Record<string, { file: string; render: () => React.ReactNode }>
 
 export type ExampleName = keyof typeof examples

@@ -5,6 +5,7 @@ import { cn } from "cn"
 import { Callout } from "@/components/callout"
 import { CodeBlockCommand } from "@/components/code-block-command"
 import { CodeTabs } from "@/components/code-tabs"
+import { ComponentManualInstall } from "@/components/component-manual-install"
 import { ComponentPreview } from "@/components/component-preview"
 import { ComponentSource } from "@/components/component-source"
 import { ComponentsIndex } from "@/components/components-index"
@@ -180,6 +181,7 @@ export const mdxComponents = {
   ),
   Callout,
   CodeTabs,
+  ComponentManualInstall,
   ComponentPreview,
   ComponentSource,
   ComponentsIndex,

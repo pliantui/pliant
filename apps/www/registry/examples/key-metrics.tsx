@@ -8,10 +8,10 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div
       role="group"
       aria-label={label}
-      className="flex flex-col gap-1 rounded-xl border bg-background p-4"
+      className="flex flex-col gap-1 rounded-xl border bg-background p-3"
     >
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-2xl font-semibold tabular-nums">{value}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-lg font-semibold tabular-nums">{value}</span>
     </div>
   )
 }
@@ -24,7 +24,7 @@ export function KeyMetrics() {
     <section aria-label="Key metrics">
       <PliantRegion
         id="key-metrics"
-        className="grid-cols-2"
+        className="grid-cols-2 lg:grid-cols-4"
         slots={{
           revenue: (
             <Stat label="Revenue" value={formatCurrency(stats.revenue)} />

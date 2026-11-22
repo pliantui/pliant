@@ -21,7 +21,7 @@ Wrap each page, or each part of the app with its own saved layout, in a `PliantR
   snippets/components/root.tsx#usage
 </include>
 
-`localAdapter` keeps each user's changes in their browser. To keep them on your server, pass `serverAdapter({ endpoint })` instead. See [storage](/docs/storage).
+`localAdapter` keeps each user's changes in their browser. To keep them on your server, use `serverAdapter({ endpoint })`. Create it in a client module, such as your providers file, because a Server Component can't pass an adapter object. See [storage](/docs/storage).
 
 ## What users can ask
 
@@ -42,13 +42,11 @@ The root doesn't change anything itself: it carries the changes users make to th
 
 ### Layers loaded on the server
 
-Load the layers while the page renders and pass them as `layers`, so the first HTML already shows the user's layout.
+Load the layers while the page renders and pass them as `layers`, so the first HTML already shows the user's layout. Create the server adapter in a client module.
 
-```tsx
-<PliantRoot surface="/orders" storage={storage} layers={layers}>
-  <OrdersTable data={orders} />
-</PliantRoot>
-```
+<include cwd lang="tsx">
+  snippets/components/root-layers.tsx#layers
+</include>
 
 ## Options
 
