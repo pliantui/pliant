@@ -1,0 +1,27 @@
+{
+  "title": "Components",
+  "pages": [
+    "pliant-root",
+    "region",
+    "pre-paint",
+    "messages",
+    "data-table",
+    "chart",
+    "stat",
+    "list",
+    "form",
+    "nav",
+    "tabs-and-panels",
+    "actions",
+    "dialog",
+    "ask-panel",
+    "point-mode",
+    "suggestions",
+    "customized-indicator",
+    "reset",
+    "history-and-undo",
+    "share-link",
+    "team-publish",
+    "text-size-density-motion"
+  ]
+}
