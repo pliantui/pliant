@@ -1,0 +1,78 @@
+---
+title: Surfaces, nodes and addresses
+description: How Pliant names the pages of your app, the parts users can change, and each item inside them.
+---
+
+Every change a user makes names exactly what it changes: which page, which part of the page, and which item in it. Knowing how these names work helps you read a stored change and choose ids that stay stable as your pages evolve.
+
+| Address                      | What it names                       |
+| ---------------------------- | ----------------------------------- |
+| `key-metrics`                | The region of metric cards          |
+| `key-metrics/slots/overdue`  | The **Overdue** card in that region |
+| `orders-table`               | The orders table                    |
+| `orders-table/columns/notes` | The **Notes** column of that table  |
+
+## Surfaces
+
+A **surface** is one page or screen. Its changes are loaded and saved together. You name it with the `surface` prop of `PliantRoot`, in one of three ways:
+
+- **A route pattern**, such as `/orders` or `/orders/[id]`. Use the pattern, not the URL, so one arrangement applies to every order page. Write dynamic segments in brackets, including catch-all ones such as `[...slug]`.
+- **A kebab-case id**, such as `app-shell`, for parts of the app that aren't tied to one route.
+- **`@app`**, which is reserved for preferences that apply across the whole app.
+
+## Nodes
+
+A **node** is a part of the page users can change, such as a region, a table, a form or a sidebar. You give each one an id:
+
+```tsx
+<PliantRegion id="key-metrics" slots={{ … }} />
+```
+
+```ts
+usePliantTable(options, { id: "orders-table" })
+```
+
+Node ids are kebab-case, start with a letter, and are at most 64 characters long. Each one must be unique on its surface.
+
+## Items
+
+A node holds **items**: the cards in a region, the columns of a table, the fields of a form. Items come in named collections:
+
+| Collection | Found in                   | Example id  |
+| ---------- | -------------------------- | ----------- |
+| `slots`    | Regions                    | `overdue`   |
+| `columns`  | Tables                     | `createdAt` |
+| `fields`   | Forms                      | `priority`  |
+| `items`    | Sidebars                   | `reports`   |
+| `actions`  | Toolbars and action groups | `export`    |
+
+A region's slot ids are kebab-case. Ids in the other collections may also use uppercase letters and `_`, so TanStack column ids such as `createdAt` work as they are. No id contains a dot, and every id starts with a letter.
+
+## Addresses
+
+An **address** names a node or an item. A node's address is its id. An item's address is the node's id, the collection and the item's id, joined by `/`: `orders-table/columns/notes`.
+
+A node keeps its identity wherever it moves. `key-metrics` and `dashboard/slots/key-metrics` name the same region, so changes to it follow it if a user moves it into another region.
+
+Changes can't name a single row of data, such as one order. Users change how data is shown, never one record.
+
+## Choosing good ids
+
+Ids are stored in every change your users make, so treat them like database column names:
+
+- Name a part for what it shows, such as `overdue`, rather than where it sits, such as `card-3`. The name stays accurate after a user moves the card.
+- Avoid renaming ids. Changes users made to the old id stop applying, and the part shows your defaults again.
+- The same table id on two surfaces is two separate tables, each with its own changes. That's usually what you want, but be aware of it.
+
+## Reserved targets
+
+Two targets aren't nodes:
+
+- `@surface` holds preferences for the whole surface, such as density.
+- `@app` holds preferences for the whole app, such as text size and motion. Only changes on the `@app` surface target it.
+
+## Related
+
+- [Overlays and layers](/docs/concepts/layers): how changes are stored and stacked.
+- [Operations](/docs/concepts/operations): the changes an address can receive.
+- [Glossary](/docs/concepts/glossary)

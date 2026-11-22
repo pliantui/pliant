@@ -1,0 +1,111 @@
+---
+title: Your first editable table
+description: A step-by-step tutorial that builds a Next.js orders page with Pliant's data table, about ten minutes from start to finish.
+---
+
+In this tutorial, you build an orders table that each user can sort and trim to the columns they care about. When they come back, the table is the way they left it. It takes about 10 minutes.
+
+You'll need a Next.js App Router app with shadcn/ui. If you haven't installed Pliant yet, follow the [Next.js installation](/docs/installation/next) first, or run the commands in the first step.
+
+By the end, your project has four new files:
+
+<FileTree>
+  <Folder name="app">
+    <Folder name="orders">
+      <File name="columns.tsx" />
+      <File name="data.ts" />
+      <File name="orders-table.tsx" />
+      <File name="page.tsx" />
+    </Folder>
+  </Folder>
+  <Folder name="components">
+    <Folder name="pliant" defaultOpen={false} />
+  </Folder>
+</FileTree>
+
+<Steps>
+
+<Step>Add the packages and the table components</Step>
+
+Install Pliant's React package and TanStack Table:
+
+```bash
+npm install @pliantui/react @tanstack/react-table zod
+```
+
+Then add the data table components. The shadcn CLI copies them into `components/pliant`, with the shadcn components they use:
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-data-table.json
+```
+
+<Step>Add some orders</Step>
+
+Create the data the table shows. In your app, this comes from your database. Here it's a short list:
+
+<include cwd lang="ts" meta='title="app/orders/data.ts"'>
+  snippets/first-table/data.ts#data
+</include>
+
+<Step>Describe the columns</Step>
+
+Define the columns with TanStack Table's column helper. Each column gets a `meta.label`, which Pliant's header and columns menu show, and a header that sorts the column when clicked.
+
+<include cwd lang="tsx" meta='title="app/orders/columns.tsx"'>
+  snippets/first-table/columns.tsx#columns
+</include>
+
+`enableSorting: false` keeps the notes column from sorting: its header shows the label without a button.
+
+<Step>Build the table</Step>
+
+Pass your table options through `usePliantTable`, then render them with Pliant's data table, a columns menu and pagination:
+
+<include cwd lang="tsx" meta='title="app/orders/orders-table.tsx"'>
+  snippets/first-table/orders-table.tsx#table
+</include>
+
+The `id` names this table, so its changes are kept apart from other tables on the page. Use a kebab-case id, such as `orders-table`.
+
+<Step>Add the page</Step>
+
+Render the table inside `PliantRoot`, which keeps the changes for this page:
+
+<include cwd lang="tsx" meta='title="app/orders/page.tsx"'>
+  snippets/first-table/page.tsx#page
+</include>
+
+- `surface="/orders"` names the page.
+- `storage={localAdapter}` keeps each user's changes in their browser.
+- `PliantPrePaint` keeps a customized table from flashing its default state while the page loads.
+
+<Step>Try it</Step>
+
+Start your dev server and open [localhost:3000/orders](http://localhost:3000/orders). Then:
+
+1. Click the **Value** header twice to sort the largest orders first.
+2. Open the **Columns** menu and hide **Notes**.
+3. Reload the page.
+
+The table comes back sorted by value, without the notes column. Open the page in a private window and you'll see the default table: each person's changes are their own.
+
+</Steps>
+
+<Callout title="Where did the changes go?">
+  Each change is saved as a small JSON document in the browser's `localStorage`.
+  To keep changes on your server, so they follow users across devices, see
+  [Storage](/docs/storage).
+</Callout>
+
+## What you built
+
+- A table whose sort and visible columns are saved per user.
+- Pagination that resets when the tab closes, so a returning user starts on the first page.
+- Filters that also last only for the tab. To save them like the sort, pass `persistFilters: true` next to `id` in `usePliantTable`.
+- A page that renders exactly as you wrote it for anyone who hasn't changed it.
+
+## Next steps
+
+- Add a search box, filters and a **Reset** button with the `pliant-data-table-toolbar` component. The [orders example](/examples/orders) shows them all.
+- Let users ask for a change in plain words with the [ask panel](/docs/ask-panel).
+- Learn what happens behind the scenes in [How it works in 5 minutes](/docs/how-it-works).

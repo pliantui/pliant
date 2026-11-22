@@ -1,0 +1,27 @@
+---
+title: verify
+description: Check that a component from a shadcn registry works with Pliant before you list or install it.
+---
+
+`verify` checks that a registry component works with Pliant: that its manifest is valid, that each prop it declares renders, and that changes to it keep reading order and guardrails intact.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how this command will work. It isn't in Pliant yet.
+</Callout>
+
+```bash
+npx pliantui verify https://example.com/r/stat-card.json
+```
+
+The command:
+
+- checks that the item's manifest parses and matches its props;
+- renders every prop value the manifest declares, in light and dark mode;
+- applies random valid changes and checks that no guardrail breaks;
+- checks that keyboard and screen reader order follow the visible order after a move.
+
+A component that passes can be listed as Pliant compatible.

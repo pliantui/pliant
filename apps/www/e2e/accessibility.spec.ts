@@ -108,7 +108,10 @@ for (const colorScheme of ["light", "dark"] as const) {
     }) => {
       await page.goto("/docs/concepts/expressions")
       await expect(
-        page.getByRole("heading", { level: 1, name: "Expressions" })
+        page.getByRole("heading", {
+          level: 1,
+          name: "Expressions and functions",
+        })
       ).toBeVisible()
       expect(await violations(page, colorScheme)).toEqual([])
     })
@@ -233,7 +236,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       test("a docs page has no accessibility violations", async ({ page }) => {
         await page.goto("/docs/concepts/layers")
         await expect(
-          page.getByRole("heading", { level: 1, name: "Layers" })
+          page.getByRole("heading", { level: 1, name: "Overlays and layers" })
         ).toBeVisible()
         expect(await violations(page, colorScheme)).toEqual([])
       })

@@ -1,0 +1,30 @@
+---
+title: Overlay format
+description: Every field of a stored overlay, with its type and meaning, and where to find the JSON Schema.
+---
+
+An overlay is the JSON document that holds one set of changes for one surface and one layer. [Overlays and layers](/docs/concepts/layers) explains how they stack; this page lists their fields.
+
+| Field       | Description                                                                                                 |
+| ----------- | ----------------------------------------------------------------------------------------------------------- |
+| `v`         | The format version, always `1`.                                                                             |
+| `id`        | A [ULID](https://github.com/ulid/spec). Saving an overlay with the same `id` replaces it.                   |
+| `surface`   | The surface it applies to.                                                                                  |
+| `layer`     | `org`, `team`, `personal` or `session`.                                                                     |
+| `scope`     | `{ "org": "…" }` on the `org` layer, `{ "team": "…" }` on the `team` layer, and none otherwise.             |
+| `ops`       | Between 1 and 500 operations.                                                                               |
+| `basis`     | What it was made against: the format version, the `@pliantui/core` version and component manifest versions. |
+| `source`    | How it was made: `ai`, `manual`, `chip`, `share` or `promote`.                                              |
+| `lang`      | Optional. The language of its labels, as a BCP 47 tag such as `en-US`.                                      |
+| `explain`   | Optional. One short sentence per operation, describing the change to the user.                              |
+| `createdBy` | Who made it.                                                                                                |
+| `createdAt` | When it was made, as an RFC 3339 timestamp with seconds.                                                    |
+
+The JSON Schema is published at <SiteUrl path="/schema/overlay.json" />, for tools and for implementations in other languages.
+
+An overlay keeps fields it doesn't recognize, so an overlay saved by a newer version of Pliant loads and saves again in an older one without losing anything.
+
+## Related
+
+- [Overlays and layers](/docs/concepts/layers)
+- [Limits](/docs/reference/limits)

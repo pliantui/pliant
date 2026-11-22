@@ -1,0 +1,34 @@
+---
+title: Limits
+description: The fixed limits on overlays, operations and expressions that keep every change small and bounded.
+---
+
+Every change Pliant stores or accepts stays within these limits. A change that goes past one is rejected, or the value is clamped where noted.
+
+## Overlays and operations
+
+| Limit                    | Value                                                                   |
+| ------------------------ | ----------------------------------------------------------------------- |
+| Operations per overlay   | 1 to 500                                                                |
+| Sort fields              | 8                                                                       |
+| Group-by fields          | 4                                                                       |
+| Values in an `in` filter | 1 to 100                                                                |
+| Layout columns           | 4                                                                       |
+| Labels                   | 80 characters                                                           |
+| Node and item ids        | 64 characters                                                           |
+| Addresses and surfaces   | 256 characters                                                          |
+| Column widths            | 16 to 2,000 pixels, clamped to the column's own `minSize` and `maxSize` |
+
+## Expressions
+
+| Limit                   | Value |
+| ----------------------- | ----- |
+| Nesting depth           | 8     |
+| Arguments per function  | 16    |
+| Nodes in one expression | 128   |
+
+## Related
+
+- [Operations](/docs/concepts/operations)
+- [Expressions and functions](/docs/concepts/expressions)
+- [Overlay format](/docs/reference/overlay)
