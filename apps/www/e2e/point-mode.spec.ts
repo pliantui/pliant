@@ -381,6 +381,82 @@ test("keeps a label on screen for a target at the right edge", async ({
   expect(errors).toEqual([])
 })
 
+// The extent of an element's text, which is narrower than a block heading.
+async function textBox(locator: Locator) {
+  return locator.evaluate((element) => {
+    const range = document.createRange()
+    range.selectNodeContents(element)
+    const { x, y, width, height } = range.getBoundingClientRect()
+    return { x, y, width, height }
+  })
+}
+
+test("keeps its labels off the page's headings and notes", async ({
+  page,
+  errors,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 1200 })
+  await load(page)
+
+  await page.keyboard.down("Alt")
+  await expect(keyMetricsBox(page)).toBeVisible()
+  const labels = [
+    await layer(page).getByText("Key metrics", { exact: true }).boundingBox(),
+    await layer(page).getByText("All orders", { exact: true }).boundingBox(),
+  ]
+  const covered = [
+    await textBox(page.getByRole("heading", { name: "Orders", exact: true })),
+    await textBox(page.getByRole("heading", { name: "All orders" })),
+    await textBox(
+      page.getByText(
+        "This demo replays recorded answers; no AI model is called."
+      )
+    ),
+  ]
+  await page.keyboard.up("Alt")
+
+  for (const label of labels) {
+    for (const content of covered) {
+      expect(label).toBeTruthy()
+      if (!label) continue
+      expect(apart(rectOf(label), rectOf(content))).toBe(true)
+    }
+  }
+  expect(errors).toEqual([])
+})
+
+test("stays below the sticky site header when the page is scrolled", async ({
+  page,
+  errors,
+}) => {
+  await load(page)
+  const header = await page.getByRole("banner").boundingBox()
+  expect(header).not.toBeNull()
+  const headerBottom = (header?.y ?? 0) + (header?.height ?? 0)
+  // Scrolls the key metrics partly under the header.
+  await region(page).evaluate((element, offset) => {
+    window.scrollBy(0, element.getBoundingClientRect().top - offset)
+  }, headerBottom - 40)
+
+  await page.keyboard.down("Alt")
+  await expect(keyMetricsBox(page)).toBeVisible()
+  const outline = await keyMetricsBox(page).boundingBox()
+  const label = await layer(page)
+    .getByText("Key metrics", { exact: true })
+    .boundingBox()
+  expect(outline && label).toBeTruthy()
+  expect(outline?.y ?? 0).toBeLessThan(headerBottom)
+  expect(label?.y ?? 0).toBeGreaterThanOrEqual(headerBottom)
+
+  // The outline is cut off under the header, so clicking there picks
+  // nothing.
+  await page.mouse.click((outline?.x ?? 0) + 40, headerBottom - 4)
+  await expect(layer(page)).toBeHidden()
+  await page.keyboard.up("Alt")
+  await expect(page.getByRole("complementary", { name: "Ask" })).toBeHidden()
+  expect(errors).toEqual([])
+})
+
 async function accessibilityTree(page: Page) {
   const client = await page.context().newCDPSession(page)
   const { nodes } = await client.send("Accessibility.getFullAXTree")

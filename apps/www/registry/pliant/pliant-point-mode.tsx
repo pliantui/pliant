@@ -48,6 +48,9 @@ interface Rect {
 }
 
 interface Viewport {
+  // Where the visible page starts: below a sticky header, when the page
+  // declares one with `scroll-padding-top`, as it does for anchor links.
+  top: number
   width: number
   height: number
 }
@@ -65,7 +68,7 @@ function subscribeToResize(onResize: () => void) {
 }
 
 // The layout viewport, without scrollbars, kept current as the window resizes.
-function useViewport(): Viewport {
+function useViewportSize() {
   const width = React.useSyncExternalStore(
     subscribeToResize,
     () => document.documentElement.clientWidth,
@@ -77,6 +80,16 @@ function useViewport(): Viewport {
     () => 0
   )
   return { width, height }
+}
+
+// A sticky header's height, read from the root's `scroll-padding-top`, which
+// a page with one sets so anchor links land below it. Only a length in
+// pixels counts.
+function headerInset() {
+  const value = getComputedStyle(document.documentElement).scrollPaddingTop
+  if (!value.endsWith("px")) return 0
+  const inset = Number.parseFloat(value)
+  return Number.isFinite(inset) ? Math.max(0, inset) : 0
 }
 
 // The outline grows `gap` past its target on every side, except where that
@@ -116,6 +129,108 @@ function contains(outer: Rect, inner: Rect) {
   )
 }
 
+const pointModeLayer = '[data-slot="pliant-point-mode"]'
+
+function edgesOf(element: Element, box: DOMRect): Rect[] {
+  const style = getComputedStyle(element)
+  const visible = (width: string, color: string, lineStyle: string) =>
+    Number.parseFloat(width) > 0 &&
+    lineStyle !== "none" &&
+    lineStyle !== "hidden" &&
+    color !== "transparent" &&
+    !/^rgba\(.*,\s*0\)$/.test(color) &&
+    !/\/\s*0\)$/.test(color)
+  const edges: Rect[] = []
+  const { top, right, bottom, left } = box
+  if (
+    visible(style.borderTopWidth, style.borderTopColor, style.borderTopStyle)
+  ) {
+    edges.push({ top, right, left, bottom: top + 1 })
+  }
+  if (
+    visible(
+      style.borderBottomWidth,
+      style.borderBottomColor,
+      style.borderBottomStyle
+    )
+  ) {
+    edges.push({ top: bottom - 1, right, left, bottom })
+  }
+  if (
+    visible(style.borderLeftWidth, style.borderLeftColor, style.borderLeftStyle)
+  ) {
+    edges.push({ top, bottom, left, right: left + 1 })
+  }
+  if (
+    visible(
+      style.borderRightWidth,
+      style.borderRightColor,
+      style.borderRightStyle
+    )
+  ) {
+    edges.push({ top, bottom, left: right - 1, right })
+  }
+  return edges
+}
+
+interface PageContent {
+  text: Rect[]
+  borders: Rect[]
+}
+
+function shift(rect: Rect, x: number, y: number): Rect {
+  return {
+    top: rect.top + y,
+    right: rect.right + x,
+    bottom: rect.bottom + y,
+    left: rect.left + x,
+  }
+}
+
+// The page's text and borders, which a label would rather not cover, in
+// page coordinates so they stay valid as the page scrolls. Hit testing can't
+// find them, since the page is `inert` while point mode is a dialog, so this
+// walks the page once when point mode starts. Fixed and sticky layers, like
+// a site header, move with the screen rather than the page, so they're left
+// out.
+function findPageContent(): PageContent {
+  const content: PageContent = { text: [], borders: [] }
+  const range = document.createRange()
+  const toPage = (rect: Rect) => shift(rect, window.scrollX, window.scrollY)
+  const walker = document.createTreeWalker(
+    document.body,
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+    {
+      acceptNode: (node) => {
+        if (!(node instanceof Element)) return NodeFilter.FILTER_ACCEPT
+        if (node.matches(pointModeLayer)) return NodeFilter.FILTER_REJECT
+        const { position } = getComputedStyle(node)
+        return position === "fixed" || position === "sticky"
+          ? NodeFilter.FILTER_REJECT
+          : NodeFilter.FILTER_ACCEPT
+      },
+    }
+  )
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (node instanceof Element) {
+      const box = node.getBoundingClientRect()
+      if (box.width > 1 && box.height > 1) {
+        content.borders.push(...edgesOf(node, box).map(toPage))
+      }
+      continue
+    }
+    if (!node.textContent?.trim()) continue
+    const parent = node.parentElement?.getBoundingClientRect()
+    // Visually hidden text, like `sr-only`, sits in a 1px box.
+    if (!parent || parent.width <= 1 || parent.height <= 1) continue
+    range.selectNodeContents(node)
+    for (const line of range.getClientRects()) {
+      if (line.width > 1 && line.height > 1) content.text.push(toPage(line))
+    }
+  }
+  return content
+}
+
 interface Outline {
   box: PointModeBox
   rect: Rect
@@ -141,23 +256,53 @@ type LabelPlacement = { top: number; maxWidth: number } & (
   { left: number } | { right: number }
 )
 
-// A label goes above its outline, or below it, wherever it stays on screen
-// and out of the way of every other outline and every label placed before
-// it. When neither fits, it goes inside the outline's top corner, moved
-// down to stay on screen, and at the other corner if the first one is in
-// the way.
+interface PlacedLabel {
+  placement: LabelPlacement
+  rect: Rect
+  end: boolean
+  // Which of the candidate spots it took, and how much page content it
+  // covered there.
+  spot: number
+  cover: number
+}
+
+// A label goes above or below its outline, at either end, or inside the
+// outline's top corners, moved down to stay on screen. Of the spots that
+// stay on screen and out of the way of every other outline and every label
+// placed before it, it takes the first that covers none of the page's text
+// and borders, or else the one that covers the least, text counting most.
+// When no spot is out of the way, it goes inside the outline's own corner.
+// A label keeps the spot it had while the page scrolls, as long as that
+// spot still fits and covers no more than it did, so it doesn't hop about.
 function placeLabel(
   own: Outline,
   outlines: readonly Outline[],
   placed: readonly Rect[],
-  viewport: Viewport
-): { placement: LabelPlacement; rect: Rect } {
+  content: PageContent,
+  viewport: Viewport,
+  previous: PlacedLabel | undefined
+): PlacedLabel {
   const { rect: outline, parents } = own
   const inWay = (label: Rect) =>
     outlines.some(
       (other, otherIndex) =>
         other !== own && getsInWay(label, other.rect, parents.has(otherIndex))
     ) || placed.some((other) => overlaps(label, grow(other, gap)))
+  const count = (label: Rect, rects: readonly Rect[]) =>
+    rects.filter((other) => overlaps(label, other)).length
+  // Content is in page coordinates, and is checked against the label's
+  // likely width rather than its widest.
+  const width = Math.min(labelWidth, own.box.label.length * 7 + 12)
+  const covered = (label: Rect, end: boolean) => {
+    const likely = shift(
+      end
+        ? { ...label, left: Math.max(label.left, label.right - width) }
+        : { ...label, right: Math.min(label.right, label.left + width) },
+      window.scrollX,
+      window.scrollY
+    )
+    return count(likely, content.text) * 1000 + count(likely, content.borders)
+  }
   // A label `inset` in from the outline's start or end, clipped to the screen.
   const at = (top: number, end: boolean, inset: number) => {
     const width = Math.max(
@@ -175,37 +320,71 @@ function placeLabel(
           right: outline.right - rect.right,
         }
       : { top: top - outline.top, maxWidth: width, left: left - outline.left }
-    return { rect, placement }
+    return { rect, placement, end }
   }
   const end = own.box.labelAlign === "end"
-  for (const top of [
-    outline.top - ring - gap - labelHeight,
-    outline.bottom + ring + gap,
-  ]) {
-    const outside = at(top, end, 0)
-    const onScreen = top >= 0 && outside.rect.bottom <= viewport.height
-    if (onScreen && !inWay(outside.rect)) {
-      return outside
-    }
-  }
+  const above = outline.top - ring - gap - labelHeight
+  const below = outline.bottom + ring + gap
+  const fits = (label: Rect) =>
+    label.top >= viewport.top &&
+    label.bottom <= viewport.height &&
+    !inWay(label)
+  const outside = [
+    at(above, end, 0),
+    at(below, end, 0),
+    at(above, !end, 0),
+    at(below, !end, 0),
+  ]
   // Within the part of the outline that's on screen, where there's room.
   const insideTop = Math.max(
     Math.min(
-      Math.max(outline.top, 0) + gap,
+      Math.max(outline.top, viewport.top) + gap,
       Math.min(outline.bottom, viewport.height) - gap - labelHeight
     ),
     outline.top + gap
   )
   const inside = at(insideTop, end, gap)
-  if (!inWay(inside.rect)) {
-    return inside
-  }
   const otherCorner = at(insideTop, !end, gap)
-  return inWay(otherCorner.rect) ? inside : otherCorner
+  const candidates = [...outside, inside, otherCorner]
+  const scored = candidates.map((candidate, spot) => ({
+    ...candidate,
+    spot,
+    cover: fits(candidate.rect)
+      ? covered(candidate.rect, candidate.end)
+      : Number.POSITIVE_INFINITY,
+  }))
+  const kept = previous && scored[previous.spot]
+  if (kept && Number.isFinite(kept.cover) && kept.cover <= previous.cover) {
+    return kept
+  }
+  let best: PlacedLabel | undefined
+  for (const candidate of scored) {
+    if (candidate.cover === 0) return candidate
+    if (candidate.cover < (best?.cover ?? Number.POSITIVE_INFINITY)) {
+      best = candidate
+    }
+  }
+  if (best) return best
+  // Nothing fits: the outline's own corner, kept below a sticky header.
+  return {
+    ...at(Math.max(insideTop, viewport.top), end, gap),
+    spot: 4,
+    cover: Number.POSITIVE_INFINITY,
+  }
 }
 
-function layoutOutlines(boxes: readonly PointModeBox[], viewport: Viewport) {
-  const shapes = boxes.map((box) => ({ box, rect: outlineOf(box, viewport) }))
+function layoutOutlines(
+  boxes: readonly PointModeBox[],
+  viewport: Viewport,
+  content: PageContent,
+  previous: ReadonlyMap<string, PlacedLabel>
+) {
+  const shapes = boxes.flatMap((box) => {
+    const rect = outlineOf(box, viewport)
+    // An outline wholly under a sticky header can't be seen, so it isn't
+    // offered.
+    return rect.bottom <= viewport.top + ring ? [] : [{ box, rect }]
+  })
   const outlines: Outline[] = shapes.map(({ box, rect }, index) => ({
     box,
     rect,
@@ -221,9 +400,21 @@ function layoutOutlines(boxes: readonly PointModeBox[], viewport: Viewport) {
   }))
   const placed: Rect[] = []
   return outlines.map((own) => {
-    const { placement, rect } = placeLabel(own, outlines, placed, viewport)
-    placed.push(rect)
-    return { box: own.box, outline: own.rect, label: placement }
+    const label = placeLabel(
+      own,
+      outlines,
+      placed,
+      content,
+      viewport,
+      previous.get(own.box.id)
+    )
+    placed.push(label.rect)
+    return {
+      box: own.box,
+      outline: own.rect,
+      label: label.placement,
+      placed: label,
+    }
   })
 }
 
@@ -243,6 +434,11 @@ function layoutOutlines(boxes: readonly PointModeBox[], viewport: Viewport) {
  * `pointer-events: none`, as Radix sets for its modal layers. Safari keeps
  * ⌘. for Stop, and some Linux desktops move the window on Alt+click, so the
  * toggle is the way in that always works, and the only one on touch screens.
+ *
+ * Outlines and labels stay below a sticky header when the page sets the
+ * root's `scroll-padding-top` to the header's height in pixels, as it would
+ * for anchor links. Labels avoid covering the page's text and borders where
+ * they can.
  *
  * Started from the toggle or the shortcut, point mode is a modal dialog:
  * the rest of the page, an open ask panel included, is `inert` until it
@@ -270,7 +466,48 @@ function PliantPointMode({
       labelWidth,
     })
   const id = React.useId()
-  const viewport = useViewport()
+  const { width, height } = useViewportSize()
+  // Read once when point mode starts or the window resizes, rather than on
+  // every scroll. Each label's spot is remembered for as long as that lasts.
+  const page = React.useMemo(
+    () =>
+      mode === null
+        ? null
+        : {
+            top: headerInset(),
+            content: findPageContent(),
+          },
+    // The size isn't read, but a resize moves the page's content.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mode, width, height]
+  )
+  // Each label's spot in the last layout of this session, so the next one
+  // can keep it. It's written after each render, never during one.
+  const previous = React.useRef<{
+    page: typeof page
+    labels: ReadonlyMap<string, PlacedLabel>
+  }>({ page: null, labels: new Map() })
+  const layout = React.useMemo(
+    () =>
+      page === null
+        ? []
+        : layoutOutlines(
+            boxes,
+            { top: page.top, width, height },
+            page.content,
+            // Read only as a hint for where labels sat; a stale value just
+            // means a label may move once.
+            // eslint-disable-next-line react-hooks/refs
+            previous.current.page === page ? previous.current.labels : new Map()
+          ),
+    [page, boxes, width, height]
+  )
+  React.useEffect(() => {
+    previous.current = {
+      page,
+      labels: new Map(layout.map(({ box, placed }) => [box.id, placed])),
+    }
+  }, [page, layout])
 
   return (
     <>
@@ -303,30 +540,37 @@ function PliantPointMode({
                 {messages.pointModeHelp}
               </p>
             )}
-            {layoutOutlines(boxes, viewport).map(({ box, outline, label }) => (
-              <button
-                key={box.id}
-                type="button"
-                data-pliant-point-target={box.id}
-                className="absolute cursor-pointer rounded-xl bg-primary/5 shadow-lg ring-2 shadow-primary/25 ring-primary/60 outline-none hover:bg-primary/10 hover:shadow-primary/40 hover:ring-primary focus-visible:bg-primary/10 focus-visible:ring-4 focus-visible:shadow-primary/40 focus-visible:ring-primary motion-safe:animate-in motion-safe:transition-[background-color,box-shadow] motion-safe:fade-in-0"
-                style={{
-                  top: outline.top,
-                  left: outline.left,
-                  width: outline.right - outline.left,
-                  height: outline.bottom - outline.top,
-                }}
-                onClick={() => {
-                  pick(box.id)
-                }}
-              >
-                <span
-                  className="absolute h-5 max-w-48 truncate rounded-md bg-primary px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-primary-foreground shadow-sm"
-                  style={label}
+            {/* Outlines stay below a sticky header, so they never draw
+                over it. */}
+            <div
+              className="absolute inset-0"
+              style={{ clipPath: `inset(${String(page?.top ?? 0)}px 0 0 0)` }}
+            >
+              {layout.map(({ box, outline, label }) => (
+                <button
+                  key={box.id}
+                  type="button"
+                  data-pliant-point-target={box.id}
+                  className="absolute cursor-pointer rounded-xl bg-primary/5 shadow-lg ring-2 shadow-primary/25 ring-primary/60 outline-none hover:bg-primary/10 hover:shadow-primary/40 hover:ring-primary focus-visible:bg-primary/10 focus-visible:ring-4 focus-visible:shadow-primary/40 focus-visible:ring-primary motion-safe:animate-in motion-safe:transition-[background-color,box-shadow] motion-safe:fade-in-0"
+                  style={{
+                    top: outline.top,
+                    left: outline.left,
+                    width: outline.right - outline.left,
+                    height: outline.bottom - outline.top,
+                  }}
+                  onClick={() => {
+                    pick(box.id)
+                  }}
                 >
-                  {box.label}
-                </span>
-              </button>
-            ))}
+                  <span
+                    className="absolute h-5 max-w-48 truncate rounded-md bg-primary px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-primary-foreground shadow-sm"
+                    style={label}
+                  >
+                    {box.label}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>,
           document.body
         )}

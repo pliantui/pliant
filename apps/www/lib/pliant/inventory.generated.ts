@@ -2,6 +2,210 @@
 // Don't edit it by hand. Run the command again instead.
 
 export const inventory = {
+  "/": {
+    baseIds: {
+      ids: [
+        "average-order-value",
+        "key-metrics",
+        "low-stock",
+        "new-tickets",
+        "notification-settings",
+        "order-alerts",
+        "order-confirmations",
+        "orders",
+        "orders-table",
+        "orders-table/columns/createdAt",
+        "orders-table/columns/customer",
+        "orders-table/columns/id",
+        "orders-table/columns/notes",
+        "orders-table/columns/region",
+        "orders-table/columns/status",
+        "orders-table/columns/value",
+        "overdue",
+        "product-news",
+        "refund-requests",
+        "revenue",
+        "ticket-form",
+        "ticket-form/fields/cc",
+        "ticket-form/fields/description",
+        "ticket-form/fields/orderId",
+        "ticket-form/fields/priority",
+        "ticket-form/fields/subject",
+        "weekly-report",
+        "workspace-nav",
+        "workspace-nav/items/customers",
+        "workspace-nav/items/inbox",
+        "workspace-nav/items/reports",
+        "workspace-nav/items/settings",
+        "workspace-nav/items/tickets",
+      ],
+      source: "mounted",
+    },
+    baseParents: {
+      "average-order-value": "key-metrics",
+      "key-metrics": null,
+      "low-stock": "notification-settings",
+      "new-tickets": "notification-settings",
+      "notification-settings": null,
+      "order-alerts": "notification-settings",
+      "order-confirmations": "notification-settings",
+      orders: "key-metrics",
+      "orders-table": null,
+      overdue: "key-metrics",
+      "product-news": "notification-settings",
+      "refund-requests": "notification-settings",
+      revenue: "key-metrics",
+      "ticket-form": null,
+      "weekly-report": "notification-settings",
+      "workspace-nav": null,
+    },
+    baseOrder: {
+      "key-metrics": ["revenue", "orders", "average-order-value", "overdue"],
+      "notification-settings": [
+        "order-confirmations",
+        "order-alerts",
+        "weekly-report",
+        "new-tickets",
+        "refund-requests",
+        "low-stock",
+        "product-news",
+      ],
+    },
+    ids: {
+      "average-order-value": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "key-metrics": {
+        kind: "pliant:region",
+        hash: "a530aef6e984296f",
+      },
+      "low-stock": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "new-tickets": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "notification-settings": {
+        kind: "pliant:region",
+        hash: "a530aef6e984296f",
+      },
+      "order-alerts": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "order-confirmations": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      orders: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "orders-table": {
+        kind: "pliant:table",
+        hash: "f873f0295ae458a8",
+      },
+      "orders-table/columns/createdAt": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/customer": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/id": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/notes": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/region": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/status": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "orders-table/columns/value": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      overdue: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "product-news": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "refund-requests": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      revenue: {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "ticket-form": {
+        kind: "pliant:form",
+        hash: "699e992c0abd1832",
+      },
+      "ticket-form/fields/cc": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+      "ticket-form/fields/description": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+      "ticket-form/fields/orderId": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+      "ticket-form/fields/priority": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+      "ticket-form/fields/subject": {
+        kind: "pliant:field",
+        hash: "7d402f36c14e4108",
+      },
+      "weekly-report": {
+        kind: "pliant:slot",
+        hash: "a220a621c23f938c",
+      },
+      "workspace-nav": {
+        kind: "pliant:nav",
+        hash: "3c4bd372f62c58fb",
+      },
+      "workspace-nav/items/customers": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+      "workspace-nav/items/inbox": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+      "workspace-nav/items/reports": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+      "workspace-nav/items/settings": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+      "workspace-nav/items/tickets": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
+      },
+    },
+  },
   "/examples/orders": {
     baseIds: {
       ids: [

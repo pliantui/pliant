@@ -332,13 +332,13 @@ test.describe("on a wide screen", () => {
     )
   })
 
-  test("the home buttons lead to the docs and the examples", async ({
+  test("the home buttons lead to the docs and the components", async ({
     page,
   }) => {
     await page.goto("/")
     const main = page.getByRole("main")
 
-    await main.getByRole("link", { name: "View Examples" }).click()
+    await main.getByRole("link", { name: "View components" }).click()
     await expect(page).toHaveURL("/examples/orders")
     await page.goto("/")
     await main.getByRole("link", { name: "Get started" }).click()

@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test"
 
-import { orders } from "../app/(examples)/examples/orders/data"
-import { formatCurrency } from "../app/(examples)/examples/orders/format"
+import { orders } from "../lib/demo/data"
+import { formatCurrency } from "../lib/demo/format"
 import { expect, test } from "./fixtures"
 
 function node(page: Page) {

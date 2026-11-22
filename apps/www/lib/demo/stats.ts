@@ -1,4 +1,4 @@
-import type { Order } from "./data"
+import type { Order } from "./schema"
 
 export interface OrderStats {
   revenue: number

@@ -213,7 +213,7 @@ export function TicketForm() {
             setSubmitted(null)
           }}
         >
-          Reset
+          Clear
         </Button>
       </div>
       <p role="status" className="text-sm text-muted-foreground">

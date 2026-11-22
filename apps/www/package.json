@@ -9,6 +9,7 @@
     "check:unfinished": "node scripts/check-unfinished.ts",
     "registry:build": "shadcn build",
     "schema:build": "node scripts/build-schema.ts",
+    "replays:build": "node scripts/build-replays.ts",
     "start": "next start --port 4000",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",

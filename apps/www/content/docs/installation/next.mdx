@@ -126,10 +126,10 @@ git clone https://github.com/pliantui/pliant.git
 cd pliant
 pnpm install
 pnpm build:packages
-PLIANT_ASK_ENABLED=1 pnpm --filter www dev
+pnpm --filter www dev
 ```
 
-Open [localhost:4000/examples/orders](http://localhost:4000/examples/orders). `PLIANT_ASK_ENABLED=1` turns on an ask panel that replays recorded answers, so it needs no API key.
+Open [localhost:4000/examples/orders](http://localhost:4000/examples/orders). Its ask panel replays recorded answers in the browser, so it needs no API key.
 
 ## Next steps
 

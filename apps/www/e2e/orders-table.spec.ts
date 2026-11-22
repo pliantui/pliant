@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test"
 
-import { orders } from "../app/(examples)/examples/orders/data"
-import { formatNumber } from "../app/(examples)/examples/orders/format"
+import { orders } from "../lib/demo/data"
+import { formatNumber } from "../lib/demo/format"
 import { expect, test } from "./fixtures"
 
 const surface = "/examples/orders"

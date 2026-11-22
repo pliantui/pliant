@@ -1,12 +1,8 @@
 import type { Page } from "@playwright/test"
 
-import { orders } from "../app/(examples)/examples/orders/data"
-import {
-  formatCurrency,
-  formatDate,
-  formatNumber,
-} from "../app/(examples)/examples/orders/format"
-import { getOrderStats } from "../app/(examples)/examples/orders/stats"
+import { orders } from "../lib/demo/data"
+import { formatCurrency, formatDate, formatNumber } from "../lib/demo/format"
+import { getOrderStats } from "../lib/demo/stats"
 import { expect, test } from "./fixtures"
 
 const pageSize = 10

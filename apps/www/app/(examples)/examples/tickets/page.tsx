@@ -4,6 +4,8 @@ import { PliantRoot } from "@pliantui/react"
 import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
+import { CustomizedReset } from "@/components/demo/customized-reset"
+import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { inventory } from "@/lib/pliant/inventory.generated"
 
 import { TicketForm } from "./components/ticket-form"
@@ -23,14 +25,21 @@ export default function TicketsPage() {
           inventory={inventory["/examples/tickets"]}
         >
           <PliantPrePaint surface="/examples/tickets" />
-          <header className="flex flex-col gap-1">
-            <h2 className="text-2xl font-semibold tracking-tight">
-              New ticket
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Tell us what went wrong and we&apos;ll get back to you.
-            </p>
+          <header className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-2xl font-semibold tracking-tight">
+                New ticket
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Tell us what went wrong and we&apos;ll get back to you.
+              </p>
+            </div>
+            <CustomizedReset targets={["ticket-form"]} label="the form" />
           </header>
+          <NotImplementedBanner variant="preview">
+            The Customized badge previews an indicator that isn&apos;t in Pliant
+            yet.
+          </NotImplementedBanner>
           <TicketForm />
         </PliantRoot>
       </div>

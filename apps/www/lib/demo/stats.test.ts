@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import type { Order } from "./data"
+import type { Order } from "./schema"
 import { getOrderStats } from "./stats"
 
 function order(status: Order["status"], value: number): Order {

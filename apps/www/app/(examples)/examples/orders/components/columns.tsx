@@ -3,11 +3,10 @@
 import { createColumnHelper } from "@tanstack/react-table"
 
 import { Badge } from "@/components/ui/badge"
+import { formatCurrency, formatDate } from "@/lib/demo/format"
+import type { Order, OrderStatus } from "@/lib/demo/schema"
 import { PliantDataTableColumnHeader } from "@/registry/pliant/pliant-data-table-column-header"
 import type { PliantDataTableFeatures } from "@/registry/pliant/pliant-data-table-features"
-
-import type { Order, OrderStatus } from "../data"
-import { formatCurrency, formatDate } from "../format"
 
 const statusVariants = {
   paid: "secondary",

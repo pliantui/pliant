@@ -262,6 +262,20 @@ describe("PliantAskPanel", () => {
     expect(screen.getByRole("button", { name: "Lock in" })).toBeTruthy()
   })
 
+  it("sends the ask with a custom fetch in place of the network", async () => {
+    const send = vi.fn<typeof fetch>(() =>
+      Promise.resolve(Response.json(okAnswer))
+    )
+    await renderPanel({ fetch: send })
+
+    await ask()
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send.mock.calls[0]?.[0]).toBe("/api/pliant")
+    expect(order()).toEqual(["overdue", "revenue", "orders"])
+  })
+
   it("says which changes stay in the session after locking in", async () => {
     await renderPanel()
     answer({

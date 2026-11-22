@@ -150,12 +150,13 @@ interface PliantAskTarget {
 }
 
 async function requestAnswer(
+  send: typeof fetch,
   endpoint: string,
   body: unknown,
   signal: AbortSignal,
   unreadable: (status: number) => string
 ): Promise<Answer> {
-  const response = await fetch(endpoint, {
+  const response = await send(endpoint, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -190,6 +191,7 @@ async function requestAnswer(
  */
 function PliantAskPanel({
   endpoint,
+  fetch: send = (input, init) => fetch(input, init),
   targets,
   target,
   defaultTarget,
@@ -202,6 +204,11 @@ function PliantAskPanel({
 }: {
   /** The URL of the route that answers asks with `createPliantHandler`. */
   endpoint: string
+  /**
+   * Sends each ask, in place of the global `fetch`, as for tests or to
+   * answer asks from somewhere other than the network.
+   */
+  fetch?: typeof fetch
   /** The nodes users can ask about, in picker order. */
   targets: readonly PliantAskTarget[]
   /** The id of the picked target, when the parent controls it. */
@@ -233,6 +240,7 @@ function PliantAskPanel({
     onOpenChange,
     send: (ask, signal) =>
       requestAnswer(
+        send,
         endpoint,
         {
           surface: ask.surface,
