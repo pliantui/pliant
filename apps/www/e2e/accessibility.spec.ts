@@ -87,6 +87,21 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
+    for (const [path, name] of [
+      ["/charts", "Charts"],
+      ["/templates", "Templates"],
+    ] as const) {
+      test(`the ${name.toLowerCase()} section has no accessibility violations`, async ({
+        page,
+      }) => {
+        await page.goto(path)
+        await expect(
+          page.getByRole("heading", { level: 1, name })
+        ).toBeVisible()
+        expect(await violations(page, colorScheme)).toEqual([])
+      })
+    }
+
     test("the 404 page has no accessibility violations", async ({ page }) => {
       await page.goto("/no-such-page")
       await expect(
