@@ -11,13 +11,32 @@ function identityOf(address: string) {
   return index === -1 ? address : address.slice(index + 7)
 }
 
-// Whether an op addresses `node` the way `resetNode` counts it: the node
-// itself, one of its items, or a slot addressed through it, at any depth.
-function addressesNode(target: string, node: string) {
-  const identity = identityOf(target)
-  if (identity === node || identity.startsWith(`${node}/`)) return true
-  const index = target.lastIndexOf("/slots/")
-  return index !== -1 && identityOf(target.slice(0, index)) === node
+// A node's placement, span, visibility and insertion belong to its container,
+// and a slot's removal stays, so Reset leaves those and they don't count.
+const containerProperties = new Set([
+  "placement",
+  "visible",
+  "inserted",
+  "span",
+])
+const slotProperties = new Set(["placement", "visible", "span"])
+
+// Whether Reset on `node` drops a change to this property: one of the node's
+// own, one of its items', or a slot's, made through the node at any depth.
+function resetDrops(
+  address: string,
+  property: string,
+  target: string,
+  node: string
+) {
+  if (address.startsWith(`${node}/`)) return true
+  if (address === node) return !containerProperties.has(property)
+  return (
+    slotProperties.has(property) &&
+    !address.includes("/") &&
+    target.endsWith(`/slots/${address}`) &&
+    identityOf(target.slice(0, -7 - address.length)) === node
+  )
 }
 
 // Whether the user changed any of `targets`, or their items, in their own
@@ -28,23 +47,27 @@ export function useCustomized(targets: readonly string[]) {
   const select = React.useCallback(
     ({ properties, placements }: ResolvedLayers) => {
       const ids = key.split(" ")
-      const isOwn = (winner: ResolvedOp | undefined) => {
+      const isOwn = (
+        winner: ResolvedOp | undefined,
+        address: string,
+        property: string
+      ) => {
         if (!winner) return false
         const { layer, id } = winner.overlay
         const { target } = winner.check.op
         return (
           (layer === "personal" || layer === "session") &&
           id !== previewId &&
-          ids.some((node) => addressesNode(target, node))
+          ids.some((node) => resetDrops(address, property, target, node))
         )
       }
-      for (const values of properties.values()) {
-        for (const { winner } of values.values()) {
-          if (isOwn(winner)) return true
+      for (const [address, values] of properties) {
+        for (const [property, { winner }] of values) {
+          if (isOwn(winner, address, property)) return true
         }
       }
-      for (const { winner } of placements.values()) {
-        if (isOwn(winner)) return true
+      for (const [address, { winner }] of placements) {
+        if (isOwn(winner, address, "placement")) return true
       }
       return false
     },
