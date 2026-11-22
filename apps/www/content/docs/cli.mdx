@@ -7,11 +7,51 @@ description: Use the pliantui CLI to add Pliant to your project, describe the co
 
 Use the `init` command to add Pliant to a Next.js App Router project that already uses shadcn/ui.
 
+<CodeTabs>
+  <TabsList>
+    <TabsTrigger value="cli">CLI</TabsTrigger>
+    <TabsTrigger value="manual">Manual</TabsTrigger>
+  </TabsList>
+  <TabsContent value="cli">
+
 ```bash
 npx pliantui init
 ```
 
+  </TabsContent>
+  <TabsContent value="manual">
+
+<Steps>
+
+<Step>Install the React package</Step>
+
+```bash
+npm install @pliantui/react
+```
+
+<Step>Add the region component</Step>
+
+```bash
+npx shadcn@latest add https://pliantui.dev/r/pliant-region.json
+```
+
+</Steps>
+
+  </TabsContent>
+</CodeTabs>
+
 The command installs the `@pliantui/react` package with your package manager, found from your lockfile or, without one, the `packageManager` field in `package.json` (pnpm, npm, yarn or bun), and adds the `pliant-region` component to your project with `shadcn add`. It asks before each step and shows the command it will run. If you answer no, it prints that command so you can run it yourself.
+
+When it's done, your project has the package in `package.json` and the component in your components folder:
+
+<FileTree>
+  <Folder name="components">
+    <Folder name="pliant">
+      <File name="pliant-region.tsx" />
+    </Folder>
+  </Folder>
+  <File name="package.json" />
+</FileTree>
 
 ```txt
 Usage: pliantui init [options]
@@ -36,27 +76,9 @@ Other frameworks and the Next.js Pages Router aren't supported by `init`. In the
 
 `init` doesn't edit your pages. When it finishes, it prints the code to wrap a page with:
 
-```tsx
-import { PliantRoot } from "@pliantui/react"
-import { localAdapter } from "@pliantui/react/local"
-import { PliantPrePaint } from "@pliantui/react/pre-paint"
-
-import { PliantRegion } from "@/components/pliant/pliant-region"
-
-const surface = "/orders/[id]" // this page's route pattern
-
-export default function Page() {
-  return (
-    <PliantRoot surface={surface} storage={localAdapter}>
-      <PliantPrePaint surface={surface} />
-      <PliantRegion
-        id="summary"
-        slots={{ total: <OrderTotal />, status: <OrderStatus /> }}
-      />
-    </PliantRoot>
-  )
-}
-```
+<include cwd lang="tsx">
+  snippets/cli/init-page.tsx#page
+</include>
 
 The `surface` is the page's route pattern, such as `/orders/[id]`. `PliantRoot` and `PliantPrePaint` must receive the same `surface`. `storage={localAdapter}` keeps each user's changes in their browser. `PliantRegion` is the component `init` added: its `slots` are the parts of the page that users can reorder, hide and resize.
 
