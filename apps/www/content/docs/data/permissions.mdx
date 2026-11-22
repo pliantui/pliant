@@ -31,7 +31,7 @@ With this dataset:
 
 ## Fields: `access`
 
-`access` on a field decides whether a user may read it. A user who may not read a field gets no trace of it: it's left out of every load, and out of what the browser and the AI are told. A sort or filter on it fails as if the field didn't exist.
+`access` on a field decides whether a user may read it. A user who may not read a field gets no trace of it: it's left out of every query `compileQuery` builds and out of `describeDataset`'s output. A sort or filter on it fails as if the field didn't exist.
 
 A row key field can't set `access`, because every row needs its key.
 

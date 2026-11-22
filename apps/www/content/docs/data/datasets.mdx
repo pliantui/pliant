@@ -34,13 +34,13 @@ Give a field a `label` (up to 80 characters) and a `describe` (up to 200) so peo
 
 Each type comes with sensible capabilities, and you can override any of them on a field:
 
-| Capability     | Default                                                       |
-| -------------- | ------------------------------------------------------------- |
-| `sortable`     | Every type except `text`                                      |
-| `filterable`   | Every type. `text` fields allow search only (`"search"`)      |
-| `groupable`    | `string`, `boolean`, `date` and `enum`                        |
-| `aggregatable` | Every type except `text`: functions such as `sum` may read it |
-| `exposeToAI`   | `true`. Set `false` to keep the field from the AI             |
+| Capability     | Default                                                                                                                            |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `sortable`     | Every type except `text`                                                                                                           |
+| `filterable`   | Every type. `text` fields allow search only (`"search"`)                                                                           |
+| `groupable`    | `string`, `boolean`, `date` and `enum`                                                                                             |
+| `aggregatable` | Every type except `text`: functions such as `sum` may read it                                                                      |
+| `exposeToAI`   | `true`. Set `false` to leave it out of `describeDataset(…, { audience: "ai" })`. See [What the AI sees](/docs/ai/what-the-ai-sees) |
 
 ```ts
 notes: { type: "text", exposeToAI: false },
@@ -59,9 +59,7 @@ Every dataset declares `scope`: the rows each user may load. It's required, so y
 
 ## Using a dataset
 
-- **In the browser**, pass the dataset's fields and time zone to `usePliantTable` as `dataset`, so it can compute calculated columns, totals and highlights. See [Client mode](/docs/data/client-mode).
-- **On your server**, pass the dataset to `authorizeDataset` and `compileQuery` to load one page of rows for one user. See [Server mode](/docs/data/server-mode).
-- **For the AI**, `describeDataset(dataset, { user, audience: "ai" })` returns only what the model may know: field names, types and labels. Never rows.
+You use the same dataset in three places. In the browser, pass its fields and time zone to `usePliantTable` as `dataset`, so the table can compute calculated columns, totals and highlights ([Client mode](/docs/data/client-mode)). On your server, `authorizeDataset` and `compileQuery` use it to load one page of rows for one user ([Server mode](/docs/data/server-mode)). For the AI, `describeDataset(dataset, { user, audience: "ai" })` returns the field names, types and labels the model may know, without any rows.
 
 `pliantui doctor` lists the fields of each dataset the AI is told about, and warns about any that look sensitive, such as an email or a salary.
 

@@ -21,9 +21,11 @@ Start with local storage. It needs no setup, and switching later only changes th
 
 ## What gets saved
 
-- **Saved for the user:** sorts, visible columns, column order, widths and pinning, region layouts, and anything they lock in from the ask panel. Each change is saved about a second after the user stops, and when they leave the page.
-- **Kept for the tab only:** the table's current page, its filters unless you save them with `persistFilters`, and ask panel previews they haven't locked in. These go when the tab closes.
-- **Never saved:** your data. Overlays describe how the page looks, never the rows in it.
+Sorts, visible columns, column order, widths and pinning, region layouts, and anything a user locks in from the ask panel are saved for that user. Each change is saved about a second after they stop, and again when they leave the page.
+
+The table's current page, its filters (unless you save them with `persistFilters`), and ask panel previews that weren't locked in last only as long as the tab.
+
+Your data is never saved. Overlays describe how the page looks, not the rows in it.
 
 ## What a storage adapter does
 

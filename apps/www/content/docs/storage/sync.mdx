@@ -22,7 +22,7 @@ A storage adapter signals a conflict by throwing a `StorageConflictError` from `
 
 ## Saving while the page closes
 
-Pliant also saves when the user leaves the page. An adapter that saves over the network must send those requests with `fetch(…, { keepalive: true })` or `navigator.sendBeacon`, so they survive the page unloading. `serverAdapter` does.
+Pliant also saves when the user leaves the page. An adapter that saves over the network must send those requests with `fetch(…, { keepalive: true })` or `navigator.sendBeacon`, so they survive the page unloading. `serverAdapter` uses `keepalive` for saves under 64 KiB, the browser's limit for such requests.
 
 ## Deletions
 
