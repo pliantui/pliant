@@ -1,0 +1,20 @@
+---
+title: rename-id
+description: Rename a node or item id and write a migration, so users' saved changes follow the new id.
+---
+
+`rename-id` renames an id, such as a column, and writes a migration so changes users made to the old id apply to the new one.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how this command will work. It isn't in Pliant yet.
+</Callout>
+
+```bash
+npx pliantui rename-id orders-table/columns/notes orders-table/columns/comments
+```
+
+The command updates the id in your source where it can find it, writes the migration that rewrites stored overlays on their next load, and runs `scan` so the inventory matches.

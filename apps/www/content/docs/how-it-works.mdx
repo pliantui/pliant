@@ -3,7 +3,7 @@ title: How it works in 5 minutes
 description: A short explanation of how Pliant stores each user's changes and applies them to your page, and what the AI does and doesn't do.
 ---
 
-Pliant keeps the page you wrote as the base, stores each change as a small piece of data, and stacks those changes on top to show each user their own version. This page explains each part and what AI does and doesn't do.
+Pliant keeps the page you wrote as the base, stores each change as a small piece of data, and stacks those changes on top to show each user their own version. The five short sections below follow a single change, sorting the orders table, from click to screen.
 
 <div
   data-not-typeset
@@ -88,10 +88,7 @@ AI is optional. With the [ask panel](/docs/ai), a user points at part of the pag
 
 ## What AI doesn't do
 
-- It doesn't write or run code, CSS or queries.
-- It never sees your rows.
-- It can't change your data. Asks such as "delete these orders" are turned away.
-- It can't step outside the guardrails. Its changes are operations like any other, checked by the same rules.
+The AI never writes or runs code, CSS or queries, and it never sees your rows. Asks that would change data, such as "delete these orders", are turned away before they reach the model. Its answers are operations like any other change, so the same [guardrails](/docs/concepts/guardrails) apply to them.
 
 ## Learn more
 

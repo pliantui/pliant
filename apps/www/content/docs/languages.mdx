@@ -24,8 +24,8 @@ Pass `messages` to `PliantRoot`: any labels you leave out keep their English def
 </include>
 
 - Some labels take values, such as the page range under a table. Give those as functions.
-- A catalog with functions can't be passed from a Server Component. Create it in a client module, as above.
-- Define the catalog outside your component, so it isn't rebuilt on every render.
+- A `messages` object with functions can't be passed from a Server Component. Create it in a client module, as above.
+- Define the `messages` object outside your component, so it isn't rebuilt on every render.
 - A `PliantRoot` nested inside another uses the outer one's `messages` unless you give it its own.
 
 Each component lists its labels and their English defaults at the top of its file, such as `dataTableNext` in `pliant-data-table-pagination.tsx`. TypeScript knows every key you can pass, and checks the arguments of the ones that are functions.

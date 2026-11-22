@@ -1,0 +1,27 @@
+---
+title: eval
+description: Ask your model typical requests about your own pages, and report how often it answers correctly, how fast and at what cost.
+---
+
+`eval` runs a set of asks against your model, with your own targets and instructions, and checks every answer.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how this command will work. It isn't in Pliant yet.
+</Callout>
+
+```bash
+npx pliantui eval --model anthropic:claude-haiku-5-5
+```
+
+| Option            | What it does                                         |
+| ----------------- | ---------------------------------------------------- |
+| `--model <model>` | The model to test, as `provider:model`.              |
+| `--surface <s>`   | Test one surface only.                               |
+| `--runs <n>`      | Ask each question `n` times, to measure consistency. |
+| `--json`          | Print the results as JSON, for CI.                   |
+
+A passing run is saved to `.pliant/eval-results.json`.

@@ -26,7 +26,7 @@ And this change uses it to highlight those rows in the orders table:
 }
 ```
 
-Pass your table's `dataset` to `usePliantTable` so it can compute expressions against your fields.
+To compute expressions, a table needs to know each field's type. Pass `usePliantTable` a `dataset` option: an object with the table's `fields`, each with its `type`, and its `timeZone`. Without it, the table shows no calculated columns, totals or highlights.
 
 ## The four kinds of node
 
@@ -41,7 +41,7 @@ An expression has at most 8 levels of nesting, 16 arguments per function and 128
 
 ## Where expressions are used
 
-- **`addDerived`** adds a calculated column, with a value for every row. It can use window functions such as `share`, which compare a row with the others in its group.
+- **`addDerived`** adds a calculated column, with a value for every row. It can use window functions: functions such as `share` or `rank` that compare a row with the other rows in its group.
 - **`addAggregate`** adds a total for each group of rows, and for the table as a whole. It reads fields only inside functions such as `sum` and `mean`.
 - **`addHighlight`** gives rows a tone (`emphasis`, `success`, `warning` or `danger`) when its condition is true.
 

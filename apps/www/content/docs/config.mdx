@@ -77,7 +77,7 @@ Instructions guide the model. They don't enforce anything: a rule such as "never
 
 ## Model
 
-`model.primary` is any [AI SDK](https://ai-sdk.dev) language model. Add `model.fallback` to use a second model when the first fails. Safety never depends on the model: every answer is checked against the same rules, whichever model wrote it.
+`model.primary` is any [AI SDK](https://ai-sdk.dev) language model. Add `model.fallback` to use a second model when the first fails.
 
 ## Limits
 
@@ -86,7 +86,7 @@ Instructions guide the model. They don't enforce anything: a rule such as "never
 | `requestsPerMinute`  | Asks per user per minute.                      |
 | `dailyTokensPerUser` | The model tokens each user can spend in a day. |
 
-A user who reaches a limit sees a message in the ask panel, and can still change the page by hand.
+A user who reaches a limit sees a message in the ask panel, and can still change tables with their own controls.
 
 ## Teams
 

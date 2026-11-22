@@ -6,7 +6,7 @@ test("shows install commands for the reader's package manager", async ({
   errors,
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"])
-  await page.goto("/docs/cli")
+  await page.goto("/docs/cli/init")
   const managers = page.getByRole("tablist", { name: "Package manager" })
   const first = managers.first()
 
@@ -43,7 +43,7 @@ test("shows install commands for the reader's package manager", async ({
 test("remembers whether the reader installs with the CLI or by hand", async ({
   page,
 }) => {
-  await page.goto("/docs/cli")
+  await page.goto("/docs/cli/init")
   const manual = page.getByRole("tab", { name: "Manual" })
 
   await manual.click()
@@ -55,7 +55,7 @@ test("remembers whether the reader installs with the CLI or by hand", async ({
 })
 
 test("folds a folder in a file tree", async ({ page }) => {
-  await page.goto("/docs/cli")
+  await page.goto("/docs/cli/init")
   const folder = page.getByRole("button", { name: "pliant", exact: true })
 
   await expect(page.getByText("pliant-region.tsx")).toBeVisible()
@@ -68,7 +68,7 @@ test("shows an included snippet as a copyable code block", async ({
   context,
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"])
-  await page.goto("/docs/cli")
+  await page.goto("/docs/cli/init")
   const block = page
     .getByRole("figure")
     .filter({ hasText: "export default function Page()" })
