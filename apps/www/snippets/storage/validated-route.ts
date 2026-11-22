@@ -21,8 +21,28 @@ const handler = createStorageHandler({
   },
 })
 
+// The handler caps bodies at 256 KB, but this route parses the body first,
+// so it checks the declared length before reading it.
+const maxBodyBytes = 262_144
+
 export async function PUT(request: Request) {
-  const result = validateOverlay(await request.clone().json())
+  if (!request.headers.get("content-type")?.startsWith("application/json")) {
+    return Response.json({ message: "The body must be JSON" }, { status: 415 })
+  }
+  const length = Number(request.headers.get("content-length"))
+  if (!(length > 0 && length <= maxBodyBytes)) {
+    return Response.json(
+      { message: "The body must declare a length of at most 256 KB" },
+      { status: 413 }
+    )
+  }
+  let body: unknown
+  try {
+    body = await request.clone().json()
+  } catch {
+    return Response.json({ message: "The body must be JSON" }, { status: 400 })
+  }
+  const result = validateOverlay(body)
   if (!result.success) {
     return Response.json(
       { message: formatError(result.error) },
