@@ -1,0 +1,44 @@
+---
+title: Example apps
+description: Small apps built with Pliant that you can open and customize in your browser, and the source of each one.
+---
+
+Each example is a small app with Pliant wired in. Open one, rearrange it, sort and filter its tables, or point at a part and ask for a change. Your changes are saved in your browser, so they're still there when you come back.
+
+## Live examples
+
+| Example                         | What to try                                                                                                                      | Source                                                                                             |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [Orders](/examples/orders)      | Reorder the metric cards, sort, group and filter the orders table, add a calculated column, highlight rows, and ask for a change | [orders](<https://github.com/pliantui/pliant/tree/main/apps/www/app/(examples)/examples/orders>)   |
+| [New ticket](/examples/tickets) | Reorder and hide form fields, fold the rarely used ones into "More fields", and set your own defaults                            | [tickets](<https://github.com/pliantui/pliant/tree/main/apps/www/app/(examples)/examples/tickets>) |
+| [Support desk](/examples/app)   | Reorder, hide and fold the sidebar's links, choose your start page, and keep the sidebar open or closed                          | [app](<https://github.com/pliantui/pliant/tree/main/apps/www/app/(examples)/examples/app>)         |
+
+The ask panel in the orders example replays recorded answers, so it responds to the suggested asks without calling a model.
+
+## More examples
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  These examples aren't built yet: a CRM pipeline with a board view, a settings
+  page with team defaults, a team workspace, and an analytics dashboard whose
+  charts users reshape by asking.
+</Callout>
+
+| Example        | What it will show                                                |
+| -------------- | ---------------------------------------------------------------- |
+| CRM            | Deals as a list or a board, switched with a custom view          |
+| Settings       | Tabs, panels and dialogs with team defaults users can adjust     |
+| Team workspace | A sidebar, a dashboard and tables that share one team's defaults |
+| Analytics      | Charts and stat cards created and reshaped by asking             |
+
+## Use an example in your app
+
+The examples use the same registry components you install with the shadcn CLI. To start from one, follow [Your first editable table](/docs/first-editable-table) for the orders table, or [Forms](/docs/forms) for the ticket form.
+
+## Related
+
+- [Your first editable table](/docs/first-editable-table)
+- [What users can do](/docs/what-users-can-do)

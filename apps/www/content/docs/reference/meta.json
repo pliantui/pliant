@@ -1,4 +1,16 @@
 {
   "title": "Reference",
-  "pages": ["overlay", "limits"]
+  "pages": [
+    "operations",
+    "functions",
+    "expressions",
+    "guardrails",
+    "overlay",
+    "limits",
+    "events",
+    "contract",
+    "core",
+    "react",
+    "server"
+  ]
 }

@@ -1,0 +1,55 @@
+---
+title: Implementing Pliant in other languages
+description: What a backend, validator or renderer in another language needs to read, validate and apply Pliant overlays the same way the TypeScript packages do.
+---
+
+Pliant's data format is plain JSON with published schemas and catalogs, so you can work with it outside JavaScript: validate overlays in a Python or Go backend, store them in your own service, or compute expressions in your database. This page lists what an implementation must do to behave like `@pliantui/core`.
+
+Start from the [JSON Schemas](/docs/registry/json-schemas) and the two catalogs in the `@pliantui/contract` package: `catalog.json` for operations and `functions.json` for functions. The [`@pliantui/contract` README](https://github.com/pliantui/pliant/blob/main/packages/contract/README.md) is the normative description; this page is a map of it.
+
+## Pick what you need
+
+| You want to                                 | Implement                                   |
+| ------------------------------------------- | ------------------------------------------- |
+| Store overlays and check them on the way in | Validation                                  |
+| Show a summary of a user's changes          | Validation, and reading operations          |
+| Apply overlays to your own UI               | Validation, layer resolution and guardrails |
+| Compute calculated columns and totals       | Expressions                                 |
+| Run server-mode queries in your database    | Expressions, translated to SQL              |
+
+## Validation
+
+1. Reject the document if any object in it, at any depth, has a key named `__proto__`, `constructor` or `prototype`.
+2. Validate the overlay against `overlay.json`.
+3. Give each operation a status. It's `invalid` unless its `op` and `target` match the name and address patterns. It's `unknown` if its name isn't in `catalog.json`. It's `valid` if it matches `op.json`, its overlay's `layer` is in the operation's `layers`, its target is `@app` exactly when the overlay's surface is `@app`, and it passes the few rules JSON Schema can't express. It's `newer` if it becomes valid once you remove the keys that appear in none of its `args` lists. Otherwise it's `invalid`.
+4. When loading, apply only valid operations, and keep every operation unchanged when you save the overlay again. Reject an AI answer or an import unless every operation is valid.
+
+A namespaced operation, such as `crm:star`, is always unknown to a validator that reads `catalog.json`. Skip it quietly: it needs an extension, and updating your implementation won't fix it.
+
+Ignore keys you don't know in every document and catalog, and keep them. New operations, fields and functions can be added within contract 1.
+
+## Layer resolution
+
+Overlays for a surface, plus the overlays for `@app`, apply in layer order: `org`, then `team`, then `personal`, then `session`. Within a layer, they apply by your team order (team layer only), then by scope id, `createdAt` and overlay id, ascending, so a later overlay wins. Within an overlay, later operations win.
+
+Each operation writes one or more properties of its target, such as `visible` for `hide` and `show`, or `derived.<id>` for `addDerived`, and the last write to a property wins. `remove` and `removeUserItem` clear only what their own layer and scope added. A namespaced operation writes the single property `ext.<namespace>.<name>`.
+
+## Guardrails
+
+If your implementation applies overlays to a UI, enforce the rules in [Guardrail rules](/docs/reference/guardrails): skip each operation that would hide a critical part, move a destructive action closer to the primary one, take a reserved shortcut, set a semantic prop value, set an invalid form default, or move a form field out of its form. Check capabilities against each component's manifest, as `catalog.json` describes.
+
+## Expressions
+
+`functions.json` gives each function's argument types, result type, unit, null handling and exact semantics, and its `rules` apply to every function. An implementation must give the same results exactly, except for floating-point aggregates, which must stay within the error allowances the rules state.
+
+When you translate expressions to SQL, the results must still match the catalog where the database's own functions differ, such as string comparison by code point or `div` by zero giving `null`. If your database can't meet a function's semantics, don't translate it, and compute it only over the rows you've loaded instead.
+
+## Checking your implementation
+
+Run the JSON examples in these docs through your validator: every operation example on the [operation reference](/docs/reference/operations) is valid, and the TypeScript test suite checks the same examples against `@pliantui/core`. For expressions, compare your results with `createRowEvaluator`, `createAggregateEvaluator` and `createWindowEvaluator` from `@pliantui/core` on the same rows.
+
+## Related
+
+- [JSON Schemas](/docs/registry/json-schemas)
+- [The contract](/docs/registry/contract)
+- [Function reference](/docs/reference/functions)

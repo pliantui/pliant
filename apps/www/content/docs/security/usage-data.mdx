@@ -1,0 +1,55 @@
+---
+title: Usage data and consent
+description: What Pliant stores about each user's customizations and where, what it sends and to whom, and how usage events wait for consent.
+---
+
+Pliant stores the changes users make to your pages, and sends asks to the model you choose. It doesn't collect analytics or contact any service you didn't configure. This page lists what's stored and sent, so you can describe it in your privacy policy and answer requests to erase data.
+
+## What Pliant sends, and where
+
+At runtime, Pliant's packages (`@pliantui/react` and `@pliantui/server`) make network requests only to the endpoints you configure:
+
+| Request                    | Goes to                                  | Holds                                                                             |
+| -------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------- |
+| An ask from the ask panel  | Your ask route, then your model provider | The ask and a description of the part pointed at. [Never rows](/docs/security/ai) |
+| Saving and loading changes | Your storage route, with `serverAdapter` | The user's overlays                                                               |
+
+In server mode, your own code fetches rows from your rows route, sending the table's sort, filters and page. The `pliantui` CLI is separate: `init` installs components from the registry at `pliantui.dev/r`, as the shadcn CLI does.
+
+Your model provider handles asks under its own data policy, so check whether it retains prompts.
+
+## What's stored about a user
+
+| Where                                                      | What                                                                                                                                                                                                 |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `localStorage`, with `localAdapter`                        | The user's personal overlays, one key per overlay: `pliant:<surface>:<id>`                                                                                                                           |
+| `sessionStorage`                                           | The session layer of each surface, under `pliant:session:<surface>`, for that tab only. It holds table filters (unless you save them with `persistFilters`), the page number and any unsaved preview |
+| Your database, with server storage                         | Personal, team and organization overlays, and every stored version with the signed-in user's id as `by`                                                                                              |
+| Files on disk, with `recordingMiddleware` in `record` mode | Every ask sent to the model, with its answer. Meant for development and tests                                                                                                                        |
+
+An overlay holds operations, the surface and layer, who made it (`createdBy`, which the client sets, so the store's `by` is the trusted author) and when. It never holds row values. Filter values a user typed, such as a customer's name in a search, are part of the operations that store that filter.
+
+## Erasing a user's data
+
+- In the browser, remove the keys that start with `pliant:` from `localStorage` and `sessionStorage`. Closing the tab also clears its `sessionStorage`.
+- On your server, delete the user's personal overlays from your store, and their entries in its history.
+- Removing an overlay leaves a tombstone that still holds the removed overlay, so a late retry can't bring it back. To erase the content at once, delete the tombstone too, and accept that a save retried from before the removal could store it again.
+
+## Usage events and consent
+
+You can receive events about how people customize your pages, such as which columns they hide and which asks fail, through `onEvent`. Events are sent only for users who consent, never hold row values, and go only to your own function. [Events](/docs/reference/events) lists their fields, and [Usage signals and consent](/docs/guides/usage-signals) shows how to set them up.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  `onEvent`, `PliantConsent` and the `consent` prop aren't in Pliant yet, so no
+  usage events are produced.
+</Callout>
+
+## Related
+
+- [What the AI sees](/docs/security/ai)
+- [How customizations are saved](/docs/storage)
+- [Events](/docs/reference/events)

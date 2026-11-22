@@ -40,6 +40,15 @@ npx pliantui scan --check
 npx pliantui doctor
 ```
 
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The `pliantui` CLI isn't on npm yet, so the `npx pliantui` commands on this
+  page work only inside the Pliant repository.
+</Callout>
+
 - `scan --check` fails when your pages' ids have changed but the inventory hasn't been updated.
 - `doctor` fails when a `PliantRoot` has no `PliantPrePaint`, or another check fails, and warns about dataset fields the AI shouldn't see.
 

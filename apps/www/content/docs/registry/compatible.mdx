@@ -1,0 +1,55 @@
+---
+title: Pliant-compatible registries
+description: Use components from other shadcn registries with Pliant, and how to tell whether a registry's components are compatible.
+---
+
+A Pliant-compatible registry is a shadcn registry whose items carry a manifest, so Pliant knows what users may change about each component. You install from it with the shadcn CLI as usual, and its components work with Pliant's guardrails and the ask panel like Pliant's own.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This page shows how compatible registries will work. Installing doesn't read
+  an item's manifest yet, `pliantui verify` isn't in Pliant, and the directory
+  has no listings. Today, run [`pliantui manifest`](/docs/cli/manifest) after
+  installing to generate manifests from the components' source.
+</Callout>
+
+## Install a compatible component
+
+Install it like any shadcn component, by URL or through a namespace in `components.json`:
+
+```bash
+npx shadcn@latest add https://acme.dev/r/stat-card.json
+```
+
+The item's manifest, in its `meta.pliant` field, is added to your project's manifests next to the ones `pliantui manifest` generates. `pliantui doctor` reports a manifest that doesn't match the installed component, such as one that lists a variant the source no longer has.
+
+## Tell whether a registry is compatible
+
+- Its items have a `meta.pliant` manifest. Open an item's JSON and look for it.
+- Its component kinds are namespaced, such as `acme:stat-card`, so they can't clash with Pliant's or another registry's.
+- Its items pass `pliantui verify`.
+
+Check an item before you install it:
+
+```bash
+npx pliantui verify https://acme.dev/r/stat-card.json
+```
+
+`verify` checks that the manifest is valid and matches the component's props, renders every value the manifest declares in light and dark mode, applies random valid changes to check that no guardrail breaks, and checks that keyboard and screen reader order follow the visible order after a move.
+
+## The directory
+
+The [directory](/directory) lists registries whose items pass `verify`, as shadcn's registry index does for shadcn registries. To get yours listed, see [Make your registry Pliant-compatible](/docs/extending/registry).
+
+## Components without a manifest
+
+A component from any registry still works inside Pliant without a manifest: a region can move, hide and resize it like any card. Users just can't change its props or default states, because Pliant doesn't know which values are safe.
+
+## Related
+
+- [Make your registry Pliant-compatible](/docs/extending/registry)
+- [`pliantui verify`](/docs/cli/verify)
+- [Installing from the Pliant registry](/docs/registry)

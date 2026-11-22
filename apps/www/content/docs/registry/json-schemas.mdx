@@ -1,0 +1,43 @@
+---
+title: JSON Schemas
+description: The published JSON Schemas for overlays, operations, manifests, saved views and stored overlays, and how to validate against them correctly.
+---
+
+Pliant publishes its data format as JSON Schemas (draft 2020-12), so any language can validate overlays and manifests. Use them in a backend that isn't written in TypeScript, in CI for a registry, or in your editor.
+
+## The schemas
+
+| Schema         | URL                                            | Validates                                             |
+| -------------- | ---------------------------------------------- | ----------------------------------------------------- |
+| Overlay        | <SiteUrl path="/schema/overlay.json" />        | One overlay. Its operations are checked separately    |
+| Operation      | <SiteUrl path="/schema/op.json" />             | One operation of the catalog                          |
+| Manifest       | <SiteUrl path="/schema/manifest.json" />       | A component manifest                                  |
+| Saved view     | <SiteUrl path="/schema/saved-view.json" />     | A named set of overlays for one surface               |
+| Stored overlay | <SiteUrl path="/schema/stored-overlay.json" /> | An overlay as storage keeps it, with etag and version |
+
+Each schema's `$id` is its URL. The same files ship in the `@pliantui/contract` package under `schema/`, with two more that hold the catalogs as data: `catalog.json`, each operation's capability, layers and argument keys, and `functions.json`, the [function catalog](/docs/reference/functions).
+
+## Validating an overlay
+
+An overlay is checked in two steps, because one bad operation must not invalidate the rest:
+
+1. Validate the overlay against `overlay.json`. It checks the envelope (`v`, `id`, `surface`, `layer`, `basis` and so on) and that `ops` holds 1 to 500 items.
+2. Check each operation on its own against `op.json` and `catalog.json`, and give it a status: `valid`, `newer` (it has arguments from a newer version), `unknown` (its name isn't in the catalog) or `invalid`.
+
+When you load a saved overlay, apply only the valid operations and keep the others unchanged. Reject an AI answer or an import unless every operation is valid. [Implementing Pliant in other languages](/docs/registry/other-languages) gives the exact steps.
+
+## Getting validation right
+
+- Patterns are ECMA-262 regular expressions. In ECMA-262, `\d` matches only ASCII digits, and `$` matches only at the end of the string; Python's `re` differs on both, so use a validator that follows ECMA-262.
+- `format: "date-time"` must be checked, as RFC 3339. Many validators skip formats unless you turn them on.
+- String lengths count Unicode code points, as `maxLength` does.
+- Before validating, reject any object, at any depth, with a key named `__proto__`, `constructor` or `prototype`.
+- A few rules can't be written in JSON Schema, such as an expression's 128-node limit and unique sort fields. The [`@pliantui/contract` README](https://github.com/pliantui/pliant/blob/main/packages/contract/README.md) lists them.
+
+In TypeScript or JavaScript, use the Zod schemas from [`@pliantui/contract`](/docs/reference/contract) instead, or `validateOverlay` from [`@pliantui/core`](/docs/reference/core), which make every check, including the ones JSON Schema can't express.
+
+## Related
+
+- [The contract](/docs/registry/contract)
+- [Implementing Pliant in other languages](/docs/registry/other-languages)
+- [Overlay format](/docs/reference/overlay)

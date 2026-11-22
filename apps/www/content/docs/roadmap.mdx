@@ -1,34 +1,66 @@
 ---
 title: Roadmap
-description: What's planned for Pliant.
+description: What's planned for Pliant before and after 1.0, grouped by area, with no dates.
 ---
 
-Pliant is pre-1.0. These lists describe intent, not commitments, and carry no dates.
+Pliant is pre-1.0. The docs describe Pliant as it will be at 1.0, and every feature that isn't built yet carries a "Not fully implemented yet" note on its page. This page collects those features in one place. It describes intent, not commitments, and has no dates.
 
-## Planned before 1.0
+## Before 1.0
 
-- Published `@pliantui/*` packages on npm and a hosted component registry.
-- Guides for Vite, React Router and the Next.js Pages Router.
-- Team and org overlays: publishing a layout as a team default from the page.
-- Saved views: named arrangements a user can switch between.
-- Manual editing of regions without AI.
-- Deriving the ask panel's `context` from your regions.
-- Custom operations: your own namespaced operations, such as `crm:star`, that users and the AI can apply like built-in ones.
-- Org locks: org and team defaults that users can't hide or move. A lock is a UI policy, not access control.
-- Translated labels in team and org overlays, one per language.
-- A per-user theme choice among your app's own themes.
-- A history panel listing each change, with undo to any point.
+### Installing
+
+- The `@pliantui/*` packages published on npm, and `@pliant` listed in the shadcn registry index.
+- Tested support for Vite, React Router and TanStack Start, alongside Next.js.
+- Tested support for TanStack Form, alongside React Hook Form.
+
+### Customizing by hand
+
+- Region controls: drag cards to reorder them, and a menu on each card and region to hide, lay out, resize, fold and group.
+- A menu on form fields to reorder, hide, fold into "More fields", set defaults, resize and group.
+- Reordering, hiding and folding nav links from the page.
+- Display preferences: density, text size, motion, theme and language, with right-to-left layouts.
+- Customizable charts and stat cards.
+
+### History and sharing
+
+- Saved views, undo with a full history, and share links.
+- Publishing a layout as a team or organization default from the page, and removing it.
+- A Customized indicator that shows what changed and offers the original.
+- Locks for team and organization defaults. A lock is a UI policy, not access control.
 - "View as user" for admins, so support sees exactly what a user sees.
-- Server-side sorting, filtering, paging and expressions for MySQL and SQLite, as Postgres has today, with approximate percentiles where the database supports them.
-- Data adapters for Drizzle, Prisma, and plain Postgres through `node-postgres` or `postgres.js`, each applying the user's scope to every query.
-- A documented way to read rows from REST, GraphQL or any other source yourself.
-- Tailwind CSS v3 support for the components, if apps adopting Pliant need it.
-- Built-in rate limiting for the ask route.
+
+### Configuration and the AI
+
+- `pliant.config.ts`, with flags applied on every page, AI instructions and examples, the model with fallbacks, limits, team order and reserved shortcuts.
+- The ask route building the model's field list from your datasets, so `exposeToAI` and field permissions apply.
+- Grouping, calculated columns and highlights from the ask panel.
+- Built-in per-user request and daily token limits.
+- A recommended model list, and `pliantui eval` to test a model on your own pages.
+
+### Data
+
+- Data adapters for Drizzle, Prisma, MySQL, SQLite and Supabase, each applying the user's scope to every query, and `createRowsHandler` for any other source.
+- Small-total suppression with `minGroupSize`, statement timeouts, an index check in `doctor`, and a per-user query cache.
+
+### Extending
+
+- Custom functions, views, controls and operations.
+- Manifests read from registry items on install, `pliantui verify`, and a directory of compatible registries.
+- An MCP server, `llms.txt`, and more agent skills.
+
+### Usage signals and maintenance
+
+- `onEvent` with consent, `pliantui insights`, and promoting a popular change to a default.
+- `pliantui annotate`, and `pliantui rename-id` with migrations that keep users' changes when you rename an id.
 
 ## After 1.0
 
-- Packs of saved views that you can share between apps, with signatures that show who made them.
+- Packs of saved views you can share between apps, signed to show who made them.
 - Relations between your tables, and one query layer over them.
 - Vue and Svelte.
-- Export to A2UI, an open format for describing interfaces that AI agents can generate.
+- Export to A2UI, an open format for interfaces that AI agents generate.
 - Several answer variants to choose from in the ask panel.
+
+## Suggest something
+
+Open an issue on [GitHub](https://github.com/pliantui/pliant/issues) to suggest a feature, or to say which of these matters most to you.
