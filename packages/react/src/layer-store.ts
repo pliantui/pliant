@@ -89,6 +89,7 @@ function writesNode(op: Op, identity: string) {
       (address === identity
         ? !placeProperties.has(property)
         : placeProperties.has(property) &&
+          !address.includes("/") &&
           op.target.endsWith(`/slots/${address}`) &&
           identityOf(op.target.slice(0, -7 - address.length)) === identity)
   )

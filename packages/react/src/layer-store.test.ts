@@ -1061,6 +1061,7 @@ describe("createLayerStore", () => {
           target: "dashboard/slots/orders-table/columns/notes",
           width: 240,
         },
+        { op: "hide", target: "dashboard/slots/orders-table/columns/status" },
       ]
 
       function reset(layer: "personal" | "session", node: string) {
@@ -1105,6 +1106,7 @@ describe("createLayerStore", () => {
         expect(after.moved("key-metrics")).toBe(false)
         expect(after.has("orders-table", "sort")).toBe(true)
         expect(after.has("orders-table/columns/notes", "width")).toBe(true)
+        expect(after.has("orders-table/columns/status", "visible")).toBe(true)
         // A slot of a slot belongs to the inner region.
         expect(after.has("orders", "span")).toBe(true)
       })
