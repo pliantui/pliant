@@ -31,20 +31,49 @@ Every answer is checked on your server, then again in the browser. It shows as a
 
 ## Protecting parts of a page
 
-`PliantRoot` doesn't take flags, so in your app, render anything users must always see, such as a compliance notice, outside Pliant's regions.
+Some parts of a page need protecting from well-meant changes. You mark them with **flags**, by address, in [pliant.config.ts](/docs/config#flags), and every page applies them:
 
-When you resolve changes yourself with `resolveLayers` or check them with `validateOverlay` from `@pliantui/core`, for example on your server, you can pass **flags**: marks on parts of a page, by address, that protect them. A part flagged `critical` can never be hidden, and an action flagged `destructive`, such as **Delete**, can never move closer to the `primary` action, such as **Save**. With **Save**, **Cancel**, **Archive** and **Delete** in a row, a user can move Delete to the end or into the overflow menu, but not right next to Save. [pliant.config.ts](/docs/config#flags) lists every flag.
+```ts title="pliant.config.ts"
+flags: {
+  "/orders": {
+    "orders-table/columns/status": { critical: true },
+    "order-actions/slots/delete": { destructive: true },
+    "order-actions/slots/save": { primary: true },
+  },
+},
+```
+
+A part flagged `critical` can never be hidden, and an action flagged `destructive`, such as **Delete**, can never move closer to the `primary` action, such as **Save**. With **Save**, **Cancel**, **Archive** and **Delete** in a row, a user can move Delete to the end or into the overflow menu, but not right next to Save. [pliant.config.ts](/docs/config#flags) lists every flag.
 
 A change that would break a flag's rule is skipped, and the rest of the change still applies. When changes from several layers combine to break a rule, the one from the highest layer is skipped.
 
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Declaring flags in `pliant.config.ts` isn't in Pliant yet, and `PliantRoot`
+  doesn't take flags. Today, flags apply when you pass them as `flags` to
+  `resolveLayers` or `validateOverlay` from `@pliantui/core`.
+</Callout>
+
 ## Rules for shortcuts, variants and forms
 
-These rules also apply when you resolve changes with `@pliantui/core`. Pliant's own components don't let users bind shortcuts or change a component's props.
-
-- A keyboard shortcut can't take keys the browser, the operating system or a screen reader relies on, such as <Kbd>Ctrl</Kbd> <Kbd>T</Kbd>, or keys another action already has. Pass your app's own shortcuts to `resolveLayers` as `reservedShortcuts` to protect them too.
+- Users can bind a keyboard shortcut to an action from its menu. A shortcut can't take keys the browser, the operating system or a screen reader relies on, such as <Kbd>Ctrl</Kbd> <Kbd>T</Kbd>, or keys another action already has. List your app's own shortcuts as `reservedShortcuts` in `pliant.config.ts`, and users can't take those either.
 - A component's **manifest** is a short JSON description of what users may change about it. A manifest can mark some prop values as `semantic`, meaning they carry meaning, such as a button's `destructive` variant. Changes can't set a semantic value; only your code assigns it.
-- A default a team sets on a form field must pass the field's schema, such as your Zod schema. Otherwise it's skipped.
+- A default a user or team sets on a form field must pass the field's schema, such as your Zod schema. Otherwise it's skipped.
 - Form fields can move within their form, but never into another container, so they keep their focus and value.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Binding shortcuts from the page and `reservedShortcuts` in `pliant.config.ts`
+  aren't in Pliant yet. Today, the shortcut and variant rules apply when you
+  resolve changes with `@pliantui/core`, which takes `reservedShortcuts` as an
+  option.
+</Callout>
 
 ## Team defaults aren't locks
 

@@ -3,7 +3,7 @@ title: Next.js
 description: Install Pliant in a Next.js 16 App Router project with the CLI or by hand, and wrap your first page.
 ---
 
-Add Pliant to a Next.js app, save each user's arrangement of a row of metric cards, and make a table remember its sort.
+Add Pliant to a Next.js app, then make a row of metric cards that users can rearrange and a table that remembers its sort.
 
 <Callout
   variant="warning"
@@ -84,7 +84,16 @@ Wrap the page in `PliantRoot`, and replace the element that holds your cards wit
 - `PliantPrePaint`, with the same `surface`, keeps a customized page from flashing its original layout while it loads.
 - The order of the `slots` keys is the default order. Ids are kebab-case and start with a letter.
 
-The page looks exactly as before. Each user's arrangement of the cards is now saved for them. To let users change it, add the [ask panel](/docs/ai), where they point at the cards and ask, for example, "put overdue first".
+The page looks exactly as before. Users can now drag the cards into a new order, hide the ones they don't need and pick a layout, and each user's arrangement is saved for them.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Dragging, hiding and the layout menu on cards aren't in Pliant yet. Today,
+  users rearrange cards through the [ask panel](/docs/ai).
+</Callout>
 
 <Step>Make a table remember its sort</Step>
 
@@ -126,4 +135,4 @@ Open [localhost:4000/examples/orders](http://localhost:4000/examples/orders). `P
 
 - [Your first editable table](/docs/first-editable-table): build a full table with a columns menu and pagination.
 - [Storage](/docs/storage): save changes to your own backend.
-- [How asking works](/docs/ai): let users describe a change in words.
+- [Ask panel](/docs/ai): let users describe a change in words.

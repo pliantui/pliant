@@ -3,7 +3,7 @@ title: Vite
 description: Install Pliant in a Vite and React project by hand, and wrap your first page. Beta.
 ---
 
-Add Pliant to a React app built with Vite, and save each user's arrangement of a row of metric cards.
+Add Pliant to a React app built with Vite, and make a row of metric cards that each user can rearrange.
 
 <Callout
   variant="warning"
@@ -50,7 +50,7 @@ Wrap the page in `PliantRoot`, and replace the element that holds your cards wit
 - `storage={localAdapter}` keeps each user's changes in their browser. To keep them on your server, see [Storage](/docs/storage).
 - A Vite app renders in the browser, so it doesn't need `PliantPrePaint`. That component only matters for HTML rendered on a server.
 
-Start the dev server and open the page. It looks as before, and each user's arrangement of the cards is now saved for them. To let users change it, add the [ask panel](/docs/ai), where they point at the cards and ask, for example, "put overdue first".
+Start the dev server and open the page. It looks as before, and users can now drag, hide and lay out the cards.
 
 ## What works differently
 
