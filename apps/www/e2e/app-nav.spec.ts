@@ -4,6 +4,8 @@ import { expect, test } from "./fixtures"
 
 const surface = "app-shell"
 const titles = ["Inbox", "Tickets", "Customers", "Reports", "Settings"]
+// The Support team's published default moves Tickets to the top.
+const teamOrder = ["Tickets", "Inbox", "Customers", "Reports", "Settings"]
 
 async function seed(page: Page, ops: unknown[]) {
   await page.addInitScript(
@@ -58,12 +60,12 @@ async function shownLinks(page: Page) {
   return shown.sort((a, b) => a.y - b.y).map(({ title }) => title)
 }
 
-test("renders the links in their base order, marking the current page", async ({
+test("renders the links in the team's order, marking the current page", async ({
   page,
   errors,
 }) => {
   await load(page, "/examples/app/tickets")
-  expect(await shownLinks(page)).toEqual(titles)
+  expect(await shownLinks(page)).toEqual(teamOrder)
   await expect(
     sidebarNav(page).getByRole("link", { name: "Tickets" })
   ).toHaveAttribute("aria-current", "page")
@@ -89,9 +91,9 @@ test("shows the links in the user's order without hidden ones, and tabs in that 
   ])
   await load(page)
   expect(await shownLinks(page)).toEqual([
+    "Tickets",
     "Reports",
     "Inbox",
-    "Tickets",
     "Settings",
   ])
   await expect(
@@ -118,10 +120,10 @@ test("collapses links behind More", async ({ page }) => {
   await load(page)
   const more = sidebarNav(page).getByRole("button", { name: "More" })
   await expect(more).toHaveAttribute("aria-expanded", "false")
-  expect(await shownLinks(page)).toEqual(["Inbox", "Tickets", "Customers"])
+  expect(await shownLinks(page)).toEqual(["Tickets", "Inbox", "Customers"])
   await more.click()
   await expect(more).toHaveAttribute("aria-expanded", "true")
-  expect(await shownLinks(page)).toEqual(titles)
+  expect(await shownLinks(page)).toEqual(teamOrder)
 })
 
 test.describe("the start page", () => {

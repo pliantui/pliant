@@ -140,6 +140,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     for (const [path, name] of [
       ["/blocks", "Blocks"],
       ["/charts", "Charts"],
+      ["/playground", "Playground"],
       ["/templates", "Templates"],
     ] as const) {
       test(`the ${name.toLowerCase()} section has no accessibility violations`, async ({
@@ -162,6 +163,35 @@ for (const colorScheme of ["light", "dark"] as const) {
       })
       await block.getByRole("tab", { name: "Code" }).click()
       await expect(block.getByRole("list", { name: "Files" })).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
+
+    for (const path of [
+      "/examples/crm",
+      "/examples/settings",
+      "/examples/analytics",
+      "/examples/app/inbox",
+    ]) {
+      test(`the ${path} example has no accessibility violations`, async ({
+        page,
+      }) => {
+        await page.goto(path)
+        await expect(
+          page.getByRole("button", { name: /^Reset / }).first()
+        ).toBeVisible()
+        expect(await violations(page, colorScheme)).toEqual([])
+      })
+    }
+
+    test("the playground's before view and overlay have no accessibility violations", async ({
+      page,
+    }) => {
+      await page.goto("/playground")
+      await page.getByRole("button", { name: "hide the notes column" }).click()
+      await page.getByRole("button", { name: "Before" }).click()
+      await expect(
+        page.getByRole("region", { name: "Overlay JSON" })
+      ).toContainText('"op": "hide"')
       expect(await violations(page, colorScheme)).toEqual([])
     })
 

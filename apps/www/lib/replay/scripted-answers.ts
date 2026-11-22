@@ -94,4 +94,24 @@ export const scriptedAnswers: ScriptedAnswer[] = [
     ops: [{ op: "hide", target: "team-workspace/slots/shared-views" }],
     explain: ["Hid the Shared views panel."],
   },
+  {
+    target: "app-sidebar",
+    kind: "nav",
+    prompt: "hide customers",
+    ops: [{ op: "hide", target: "app-sidebar/items/customers" }],
+    explain: ["Hid Customers from the sidebar."],
+  },
+  {
+    target: "app-sidebar",
+    kind: "nav",
+    prompt: "put settings first",
+    ops: [
+      {
+        op: "move",
+        target: "app-sidebar/items/settings",
+        to: { index: 0 },
+      },
+    ],
+    explain: ["Moved Settings to the top of the sidebar."],
+  },
 ]
