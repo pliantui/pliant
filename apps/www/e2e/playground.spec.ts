@@ -117,3 +117,19 @@ test("fits a phone screen", async ({ page }) => {
     await page.evaluate(() => document.documentElement.scrollWidth)
   ).toBeLessThanOrEqual(390)
 })
+
+test("keeps every id on the page unique when comparing", async ({ page }) => {
+  await page.goto("/playground")
+  await step(page, "Pick an example")
+    .getByRole("radio", { name: "Ticket form" })
+    .click()
+  const compare = step(page, "Compare before and after")
+
+  for (const view of ["Before", "After"]) {
+    await compare.getByRole("radio", { name: view }).click()
+    const ids = await page
+      .locator("[id]")
+      .evaluateAll((elements) => elements.map((element) => element.id))
+    expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([])
+  }
+})

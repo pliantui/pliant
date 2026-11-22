@@ -229,18 +229,22 @@ export function Playground({
               />
             </div>
             <div className="min-w-0 rounded-xl border p-4 sm:p-6">
-              <div hidden={view !== "after"}>{example.node}</div>
-              {/* The untouched example, with layers of its own. It comes
-                  after the live one, so the live one's labels win. */}
-              <div hidden={view !== "before"} inert>
-                <PliantRoot
-                  key={example.id}
-                  surface="/playground/before"
-                  storage={memoryAdapter()}
-                >
-                  {example.node}
-                </PliantRoot>
-              </div>
+              {view === "after" ? (
+                example.node
+              ) : (
+                // The untouched example, with layers of its own. Only one copy
+                // is mounted at a time, so ids stay unique. The kept answers
+                // live in the page's layers, so they come back with "After".
+                <div inert>
+                  <PliantRoot
+                    key={example.id}
+                    surface="/playground/before"
+                    storage={memoryAdapter()}
+                  >
+                    {example.node}
+                  </PliantRoot>
+                </div>
+              )}
             </div>
           </Step>
           <Step number={4} title="What changed">
