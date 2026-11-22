@@ -229,3 +229,12 @@ test("fits a phone screen", async ({ page }) => {
     await page.evaluate(() => document.documentElement.scrollWidth)
   ).toBeLessThanOrEqual(390)
 })
+
+test("gives every element on the page its own id", async ({ page }) => {
+  await load(page)
+
+  const ids = await page
+    .locator("[id]")
+    .evaluateAll((elements) => elements.map((element) => element.id))
+  expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([])
+})
