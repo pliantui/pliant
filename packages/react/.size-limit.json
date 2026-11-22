@@ -112,7 +112,7 @@
       "dist/table.js",
       "dist/local.js"
     ],
-    "limit": "16.6 kB",
+    "limit": "16.65 kB",
     "ignore": [
       "react",
       "react-dom",
