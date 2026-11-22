@@ -2,8 +2,8 @@
 
 import * as React from "react"
 
-import { usePreview, useResolved } from "@pliantui/react"
 import type { ResolvedLayers, ResolvedOp } from "@pliantui/core"
+import { usePreview, useResolved } from "@pliantui/react"
 
 // Whether the user changed any of `targets`, or their items, in their own
 // layers. The preview doesn't count until it's locked in.

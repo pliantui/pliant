@@ -18,8 +18,7 @@ export default defineConfig({
   // the tests see what ships and don't time out on a cold CI runner. Turbo
   // builds the workspace packages the site imports first.
   webServer: {
-    command:
-      "pnpm -w exec turbo run build --filter=www && pnpm start",
+    command: "pnpm -w exec turbo run build --filter=www && pnpm start",
     url: baseURL,
     reuseExistingServer: !isCI,
     timeout: 300_000,

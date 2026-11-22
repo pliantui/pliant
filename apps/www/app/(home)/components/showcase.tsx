@@ -2,6 +2,7 @@ import { DemoAskToolbar } from "@/components/demo/demo-ask-toolbar"
 import { ReplayNote } from "@/components/demo/replay-note"
 import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { monthlyRevenue, orders } from "@/lib/demo/data"
+import { company } from "@/lib/demo/schema"
 import { getOrderStats } from "@/lib/demo/stats"
 
 import { homeTargets } from "../home-targets"
@@ -34,8 +35,8 @@ export function Showcase() {
                 Try it
               </h2>
               <p className="text-sm text-muted-foreground">
-                Pick an ask on a card, or press Point and choose a part to
-                change.
+                Parts of the app {company.name} runs on. Pick an ask on a card,
+                or press Point and choose a part to change.
               </p>
             </div>
             <DemoAskToolbar targets={homeTargets} />

@@ -11,7 +11,7 @@ import {
 // every recording sees the same company. Import it from server components
 // and pass the rows down, so the generator stays out of the client bundle.
 
-export const team: TeamMember[] = [
+const team: TeamMember[] = [
   {
     name: "Meera Iyer",
     email: "meera@saffronsupply.example",
@@ -62,11 +62,11 @@ export const team: TeamMember[] = [
   },
 ]
 
-const accountManagers: Record<OrderRegion, string> = {
-  North: "Arjun Mehta",
-  South: "Kavya Reddy",
-  East: "Rohan Das",
-  West: "Sana Sheikh",
+function accountManager(region: OrderRegion) {
+  return (
+    team.find((member) => member.team === `Sales ${region}`)?.name ??
+    "Meera Iyer"
+  )
 }
 
 const customerHomes: [name: string, city: string, region: OrderRegion][] = [
@@ -88,14 +88,12 @@ const customerHomes: [name: string, city: string, region: OrderRegion][] = [
   ["Rajdhani Motors", "New Delhi", "North"],
 ]
 
-export const customers: Customer[] = customerHomes.map(
-  ([name, city, region]) => ({
-    name,
-    city,
-    region,
-    accountManager: accountManagers[region],
-  })
-)
+const customers: Customer[] = customerHomes.map(([name, city, region]) => ({
+  name,
+  city,
+  region,
+  accountManager: accountManager(region),
+}))
 
 const notes = [
   "",
