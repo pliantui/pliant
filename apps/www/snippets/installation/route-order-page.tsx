@@ -16,7 +16,7 @@ export default function OrderPage() {
       <PliantRegion
         id="order-summary"
         slots={{
-          total: <StatCard label="Total" value="₹1,86,500" />,
+          total: <StatCard label="Total" value="₹186,500" />,
           status: <StatCard label="Status" value="Overdue" />,
           region: <StatCard label="Region" value="West" />,
         }}

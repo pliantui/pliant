@@ -8,7 +8,7 @@ import type { PliantDataTableFeatures } from "@/components/pliant/pliant-data-ta
 
 import type { Order } from "./data"
 
-const rupees = new Intl.NumberFormat("en-IN", {
+const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "INR",
   maximumFractionDigits: 0,
@@ -39,7 +39,7 @@ export const columns = columnHelper.columns([
   columnHelper.accessor("value", {
     meta: { label: "Value" },
     header: ({ column }) => <PliantDataTableColumnHeader column={column} />,
-    cell: ({ row }) => rupees.format(row.original.value),
+    cell: ({ row }) => currency.format(row.original.value),
   }),
   columnHelper.accessor("notes", {
     meta: { label: "Notes" },

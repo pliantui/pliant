@@ -1,72 +1,44 @@
 ---
 title: Introduction
-description: Pliant lets the people who use your shadcn app reshape it to fit their work, and keeps each person's changes for them.
+description: What Pliant is, what it adds to a shadcn app, and where to start reading.
 ---
 
-Pliant lets the people who use your app reshape it to fit their work. They sort and hide columns, rearrange cards and ask AI for a change in plain words. Each person's changes are saved and come back on every visit, and your code stays exactly as you wrote it.
+Pliant lets the people who use your shadcn app change how its pages are laid out for themselves. On an orders page, one person can put the overdue count first and hide the revenue card, while a colleague sorts the table by value and drops the notes column. Each person's version is saved for them, and your code doesn't change.
 
-Here's a row of metric cards that each user can reorder, hide and lay out their own way:
+Here's a row of three metric cards that users can rearrange:
 
 <include cwd lang="tsx" meta='title="app/orders/page.tsx"'>
-  snippets/installation/page.tsx#page
+  snippets/intro/page.tsx#page
 </include>
 
-`PliantRoot` keeps the changes for one page. `PliantRegion` renders your cards as they are, until a user changes them. With no changes, the page renders exactly as you wrote it.
+The page looks the same as it did before you added Pliant. The difference is that a user can now move the **Overdue** card to the front, hide **Revenue**, or switch the row to a two-column grid, and still see it that way the next time they open the page. `PliantRoot` loads and saves those changes for the page. `PliantRegion` renders your cards in the order the user chose. Try it in the [orders example](/examples/orders).
 
 <Callout title="Pre-1.0">
   Pliant is experimental. Its APIs can change in any release.
 </Callout>
 
-## Why it exists
+## What it adds to your app
 
-Every app with tables and dashboards ends up needing the same thing. Users want the columns they care about, sorted the way they work, with the cards they check first at the top. Teams want a shared default. And all of it has to survive a reload.
+Most apps grow these features one at a time: a sort that's remembered per user, a column picker, a layout reset. Pliant gives you all of them through one mechanism.
 
-Most teams build this by hand, one feature at a time: a sort that's saved per user, a column picker, a "reset layout" button.
+- Tables remember each user's sort and visible columns. A **Reset** button in the toolbar brings back your defaults.
+- Groups of cards and sections can be reordered, hidden and laid out as a row or a grid.
+- Form fields can be reordered, and optional ones hidden. Required fields always stay.
+- With the optional ask panel, a user can point at the table and type "only overdue orders". They see the result as a preview and choose whether to keep it.
 
-Pliant is that layer, built once.
+[What users can do](/docs/what-users-can-do) lists every change.
 
-You keep your app and your shadcn components. Pliant stores what each user changed and applies it on top, along with any team or organization defaults you give it.
+## What Pliant doesn't do
 
-## What your users get
+Pliant doesn't replace your components. You keep your `components/ui`, and Pliant's own components, which you copy in with the shadcn CLI, render your button, table and menu.
 
-- **Tables that remember.** Their sort and the columns they show come back on every visit.
-- **Pages they can arrange.** Cards and sections can be reordered, hidden, resized and laid out in a grid.
-- **Changes in plain words.** With the optional ask panel, a user can point at part of the page and type "put overdue orders first". They see a preview, and nothing is saved until they choose to keep it.
-- **A way back.** One Reset button drops their changes to a table and brings back your defaults.
+Users can't add content of their own or change what a page does. They can rearrange, hide, sort and filter what you built, and nothing else.
 
-See [What users can do](/docs/what-users-can-do) for every capability.
+Hiding a column doesn't protect it. The data still reaches the browser, so access control stays on your server, where it is today.
 
-## What Pliant is not
+AI is optional. When you use it, the AI can only make the same kinds of changes users can make by hand, and every change is checked before it applies. It never writes code and never sees your rows. Pliant sends no analytics of its own.
 
-**Not a component library.** You keep your own `components/ui`. Pliant adds a few thin components around the parts of the page users can change, and they render your own button, table and menu.
-
-**Not a page builder.** Users can't add arbitrary content or write code. They rearrange, hide, resize, sort and filter what you built.
-
-**Not a security boundary.** Hiding a column is a display preference, and the data still reaches the browser. Keep access control on your server, as you do today.
-
-## Principles
-
-### Works without AI
-
-Sorting a table, choosing its columns and arranging a page all work by hand, with no AI involved. AI is one more way to make the same changes, and you can leave it out.
-
-### Uses your design system
-
-Pliant's components are copied into your project with the shadcn CLI, like any shadcn component. They use your theme and your `components/ui`, so the page still looks like your app.
-
-### Safe by construction
-
-AI never writes code for your app. A change is a small JSON document built from a fixed list of operations, such as "sort by value" or "hide the notes column". Pliant checks every change before it applies, and skips anything that isn't on the list.
-
-### Removable
-
-Pliant only adds a layer on top. Clear the changes and the page renders as you wrote it. Remove Pliant and you swap its components for the plain elements underneath. Your components and your data are untouched.
-
-### No telemetry
-
-Pliant sends no analytics. In the browser, it talks only to the storage you choose and, if you add the ask panel, your own server route.
-
-## Where to start
+## Where to go next
 
 <div className="mt-6 grid gap-4 sm:grid-cols-2 sm:gap-6">
   <LinkedCard href="/docs/installation">
@@ -78,11 +50,11 @@ Pliant sends no analytics. In the browser, it talks only to the storage you choo
     <span className="text-sm">A 10-minute tutorial</span>
   </LinkedCard>
   <LinkedCard href="/docs/how-it-works">
-    <span className="font-medium">How it works</span>
-    <span className="text-sm">The whole model in 5 minutes</span>
+    <span className="font-medium">How it works in 5 minutes</span>
+    <span className="text-sm">Layers, changes and what AI does</span>
   </LinkedCard>
   <LinkedCard href="/docs/why">
     <span className="font-medium">Why Pliant</span>
-    <span className="text-sm">Software that bends to its users</span>
+    <span className="text-sm">The ideas behind it</span>
   </LinkedCard>
 </div>

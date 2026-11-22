@@ -1,6 +1,6 @@
 ---
 title: RTL and languages
-description: Show Pliant's labels in your users' language, and lay its components out right to left for languages that need it.
+description: Translating the labels Pliant's components show, recording the language of users' changes, and right-to-left layout.
 ---
 
 Pliant's components show a few labels of their own, such as **Columns**, **Next** and **More**. You can replace each one with a translation, and the components lay themselves out right to left for languages such as Arabic and Hebrew.
@@ -32,7 +32,7 @@ Each component lists its labels and their English defaults at the top of its fil
 
 ## Numbers and dates
 
-Pliant doesn't format your data: your columns and cards show values the way you format them, as in `Intl.NumberFormat("en-IN")`. The data table's own numbers, such as the page range and group counts, take a `formatNumber` prop, so you can format them for your users' locale too.
+Pliant doesn't format your data: your columns and cards show values the way you format them, as in `Intl.NumberFormat("en-US", { style: "currency", currency: "INR" })`. The data table's own numbers, such as the page range and group counts, take a `formatNumber` prop, so you can format them for your users' locale too.
 
 ## The language of a change
 

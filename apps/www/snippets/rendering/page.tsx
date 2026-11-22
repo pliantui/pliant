@@ -12,7 +12,7 @@ export default async function OrdersPage() {
       <PliantRegion
         id="key-metrics"
         slots={{
-          revenue: <p>Revenue: ₹48,21,000</p>,
+          revenue: <p>Revenue: ₹4,821,000</p>,
           overdue: <p>Overdue: 17</p>,
         }}
       />

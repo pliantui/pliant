@@ -60,9 +60,9 @@ Changes can't name a single row of data, such as one order. Users change how dat
 
 Ids are stored in every change your users make, so treat them like database column names:
 
-- **Name what it is, not where it is.** `overdue` stays right when the card moves; `card-3` doesn't.
-- **Keep them stable.** Renaming an id disconnects the changes users made to it. The part shows with your defaults again.
-- **Reuse ids on purpose.** The same table id on two surfaces is two separate tables, with separate changes.
+- Name a part for what it shows, such as `overdue`, rather than where it sits, such as `card-3`. The name stays accurate after a user moves the card.
+- Avoid renaming ids. Changes users made to the old id stop applying, and the part shows your defaults again.
+- The same table id on two surfaces is two separate tables, each with its own changes. That's usually what you want, but be aware of it.
 
 ## Reserved targets
 
