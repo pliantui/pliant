@@ -67,20 +67,8 @@ function subscribeToResize(onResize: () => void) {
   }
 }
 
-function headerInset() {
-  const inset = Number.parseFloat(
-    getComputedStyle(document.documentElement).scrollPaddingTop
-  )
-  return Number.isFinite(inset) ? Math.max(0, inset) : 0
-}
-
 // The layout viewport, without scrollbars, kept current as the window resizes.
-function useViewport(): Viewport {
-  const top = React.useSyncExternalStore(
-    subscribeToResize,
-    headerInset,
-    () => 0
-  )
+function useViewportSize() {
   const width = React.useSyncExternalStore(
     subscribeToResize,
     () => document.documentElement.clientWidth,
@@ -91,7 +79,17 @@ function useViewport(): Viewport {
     () => document.documentElement.clientHeight,
     () => 0
   )
-  return React.useMemo(() => ({ top, width, height }), [top, width, height])
+  return { width, height }
+}
+
+// A sticky header's height, read from the root's `scroll-padding-top`, which
+// a page with one sets so anchor links land below it. Only a length in
+// pixels counts.
+function headerInset() {
+  const value = getComputedStyle(document.documentElement).scrollPaddingTop
+  if (!value.endsWith("px")) return 0
+  const inset = Number.parseFloat(value)
+  return Number.isFinite(inset) ? Math.max(0, inset) : 0
 }
 
 // The outline grows `gap` past its target on every side, except where that
@@ -140,7 +138,8 @@ function edgesOf(element: Element, box: DOMRect): Rect[] {
     lineStyle !== "none" &&
     lineStyle !== "hidden" &&
     color !== "transparent" &&
-    !/^rgba\(.*,\s*0\)$/.test(color)
+    !/^rgba\(.*,\s*0\)$/.test(color) &&
+    !/\/\s*0\)$/.test(color)
   const edges: Rect[] = []
   const { top, right, bottom, left } = box
   if (
@@ -174,38 +173,49 @@ function edgesOf(element: Element, box: DOMRect): Rect[] {
   return edges
 }
 
-// The page's visible text and borders, which a label would rather not
-// cover. Hit testing can't find them, since the page is `inert` while point
-// mode is a dialog, so this walks the page once per layout.
 interface PageContent {
   text: Rect[]
   borders: Rect[]
 }
 
-function findPageContent(viewport: Viewport): PageContent {
-  const screen = {
-    top: viewport.top,
-    right: viewport.width,
-    bottom: viewport.height,
-    left: 0,
+function shift(rect: Rect, x: number, y: number): Rect {
+  return {
+    top: rect.top + y,
+    right: rect.right + x,
+    bottom: rect.bottom + y,
+    left: rect.left + x,
   }
+}
+
+// The page's text and borders, which a label would rather not cover, in
+// page coordinates so they stay valid as the page scrolls. Hit testing can't
+// find them, since the page is `inert` while point mode is a dialog, so this
+// walks the page once when point mode starts. Fixed and sticky layers, like
+// a site header, move with the screen rather than the page, so they're left
+// out.
+function findPageContent(): PageContent {
   const content: PageContent = { text: [], borders: [] }
   const range = document.createRange()
+  const toPage = (rect: Rect) => shift(rect, window.scrollX, window.scrollY)
   const walker = document.createTreeWalker(
     document.body,
     NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
     {
-      acceptNode: (node) =>
-        node instanceof Element && node.matches(pointModeLayer)
+      acceptNode: (node) => {
+        if (!(node instanceof Element)) return NodeFilter.FILTER_ACCEPT
+        if (node.matches(pointModeLayer)) return NodeFilter.FILTER_REJECT
+        const { position } = getComputedStyle(node)
+        return position === "fixed" || position === "sticky"
           ? NodeFilter.FILTER_REJECT
-          : NodeFilter.FILTER_ACCEPT,
+          : NodeFilter.FILTER_ACCEPT
+      },
     }
   )
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     if (node instanceof Element) {
       const box = node.getBoundingClientRect()
-      if (box.width > 1 && box.height > 1 && overlaps(box, screen)) {
-        content.borders.push(...edgesOf(node, box))
+      if (box.width > 1 && box.height > 1) {
+        content.borders.push(...edgesOf(node, box).map(toPage))
       }
       continue
     }
@@ -213,10 +223,9 @@ function findPageContent(viewport: Viewport): PageContent {
     const parent = node.parentElement?.getBoundingClientRect()
     // Visually hidden text, like `sr-only`, sits in a 1px box.
     if (!parent || parent.width <= 1 || parent.height <= 1) continue
-    if (!overlaps(parent, screen)) continue
     range.selectNodeContents(node)
     for (const line of range.getClientRects()) {
-      if (line.width > 1 && line.height > 1) content.text.push(line)
+      if (line.width > 1 && line.height > 1) content.text.push(toPage(line))
     }
   }
   return content
@@ -247,19 +256,32 @@ type LabelPlacement = { top: number; maxWidth: number } & (
   { left: number } | { right: number }
 )
 
+interface PlacedLabel {
+  placement: LabelPlacement
+  rect: Rect
+  end: boolean
+  // Which of the candidate spots it took, and how much page content it
+  // covered there.
+  spot: number
+  cover: number
+}
+
 // A label goes above or below its outline, at either end, or inside the
 // outline's top corners, moved down to stay on screen. Of the spots that
 // stay on screen and out of the way of every other outline and every label
 // placed before it, it takes the first that covers none of the page's text
 // and borders, or else the one that covers the least, text counting most.
 // When no spot is out of the way, it goes inside the outline's own corner.
+// A label keeps the spot it had while the page scrolls, as long as that
+// spot still fits and covers no more than it did, so it doesn't hop about.
 function placeLabel(
   own: Outline,
   outlines: readonly Outline[],
   placed: readonly Rect[],
   content: PageContent,
-  viewport: Viewport
-): { placement: LabelPlacement; rect: Rect } {
+  viewport: Viewport,
+  previous: PlacedLabel | undefined
+): PlacedLabel {
   const { rect: outline, parents } = own
   const inWay = (label: Rect) =>
     outlines.some(
@@ -268,8 +290,19 @@ function placeLabel(
     ) || placed.some((other) => overlaps(label, grow(other, gap)))
   const count = (label: Rect, rects: readonly Rect[]) =>
     rects.filter((other) => overlaps(label, other)).length
-  const covered = (label: Rect) =>
-    count(label, content.text) * 1000 + count(label, content.borders)
+  // Content is in page coordinates, and is checked against the label's
+  // likely width rather than its widest.
+  const width = Math.min(labelWidth, own.box.label.length * 7 + 12)
+  const covered = (label: Rect, end: boolean) => {
+    const likely = shift(
+      end
+        ? { ...label, left: Math.max(label.left, label.right - width) }
+        : { ...label, right: Math.min(label.right, label.left + width) },
+      window.scrollX,
+      window.scrollY
+    )
+    return count(likely, content.text) * 1000 + count(likely, content.borders)
+  }
   // A label `inset` in from the outline's start or end, clipped to the screen.
   const at = (top: number, end: boolean, inset: number) => {
     const width = Math.max(
@@ -287,7 +320,7 @@ function placeLabel(
           right: outline.right - rect.right,
         }
       : { top: top - outline.top, maxWidth: width, left: left - outline.left }
-    return { rect, placement }
+    return { rect, placement, end }
   }
   const end = own.box.labelAlign === "end"
   const above = outline.top - ring - gap - labelHeight
@@ -312,27 +345,46 @@ function placeLabel(
   )
   const inside = at(insideTop, end, gap)
   const otherCorner = at(insideTop, !end, gap)
-  let best: { placement: LabelPlacement; rect: Rect } | undefined
-  let least = Number.POSITIVE_INFINITY
-  for (const candidate of [...outside, inside, otherCorner]) {
-    if (!fits(candidate.rect)) continue
-    const cover = covered(candidate.rect)
-    if (cover === 0) return candidate
-    if (cover < least) {
+  const candidates = [...outside, inside, otherCorner]
+  const scored = candidates.map((candidate, spot) => ({
+    ...candidate,
+    spot,
+    cover: fits(candidate.rect)
+      ? covered(candidate.rect, candidate.end)
+      : Number.POSITIVE_INFINITY,
+  }))
+  const kept = previous && scored[previous.spot]
+  if (kept && Number.isFinite(kept.cover) && kept.cover <= previous.cover) {
+    return kept
+  }
+  let best: PlacedLabel | undefined
+  for (const candidate of scored) {
+    if (candidate.cover === 0) return candidate
+    if (candidate.cover < (best?.cover ?? Number.POSITIVE_INFINITY)) {
       best = candidate
-      least = cover
     }
   }
   if (best) return best
-  return inside
+  // Nothing fits: the outline's own corner, kept below a sticky header.
+  return {
+    ...at(Math.max(insideTop, viewport.top), end, gap),
+    spot: 4,
+    cover: Number.POSITIVE_INFINITY,
+  }
 }
 
 function layoutOutlines(
   boxes: readonly PointModeBox[],
   viewport: Viewport,
-  content: PageContent
+  content: PageContent,
+  previous: Map<string, PlacedLabel>
 ) {
-  const shapes = boxes.map((box) => ({ box, rect: outlineOf(box, viewport) }))
+  const shapes = boxes.flatMap((box) => {
+    const rect = outlineOf(box, viewport)
+    // An outline wholly under a sticky header can't be seen, so it isn't
+    // offered.
+    return rect.bottom <= viewport.top + ring ? [] : [{ box, rect }]
+  })
   const outlines: Outline[] = shapes.map(({ box, rect }, index) => ({
     box,
     rect,
@@ -348,15 +400,17 @@ function layoutOutlines(
   }))
   const placed: Rect[] = []
   return outlines.map((own) => {
-    const { placement, rect } = placeLabel(
+    const label = placeLabel(
       own,
       outlines,
       placed,
       content,
-      viewport
+      viewport,
+      previous.get(own.box.id)
     )
-    placed.push(rect)
-    return { box: own.box, outline: own.rect, label: placement }
+    previous.set(own.box.id, label)
+    placed.push(label.rect)
+    return { box: own.box, outline: own.rect, label: label.placement }
   })
 }
 
@@ -376,6 +430,11 @@ function layoutOutlines(
  * `pointer-events: none`, as Radix sets for its modal layers. Safari keeps
  * ⌘. for Stop, and some Linux desktops move the window on Alt+click, so the
  * toggle is the way in that always works, and the only one on touch screens.
+ *
+ * Outlines and labels stay below a sticky header when the page sets the
+ * root's `scroll-padding-top` to the header's height in pixels, as it would
+ * for anchor links. Labels avoid covering the page's text and borders where
+ * they can.
  *
  * Started from the toggle or the shortcut, point mode is a modal dialog:
  * the rest of the page, an open ask panel included, is `inert` until it
@@ -403,13 +462,33 @@ function PliantPointMode({
       labelWidth,
     })
   const id = React.useId()
-  const viewport = useViewport()
-  const layout = React.useMemo(
+  const { width, height } = useViewportSize()
+  // Read once when point mode starts or the window resizes, rather than on
+  // every scroll. Each label's spot is remembered for as long as that lasts.
+  const page = React.useMemo(
     () =>
       mode === null
+        ? null
+        : {
+            top: headerInset(),
+            content: findPageContent(),
+            previous: new Map<string, PlacedLabel>(),
+          },
+    // The size isn't read, but a resize moves the page's content.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mode, width, height]
+  )
+  const layout = React.useMemo(
+    () =>
+      page === null
         ? []
-        : layoutOutlines(boxes, viewport, findPageContent(viewport)),
-    [mode, boxes, viewport]
+        : layoutOutlines(
+            boxes,
+            { top: page.top, width, height },
+            page.content,
+            page.previous
+          ),
+    [page, boxes, width, height]
   )
 
   return (
@@ -447,7 +526,7 @@ function PliantPointMode({
                 over it. */}
             <div
               className="absolute inset-0"
-              style={{ clipPath: `inset(${String(viewport.top)}px 0 0 0)` }}
+              style={{ clipPath: `inset(${String(page?.top ?? 0)}px 0 0 0)` }}
             >
               {layout.map(({ box, outline, label }) => (
                 <button

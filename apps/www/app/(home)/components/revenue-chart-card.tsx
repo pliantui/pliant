@@ -30,17 +30,17 @@ const series: { status: Status; label: string; color: string }[] = [
   {
     status: "paid",
     label: "Paid",
-    color: "color-mix(in oklch, var(--foreground) 70%, var(--card))",
+    color: "color-mix(in oklch, var(--foreground) 45%, var(--card))",
   },
   {
     status: "pending",
     label: "Pending",
-    color: "color-mix(in oklch, var(--foreground) 42%, var(--card))",
+    color: "color-mix(in oklch, var(--foreground) 65%, var(--card))",
   },
   {
     status: "overdue",
     label: "Overdue",
-    color: "color-mix(in oklch, var(--foreground) 20%, var(--card))",
+    color: "color-mix(in oklch, var(--foreground) 90%, var(--card))",
   },
 ]
 

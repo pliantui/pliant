@@ -29,9 +29,9 @@ export function Showcase() {
           <div className="flex flex-col gap-1 text-sm">
             <div>
               <h2 id="showcase-heading" className="inline font-medium">
-                Try it.
-              </h2>{" "}
-              Pick a suggestion on a card, or press Point and pick a part of{" "}
+                Try it
+              </h2>
+              . Pick a suggestion on a card, or press Point and pick a part of{" "}
               {company.name}&apos;s app.
             </div>
             <ReplayNote className="text-foreground" />

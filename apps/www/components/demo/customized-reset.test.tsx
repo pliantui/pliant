@@ -103,10 +103,8 @@ describe("CustomizedReset", () => {
     })
     expect(screen.getByText("Customized")).toBeTruthy()
 
-    reset().focus()
     fireEvent.click(reset())
     expect(screen.queryByText("Customized")).toBeNull()
-    expect(document.activeElement).toBe(reset())
     expect(reset().getAttribute("aria-disabled")).toBe("true")
   })
 

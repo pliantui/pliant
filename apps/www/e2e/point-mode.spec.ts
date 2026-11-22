@@ -391,7 +391,7 @@ async function textBox(locator: Locator) {
   })
 }
 
-test("keeps its labels off the page's headings and banner", async ({
+test("keeps its labels off the page's headings and notes", async ({
   page,
   errors,
 }) => {
@@ -407,10 +407,11 @@ test("keeps its labels off the page's headings and banner", async ({
   const covered = [
     await textBox(page.getByRole("heading", { name: "Orders", exact: true })),
     await textBox(page.getByRole("heading", { name: "All orders" })),
-    await page
-      .getByRole("note")
-      .filter({ hasText: "Not fully implemented yet" })
-      .boundingBox(),
+    await textBox(
+      page.getByText(
+        "This demo replays recorded answers; no AI model is called."
+      )
+    ),
   ]
   await page.keyboard.up("Alt")
 
@@ -450,8 +451,8 @@ test("stays below the sticky site header when the page is scrolled", async ({
   // The outline is cut off under the header, so clicking there picks
   // nothing.
   await page.mouse.click((outline?.x ?? 0) + 40, headerBottom - 4)
-  await page.keyboard.up("Alt")
   await expect(layer(page)).toBeHidden()
+  await page.keyboard.up("Alt")
   await expect(page.getByRole("complementary", { name: "Ask" })).toBeHidden()
   expect(errors).toEqual([])
 })
