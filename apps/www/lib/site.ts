@@ -22,7 +22,7 @@ export const site = {
   description: "Let the users of your shadcn app reshape it to fit their work.",
   headline: "Build pliant interfaces: apps your users can reshape.",
   summary:
-    "Pliant adds per-user and per-team customization to your shadcn app, within the rules you set.",
+    "Your users reshape your shadcn app, by hand or by asking, within the rules you set.",
   url,
   repository,
   links: {
@@ -35,7 +35,7 @@ export const site = {
   navItems: [
     { href: "/", label: "Home" },
     { href: "/docs", label: "Docs" },
-    { href: "/components", label: "Components" },
+    { href: "/docs/components", label: "Components" },
     { href: "/blocks", label: "Blocks" },
     { href: "/charts", label: "Charts" },
     { href: "/examples/orders", label: "Examples" },

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url"
 // builds for any other address, like previews, may.
 const productionHosts = ["pliantui.dev", "www.pliantui.dev"]
 
-// Banners and placeholders mark their rendered HTML with this.
+// Banners, placeholders and scripted asks mark their rendered HTML with this.
 const marker = /data-unfinished="([a-z-]+)"/g
 
 interface UnfinishedPage {
@@ -31,7 +31,8 @@ function isProduction(siteUrl: string | undefined) {
   }
 }
 
-// Lists the prerendered pages that still show a banner or a placeholder.
+// Lists the prerendered pages that still show a banner, a placeholder or a
+// scripted ask.
 export function findUnfinishedPages(directory: string): UnfinishedPage[] {
   const pages: UnfinishedPage[] = []
   for (const file of htmlFiles(directory)) {

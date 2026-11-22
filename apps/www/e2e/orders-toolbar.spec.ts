@@ -1,15 +1,8 @@
 import type { Page } from "@playwright/test"
 
-import {
-  orderRegions,
-  orders,
-  orderStatuses,
-  type Order,
-} from "../app/(examples)/examples/orders/data"
-import {
-  formatCurrency,
-  formatNumber,
-} from "../app/(examples)/examples/orders/format"
+import { orders } from "../lib/demo/data"
+import { formatCurrency, formatNumber } from "../lib/demo/format"
+import { orderRegions, orderStatuses, type Order } from "../lib/demo/schema"
 import { expect, test } from "./fixtures"
 
 const surface = "/examples/orders"

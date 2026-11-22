@@ -4,7 +4,7 @@ import { site } from "@/lib/site"
 
 const links = [
   { title: "Docs", href: "/docs" },
-  { title: "Components", href: "/components" },
+  { title: "Components", href: "/docs/components" },
   { title: "Examples", href: "/examples/orders" },
   { title: "Roadmap", href: "/roadmap" },
   { title: "Changelog", href: "/changelog" },

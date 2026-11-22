@@ -84,7 +84,7 @@ jobs:
           --filter @pliantui/server add --save-dev zod@4.1.8
       - run: pnpm --filter www add zod@4.1.8
       - run: pnpm --filter @pliantui/server test
-      - run: pnpm --filter www exec vitest run app/api/pliant/recordings.test.ts
+      - run: pnpm --filter www exec vitest run scripts/build-replays.test.ts
       # `ai`'s own declarations reference Node.js types, hence --types node.
       - run: >-
           pnpm --filter @pliantui/server

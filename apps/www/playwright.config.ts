@@ -16,11 +16,9 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   // A production build avoids on-demand compilation and the dev overlay, so
   // the tests see what ships and don't time out on a cold CI runner. Turbo
-  // builds the workspace packages the site imports first. The ask route is
-  // turned on, answering from the committed recordings.
+  // builds the workspace packages the site imports first.
   webServer: {
-    command:
-      "pnpm -w exec turbo run build --filter=www && PLIANT_ASK_ENABLED=1 pnpm start",
+    command: "pnpm -w exec turbo run build --filter=www && pnpm start",
     url: baseURL,
     reuseExistingServer: !isCI,
     timeout: 300_000,

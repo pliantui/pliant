@@ -87,6 +87,56 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
+    for (const [slug, name] of [
+      ["", "Components"],
+      ["/pliant-root", "PliantRoot"],
+      ["/region", "Region"],
+      ["/pre-paint", "Pre-paint"],
+      ["/ask-panel", "Ask Panel"],
+      ["/data-table", "Data Table"],
+      ["/form", "Form"],
+      ["/nav", "Nav"],
+      ["/point-mode", "Point Mode"],
+      ["/messages", "Messages"],
+      ["/chart", "Chart"],
+      ["/stat", "Stat"],
+      ["/list", "List"],
+      ["/tabs-and-panels", "Tabs and Panels"],
+      ["/actions", "Actions"],
+      ["/dialog", "Dialog"],
+      ["/suggestions", "Suggestions"],
+      ["/customized-indicator", "Customized Indicator"],
+      ["/reset", "Reset"],
+      ["/history-and-undo", "History and Undo"],
+      ["/share-link", "Share Link"],
+      ["/team-publish", "Team Publish"],
+      ["/text-size-density-motion", "Text Size, Density and Motion"],
+    ] as const) {
+      test(`the ${name} component page has no accessibility violations`, async ({
+        page,
+      }) => {
+        await page.goto(`/docs/components${slug}`)
+        await expect(
+          page.getByRole("heading", { level: 1, name, exact: true })
+        ).toBeVisible()
+        expect(await violations(page, colorScheme)).toEqual([])
+      })
+    }
+
+    test("a component page's Code tab and Manual install have no accessibility violations", async ({
+      page,
+    }) => {
+      await page.goto("/docs/components/region")
+      await page.getByRole("tab", { name: "Code" }).click()
+      await page.getByRole("tab", { name: "Manual" }).click()
+      await expect(
+        page.getByRole("tabpanel", { name: "Manual" }).getByRole("heading", {
+          name: "Install the dependencies.",
+        })
+      ).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
+
     for (const [path, name] of [
       ["/charts", "Charts"],
       ["/templates", "Templates"],

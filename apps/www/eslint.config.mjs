@@ -42,8 +42,8 @@ export default defineConfig(
   {
     // Registry components show text from `usePliantMessages`, so apps can
     // replace it through `PliantRoot`'s `messages`.
-    files: ["registry/**/*.tsx"],
-    ignores: ["registry/**/*.test.tsx"],
+    files: ["registry/pliant/**/*.tsx"],
+    ignores: ["registry/pliant/**/*.test.tsx"],
     rules: {
       "no-restricted-syntax": [
         "error",
