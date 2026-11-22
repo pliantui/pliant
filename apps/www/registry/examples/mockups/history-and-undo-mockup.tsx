@@ -4,12 +4,9 @@ import {
   ScriptedFrame,
   useScriptedAsks,
 } from "@/components/demo/scripted-frame"
+import { mockupAsks } from "@/lib/components/mockup-asks"
 
-const asks = [
-  "undo that",
-  "go back to how it was this morning",
-  "what did i change today",
-]
+const asks = mockupAsks["history-and-undo"]
 
 const history = [
   { time: "14:05", change: "Filtered to overdue orders" },
@@ -19,20 +16,24 @@ const history = [
 
 export function HistoryAndUndoMockup() {
   const scripted = useScriptedAsks()
-  const kept = scripted.has(asks[1] ?? "")
+  const kept = scripted.has(asks.morning)
     ? history.slice(2)
-    : scripted.has(asks[0] ?? "")
+    : scripted.has(asks.undo)
       ? history.slice(1)
       : history
 
   return (
-    <ScriptedFrame label="orders table history" asks={asks} scripted={scripted}>
+    <ScriptedFrame
+      label="orders table history"
+      asks={Object.values(asks)}
+      scripted={scripted}
+    >
       <div className="flex flex-col gap-3 text-sm">
         <p className="rounded-xl border p-3">
           All orders now:{" "}
           {kept.map((entry) => entry.change.toLowerCase()).join(", ")}
         </p>
-        {scripted.has(asks[2] ?? "") && (
+        {scripted.has(asks.today) && (
           <ol aria-label="Today's changes" className="flex flex-col gap-1">
             {history.map((entry) => (
               <li key={entry.time} className="flex gap-3">

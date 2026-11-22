@@ -4,8 +4,9 @@ import {
   ScriptedFrame,
   useScriptedAsks,
 } from "@/components/demo/scripted-frame"
+import { mockupAsks } from "@/lib/components/mockup-asks"
 
-const asks = ["only overdue orders", "largest orders first"]
+const asks = mockupAsks.suggestions
 
 const orders = [
   { id: "ORD-1042", customer: "Kaveri Agro", status: "Overdue", value: 96550 },
@@ -33,13 +34,17 @@ const rupees = new Intl.NumberFormat("en-IN", {
 export function SuggestionsMockup() {
   const scripted = useScriptedAsks()
   let rows = orders
-  if (scripted.has(asks[0] ?? ""))
+  if (scripted.has(asks.overdue))
     rows = rows.filter((row) => row.status === "Overdue")
-  if (scripted.has(asks[1] ?? ""))
+  if (scripted.has(asks.largest))
     rows = rows.toSorted((a, b) => b.value - a.value)
 
   return (
-    <ScriptedFrame label="orders" asks={asks} scripted={scripted}>
+    <ScriptedFrame
+      label="orders"
+      asks={Object.values(asks)}
+      scripted={scripted}
+    >
       <div className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
           Suggested asks for this table. Picking one previews the change.

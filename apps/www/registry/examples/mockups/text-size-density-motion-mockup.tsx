@@ -6,12 +6,9 @@ import {
   ScriptedFrame,
   useScriptedAsks,
 } from "@/components/demo/scripted-frame"
+import { mockupAsks } from "@/lib/components/mockup-asks"
 
-const asks = [
-  "make the text bigger",
-  "compact spacing on this page",
-  "turn off animations",
-]
+const asks = mockupAsks["text-size-density-motion"]
 
 const tickets = [
   "Refund not received",
@@ -21,12 +18,16 @@ const tickets = [
 
 export function TextSizeDensityMotionMockup() {
   const scripted = useScriptedAsks()
-  const big = scripted.has(asks[0] ?? "")
-  const compact = scripted.has(asks[1] ?? "")
-  const still = scripted.has(asks[2] ?? "")
+  const big = scripted.has(asks.bigger)
+  const compact = scripted.has(asks.compact)
+  const still = scripted.has(asks.still)
 
   return (
-    <ScriptedFrame label="display preferences" asks={asks} scripted={scripted}>
+    <ScriptedFrame
+      label="display preferences"
+      asks={Object.values(asks)}
+      scripted={scripted}
+    >
       <ul
         aria-label="Open tickets"
         className={cn(

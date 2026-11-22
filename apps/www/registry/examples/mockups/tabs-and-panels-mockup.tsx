@@ -5,8 +5,9 @@ import {
   useScriptedAsks,
 } from "@/components/demo/scripted-frame"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { mockupAsks } from "@/lib/components/mockup-asks"
 
-const asks = ["open on invoices", "put notes first", "hide the activity tab"]
+const asks = mockupAsks["tabs-and-panels"]
 
 const panels = {
   overview: {
@@ -32,16 +33,20 @@ type Panel = keyof typeof panels
 export function TabsAndPanelsMockup() {
   const scripted = useScriptedAsks()
   let order: Panel[] = ["overview", "invoices", "notes", "activity"]
-  if (scripted.has(asks[1] ?? "")) {
+  if (scripted.has(asks.notesFirst)) {
     order = ["notes", ...order.filter((id) => id !== "notes")]
   }
-  if (scripted.has(asks[2] ?? "")) {
+  if (scripted.has(asks.hideActivity)) {
     order = order.filter((id) => id !== "activity")
   }
-  const opening = scripted.has(asks[0] ?? "") ? "invoices" : "overview"
+  const opening = scripted.has(asks.openInvoices) ? "invoices" : "overview"
 
   return (
-    <ScriptedFrame label="order tabs" asks={asks} scripted={scripted}>
+    <ScriptedFrame
+      label="order tabs"
+      asks={Object.values(asks)}
+      scripted={scripted}
+    >
       <Tabs key={`${opening}-${order.join()}`} defaultValue={opening}>
         <TabsList>
           {order.map((id) => (

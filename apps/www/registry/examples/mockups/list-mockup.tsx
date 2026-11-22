@@ -6,13 +6,9 @@ import {
   ScriptedFrame,
   useScriptedAsks,
 } from "@/components/demo/scripted-frame"
+import { mockupAsks } from "@/lib/components/mockup-asks"
 
-const asks = [
-  "largest orders first",
-  "only overdue orders in the south",
-  "group by customer",
-  "make the list compact",
-]
+const asks = mockupAsks.list
 
 const orders = [
   {
@@ -61,16 +57,16 @@ const rupees = new Intl.NumberFormat("en-IN", {
 export function ListMockup() {
   const scripted = useScriptedAsks()
   let rows = orders
-  if (scripted.has(asks[1] ?? "")) {
+  if (scripted.has(asks.overdueSouth)) {
     rows = rows.filter(
       (row) => row.status === "Overdue" && row.region === "South"
     )
   }
-  if (scripted.has(asks[0] ?? "")) {
+  if (scripted.has(asks.largest)) {
     rows = rows.toSorted((a, b) => b.value - a.value)
   }
-  const grouped = scripted.has(asks[2] ?? "")
-  const compact = scripted.has(asks[3] ?? "")
+  const grouped = scripted.has(asks.group)
+  const compact = scripted.has(asks.compact)
   const groups = grouped
     ? [...new Set(rows.map((row) => row.customer))].map((customer) => ({
         customer,
@@ -79,7 +75,11 @@ export function ListMockup() {
     : [{ customer: null, rows }]
 
   return (
-    <ScriptedFrame label="orders list" asks={asks} scripted={scripted}>
+    <ScriptedFrame
+      label="orders list"
+      asks={Object.values(asks)}
+      scripted={scripted}
+    >
       <div className="flex flex-col gap-3">
         {groups.map((group) => (
           <div key={group.customer ?? "all"}>

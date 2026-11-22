@@ -4,12 +4,9 @@ import {
   ScriptedFrame,
   useScriptedAsks,
 } from "@/components/demo/scripted-frame"
+import { mockupAsks } from "@/lib/components/mockup-asks"
 
-const asks = [
-  "show this as a bar chart",
-  "stack by status",
-  "only show overdue",
-]
+const asks = mockupAsks.chart
 
 const months = [
   { month: "May", paid: 310, pending: 60, overdue: 40 },
@@ -34,18 +31,22 @@ const step = width / months.length
 
 export function ChartMockup() {
   const scripted = useScriptedAsks()
-  const bars = scripted.has(asks[0] ?? "") || scripted.has(asks[1] ?? "")
-  const series: Status[] = scripted.has(asks[2] ?? "")
+  const bars = scripted.has(asks.bars) || scripted.has(asks.stack)
+  const series: Status[] = scripted.has(asks.overdueOnly)
     ? ["overdue"]
     : ["paid", "pending", "overdue"]
-  const stacked = scripted.has(asks[1] ?? "") && series.length > 1
+  const stacked = scripted.has(asks.stack) && series.length > 1
   const total = (row: (typeof months)[number]) =>
     series.reduce((sum, key) => sum + row[key], 0)
   const max = Math.max(...months.map(total))
   const y = (value: number) => height - (value / max) * height
 
   return (
-    <ScriptedFrame label="revenue chart" asks={asks} scripted={scripted}>
+    <ScriptedFrame
+      label="revenue chart"
+      asks={Object.values(asks)}
+      scripted={scripted}
+    >
       <figure className="flex flex-col gap-3">
         <figcaption className="text-sm font-medium">
           Revenue by month, May–Oct 2026

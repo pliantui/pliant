@@ -4,20 +4,21 @@ import {
   ScriptedFrame,
   useScriptedAsks,
 } from "@/components/demo/scripted-frame"
+import { mockupAsks } from "@/lib/components/mockup-asks"
 
-const asks = [
-  "share this view with kavya",
-  "share just the table",
-  "keep this shared view",
-]
+const asks = mockupAsks["share-link"]
 
 export function ShareLinkMockup() {
   const scripted = useScriptedAsks()
-  const shared = scripted.has(asks[0] ?? "") || scripted.has(asks[1] ?? "")
-  const tableOnly = scripted.has(asks[1] ?? "")
+  const shared = scripted.has(asks.kavya) || scripted.has(asks.tableOnly)
+  const tableOnly = scripted.has(asks.tableOnly)
 
   return (
-    <ScriptedFrame label="shared view" asks={asks} scripted={scripted}>
+    <ScriptedFrame
+      label="shared view"
+      asks={Object.values(asks)}
+      scripted={scripted}
+    >
       <div className="flex flex-col gap-3 text-sm">
         <p className="rounded-xl border p-3">
           All orders: largest first, only overdue in the South
@@ -36,7 +37,7 @@ export function ShareLinkMockup() {
             </span>
           </div>
         )}
-        {scripted.has(asks[2] ?? "") && (
+        {scripted.has(asks.keep) && (
           <p className="text-muted-foreground">
             Kept. The shared view is now one of your own changes.
           </p>

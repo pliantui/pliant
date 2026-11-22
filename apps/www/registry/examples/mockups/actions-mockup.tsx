@@ -6,20 +6,16 @@ import {
 } from "@/components/demo/scripted-frame"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
+import { mockupAsks } from "@/lib/components/mockup-asks"
 
-const asks = [
-  "put export on the toolbar",
-  "move send gst invoice to the menu",
-  "bind shift e to export",
-  "hide duplicate",
-]
+const asks = mockupAsks.actions
 
 export function ActionsMockup() {
   const scripted = useScriptedAsks()
-  const exportOnToolbar = scripted.has(asks[0] ?? "")
-  const invoiceInMenu = scripted.has(asks[1] ?? "")
-  const shortcut = scripted.has(asks[2] ?? "")
-  const duplicate = !scripted.has(asks[3] ?? "")
+  const exportOnToolbar = scripted.has(asks.exportToToolbar)
+  const invoiceInMenu = scripted.has(asks.invoiceToMenu)
+  const shortcut = scripted.has(asks.bindExport)
+  const duplicate = !scripted.has(asks.hideDuplicate)
   const toolbar = [
     !invoiceInMenu && "Send GST invoice",
     duplicate && "Duplicate",
@@ -32,7 +28,11 @@ export function ActionsMockup() {
   ].filter((action): action is string => typeof action === "string")
 
   return (
-    <ScriptedFrame label="order actions" asks={asks} scripted={scripted}>
+    <ScriptedFrame
+      label="order actions"
+      asks={Object.values(asks)}
+      scripted={scripted}
+    >
       <div className="flex flex-col gap-3">
         <div
           aria-label="Order actions"

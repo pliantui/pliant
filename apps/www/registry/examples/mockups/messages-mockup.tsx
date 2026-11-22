@@ -4,12 +4,9 @@ import {
   ScriptedFrame,
   useScriptedAsks,
 } from "@/components/demo/scripted-frame"
+import { mockupAsks } from "@/lib/components/mockup-asks"
 
-const asks = [
-  "call the overdue card dues",
-  "rename average order value to aov",
-  "go back to the original name",
-]
+const asks = mockupAsks.messages
 
 const cards = [
   { id: "revenue", label: "Revenue", value: "₹37,76,600" },
@@ -19,16 +16,20 @@ const cards = [
 
 export function MessagesMockup() {
   const scripted = useScriptedAsks()
-  const original = scripted.has(asks[2] ?? "")
+  const original = scripted.has(asks.original)
   const label = (id: string, fallback: string) => {
     if (original) return fallback
-    if (id === "overdue" && scripted.has(asks[0] ?? "")) return "Dues"
-    if (id === "aov" && scripted.has(asks[1] ?? "")) return "AOV"
+    if (id === "overdue" && scripted.has(asks.renameOverdue)) return "Dues"
+    if (id === "aov" && scripted.has(asks.renameAov)) return "AOV"
     return fallback
   }
 
   return (
-    <ScriptedFrame label="card labels" asks={asks} scripted={scripted}>
+    <ScriptedFrame
+      label="card labels"
+      asks={Object.values(asks)}
+      scripted={scripted}
+    >
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {cards.map((card) => (
           <div key={card.id} className="rounded-xl border p-3">

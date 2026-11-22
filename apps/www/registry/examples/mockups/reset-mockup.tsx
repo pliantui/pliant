@@ -4,24 +4,25 @@ import {
   ScriptedFrame,
   useScriptedAsks,
 } from "@/components/demo/scripted-frame"
+import { mockupAsks } from "@/lib/components/mockup-asks"
 
-const asks = [
-  "put the key metrics back",
-  "reset this table",
-  "reset the whole page",
-]
+const asks = mockupAsks.reset
 
 export function ResetMockup() {
   const scripted = useScriptedAsks()
-  const page = scripted.has(asks[2] ?? "")
-  const metricsBack = page || scripted.has(asks[0] ?? "")
-  const tableBack = page || scripted.has(asks[1] ?? "")
+  const page = scripted.has(asks.page)
+  const metricsBack = page || scripted.has(asks.metrics)
+  const tableBack = page || scripted.has(asks.table)
   const metrics = metricsBack
     ? ["Revenue", "Orders", "Average order value", "Overdue"]
     : ["Overdue", "Revenue", "Orders"]
 
   return (
-    <ScriptedFrame label="the demo" asks={asks} scripted={scripted}>
+    <ScriptedFrame
+      label="the demo"
+      asks={Object.values(asks)}
+      scripted={scripted}
+    >
       <div className="flex flex-col gap-3 text-sm">
         <ul
           aria-label="Key metrics"

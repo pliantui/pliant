@@ -6,23 +6,23 @@ import {
   ScriptedFrame,
   useScriptedAsks,
 } from "@/components/demo/scripted-frame"
+import { mockupAsks } from "@/lib/components/mockup-asks"
 
-const asks = [
-  "open this as a side sheet",
-  "make it bigger",
-  "show it as a drawer from the bottom",
-  "fold delivery notes away",
-]
+const asks = mockupAsks.dialog
 
 export function DialogMockup() {
   const scripted = useScriptedAsks()
-  const drawer = scripted.has(asks[2] ?? "")
-  const sheet = !drawer && scripted.has(asks[0] ?? "")
-  const big = scripted.has(asks[1] ?? "")
-  const folded = scripted.has(asks[3] ?? "")
+  const drawer = scripted.has(asks.drawer)
+  const sheet = !drawer && scripted.has(asks.sheet)
+  const big = scripted.has(asks.bigger)
+  const folded = scripted.has(asks.foldNotes)
 
   return (
-    <ScriptedFrame label="edit order dialog" asks={asks} scripted={scripted}>
+    <ScriptedFrame
+      label="edit order dialog"
+      asks={Object.values(asks)}
+      scripted={scripted}
+    >
       <div
         className={cn(
           "relative flex h-80 overflow-hidden rounded-xl bg-muted/60 dark:bg-muted/30",

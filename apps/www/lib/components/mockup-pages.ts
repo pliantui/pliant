@@ -1,9 +1,7 @@
-import type { ComponentGroup } from "@/lib/components/component-groups"
+import { mockupAsks } from "@/lib/components/mockup-asks"
 
 export interface MockupPage {
   slug: string
-  title: string
-  group: ComponentGroup
   registryItem: string
   dependencies: string[]
   usage: { imports: string; code: string }
@@ -25,8 +23,6 @@ export interface MockupPage {
 export const mockupPages: MockupPage[] = [
   {
     slug: "messages",
-    title: "Messages",
-    group: "Core",
     registryItem: "pliant-messages",
     dependencies: ["@pliantui/react"],
     usage: {
@@ -35,17 +31,17 @@ export const mockupPages: MockupPage[] = [
     },
     asks: [
       {
-        prompt: "call the overdue card dues",
+        prompt: mockupAsks.messages.renameOverdue,
         result:
           'The card\'s title reads "Dues" for this user, in place of "Overdue".',
       },
       {
-        prompt: "rename average order value to aov",
+        prompt: mockupAsks.messages.renameAov,
         result:
           'The card\'s label becomes "AOV", and the full name stays in its tooltip.',
       },
       {
-        prompt: "go back to the original name",
+        prompt: mockupAsks.messages.original,
         result: "The rename is dropped and the label shows your message again.",
       },
     ],
@@ -122,8 +118,6 @@ export const messages = {
   },
   {
     slug: "chart",
-    title: "Chart",
-    group: "Data",
     registryItem: "pliant-chart",
     dependencies: ["@pliantui/react", "recharts"],
     usage: {
@@ -140,26 +134,26 @@ export const messages = {
     },
     asks: [
       {
-        prompt: "show this as a bar chart",
+        prompt: mockupAsks.chart.bars,
         result:
           "The chart switches from an area chart to bars, with the same months and series.",
       },
       {
-        prompt: "stack by status",
+        prompt: mockupAsks.chart.stack,
         result:
           "Paid, pending and overdue revenue stack into one bar per month.",
       },
       {
-        prompt: "only show overdue",
+        prompt: mockupAsks.chart.overdueOnly,
         result:
           "The paid and pending series are hidden, leaving overdue revenue on its own.",
       },
       {
-        prompt: "only this quarter",
+        prompt: mockupAsks.chart.thisQuarter,
         result: "The chart is filtered to the months of the current quarter.",
       },
       {
-        prompt: "show stacks as percentages",
+        prompt: mockupAsks.chart.percent,
         result:
           "Each month's bar fills the full height, split by the share of each status.",
       },
@@ -260,8 +254,6 @@ export const messages = {
   },
   {
     slug: "stat",
-    title: "Stat",
-    group: "Data",
     registryItem: "pliant-stat",
     dependencies: ["@pliantui/react"],
     usage: {
@@ -276,17 +268,17 @@ export const messages = {
     },
     asks: [
       {
-        prompt: "compare with last quarter",
+        prompt: mockupAsks.stat.compare,
         result:
           "The card shows the change against last quarter's revenue instead of last month's.",
       },
       {
-        prompt: "show the difference in rupees",
+        prompt: mockupAsks.stat.rupees,
         result:
           "The comparison reads as an amount, such as +₹85,832, rather than a percentage.",
       },
       {
-        prompt: "show overdue value instead",
+        prompt: mockupAsks.stat.overdue,
         result: "The card switches to the total value of overdue orders.",
       },
     ],
@@ -366,8 +358,6 @@ export const messages = {
   },
   {
     slug: "list",
-    title: "List",
-    group: "Data",
     registryItem: "pliant-list",
     dependencies: ["@pliantui/react", "lucide-react"],
     usage: {
@@ -382,20 +372,20 @@ export const messages = {
     },
     asks: [
       {
-        prompt: "largest orders first",
+        prompt: mockupAsks.list.largest,
         result: "The list sorts by order value, highest first.",
       },
       {
-        prompt: "only overdue orders in the south",
+        prompt: mockupAsks.list.overdueSouth,
         result: "The list shows overdue orders from the South region only.",
       },
       {
-        prompt: "group by customer",
+        prompt: mockupAsks.list.group,
         result:
           "Orders gather under a heading for each customer, such as Kaveri Agro, with a count.",
       },
       {
-        prompt: "make the list compact",
+        prompt: mockupAsks.list.compact,
         result: "Items sit closer together so more orders fit on screen.",
       },
     ],
@@ -483,8 +473,6 @@ export const messages = {
   },
   {
     slug: "tabs-and-panels",
-    title: "Tabs and Panels",
-    group: "Navigation",
     registryItem: "pliant-tabs",
     dependencies: ["@pliantui/react", "radix-ui"],
     usage: {
@@ -501,16 +489,16 @@ export const messages = {
     },
     asks: [
       {
-        prompt: "open on invoices",
+        prompt: mockupAsks["tabs-and-panels"].openInvoices,
         result:
           "The Invoices tab is selected whenever this user opens a customer.",
       },
       {
-        prompt: "put notes first",
+        prompt: mockupAsks["tabs-and-panels"].notesFirst,
         result: "The Notes tab moves to the start of the tab list.",
       },
       {
-        prompt: "hide the activity tab",
+        prompt: mockupAsks["tabs-and-panels"].hideActivity,
         result:
           "The Activity tab is hidden, and can be shown again from the tab menu.",
       },
@@ -582,8 +570,6 @@ export const messages = {
   },
   {
     slug: "actions",
-    title: "Actions",
-    group: "Actions",
     registryItem: "pliant-actions",
     dependencies: ["@pliantui/react", "lucide-react", "radix-ui"],
     usage: {
@@ -600,20 +586,20 @@ export const messages = {
     },
     asks: [
       {
-        prompt: "put export on the toolbar",
+        prompt: mockupAsks.actions.exportToToolbar,
         result: "Export moves out of the overflow menu and onto the toolbar.",
       },
       {
-        prompt: "move send gst invoice to the menu",
+        prompt: mockupAsks.actions.invoiceToMenu,
         result: "Send GST invoice moves into the overflow menu.",
       },
       {
-        prompt: "bind shift e to export",
+        prompt: mockupAsks.actions.bindExport,
         result:
           "Pressing ⌘⇧E (Ctrl+Shift+E on Windows and Linux) runs Export, and the shortcut shows next to it in the menu.",
       },
       {
-        prompt: "hide duplicate",
+        prompt: mockupAsks.actions.hideDuplicate,
         result:
           "Duplicate is hidden for this user, and can be shown again from the menu.",
       },
@@ -717,8 +703,6 @@ export const messages = {
   },
   {
     slug: "dialog",
-    title: "Dialog",
-    group: "Overlays",
     registryItem: "pliant-dialog",
     dependencies: ["@pliantui/react", "radix-ui", "vaul"],
     usage: {
@@ -733,22 +717,22 @@ export const messages = {
     },
     asks: [
       {
-        prompt: "open this as a side sheet",
+        prompt: mockupAsks.dialog.sheet,
         result:
           "New order slides in from the side of the screen instead of opening in the middle.",
       },
       {
-        prompt: "make it bigger",
+        prompt: mockupAsks.dialog.bigger,
         result:
           "The dialog opens at the large size, with room for the order's line items.",
       },
       {
-        prompt: "show it as a drawer from the bottom",
+        prompt: mockupAsks.dialog.drawer,
         result:
           "New order opens as a drawer that rises from the bottom of the screen.",
       },
       {
-        prompt: "fold delivery notes away",
+        prompt: mockupAsks.dialog.foldNotes,
         result:
           "The Delivery notes field moves into the form's More fields section.",
       },
@@ -852,8 +836,6 @@ export const messages = {
   },
   {
     slug: "suggestions",
-    title: "Suggestions",
-    group: "AI",
     registryItem: "pliant-suggestions",
     dependencies: ["@pliantui/react"],
     usage: {
@@ -866,19 +848,14 @@ export const messages = {
     },
     asks: [
       {
-        prompt: "only overdue orders",
+        prompt: mockupAsks.suggestions.overdue,
         result:
           "Picking the chip fills in the ask panel; the table filters to overdue orders as a preview.",
       },
       {
-        prompt: "largest orders first",
+        prompt: mockupAsks.suggestions.largest,
         result:
           "The table previews a sort by value, highest first, until the user locks it in.",
-      },
-      {
-        prompt: "put the overdue card first",
-        result:
-          "The overdue card moves to the start of the key metrics as a preview.",
       },
     ],
     rules: [
@@ -939,8 +916,6 @@ export const messages = {
   },
   {
     slug: "customized-indicator",
-    title: "Customized Indicator",
-    group: "Status and history",
     registryItem: "pliant-customized-indicator",
     dependencies: ["@pliantui/react", "lucide-react", "radix-ui"],
     usage: {
@@ -952,17 +927,17 @@ export const messages = {
     },
     asks: [
       {
-        prompt: "what have i changed here",
+        prompt: mockupAsks["customized-indicator"].list,
         result:
           'The indicator\'s list opens, showing each change, such as "Sorted by value, highest first".',
       },
       {
-        prompt: "undo my changes to this table",
+        prompt: mockupAsks["customized-indicator"].undo,
         result:
           "The user's own changes to the orders table are dropped, and the indicator shows only the team's.",
       },
       {
-        prompt: "who set this layout",
+        prompt: mockupAsks["customized-indicator"].who,
         result:
           "The list shows which changes came from the Sales North team default and which are the user's own.",
       },
@@ -1021,8 +996,6 @@ export const messages = {
   },
   {
     slug: "reset",
-    title: "Reset",
-    group: "Status and history",
     registryItem: "pliant-reset",
     dependencies: ["@pliantui/react", "lucide-react"],
     usage: {
@@ -1031,17 +1004,17 @@ export const messages = {
     },
     asks: [
       {
-        prompt: "reset this table",
+        prompt: mockupAsks.reset.table,
         result:
           "The user's sort, filters, hidden columns and widths on the orders table are dropped.",
       },
       {
-        prompt: "reset the whole page",
+        prompt: mockupAsks.reset.page,
         result:
           "Every change the user made to the orders page is dropped, after they confirm.",
       },
       {
-        prompt: "put the key metrics back",
+        prompt: mockupAsks.reset.metrics,
         result:
           "The key metrics show in the order and layout of the team default, or of your page.",
       },
@@ -1126,8 +1099,6 @@ function onReset() {
   },
   {
     slug: "history-and-undo",
-    title: "History and Undo",
-    group: "Status and history",
     registryItem: "pliant-history",
     dependencies: ["@pliantui/react", "lucide-react", "radix-ui"],
     usage: {
@@ -1139,16 +1110,16 @@ function onReset() {
     },
     asks: [
       {
-        prompt: "undo that",
+        prompt: mockupAsks["history-and-undo"].undo,
         result: "The last change is undone, as if the user pressed ⌘ Z.",
       },
       {
-        prompt: "go back to how it was this morning",
+        prompt: mockupAsks["history-and-undo"].morning,
         result:
           "The page returns to the point in the history from this morning, and later changes can be redone.",
       },
       {
-        prompt: "what did i change today",
+        prompt: mockupAsks["history-and-undo"].today,
         result:
           'The history panel opens on today\'s changes, such as "Hid the notes column".',
       },
@@ -1246,8 +1217,6 @@ return (
   },
   {
     slug: "share-link",
-    title: "Share Link",
-    group: "Status and history",
     registryItem: "pliant-share-link",
     dependencies: ["@pliantui/react", "lucide-react"],
     usage: {
@@ -1260,17 +1229,17 @@ return (
     },
     asks: [
       {
-        prompt: "share this view with kavya",
+        prompt: mockupAsks["share-link"].kavya,
         result:
           "A link to the page with the current arrangement is copied, ready to send to Kavya Reddy.",
       },
       {
-        prompt: "share just the table",
+        prompt: mockupAsks["share-link"].tableOnly,
         result:
           "The copied link carries only the orders table's changes, not the rest of the page.",
       },
       {
-        prompt: "keep this shared view",
+        prompt: mockupAsks["share-link"].keep,
         result:
           "On the receiving end, the previewed arrangement is saved as the colleague's own.",
       },
@@ -1337,8 +1306,6 @@ return (
   },
   {
     slug: "team-publish",
-    title: "Team Publish",
-    group: "Status and history",
     registryItem: "pliant-team-publish",
     dependencies: ["@pliantui/react", "lucide-react", "radix-ui"],
     usage: {
@@ -1347,17 +1314,17 @@ return (
     },
     asks: [
       {
-        prompt: "publish this for my team",
+        prompt: mockupAsks["team-publish"].team,
         result:
           "A preview shows what Sales North will see; after confirming, it's the team's default.",
       },
       {
-        prompt: "make this the default for everyone",
+        prompt: mockupAsks["team-publish"].everyone,
         result:
           "For an admin, the arrangement is published as the organization's default after a preview.",
       },
       {
-        prompt: "remove the team default",
+        prompt: mockupAsks["team-publish"].remove,
         result:
           "The team's default is removed, and members go back to the organization's default or your page.",
       },
@@ -1430,8 +1397,6 @@ return (
   },
   {
     slug: "text-size-density-motion",
-    title: "Text Size, Density and Motion",
-    group: "Preferences",
     registryItem: "pliant-preferences",
     dependencies: ["@pliantui/react", "radix-ui"],
     usage: {
@@ -1440,15 +1405,15 @@ return (
     },
     asks: [
       {
-        prompt: "make the text bigger",
+        prompt: mockupAsks["text-size-density-motion"].bigger,
         result: "Text across the app grows a step, and layouts reflow to fit.",
       },
       {
-        prompt: "compact spacing on this page",
+        prompt: mockupAsks["text-size-density-motion"].compact,
         result: "Rows, cards and lists on the orders page sit closer together.",
       },
       {
-        prompt: "turn off animations",
+        prompt: mockupAsks["text-size-density-motion"].still,
         result:
           "Motion is reduced across the app: menus, sheets and placeholders appear without animating.",
       },

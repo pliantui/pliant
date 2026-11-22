@@ -5,21 +5,22 @@ import {
   useScriptedAsks,
 } from "@/components/demo/scripted-frame"
 import { Badge } from "@/components/ui/badge"
+import { mockupAsks } from "@/lib/components/mockup-asks"
 
-const asks = [
-  "publish this for my team",
-  "make this the default for everyone",
-  "remove the team default",
-]
+const asks = mockupAsks["team-publish"]
 
 export function TeamPublishMockup() {
   const scripted = useScriptedAsks()
-  const removed = scripted.has(asks[2] ?? "")
-  const everyone = scripted.has(asks[1] ?? "")
-  const team = !removed && !everyone && scripted.has(asks[0] ?? "")
+  const removed = scripted.has(asks.remove)
+  const everyone = scripted.has(asks.everyone)
+  const team = !removed && !everyone && scripted.has(asks.team)
 
   return (
-    <ScriptedFrame label="orders layout" asks={asks} scripted={scripted}>
+    <ScriptedFrame
+      label="orders layout"
+      asks={Object.values(asks)}
+      scripted={scripted}
+    >
       <div className="flex flex-col gap-3 rounded-xl border p-4 text-sm">
         <div className="flex items-center justify-between gap-2">
           <p className="font-medium">All orders, as Meera Iyer arranged it</p>
