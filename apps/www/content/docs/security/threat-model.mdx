@@ -14,22 +14,23 @@ This page lists what an attacker, a careless user or a misbehaving model could t
 
 ## Threats and controls
 
-| Threat                                            | Control                                                                                                                                           |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| An ask tries to read data the user may not see    | The model never sees rows, and can only propose display operations. Rows come from your server, scoped to the user                                |
-| Restricted fields reach the browser               | Fields a user may not read are left out of what your server sends                                                                                 |
-| A change or share link carries a script or markup | Changes are operations from a fixed catalog, validated on your server and in the browser. Labels are plain text                                   |
-| An expression runs code                           | Expressions are interpreted from a fixed function list. Nothing is passed to `eval` or `new Function`                                             |
-| A filter value injects SQL                        | `compileQuery` builds parameterized queries                                                                                                       |
-| Text in an ask or a label instructs the model     | Asks and labels are passed as data inside JSON. The worst outcome is an operation the user could make by hand, shown as a preview                 |
-| A user saves a team or organization default       | The storage route saves to those layers only when `canPublish` allows                                                                             |
-| A forged author on a stored change                | The storage route records the signed-in user as the author of each version                                                                        |
-| A cross-site form spends a user's model budget    | The ask route accepts only JSON bodies                                                                                                            |
-| Oversized requests                                | Ask bodies are capped at 32 KB, overlays at 500 operations, and server-mode pages at `maxPageSize` rows                                           |
-| A totals view reveals a single row's value        | `privacy.minGroupSize` suppresses totals over too few rows                                                                                        |
-| Endpoint abuse runs up model costs                | Per-user request and daily token limits on the ask route                                                                                          |
-| Sensitive enum values or labels reach the model   | `exposeToAI: false` and field permissions remove fields from what the model is told, and `pliantui doctor` warns about fields that look sensitive |
-| A role change leaves a user with access they lost | Permissions are checked on every request, not cached in overlays                                                                                  |
+| Threat                                            | Control                                                                                                                                                                                                 |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| An ask tries to read data the user may not see    | The model never sees rows, and can only propose display operations. Rows come from your server, scoped to the user                                                                                      |
+| Restricted fields reach the browser               | Fields a user may not read are left out of what your server sends                                                                                                                                       |
+| A change or share link carries a script or markup | Changes are operations from a fixed catalog. The browser checks every operation when a change loads and skips any that isn't valid, and the ask route rejects an answer with one. Labels are plain text |
+| A stored change holds invalid operations          | The storage route checks the overlay's envelope and size but stores operations as sent. Run `validateOverlay` in your route to reject them before they're stored                                        |
+| An expression runs code                           | Expressions are interpreted from a fixed function list. Nothing is passed to `eval` or `new Function`                                                                                                   |
+| A filter value injects SQL                        | `compileQuery` builds parameterized queries                                                                                                                                                             |
+| Text in an ask or a label instructs the model     | Asks and labels are passed as data inside JSON. The worst outcome is an operation the user could make by hand, shown as a preview                                                                       |
+| A user saves a team or organization default       | The storage route saves to those layers only when `canPublish` allows                                                                                                                                   |
+| A forged author on a stored change                | The storage route records the signed-in user's id as `by` on each stored version. The overlay's `createdBy` comes from the client and isn't trusted                                                     |
+| A cross-site form spends a user's model budget    | The ask route accepts only JSON bodies                                                                                                                                                                  |
+| Oversized requests                                | Ask bodies are capped at 32 KB, overlays at 500 operations, and server-mode pages at `maxPageSize` rows                                                                                                 |
+| A totals view reveals a single row's value        | `privacy.minGroupSize` suppresses totals over too few rows                                                                                                                                              |
+| Endpoint abuse runs up model costs                | Per-user request and daily token limits on the ask route                                                                                                                                                |
+| Sensitive enum values or labels reach the model   | `exposeToAI: false` and field permissions remove fields from what the model is told, and `pliantui doctor` warns about fields that look sensitive                                                       |
+| A role change leaves a user with access they lost | Permissions are checked on every request, not cached in overlays                                                                                                                                        |
 
 <Callout
   variant="warning"

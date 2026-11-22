@@ -20,6 +20,7 @@ Which rows and fields a user may see is decided once, in your [dataset](/docs/da
 - `scope` is required. Returning `undefined` or `{}` throws, so a forgotten scope can't expose every row.
 - Only `true` from an `access` function allows. Any other value denies.
 - To let a user load every row, `scope` returns `allRows`, a value only Pliant exports. A value read from your database or a request can never widen a scope by accident.
+- A dataset whose `scope` is the string `"public"` lets every user load every row. Use it only for data that isn't restricted at all.
 
 ## What permissions protect, and what hiding doesn't
 

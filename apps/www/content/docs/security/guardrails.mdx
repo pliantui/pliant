@@ -21,9 +21,14 @@ A change that breaks a rule is skipped, and the rest of the change applies.
   title="Not fully implemented yet"
   data-unfinished="not-implemented"
 >
-  `PliantRoot` doesn't apply flags yet, so in an app any part a user can see can
-  be hidden or moved. Today the flag rules apply when you pass flags to
-  `resolveLayers` or `validateOverlay` from `@pliantui/core`.
+  `pliant.config.ts` doesn't exist, and `PliantRoot` doesn't take flags,
+  manifests or `reservedShortcuts` yet. In an app today, only the form rules
+  apply: for each mounted form, fields its schema requires stay visible,
+  defaults must pass the field's schema, and fields stay in their form. Any
+  other slot or column a user can see can be hidden or moved, and semantic prop
+  values and reserved shortcuts aren't checked. Every rule applies when you pass
+  these options to `resolveLayers` and `validateOverlay` from `@pliantui/core`.
+  Render a notice users must always read outside Pliant's regions.
 </Callout>
 
 ## Limits

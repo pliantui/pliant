@@ -10,11 +10,14 @@ Every operation is checked against these rules as it applies, whether it came fr
   title="Not fully implemented yet"
   data-unfinished="not-implemented"
 >
-  `PliantRoot` doesn't read flags, manifests or `reservedShortcuts` yet, and
-  `pliant.config.ts` doesn't exist. Today the rules on this page apply when you
-  pass these options to `resolveLayers` and `validateOverlay` from
-  `@pliantui/core`. In an app, any slot or column a user can see can be hidden
-  or moved, so render a notice users must always read outside Pliant's regions.
+  `pliant.config.ts` doesn't exist, and `PliantRoot` doesn't take flags,
+  manifests or `reservedShortcuts` yet. In an app today, only the form rules
+  apply: for each mounted form, fields its schema requires stay visible,
+  defaults must pass the field's schema, and fields stay in their form. Any
+  other slot or column a user can see can be hidden or moved, and semantic prop
+  values and reserved shortcuts aren't checked. Every rule applies when you pass
+  these options to `resolveLayers` and `validateOverlay` from `@pliantui/core`.
+  Render a notice users must always read outside Pliant's regions.
 </Callout>
 
 ## How a rule skips an operation

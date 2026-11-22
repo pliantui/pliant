@@ -11,6 +11,15 @@ Pliant ships skills for coding agents such as Claude Code, Codex, Cursor and Git
 npx pliantui skills add
 ```
 
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The `pliantui` CLI isn't on npm yet, so `npx pliantui` works only inside the
+  Pliant repository.
+</Callout>
+
 This copies the skills into `.claude/skills` when your project has a `.claude` folder, and into `.agents/skills` otherwise. Pass `--dir .github/skills` for GitHub Copilot. Run it again after you update `pliantui` to refresh them. [`pliantui skills`](/docs/cli/skills) lists every option.
 
 ## The skills

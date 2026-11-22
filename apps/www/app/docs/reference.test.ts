@@ -16,6 +16,7 @@ import * as reactServerAdapter from "@pliantui/react/server-adapter"
 import * as reactTable from "@pliantui/react/table"
 import * as server from "@pliantui/server"
 import * as serverData from "@pliantui/server/data"
+import * as serverDrizzle from "@pliantui/server/drizzle"
 import * as serverRecordings from "@pliantui/server/recordings"
 import * as serverSql from "@pliantui/server/sql"
 import * as serverStorage from "@pliantui/server/storage"
@@ -58,7 +59,14 @@ const packages = {
     reactServerAdapter,
     reactTable,
   ],
-  server: [server, serverData, serverRecordings, serverSql, serverStorage],
+  server: [
+    server,
+    serverData,
+    serverDrizzle,
+    serverRecordings,
+    serverSql,
+    serverStorage,
+  ],
 }
 
 describe.each(Object.entries(packages))("the %s API page", (name, modules) => {

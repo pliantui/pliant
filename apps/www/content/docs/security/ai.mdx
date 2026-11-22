@@ -39,7 +39,7 @@ When a user asks for a change, your server sends the model a description of the 
 
 ## What an answer can do
 
-The model can only propose operations, and only those the target's manifest allows. It can't read or change data, call your APIs or run code. Asks to act on data, such as "refund this order", are turned away.
+The model can only propose operations, and the ask route offers it only those the target's manifest allows. The manifest arrives from the browser with the ask, so it limits what the model is offered, not what a modified client can ask for. Either way, the result is a preview in the user's own session layer. The model can't read or change data, call your APIs or run code. Asks to act on data, such as "refund this order", are turned away.
 
 Every answer is checked on your server, then again in the browser, and shown as a preview. Nothing is saved until the user locks it in. The user's ask and your labels reach the model as data inside JSON, so text that tries to give the model new instructions arrives as text, and the worst it can produce is an operation the user could have made by hand.
 
