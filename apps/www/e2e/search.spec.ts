@@ -9,10 +9,10 @@ test("finds a docs page from the search dialog", async ({ page, errors }) => {
   const dialog = page.getByRole("dialog", { name: /^Search/ })
   await dialog
     .getByRole("combobox", { name: "Search documentation" })
-    .fill("one mechanism")
+    .fill("store them separately")
 
   const result = dialog.getByRole("option", {
-    name: "Pliant gives you all of them through one mechanism.",
+    name: "With Pliant, each of them is a change saved for the user in the same way, so you don't build and store them separately.",
   })
   await expect(result).toBeVisible()
   await result.click()

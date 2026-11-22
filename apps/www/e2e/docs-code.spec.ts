@@ -6,7 +6,7 @@ test("shows install commands for the reader's package manager", async ({
   errors,
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"])
-  await page.goto("/docs/cli/init")
+  await page.goto("/docs/cli")
   const managers = page.getByRole("tablist", { name: "Package manager" })
   const first = managers.first()
 
