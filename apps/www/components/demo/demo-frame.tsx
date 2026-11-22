@@ -3,10 +3,8 @@ import { cn } from "cn"
 import { AskChips } from "@/components/demo/ask-chips"
 import { CustomizedReset } from "@/components/demo/customized-reset"
 import { ReplayNote } from "@/components/demo/replay-note"
-import {
-  ScriptedAsks,
-  type ScriptedAsksState,
-} from "@/components/demo/scripted-frame"
+import { ScriptedAsks } from "@/components/demo/scripted-asks"
+import type { ScriptedAsksState } from "@/components/demo/use-scripted-asks"
 import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { isScriptedAsk } from "@/lib/replay/replay-fetch"
 

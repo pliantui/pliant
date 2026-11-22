@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 
 const title = "Charts"
 const description =
-  "A chart starts from the data your users already look at. Each example begins with a table, a dashboard or a chart, and an ask changes it in place."
+  "A chart starts from the data your users already look at. Each example begins with a table or a dashboard, and an ask charts it in place."
 
 export const metadata: Metadata = {
   title,
@@ -25,7 +25,6 @@ export const metadata: Metadata = {
 const sections = [
   { name: "from-a-table", label: "From a table" },
   { name: "from-a-dashboard", label: "From a dashboard" },
-  { name: "reshape-a-chart", label: "Reshape a chart" },
   { name: "server-mode", label: "Server mode" },
 ]
 

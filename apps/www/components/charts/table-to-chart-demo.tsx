@@ -1,7 +1,6 @@
 "use client"
 
 import { DemoChart } from "@/components/demo/demo-chart"
-import { useScriptedAsks } from "@/components/demo/scripted-frame"
 import {
   Table,
   TableBody,
@@ -13,17 +12,41 @@ import {
 import { formatCurrency, formatNumber } from "@/lib/demo/format"
 
 import { ChartExampleCard } from "./chart-example-card"
+import { useChartAsks } from "./use-chart-asks"
 
 const chartAsk = "chart revenue by region above this table"
 
-export interface RegionTotals {
-  region: string
-  orders: number
-  revenue: number
+const reshapeAsks = {
+  line: "make this a line chart",
+  stack: "stack by status",
+  monthly: "show monthly instead",
 }
 
-export function TableToChartDemo({ regions }: { regions: RegionTotals[] }) {
-  const scripted = useScriptedAsks()
+const statusSeries = [
+  { key: "paid", label: "Paid" },
+  { key: "pending", label: "Pending" },
+  { key: "overdue", label: "Overdue" },
+]
+
+// Order value by status, for one region or one month.
+export interface StatusTotals {
+  label: string
+  orders: number
+  paid: number
+  pending: number
+  overdue: number
+}
+
+export function TableToChartDemo({
+  regions,
+  months,
+}: {
+  regions: StatusTotals[]
+  months: StatusTotals[]
+}) {
+  const { chart, reshape, charted } = useChartAsks(chartAsk)
+  const stacked = reshape.has(reshapeAsks.stack)
+  const rows = reshape.has(reshapeAsks.monthly) ? months : regions
 
   return (
     <ChartExampleCard
@@ -32,17 +55,35 @@ export function TableToChartDemo({ regions }: { regions: RegionTotals[] }) {
       description="Paid orders, Jan–Oct 2026."
       label="the regions table"
       asks={[chartAsk]}
-      scripted={scripted}
+      scripted={chart}
+      followUps={
+        charted
+          ? {
+              label: "the chart",
+              asks: Object.values(reshapeAsks),
+              scripted: reshape,
+            }
+          : undefined
+      }
     >
-      {scripted.has(chartAsk) && (
+      {charted && (
         <DemoChart
-          rows={regions.map((row) => ({
-            label: row.region,
-            values: { revenue: row.revenue },
+          rows={rows.map((row) => ({
+            label: row.label,
+            values: {
+              paid: row.paid,
+              pending: row.pending,
+              overdue: row.overdue,
+            },
           }))}
-          series={[{ key: "revenue", label: "Revenue" }]}
-          kind="bar"
-          caption="Revenue by region"
+          series={stacked ? statusSeries : [{ key: "paid", label: "Revenue" }]}
+          kind={reshape.has(reshapeAsks.line) ? "line" : "bar"}
+          stacked={stacked}
+          caption={
+            reshape.has(reshapeAsks.monthly)
+              ? "Revenue by month"
+              : "Revenue by region"
+          }
           formatValue={formatCurrency}
         />
       )}
@@ -50,19 +91,19 @@ export function TableToChartDemo({ regions }: { regions: RegionTotals[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Region</TableHead>
-            <TableHead className="text-right">Orders</TableHead>
+            <TableHead className="text-right">Paid orders</TableHead>
             <TableHead className="text-right">Revenue</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {regions.map((row) => (
-            <TableRow key={row.region}>
-              <TableCell className="font-medium">{row.region}</TableCell>
+            <TableRow key={row.label}>
+              <TableCell className="font-medium">{row.label}</TableCell>
               <TableCell className="text-right tabular-nums">
                 {formatNumber(row.orders)}
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {formatCurrency(row.revenue)}
+                {formatCurrency(row.paid)}
               </TableCell>
             </TableRow>
           ))}

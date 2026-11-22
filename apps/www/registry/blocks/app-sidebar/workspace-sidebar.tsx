@@ -11,7 +11,7 @@ import {
 import type { TeamMember } from "@/lib/demo/schema"
 import { PliantNav } from "@/registry/pliant/pliant-nav"
 
-import { sections } from "../../(examples)/examples/app/sections"
+import { sections } from "./sections"
 
 const items = {
   ...sections,

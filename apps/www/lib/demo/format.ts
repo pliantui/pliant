@@ -1,8 +1,3 @@
-import {
-  formatPliantValue,
-  type PliantDataTableFormat,
-} from "@/registry/pliant/pliant-data-table-format"
-
 const currency = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
@@ -28,23 +23,4 @@ export function formatNumber(value: number) {
 
 export function formatDate(value: string) {
   return date.format(new Date(value))
-}
-
-export function formatAggregate(
-  value: unknown,
-  unit: string | undefined,
-  format?: PliantDataTableFormat
-) {
-  if (format) {
-    return formatPliantValue(value, format, unit, {
-      locale: "en-IN",
-      timeZone: "UTC",
-    })
-  }
-  if (typeof value === "number") {
-    return unit === "INR" ? formatCurrency(value) : formatNumber(value)
-  }
-  return typeof value === "string" || typeof value === "boolean"
-    ? String(value)
-    : "—"
 }

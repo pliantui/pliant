@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
-import { isSection, sections } from "../sections"
+import { isSection, sections } from "@/registry/blocks/app-sidebar/sections"
 
 export function generateStaticParams() {
   return Object.keys(sections).map((section) => ({ section }))

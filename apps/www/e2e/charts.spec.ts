@@ -6,87 +6,101 @@ function example(page: Page, name: string) {
   return page.getByRole("region", { name, exact: true })
 }
 
-test("charts revenue by region above the table, and resets it", async ({
+test("charts a table above it, reshapes the chart, and resets it", async ({
   page,
   errors,
 }) => {
   await page.goto("/charts")
   const card = example(page, "Revenue by region")
-  const chart = card.getByRole("table", { name: "Revenue by region" })
-  await expect(chart).toHaveCount(0)
+  const reshape = card.getByRole("group", { name: "Ask about the chart" })
+  await expect(card.locator("figure svg")).toHaveCount(0)
+  await expect(reshape).toHaveCount(0)
 
   const ask = card.getByRole("button", {
     name: /^chart revenue by region above this table/,
   })
   await ask.click()
   await expect(ask).toHaveAttribute("aria-pressed", "true")
-  await expect(chart).toBeAttached()
-  await expect(card.getByText("Customized", { exact: true })).toBeVisible()
+  const data = card.getByRole("table", { name: "Revenue by region" })
+  await expect(data.getByRole("rowheader")).toHaveText([
+    "North",
+    "South",
+    "East",
+    "West",
+  ])
   const top = async (selector: string) =>
     (await card.locator(selector).first().boundingBox())?.y ?? 0
-  expect(await top("svg")).toBeLessThan(await top("table:not(.sr-only)"))
+  expect(await top("figure svg")).toBeLessThan(await top("table:not(.sr-only)"))
 
-  const reset = card.getByRole("button", { name: "Reset the regions table" })
-  await reset.click()
-  await expect(chart).toHaveCount(0)
-  await expect(reset).toBeFocused()
-  expect(errors).toEqual([])
-})
-
-test("adds an average order value card to the dashboard", async ({ page }) => {
-  await page.goto("/charts")
-  const card = example(page, "Sales overview")
-  await expect(
-    card.getByRole("group", { name: "Average order value" })
-  ).toHaveCount(0)
-
-  await card
-    .getByRole("button", { name: /^add a card with average order value/ })
-    .click()
-  await expect(
-    card.getByRole("group", { name: "Average order value" })
-  ).toContainText("₹")
-})
-
-test("reshapes a chart with asks that combine", async ({ page }) => {
-  await page.goto("/charts")
-  const card = example(page, "Order value")
-  const data = card.getByRole("table", { name: "Order value" })
-  await expect(data.getByRole("rowheader")).toHaveText(["Q1", "Q2", "Q3", "Q4"])
-
-  await card.getByRole("button", { name: /^show monthly instead/ }).click()
-  await expect(data.getByRole("rowheader")).toHaveCount(10)
-  await card.getByRole("button", { name: /^stack by status/ }).click()
-  await expect(data.getByRole("columnheader")).toHaveText([
+  await reshape.getByRole("button", { name: /^show monthly instead/ }).click()
+  const monthly = card.getByRole("table", { name: "Revenue by month" })
+  await expect(monthly.getByRole("rowheader")).toHaveCount(10)
+  await reshape.getByRole("button", { name: /^stack by status/ }).click()
+  await expect(monthly.getByRole("columnheader")).toHaveText([
     "Period",
     "Paid",
     "Pending",
     "Overdue",
   ])
-  await expect(
-    card.getByText("By month, Jan–Oct 2026, split by status.")
-  ).toBeVisible()
-
-  await card.getByRole("button", { name: /^make this a line chart/ }).click()
+  await reshape.getByRole("button", { name: /^make this a line chart/ }).click()
   await expect(card.locator("svg polyline")).toHaveCount(3)
-  await expect(card.locator("svg rect")).toHaveCount(0)
 
-  await card.getByRole("button", { name: /^show monthly instead/ }).click()
-  await expect(data.getByRole("rowheader")).toHaveText(["Q1", "Q2", "Q3", "Q4"])
+  const reset = card.getByRole("button", { name: "Reset the regions table" })
+  await reset.click()
+  await expect(card.locator("figure svg")).toHaveCount(0)
+  await expect(reshape).toHaveCount(0)
+  await expect(reset).toBeFocused()
+  expect(errors).toEqual([])
 })
 
-test("charts a large dataset from the server's totals", async ({ page }) => {
+test("taking the chart back drops its follow-up asks", async ({ page }) => {
+  await page.goto("/charts")
+  const card = example(page, "Revenue by region")
+  const ask = card.getByRole("button", {
+    name: /^chart revenue by region above this table/,
+  })
+
+  await ask.click()
+  await card.getByRole("button", { name: /^stack by status/ }).click()
+  await ask.click()
+  await ask.click()
+  await expect(
+    card.getByRole("button", { name: /^stack by status/ })
+  ).toHaveAttribute("aria-pressed", "false")
+})
+
+test("adds a chart card to the dashboard", async ({ page }) => {
+  await page.goto("/charts")
+  const card = example(page, "Sales overview")
+  const chart = card.getByRole("region", { name: "Overdue orders by month" })
+  await expect(chart).toHaveCount(0)
+
+  await card
+    .getByRole("button", { name: /^chart overdue orders by month/ })
+    .click()
+  await expect(chart.getByRole("table", { includeHidden: true })).toBeAttached()
+  await expect(chart.locator("svg rect")).toHaveCount(10)
+
+  await card.getByRole("button", { name: /^make this a line chart/ }).click()
+  await expect(chart.locator("svg polyline")).toHaveCount(1)
+})
+
+test("charts generated rows from precomputed totals", async ({ page }) => {
   await page.goto("/charts")
   const card = example(page, "Order history")
-  await expect(
-    card.getByText(/orders, summed on the server into 10 points/)
-  ).toBeVisible()
+  await expect(card.getByText("The first 6 of 2,50,000 orders.")).toBeVisible()
 
+  await card
+    .getByRole("button", { name: /^chart order value by month/ })
+    .click()
+  await expect(card.getByText("2,50,000 orders in 10 months.")).toBeVisible()
   await card.getByRole("button", { name: /^show weekly instead/ }).click()
-  await expect(card.getByText(/into 43 points/)).toBeVisible()
+  await expect(card.getByText("2,50,000 orders in 43 weeks.")).toBeVisible()
   await card.getByRole("button", { name: /^split by region/ }).click()
   await expect(
-    card.getByRole("table", { name: "Order history" }).getByRole("columnheader")
+    card
+      .getByRole("table", { name: "Order value over time" })
+      .getByRole("columnheader")
   ).toHaveText(["Period", "North", "South", "East", "West"])
 })
 

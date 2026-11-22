@@ -1,16 +1,12 @@
 "use client"
 
-import {
-  ScriptedFrame,
-  useScriptedAsks,
-} from "@/components/demo/scripted-frame"
+import { DemoFrame } from "@/components/demo/demo-frame"
+import { useScriptedAsks } from "@/components/demo/use-scripted-asks"
 import type { Deal } from "@/lib/demo/schema"
 import { CrmPipeline } from "@/registry/blocks/crm-pipeline/crm-pipeline"
 
-const asks = {
-  hideWon: "hide the won column",
+const viewAsks = {
   totals: "show the total for each stage",
-  largestFirst: "largest deals first",
   compact: "make the cards compact",
 }
 
@@ -18,21 +14,25 @@ export function CrmPipelineDemo({ deals }: { deals: Deal[] }) {
   const scripted = useScriptedAsks()
 
   return (
-    <ScriptedFrame
+    <DemoFrame
+      target="crm-pipeline"
       label="the pipeline"
-      asks={Object.values(asks)}
-      scripted={scripted}
+      asks={["hide the won column", "put proposal first"]}
+      mocked={{
+        label: "the cards",
+        asks: Object.values(viewAsks),
+        scripted,
+        note: "Stage totals and compact cards are shown by scripted answers.",
+      }}
       className="max-w-none"
     >
       <CrmPipeline
         deals={deals}
         view={{
-          hideWon: scripted.has(asks.hideWon),
-          totals: scripted.has(asks.totals),
-          largestFirst: scripted.has(asks.largestFirst),
-          compact: scripted.has(asks.compact),
+          totals: scripted.has(viewAsks.totals),
+          compact: scripted.has(viewAsks.compact),
         }}
       />
-    </ScriptedFrame>
+    </DemoFrame>
   )
 }

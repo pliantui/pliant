@@ -7,8 +7,7 @@ import { PliantPrePaint } from "@pliantui/react/pre-paint"
 import { CustomizedReset } from "@/components/demo/customized-reset"
 import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { inventory } from "@/lib/pliant/inventory.generated"
-
-import { TicketForm } from "./components/ticket-form"
+import { TicketForm } from "@/registry/blocks/ticket-form/ticket-form"
 
 export const metadata: Metadata = {
   title: "New ticket",

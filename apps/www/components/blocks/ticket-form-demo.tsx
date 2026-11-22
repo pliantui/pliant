@@ -1,7 +1,7 @@
 "use client"
 
-import { TicketForm } from "@/app/(examples)/examples/tickets/components/ticket-form"
 import { DemoFrame } from "@/components/demo/demo-frame"
+import { TicketForm } from "@/registry/blocks/ticket-form/ticket-form"
 
 export function TicketFormDemo() {
   return (

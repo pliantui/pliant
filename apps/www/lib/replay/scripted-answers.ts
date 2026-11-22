@@ -94,4 +94,24 @@ export const scriptedAnswers: ScriptedAnswer[] = [
     ops: [{ op: "hide", target: "team-workspace/slots/shared-views" }],
     explain: ["Hid the Shared views panel."],
   },
+  {
+    target: "crm-pipeline",
+    kind: "region",
+    prompt: "hide the won column",
+    ops: [{ op: "hide", target: "crm-pipeline/slots/won" }],
+    explain: ["Hid the Won column."],
+  },
+  {
+    target: "crm-pipeline",
+    kind: "region",
+    prompt: "put proposal first",
+    ops: [
+      {
+        op: "move",
+        target: "crm-pipeline/slots/proposal",
+        to: { index: 0 },
+      },
+    ],
+    explain: ["Moved the Proposal column to the start."],
+  },
 ]

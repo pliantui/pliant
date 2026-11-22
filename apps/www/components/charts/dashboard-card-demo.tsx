@@ -1,12 +1,17 @@
 "use client"
 
-import { useScriptedAsks } from "@/components/demo/scripted-frame"
+import { DemoChart } from "@/components/demo/demo-chart"
 import { formatCurrency, formatNumber } from "@/lib/demo/format"
 import type { OrderStats } from "@/lib/demo/stats"
 
 import { ChartExampleCard } from "./chart-example-card"
+import { useChartAsks } from "./use-chart-asks"
 
-const cardAsk = "add a card with average order value"
+const chartAsk = "chart overdue orders by month"
+
+const reshapeAsks = {
+  line: "make this a line chart",
+}
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -21,8 +26,14 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
-export function DashboardCardDemo({ stats }: { stats: OrderStats }) {
-  const scripted = useScriptedAsks()
+export function DashboardCardDemo({
+  stats,
+  overdueByMonth,
+}: {
+  stats: OrderStats
+  overdueByMonth: { label: string; count: number }[]
+}) {
+  const { chart, reshape, charted } = useChartAsks(chartAsk)
 
   return (
     <ChartExampleCard
@@ -30,18 +41,45 @@ export function DashboardCardDemo({ stats }: { stats: OrderStats }) {
       title="Sales overview"
       description="Orders placed Jan–Oct 2026."
       label="the overview"
-      asks={[cardAsk]}
-      scripted={scripted}
+      asks={[chartAsk]}
+      scripted={chart}
+      followUps={
+        charted
+          ? {
+              label: "the overdue chart",
+              asks: Object.values(reshapeAsks),
+              scripted: reshape,
+            }
+          : undefined
+      }
     >
       <div className="grid grid-cols-2 gap-2">
         <Stat label="Revenue" value={formatCurrency(stats.revenue)} />
         <Stat label="Orders" value={formatNumber(stats.orders)} />
+        <Stat
+          label="Average order value"
+          value={formatCurrency(stats.averageOrderValue)}
+        />
         <Stat label="Overdue" value={formatNumber(stats.overdue)} />
-        {scripted.has(cardAsk) && (
-          <Stat
-            label="Average order value"
-            value={formatCurrency(stats.averageOrderValue)}
-          />
+        {charted && (
+          <section
+            aria-label="Overdue orders by month"
+            className="col-span-2 flex flex-col gap-2 rounded-lg border bg-background p-3"
+          >
+            <span className="text-xs text-muted-foreground">
+              Overdue orders by month
+            </span>
+            <DemoChart
+              rows={overdueByMonth.map((row) => ({
+                label: row.label,
+                values: { overdue: row.count },
+              }))}
+              series={[{ key: "overdue", label: "Overdue orders" }]}
+              kind={reshape.has(reshapeAsks.line) ? "line" : "bar"}
+              caption="Overdue orders by month"
+              formatValue={formatNumber}
+            />
+          </section>
         )}
       </div>
     </ChartExampleCard>

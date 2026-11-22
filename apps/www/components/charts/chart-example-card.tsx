@@ -1,10 +1,8 @@
 "use client"
 
 import { ResetControl } from "@/components/demo/reset-control"
-import {
-  ScriptedAsks,
-  type ScriptedAsksState,
-} from "@/components/demo/scripted-frame"
+import { ScriptedAsks } from "@/components/demo/scripted-asks"
+import type { ScriptedAsksState } from "@/components/demo/use-scripted-asks"
 import {
   Card,
   CardAction,
@@ -15,8 +13,8 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-// A card of the charts page: a table, dashboard or chart, with the asks
-// that change it in place and a Reset.
+// A card of the charts page: a table or dashboard, the ask that charts it
+// in place, the follow-up asks that reshape the chart, and a Reset.
 export function ChartExampleCard({
   id,
   title,
@@ -24,6 +22,7 @@ export function ChartExampleCard({
   label,
   asks,
   scripted,
+  followUps,
   children,
 }: {
   id: string
@@ -33,6 +32,10 @@ export function ChartExampleCard({
   label: string
   asks: readonly string[]
   scripted: ScriptedAsksState
+  // The asks that reshape the chart, once there is one.
+  followUps?:
+    | { label: string; asks: readonly string[]; scripted: ScriptedAsksState }
+    | undefined
   children: React.ReactNode
 }) {
   return (
@@ -48,15 +51,25 @@ export function ChartExampleCard({
           <ResetControl
             customized={scripted.applied.length > 0}
             label={label}
-            onReset={scripted.reset}
+            onReset={() => {
+              scripted.reset()
+              followUps?.scripted.reset()
+            }}
           />
         </CardAction>
       </CardHeader>
       <CardContent className="flex min-w-0 flex-col gap-4">
         {children}
       </CardContent>
-      <CardFooter className="mt-auto border-t pt-4 [.border-t]:pt-4">
+      <CardFooter className="mt-auto flex-col items-stretch gap-3 border-t pt-4 [.border-t]:pt-4">
         <ScriptedAsks label={label} asks={asks} scripted={scripted} />
+        {followUps && (
+          <ScriptedAsks
+            label={followUps.label}
+            asks={followUps.asks}
+            scripted={followUps.scripted}
+          />
+        )}
       </CardFooter>
     </Card>
   )

@@ -3,8 +3,8 @@
 import { usePliantStatus, usePliantStore } from "@pliantui/react"
 
 import { ResetControl } from "@/components/demo/reset-control"
-import type { ScriptedAsksState } from "@/components/demo/scripted-frame"
 import { useCustomized } from "@/components/demo/use-customized"
+import type { ScriptedAsksState } from "@/components/demo/use-scripted-asks"
 
 // Shows when the user has changed part of a demo, and puts it back.
 export function CustomizedReset({

@@ -1,7 +1,7 @@
 "use client"
 
 import { DemoFrame } from "@/components/demo/demo-frame"
-import { useScriptedAsks } from "@/components/demo/scripted-frame"
+import { useScriptedAsks } from "@/components/demo/use-scripted-asks"
 import type { MonthlyRevenue } from "@/lib/demo/schema"
 import type { OrderStats } from "@/lib/demo/stats"
 import { AnalyticsDashboard } from "@/registry/blocks/analytics-dashboard/analytics-dashboard"

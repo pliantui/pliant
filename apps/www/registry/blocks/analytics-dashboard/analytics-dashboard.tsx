@@ -1,4 +1,3 @@
-import { KpiCard } from "@/app/(examples)/examples/orders/components/kpi-card"
 import { DemoChart } from "@/components/demo/demo-chart"
 import {
   Card,
@@ -11,6 +10,8 @@ import { formatCurrency, formatNumber } from "@/lib/demo/format"
 import type { MonthlyRevenue } from "@/lib/demo/schema"
 import type { OrderStats } from "@/lib/demo/stats"
 import { PliantRegion } from "@/registry/pliant/pliant-region"
+
+import { KpiCard } from "./kpi-card"
 
 export interface RevenueChartView {
   kind: "bar" | "line"

@@ -10,11 +10,17 @@ export interface Block {
   // The block's name in the blocks nav.
   label: string
   description: string
-  // The block's own files, as the Code view lists them.
+  // Every file the block needs, as the Code view lists them.
   files: BlockFile[]
   // The published registry items the block is built from.
   components: string[]
 }
+
+// The demo company's types and number formats, which every block's data
+// uses.
+const schema = { src: "lib/demo/schema.ts", target: "lib/demo/schema.ts" }
+const format = { src: "lib/demo/format.ts", target: "lib/demo/format.ts" }
+const stats = { src: "lib/demo/stats.ts", target: "lib/demo/stats.ts" }
 
 // The blocks the blocks page shows, in order.
 export const blocks = [
@@ -28,13 +34,16 @@ export const blocks = [
         target: "components/analytics-dashboard.tsx",
       },
       {
-        src: "app/(examples)/examples/orders/components/kpi-card.tsx",
+        src: "registry/blocks/analytics-dashboard/kpi-card.tsx",
         target: "components/kpi-card.tsx",
       },
       {
         src: "components/demo/demo-chart.tsx",
         target: "components/demo-chart.tsx",
       },
+      schema,
+      format,
+      stats,
     ],
     components: ["pliant-region"],
   },
@@ -44,13 +53,19 @@ export const blocks = [
     description: "A list of recent orders",
     files: [
       {
-        src: "app/(home)/components/orders-card.tsx",
-        target: "components/orders-table.tsx",
+        src: "registry/blocks/orders-list/orders-list.tsx",
+        target: "components/orders-list.tsx",
       },
       {
-        src: "app/(examples)/examples/orders/components/columns.tsx",
+        src: "registry/blocks/orders-list/columns.tsx",
         target: "components/columns.tsx",
       },
+      {
+        src: "registry/blocks/orders-list/format-aggregate.ts",
+        target: "components/format-aggregate.ts",
+      },
+      schema,
+      format,
     ],
     components: ["pliant-data-table"],
   },
@@ -60,7 +75,7 @@ export const blocks = [
     description: "A support ticket form",
     files: [
       {
-        src: "app/(examples)/examples/tickets/components/ticket-form.tsx",
+        src: "registry/blocks/ticket-form/ticket-form.tsx",
         target: "components/ticket-form.tsx",
       },
     ],
@@ -75,6 +90,7 @@ export const blocks = [
         src: "registry/blocks/settings-page/settings-page.tsx",
         target: "components/settings-page.tsx",
       },
+      schema,
     ],
     components: ["pliant-region"],
   },
@@ -88,13 +104,15 @@ export const blocks = [
         target: "components/app-sidebar.tsx",
       },
       {
-        src: "app/(home)/components/sidebar-card.tsx",
+        src: "registry/blocks/app-sidebar/workspace-sidebar.tsx",
         target: "components/workspace-sidebar.tsx",
       },
       {
-        src: "app/(examples)/examples/app/sections.tsx",
+        src: "registry/blocks/app-sidebar/sections.tsx",
         target: "components/sections.tsx",
       },
+      schema,
+      format,
     ],
     components: ["pliant-nav"],
   },
@@ -107,8 +125,10 @@ export const blocks = [
         src: "registry/blocks/crm-pipeline/crm-pipeline.tsx",
         target: "components/crm-pipeline.tsx",
       },
+      schema,
+      format,
     ],
-    components: [],
+    components: ["pliant-region"],
   },
   {
     name: "team-workspace",
@@ -119,6 +139,8 @@ export const blocks = [
         src: "registry/blocks/team-workspace/team-workspace.tsx",
         target: "components/team-workspace.tsx",
       },
+      schema,
+      format,
     ],
     components: ["pliant-region"],
   },
