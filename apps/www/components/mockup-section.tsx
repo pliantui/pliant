@@ -1,10 +1,9 @@
 import * as React from "react"
 
-import { CodeBlockCommand } from "@/components/code-block-command"
 import { ComponentPreviewTabs } from "@/components/component-preview-tabs"
 import { ComponentCode } from "@/components/component-source"
 import { mockupPages, type MockupPage } from "@/lib/components/mockup-pages"
-import { mockups } from "@/registry/examples/mockups"
+import { mockups, type MockupSlug } from "@/registry/examples/mockups"
 
 type Section =
   | "preview"
@@ -15,6 +14,10 @@ type Section =
   | "examples"
   | "options"
   | "accessibility"
+
+function isMockupSlug(slug: string): slug is MockupSlug {
+  return Object.hasOwn(mockups, slug)
+}
 
 // Renders `code spans` written with backticks in the page data.
 function Inline({ text }: { text: string }) {
@@ -57,27 +60,15 @@ function Table({ head, rows }: { head: string[]; rows: React.ReactNode[][] }) {
   )
 }
 
-function Command({ command }: { command: string }) {
-  return (
-    <figure data-rehype-pretty-code-figure="">
-      <CodeBlockCommand
-        __npm__={`npx ${command}`}
-        __pnpm__={`pnpm dlx ${command}`}
-        __yarn__={`yarn dlx ${command}`}
-        __bun__={`bunx --bun ${command}`}
-      />
-    </figure>
-  )
-}
-
 function render(page: MockupPage, section: Section) {
   switch (section) {
     case "preview": {
-      const Mockup = mockups[page.slug]
-      if (!Mockup) throw new Error(`No preview for ${page.slug}`)
+      if (!isMockupSlug(page.slug)) {
+        throw new Error(`No preview for ${page.slug}`)
+      }
       return (
         <ComponentPreviewTabs
-          component={<Mockup />}
+          component={mockups[page.slug]()}
           source={
             <ComponentCode
               code={`${page.usage.imports}\n\n${page.usage.code}`}
@@ -89,20 +80,16 @@ function render(page: MockupPage, section: Section) {
     }
     case "installation":
       return (
-        <>
-          <Command
-            command={`shadcn@latest add https://pliantui.dev/r/${page.registryItem}.json`}
+        <p>
+          The <code>{page.registryItem}</code> registry item isn&apos;t
+          published, so there&apos;s nothing to install. It depends on{" "}
+          <Inline
+            text={new Intl.ListFormat("en", { type: "conjunction" }).format(
+              page.dependencies.map((dependency) => `\`${dependency}\``)
+            )}
           />
-          <p>
-            It installs{" "}
-            <Inline
-              text={new Intl.ListFormat("en", { type: "conjunction" }).format(
-                page.dependencies.map((dependency) => `\`${dependency}\``)
-              )}
-            />{" "}
-            and copies the component into <code>components/pliant</code>.
-          </p>
-        </>
+          .
+        </p>
       )
     case "usage":
       return (

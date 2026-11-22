@@ -7,59 +7,18 @@ import {
   useScriptedAsks,
 } from "@/components/demo/scripted-frame"
 import { mockupAsks } from "@/lib/components/mockup-asks"
+import { formatCurrency } from "@/lib/demo/format"
+import type { Order } from "@/lib/demo/schema"
 
 const asks = mockupAsks.list
 
-const orders = [
-  {
-    id: "ORD-1042",
-    customer: "Kaveri Agro",
-    region: "South",
-    status: "Overdue",
-    value: 96550,
-  },
-  {
-    id: "ORD-1043",
-    customer: "Lotus Stationers",
-    region: "West",
-    status: "Paid",
-    value: 22900,
-  },
-  {
-    id: "ORD-1044",
-    customer: "Kaveri Agro",
-    region: "South",
-    status: "Pending",
-    value: 4750,
-  },
-  {
-    id: "ORD-1045",
-    customer: "Deccan Traders",
-    region: "South",
-    status: "Overdue",
-    value: 41200,
-  },
-  {
-    id: "ORD-1046",
-    customer: "Himalaya Crafts",
-    region: "North",
-    status: "Paid",
-    value: 80850,
-  },
-]
-
-const rupees = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 0,
-})
-
-export function ListMockup() {
+// A few of the company's orders, from the shared demo data.
+export function ListMockup({ orders }: { orders: Order[] }) {
   const scripted = useScriptedAsks()
   let rows = orders
   if (scripted.has(asks.overdueSouth)) {
     rows = rows.filter(
-      (row) => row.status === "Overdue" && row.region === "South"
+      (row) => row.status === "overdue" && row.region === "South"
     )
   }
   if (scripted.has(asks.largest)) {
@@ -106,10 +65,11 @@ export function ListMockup() {
                 >
                   <span className="font-medium">{row.id}</span>
                   <span className="flex-1 truncate text-muted-foreground">
-                    {row.customer} · {row.region} · {row.status}
+                    {row.customer} · {row.region} ·{" "}
+                    <span className="capitalize">{row.status}</span>
                   </span>
                   <span className="tabular-nums">
-                    {rupees.format(row.value)}
+                    {formatCurrency(row.value)}
                   </span>
                 </li>
               ))}

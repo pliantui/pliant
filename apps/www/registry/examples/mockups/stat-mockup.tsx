@@ -5,21 +5,32 @@ import {
   useScriptedAsks,
 } from "@/components/demo/scripted-frame"
 import { mockupAsks } from "@/lib/components/mockup-asks"
+import { formatCurrency } from "@/lib/demo/format"
 
 const asks = mockupAsks.stat
 
-export function StatMockup() {
+interface Quarter {
+  revenue: number
+  overdue: number
+}
+
+// This quarter's figures against the last one, from the shared demo data.
+export function StatMockup({
+  current,
+  previous,
+}: {
+  current: Quarter
+  previous: Quarter
+}) {
   const scripted = useScriptedAsks()
-  const overdue = scripted.has(asks.overdue)
-  const value = overdue ? "₹4,80,650" : "₹37,76,600"
+  const metric = scripted.has(asks.overdue) ? "overdue" : "revenue"
+  const label = metric === "overdue" ? "Overdue value" : "Revenue"
+  const difference = current[metric] - previous[metric]
+  const change = previous[metric] ? (difference / previous[metric]) * 100 : 0
   const comparison = scripted.has(asks.rupees)
-    ? overdue
-      ? "₹62,400 more than last quarter"
-      : "₹4,12,300 more than last quarter"
+    ? `${formatCurrency(Math.abs(difference))} ${difference >= 0 ? "more" : "less"} than last quarter`
     : scripted.has(asks.compare)
-      ? overdue
-        ? "+14.9% on last quarter"
-        : "+12.3% on last quarter"
+      ? `${change >= 0 ? "+" : ""}${change.toFixed(1)}% on last quarter`
       : null
 
   return (
@@ -30,13 +41,15 @@ export function StatMockup() {
     >
       <div
         role="group"
-        aria-label={overdue ? "Overdue value" : "Revenue"}
+        aria-label={label}
         className="mx-auto flex w-full max-w-xs flex-col gap-1 rounded-xl border p-4"
       >
         <span className="text-sm text-muted-foreground">
-          {overdue ? "Overdue value" : "Revenue"}
+          {label}, Jul–Sep 2026
         </span>
-        <span className="text-3xl font-semibold tabular-nums">{value}</span>
+        <span className="text-3xl font-semibold tabular-nums">
+          {formatCurrency(current[metric])}
+        </span>
         {comparison && (
           <span className="text-sm text-muted-foreground">{comparison}</span>
         )}

@@ -5,37 +5,17 @@ import {
   useScriptedAsks,
 } from "@/components/demo/scripted-frame"
 import { mockupAsks } from "@/lib/components/mockup-asks"
+import { formatCurrency } from "@/lib/demo/format"
+import type { Order } from "@/lib/demo/schema"
 
 const asks = mockupAsks.suggestions
 
-const orders = [
-  { id: "ORD-1042", customer: "Kaveri Agro", status: "Overdue", value: 96550 },
-  {
-    id: "ORD-1043",
-    customer: "Lotus Stationers",
-    status: "Paid",
-    value: 22900,
-  },
-  {
-    id: "ORD-1045",
-    customer: "Deccan Traders",
-    status: "Overdue",
-    value: 41200,
-  },
-  { id: "ORD-1046", customer: "Himalaya Crafts", status: "Paid", value: 80850 },
-]
-
-const rupees = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 0,
-})
-
-export function SuggestionsMockup() {
+// A few of the company's orders, from the shared demo data.
+export function SuggestionsMockup({ orders }: { orders: Order[] }) {
   const scripted = useScriptedAsks()
   let rows = orders
   if (scripted.has(asks.overdue))
-    rows = rows.filter((row) => row.status === "Overdue")
+    rows = rows.filter((row) => row.status === "overdue")
   if (scripted.has(asks.largest))
     rows = rows.toSorted((a, b) => b.value - a.value)
 
@@ -64,9 +44,9 @@ export function SuggestionsMockup() {
               <tr key={row.id} className="border-b last:border-0">
                 <td className="py-2 font-medium">{row.id}</td>
                 <td className="py-2">{row.customer}</td>
-                <td className="py-2">{row.status}</td>
+                <td className="py-2 capitalize">{row.status}</td>
                 <td className="py-2 text-right tabular-nums">
-                  {rupees.format(row.value)}
+                  {formatCurrency(row.value)}
                 </td>
               </tr>
             ))}

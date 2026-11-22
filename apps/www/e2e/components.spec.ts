@@ -162,13 +162,15 @@ test("plays a scripted ask in the chart preview, and resets it", async ({
   errors,
 }) => {
   await page.goto("/docs/components/chart")
-  const legend = preview(page).getByText("pending", { exact: true })
+  const pending = preview(page)
+    .getByRole("listitem")
+    .filter({ hasText: /^pending$/ })
 
-  await expect(legend).toBeHidden()
+  await expect(pending).toBeVisible()
   await preview(page)
-    .getByRole("button", { name: /^stack by status/ })
+    .getByRole("button", { name: /^only show overdue/ })
     .click()
-  await expect(legend).toBeVisible()
+  await expect(pending).toBeHidden()
   await expect(
     preview(page).getByText("Customized", { exact: true })
   ).toBeVisible()
@@ -176,7 +178,7 @@ test("plays a scripted ask in the chart preview, and resets it", async ({
   await preview(page)
     .getByRole("button", { name: "Reset revenue chart" })
     .click()
-  await expect(legend).toBeHidden()
+  await expect(pending).toBeVisible()
   expect(errors).toEqual([])
 })
 
