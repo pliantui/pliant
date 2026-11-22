@@ -9,7 +9,7 @@ export default defineConfig({
       "components/**/*.test.tsx",
       "lib/**/*.test.ts",
       "registry/**/*.test.{ts,tsx}",
-      "scripts/**/*.test.ts",
+      "scripts/**/*.test.{ts,tsx}",
       "snippets/**/*.test.{ts,tsx}",
     ],
   },

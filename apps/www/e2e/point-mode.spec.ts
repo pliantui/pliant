@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test"
+import type { Locator, Page } from "@playwright/test"
 
 import { expect, test } from "./fixtures"
 
@@ -14,6 +14,134 @@ function layer(page: Page) {
 
 function keyMetricsBox(page: Page) {
   return layer(page).getByRole("button", { name: "Key metrics" })
+}
+
+interface Rect {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
+function rectOf(box: { x: number; y: number; width: number; height: number }) {
+  return {
+    top: box.y,
+    right: box.x + box.width,
+    bottom: box.y + box.height,
+    left: box.x,
+  }
+}
+
+function grow(rect: Rect, by: number): Rect {
+  return {
+    top: rect.top - by,
+    right: rect.right + by,
+    bottom: rect.bottom + by,
+    left: rect.left - by,
+  }
+}
+
+function contains(outer: Rect, inner: Rect) {
+  return (
+    outer.left <= inner.left &&
+    inner.right <= outer.right &&
+    outer.top <= inner.top &&
+    inner.bottom <= outer.bottom
+  )
+}
+
+function apart(a: Rect, b: Rect) {
+  return (
+    a.right <= b.left ||
+    b.right <= a.left ||
+    a.bottom <= b.top ||
+    b.bottom <= a.top
+  )
+}
+
+// Every outline leaves a 6px gap around its target, less only against the
+// edge of the screen, and every label sits clear of every outline's 2px ring:
+// outside it, or inside it only when it's the label's own outline or one
+// its own outline is nested in.
+async function expectOutlinesClear(page: Page) {
+  const gap = 6
+  const ring = 2
+  // A label's height with a gap on each side.
+  const labelRoom = 32
+  const viewport = await page.evaluate(() => ({
+    width: document.documentElement.clientWidth,
+    height: document.documentElement.clientHeight,
+  }))
+  const outlines = await layer(page).getByRole("button").all()
+  expect(outlines.length).toBeGreaterThan(0)
+  const boxes: { name: string; outline: Rect; label: Rect }[] = []
+  for (const outline of outlines) {
+    const name =
+      (await outline.getAttribute("aria-label")) ?? (await outline.innerText())
+    const id = await outline.getAttribute("data-pliant-point-target")
+    const outlineBox = await outline.boundingBox()
+    const targetBox = await page
+      .locator(`[data-pliant-id="${String(id)}"]`)
+      .boundingBox()
+    const labelBox = await outline
+      .getByText(name, { exact: true })
+      .boundingBox()
+    expect(outlineBox && targetBox && labelBox, name).toBeTruthy()
+    if (!outlineBox || !targetBox || !labelBox) return
+    const box = rectOf(outlineBox)
+    const target = rectOf(targetBox)
+    const roomTo = {
+      top: Math.min(gap, target.top - ring),
+      left: Math.min(gap, target.left - ring),
+      right: Math.min(gap, viewport.width - ring - target.right),
+      bottom: Math.min(gap, viewport.height - ring - target.bottom),
+    }
+    const room = {
+      top: target.top - box.top,
+      left: target.left - box.left,
+      right: box.right - target.right,
+      bottom: box.bottom - target.bottom,
+    }
+    for (const side of ["top", "left", "right", "bottom"] as const) {
+      expect(room[side], `${name}: room at the ${side}`).toBeGreaterThanOrEqual(
+        roomTo[side]
+      )
+      expect(room[side], `${name}: room at the ${side}`).toBeLessThanOrEqual(
+        gap + 1
+      )
+    }
+    boxes.push({ name, outline: box, label: rectOf(labelBox) })
+  }
+  for (const { name, outline, label } of boxes) {
+    expect(label.left, `${name}: label on screen`).toBeGreaterThanOrEqual(0)
+    expect(label.right, `${name}: label on screen`).toBeLessThanOrEqual(
+      viewport.width
+    )
+    // Checked only for an outline with room for a label on screen.
+    if (
+      outline.top + labelRoom <= viewport.height &&
+      outline.bottom - labelRoom >= 0
+    ) {
+      expect(label.top, `${name}: label on screen`).toBeGreaterThanOrEqual(0)
+      expect(label.bottom, `${name}: label on screen`).toBeLessThanOrEqual(
+        viewport.height
+      )
+    }
+    for (const { name: other, outline: otherOutline } of boxes) {
+      const nested = other === name || contains(otherOutline, outline)
+      const clear =
+        apart(label, grow(otherOutline, ring + gap - 1)) ||
+        (nested && contains(grow(otherOutline, 1 - gap), label))
+      expect(clear, `${name}'s label against ${other}'s outline`).toBe(true)
+    }
+  }
+}
+
+async function isAbove(label: Locator, outline: Locator) {
+  const labelBox = await label.boundingBox()
+  const outlineBox = await outline.boundingBox()
+  expect(labelBox && outlineBox).toBeTruthy()
+  return (labelBox?.y ?? 0) + (labelBox?.height ?? 0) <= (outlineBox?.y ?? 0)
 }
 
 async function load(page: Page) {
@@ -38,9 +166,7 @@ test("holds Alt, clicks the key metrics and asks a suggestion", async ({
 
   await page.keyboard.down("Alt")
   await expect(keyMetricsBox(page)).toBeVisible()
-  const box = await keyMetricsBox(page).boundingBox()
-  const metrics = await region(page).boundingBox()
-  expect(box).toEqual(metrics)
+  await expectOutlinesClear(page)
 
   await keyMetricsBox(page).click()
   await page.keyboard.up("Alt")
@@ -330,6 +456,52 @@ test("announces the mode while Alt is held", async ({ page, errors }) => {
   expect(errors).toEqual([])
 })
 
+for (const colorScheme of ["light", "dark"] as const) {
+  test(`leaves room around outlines and labels in ${colorScheme} mode`, async ({
+    page,
+    errors,
+  }) => {
+    await page.emulateMedia({ colorScheme })
+    await load(page)
+
+    await page.getByRole("button", { name: "Point" }).click()
+    await expect(keyMetricsBox(page)).toBeVisible()
+
+    await expectOutlinesClear(page)
+    expect(errors).toEqual([])
+  })
+}
+
+test("moves a label out of the way of the outline above it", async ({
+  page,
+  errors,
+}) => {
+  // Tall enough that both outlines and their labels are on screen.
+  await page.setViewportSize({ width: 1280, height: 1600 })
+  await load(page)
+  const orders = layer(page).getByRole("button", { name: "All orders" })
+  const ordersLabel = orders.getByText("All orders", { exact: true })
+
+  // The key metrics sit just above all orders, where its label would go.
+  await page.getByRole("button", { name: "Point" }).click()
+  await expect(orders).toBeVisible()
+  expect(await isAbove(ordersLabel, orders)).toBe(false)
+  await expectOutlinesClear(page)
+  await page.keyboard.press("Escape")
+
+  // With the key metrics moved up and out of the way, it goes back above.
+  await page
+    .getByRole("region", { name: "Key metrics" })
+    .evaluate((section) => {
+      section.style.transform = "translateY(-80px)"
+    })
+  await page.keyboard.press("ControlOrMeta+Period")
+  await expect(orders).toBeVisible()
+  expect(await isAbove(ordersLabel, orders)).toBe(true)
+  await expectOutlinesClear(page)
+  expect(errors).toEqual([])
+})
+
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 640 }, hasTouch: true })
 
@@ -349,9 +521,7 @@ test.describe("on a phone", () => {
     await expect
       .poll(async () => (await keyMetricsBox(page).boundingBox())?.y)
       .toBe((before?.y ?? 0) - 120)
-    expect(await keyMetricsBox(page).boundingBox()).toEqual(
-      await region(page).boundingBox()
-    )
+    await expectOutlinesClear(page)
 
     await keyMetricsBox(page).tap()
 
