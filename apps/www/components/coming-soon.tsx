@@ -3,8 +3,8 @@ import { Badge } from "@/components/ui/badge"
 export function ComingSoon({ children }: { children: React.ReactNode }) {
   return (
     <div
-      // Found by the launch check, which keeps unfinished work off the
-      // launched site.
+      // Found by the unfinished work check, which keeps unfinished work out of
+      // a build for the production site.
       data-unfinished="coming-soon"
       className="flex flex-col items-center gap-3 text-center"
     >

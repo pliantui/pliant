@@ -44,7 +44,7 @@ Everything in this repository and on GitHub (code, comments, docs, READMEs, chan
 - Comments and docs describe what the code does now and why. Don't promise or narrate future work, and don't leave `TODO`s; pending work belongs in an issue or on the public roadmap.
 - Link an issue in a comment only when it explains current behaviour, such as a known upstream bug, never to mark something as not done.
 - Changesets are release notes: say what changed for users, in plain language.
-- A site or docs page for a feature that isn't fully built carries the `NotImplementedBanner`; the banner is the only signal, and the page text describes the finished behaviour. The launch check (`pnpm --filter www launch:check`, run by `pnpm build`) keeps those pages out of a build for the production site.
+- A page for a feature that isn't fully built shows the `NotImplementedBanner`, and a section with no content yet shows the `ComingSoon` placeholder. They are the only signals: the rest of the page describes the finished behaviour. Render both on the server. `pnpm build` ends with a check that fails a build for the production site (`NEXT_PUBLIC_SITE_URL` set to https://pliantui.dev) while any prerendered page shows either one.
 
 ## Writing docs
 

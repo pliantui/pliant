@@ -2,14 +2,14 @@ import { readdirSync, readFileSync } from "node:fs"
 import { join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-// The address the finished site launches at. A build for it must not show
-// anything unfinished; builds for any other address, like previews, may.
-export const launchUrl = "https://pliantui.dev"
+// The production site. A build for it must not show anything unfinished;
+// builds for any other address, like previews, may.
+const productionHosts = ["pliantui.dev", "www.pliantui.dev"]
 
-// Banners, placeholders and scripted asks mark their rendered HTML with this.
+// Banners and placeholders mark their rendered HTML with this.
 const marker = /data-unfinished="([a-z-]+)"/g
 
-export interface UnfinishedPage {
+interface UnfinishedPage {
   file: string
   kinds: string[]
 }
@@ -22,8 +22,16 @@ function* htmlFiles(directory: string): Generator<string> {
   }
 }
 
-// Lists the prerendered pages that still show a banner, a placeholder or a
-// scripted ask.
+function isProduction(siteUrl: string | undefined) {
+  if (!siteUrl) return false
+  try {
+    return productionHosts.includes(new URL(siteUrl).hostname)
+  } catch {
+    return false
+  }
+}
+
+// Lists the prerendered pages that still show a banner or a placeholder.
 export function findUnfinishedPages(directory: string): UnfinishedPage[] {
   const pages: UnfinishedPage[] = []
   for (const file of htmlFiles(directory)) {
@@ -40,15 +48,26 @@ export function findUnfinishedPages(directory: string): UnfinishedPage[] {
   return pages.sort((a, b) => a.file.localeCompare(b.file))
 }
 
-export function checkLaunch(siteUrl: string | undefined, directory: string) {
+export function checkUnfinished(
+  siteUrl: string | undefined,
+  directory: string
+) {
+  // No home page means the build output isn't where this check looks, so it
+  // would find nothing and pass without checking anything.
+  const found = [...htmlFiles(directory)].some(
+    (file) => relative(directory, file) === "index.html"
+  )
+  if (!found) {
+    throw new Error(`No prerendered home page in ${directory}.`)
+  }
   const pages = findUnfinishedPages(directory)
-  const launching = siteUrl?.replace(/\/+$/, "") === launchUrl
-  return { ok: !launching || pages.length === 0, launching, pages }
+  const production = isProduction(siteUrl)
+  return { ok: !production || pages.length === 0, production, pages }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const directory = resolve(import.meta.dirname, "../.next/server/app")
-  const { ok, launching, pages } = checkLaunch(
+  const { ok, production, pages } = checkUnfinished(
     process.env.NEXT_PUBLIC_SITE_URL,
     directory
   )
@@ -56,15 +75,15 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (!ok) {
     console.error(
       [
-        `This build is for ${launchUrl}, but ${String(pages.length)} pages still show unfinished work:`,
+        `This build is for the production site, but ${String(pages.length)} pages still show unfinished work:`,
         ...list,
       ].join("\n")
     )
     process.exit(1)
   }
   console.log(
-    launching
-      ? "Launch check: nothing unfinished."
-      : `Launch check: ${String(pages.length)} pages show unfinished work, allowed outside ${launchUrl}.`
+    production
+      ? "Unfinished work check: nothing unfinished."
+      : `Unfinished work check: ${String(pages.length)} pages show unfinished work, allowed outside the production site.`
   )
 }

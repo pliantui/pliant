@@ -12,9 +12,9 @@ import {
 interface Section {
   title: string
   description: string
-  // A placeholder says the section is coming soon. A mockup shows what the
-  // section is, under the banner for features that aren't fully built.
-  status: "placeholder" | "mockup"
+  // A section that's coming soon says so. An unfinished one describes what
+  // it's for, under the banner for features that aren't fully built.
+  status: "coming-soon" | "unfinished"
 }
 
 // Sections of the site that have no content of their own yet. Each gets a
@@ -25,43 +25,42 @@ const sections = {
     title: "Components",
     description:
       "Components that let your users reshape your app, built on shadcn/ui.",
-    status: "placeholder",
+    status: "coming-soon",
   },
   blocks: {
     title: "Blocks",
     description: "Ready-made page sections with Pliant wired in.",
-    status: "placeholder",
+    status: "coming-soon",
   },
   charts: {
     title: "Charts",
     description: "Charts and stat cards your users can reshape.",
-    status: "mockup",
+    status: "unfinished",
   },
   playground: {
     title: "Playground",
     description: "Point at any part of an example and ask for a change.",
-    status: "mockup",
+    status: "unfinished",
   },
   directory: {
     title: "Directory",
     description: "Registries whose components work with Pliant.",
-    status: "placeholder",
+    status: "coming-soon",
   },
   templates: {
     title: "Templates",
-    description:
-      "Ready-made app templates and premium components, built with Pliant.",
-    status: "placeholder",
+    description: "Ready-made app templates built with Pliant.",
+    status: "coming-soon",
   },
   roadmap: {
     title: "Roadmap",
     description: "What Pliant can do today, and what it's working towards.",
-    status: "placeholder",
+    status: "coming-soon",
   },
   changelog: {
     title: "Changelog",
     description: "What changed in each Pliant release.",
-    status: "placeholder",
+    status: "coming-soon",
   },
 } satisfies Record<string, Section>
 
@@ -95,7 +94,7 @@ export default async function SectionPage(props: PageProps<"/[section]">) {
   if (!isSection(section)) notFound()
   const { title, description, status }: Section = sections[section]
 
-  if (status === "placeholder") {
+  if (status === "coming-soon") {
     return (
       <PageHeader>
         <PageHeaderHeading>{title}</PageHeaderHeading>

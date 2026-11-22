@@ -7,12 +7,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { ComingSoon } from "@/components/coming-soon"
 import { NotImplementedBanner } from "@/components/not-implemented-banner"
 
-import { checkLaunch, findUnfinishedPages, launchUrl } from "./launch-guard"
+import { checkUnfinished, findUnfinishedPages } from "./check-unfinished"
+
+const production = "https://pliantui.dev"
+const preview = "https://pliantui-www.pliantui-dev.workers.dev"
 
 let directory: string
 
 beforeEach(() => {
-  directory = mkdtempSync(join(tmpdir(), "pliant-launch-"))
+  directory = mkdtempSync(join(tmpdir(), "pliant-unfinished-"))
 })
 
 afterEach(() => {
@@ -33,47 +36,73 @@ describe("findUnfinishedPages", () => {
       "docs/guides/teams.html",
       <>
         <NotImplementedBanner />
-        <NotImplementedBanner variant="preview" />
+        <ComingSoon>Teams.</ComingSoon>
       </>
     )
-    page("templates.html", <ComingSoon>Templates are on their way.</ComingSoon>)
+    page("templates.html", <ComingSoon>Templates.</ComingSoon>)
     page("notes.txt", <NotImplementedBanner />)
 
     expect(findUnfinishedPages(directory)).toEqual([
       { file: "charts.html", kinds: ["not-implemented"] },
       {
         file: join("docs", "guides", "teams.html"),
-        kinds: ["not-implemented"],
+        kinds: ["coming-soon", "not-implemented"],
       },
       { file: "templates.html", kinds: ["coming-soon"] },
     ])
   })
 })
 
-describe("checkLaunch", () => {
-  it("fails a build for the launch address while anything is unfinished", () => {
+describe("checkUnfinished", () => {
+  it("fails a build for the production site while anything is unfinished", () => {
+    page("index.html", <h1>Home</h1>)
     page("charts.html", <NotImplementedBanner />)
 
-    expect(checkLaunch(launchUrl, directory)).toMatchObject({ ok: false })
-    expect(checkLaunch(`${launchUrl}/`, directory)).toMatchObject({ ok: false })
+    for (const url of [
+      production,
+      `${production}/`,
+      "http://pliantui.dev",
+      "https://www.pliantui.dev",
+    ]) {
+      expect(checkUnfinished(url, directory), url).toMatchObject({
+        ok: false,
+        production: true,
+      })
+    }
   })
 
   it("passes builds for other addresses", () => {
+    page("index.html", <h1>Home</h1>)
     page("charts.html", <NotImplementedBanner />)
 
-    expect(
-      checkLaunch("https://pliantui-www.pliantui-dev.workers.dev", directory)
-    ).toMatchObject({ ok: true, launching: false })
-    expect(checkLaunch(undefined, directory)).toMatchObject({ ok: true })
+    for (const url of [
+      preview,
+      "https://pliantui.dev.example.com",
+      "",
+      undefined,
+    ]) {
+      expect(checkUnfinished(url, directory), String(url)).toMatchObject({
+        ok: true,
+        production: false,
+      })
+    }
   })
 
-  it("passes the launch build once everything is finished", () => {
+  it("passes the production build once everything is finished", () => {
     page("index.html", <h1>Home</h1>)
 
-    expect(checkLaunch(launchUrl, directory)).toEqual({
+    expect(checkUnfinished(production, directory)).toEqual({
       ok: true,
-      launching: true,
+      production: true,
       pages: [],
     })
+  })
+
+  it("fails when it can't find the prerendered pages", () => {
+    page("other/index.html", <h1>Home</h1>)
+
+    expect(() => checkUnfinished(preview, directory)).toThrow(
+      "No prerendered home page"
+    )
   })
 })

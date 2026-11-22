@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm schema:build && next dev --port 4000",
-    "build": "pnpm registry:build && pnpm schema:build && next build && pnpm launch:check",
-    "launch:check": "node scripts/launch-guard.ts",
+    "build": "pnpm registry:build && pnpm schema:build && next build && pnpm check:unfinished",
+    "check:unfinished": "node scripts/check-unfinished.ts",
     "registry:build": "shadcn build",
     "schema:build": "node scripts/build-schema.ts",
     "start": "next start --port 4000",

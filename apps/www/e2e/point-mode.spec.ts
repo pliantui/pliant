@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test"
+import type { Locator, Page } from "@playwright/test"
 
 import { expect, test } from "./fixtures"
 
@@ -59,13 +59,15 @@ function apart(a: Rect, b: Rect) {
   )
 }
 
-// Every outline leaves room around its target, except against the edge of
-// the screen, and every label sits clear of every outline's 2px ring:
+// Every outline leaves a 6px gap around its target, less only against the
+// edge of the screen, and every label sits clear of every outline's 2px ring:
 // outside it, or inside it only when it's the label's own outline or one
 // its own outline is nested in.
 async function expectOutlinesClear(page: Page) {
-  const room = 4
+  const gap = 6
   const ring = 2
+  // A label's height with a gap on each side.
+  const labelRoom = 32
   const viewport = await page.evaluate(() => ({
     width: document.documentElement.clientWidth,
     height: document.documentElement.clientHeight,
@@ -89,41 +91,57 @@ async function expectOutlinesClear(page: Page) {
     const box = rectOf(outlineBox)
     const target = rectOf(targetBox)
     const roomTo = {
-      top: Math.min(room, target.top - ring),
-      left: Math.min(room, target.left - ring),
-      right: Math.min(room, viewport.width - ring - target.right),
-      bottom: Math.min(room, viewport.height - ring - target.bottom),
+      top: Math.min(gap, target.top - ring),
+      left: Math.min(gap, target.left - ring),
+      right: Math.min(gap, viewport.width - ring - target.right),
+      bottom: Math.min(gap, viewport.height - ring - target.bottom),
     }
-    expect(target.top - box.top, `${name}: room above`).toBeGreaterThanOrEqual(
-      roomTo.top
-    )
-    expect(target.left - box.left, `${name}: room left`).toBeGreaterThanOrEqual(
-      roomTo.left
-    )
-    expect(
-      box.right - target.right,
-      `${name}: room right`
-    ).toBeGreaterThanOrEqual(roomTo.right)
-    expect(
-      box.bottom - target.bottom,
-      `${name}: room below`
-    ).toBeGreaterThanOrEqual(roomTo.bottom)
+    const room = {
+      top: target.top - box.top,
+      left: target.left - box.left,
+      right: box.right - target.right,
+      bottom: box.bottom - target.bottom,
+    }
+    for (const side of ["top", "left", "right", "bottom"] as const) {
+      expect(room[side], `${name}: room at the ${side}`).toBeGreaterThanOrEqual(
+        roomTo[side]
+      )
+      expect(room[side], `${name}: room at the ${side}`).toBeLessThanOrEqual(
+        gap + 1
+      )
+    }
     boxes.push({ name, outline: box, label: rectOf(labelBox) })
   }
-  for (const { name, label } of boxes) {
+  for (const { name, outline, label } of boxes) {
     expect(label.left, `${name}: label on screen`).toBeGreaterThanOrEqual(0)
     expect(label.right, `${name}: label on screen`).toBeLessThanOrEqual(
       viewport.width
     )
-    const own = boxes.find((box) => box.name === name)?.outline
-    for (const { name: other, outline } of boxes) {
-      const nested = other === name || (own && contains(outline, own))
+    // Checked only for an outline with room for a label on screen.
+    if (
+      outline.top + labelRoom <= viewport.height &&
+      outline.bottom - labelRoom >= 0
+    ) {
+      expect(label.top, `${name}: label on screen`).toBeGreaterThanOrEqual(0)
+      expect(label.bottom, `${name}: label on screen`).toBeLessThanOrEqual(
+        viewport.height
+      )
+    }
+    for (const { name: other, outline: otherOutline } of boxes) {
+      const nested = other === name || contains(otherOutline, outline)
       const clear =
-        apart(label, grow(outline, ring + room)) ||
-        (nested && contains(grow(outline, -room), label))
+        apart(label, grow(otherOutline, ring + gap - 1)) ||
+        (nested && contains(grow(otherOutline, 1 - gap), label))
       expect(clear, `${name}'s label against ${other}'s outline`).toBe(true)
     }
   }
+}
+
+async function isAbove(label: Locator, outline: Locator) {
+  const labelBox = await label.boundingBox()
+  const outlineBox = await outline.boundingBox()
+  expect(labelBox && outlineBox).toBeTruthy()
+  return (labelBox?.y ?? 0) + (labelBox?.height ?? 0) <= (outlineBox?.y ?? 0)
 }
 
 async function load(page: Page) {
@@ -454,32 +472,32 @@ for (const colorScheme of ["light", "dark"] as const) {
   })
 }
 
-test("moves a label that would cross another outline", async ({
+test("moves a label out of the way of the outline above it", async ({
   page,
   errors,
 }) => {
   // Tall enough that both outlines and their labels are on screen.
   await page.setViewportSize({ width: 1280, height: 1600 })
   await load(page)
-  await page.getByRole("button", { name: "Point" }).click()
   const orders = layer(page).getByRole("button", { name: "All orders" })
-  const id = await orders.getAttribute("data-pliant-point-target")
+  const ordersLabel = orders.getByText("All orders", { exact: true })
+
+  // The key metrics sit just above all orders, where its label would go.
+  await page.getByRole("button", { name: "Point" }).click()
+  await expect(orders).toBeVisible()
+  expect(await isAbove(ordersLabel, orders)).toBe(false)
+  await expectOutlinesClear(page)
   await page.keyboard.press("Escape")
-  const top =
-    (await page.locator(`[data-pliant-id="${String(id)}"]`).boundingBox())?.y ??
-    0
-  // Move the key metrics down to just above all orders, where the label for
-  // all orders would otherwise sit, without moving anything else.
+
+  // With the key metrics moved up and out of the way, it goes back above.
   await page
     .getByRole("region", { name: "Key metrics" })
-    .evaluate((section, top) => {
-      const { bottom } = section.getBoundingClientRect()
-      section.style.transform = `translateY(${String(top - 12 - bottom)}px)`
-    }, top)
-
-  await page.getByRole("button", { name: "Point" }).click()
-  await expect(keyMetricsBox(page)).toBeVisible()
-
+    .evaluate((section) => {
+      section.style.transform = "translateY(-80px)"
+    })
+  await page.keyboard.press("ControlOrMeta+Period")
+  await expect(orders).toBeVisible()
+  expect(await isAbove(ordersLabel, orders)).toBe(true)
   await expectOutlinesClear(page)
   expect(errors).toEqual([])
 })
