@@ -1,0 +1,12 @@
+{
+  "title": "Security and privacy",
+  "pages": [
+    "index",
+    "ai",
+    "permissions",
+    "guardrails",
+    "usage-data",
+    "threat-model",
+    "reporting"
+  ]
+}

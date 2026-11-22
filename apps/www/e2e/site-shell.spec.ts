@@ -213,7 +213,7 @@ test.describe("on a wide screen", () => {
       sidebar.getByRole("link", { name: "Overlays and layers" })
     ).toHaveAttribute("aria-current", "page")
 
-    await sidebar.getByRole("link", { name: "Guardrails" }).click()
+    await sidebar.getByRole("link", { name: "Guardrails", exact: true }).click()
     await expect(
       page.getByRole("heading", { level: 1, name: "Guardrails" })
     ).toBeVisible()
@@ -402,7 +402,7 @@ test.describe("on a phone", () => {
       await expect(menu.getByRole("link", { name, exact: true })).toBeVisible()
     }
 
-    await menu.getByRole("link", { name: "Guardrails" }).click()
+    await menu.getByRole("link", { name: "Guardrails", exact: true }).click()
     await expect(page).toHaveURL("/docs/concepts/guardrails")
     await expect(menu).toBeHidden()
   })

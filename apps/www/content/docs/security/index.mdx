@@ -1,0 +1,72 @@
+---
+title: Security and privacy
+description: How Pliant keeps data access on your server, what user changes and AI answers can and can't do, and what you need to set up yourself.
+---
+
+Pliant lets users change how your pages look. It never decides what data they may see: your server does. This section explains where each protection lives, so you can tell which ones are security boundaries and which ones only guard against mistakes.
+
+## Where each protection lives
+
+| Protection                                         | Enforced by                                                                            | A security boundary?                              |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Which rows and fields a user may load              | Your datasets, on your server                                                          | Yes                                               |
+| Who may ask the AI, and who may save team defaults | Your `getUser` and `canPublish`, on your server                                        | Yes                                               |
+| What a change can contain                          | The operation catalog, checked by the ask route and when a change loads in the browser | Yes, for AI answers; see below for stored changes |
+| What the AI is told                                | The ask route, on your server                                                          | Yes                                               |
+| Parts users can't hide or move                     | Guardrails, in the browser                                                             | No                                                |
+| Hidden columns and cards                           | The browser                                                                            | No                                                |
+
+The rule of thumb: anything a user must not see belongs in your server's permissions, so it never reaches their browser. Everything that runs in the browser, including guardrails, guards against mistakes, not against a user who changes the code in their browser.
+
+## Changes are data, never code
+
+A change is a list of [operations](/docs/reference/operations) from a fixed catalog. It can't hold code, markup, CSS or a query, and calculations are [expressions](/docs/concepts/expressions) that Pliant interprets itself: nothing is passed to `eval` or `new Function`. Labels are plain text and filter values are data, so a shared or AI-made change can't inject anything into your page.
+
+A saved change that contains a malformed or unknown operation still loads: Pliant applies the valid operations and skips the rest. An AI answer is accepted only when every operation in it is valid.
+
+## What your server checks
+
+- The ask route, `createPliantHandler`, answers 401 unless your `getUser` returns a user. It accepts only JSON bodies up to 32 KB, which keeps cross-site form posts from spending a signed-in user's model budget. Each model call times out after 15 seconds by default, and an answer can make at most 8 tool calls.
+- The storage route, `createStorageHandler`, answers 401 without a user, and saves to a team or organization layer only when your `canPublish` allows it. It checks each [overlay](/docs/reference/overlay)'s envelope, its 500-operation limit, the body size (256 KB) and how deeply the JSON nests, but it stores the operations as sent: an invalid operation is skipped when the change loads in the browser, not rejected on the way in. It assigns every version and timestamp itself, and records the signed-in user's id as the author (`by`) of each stored version. The overlay's own `createdBy` comes from the client, so don't trust it.
+- Datasets require a `scope` for every user, and a missing scope fails closed. A scope of `"public"` lets everyone load every row, and `allRows` lets one user, such as an admin, load every row; nothing else widens it. `compileQuery` builds parameterized queries, so filter values never become SQL.
+
+## What you need to add
+
+- Authentication: both routes call your `getUser`. Return `null` for anyone who isn't signed in.
+- Rate limits and quotas on the ask and storage routes. Neither route limits how often a user calls it.
+- Permissions on every dataset. See [Permissions](/docs/security/permissions).
+- Catalog checks on stored changes, if you want to reject invalid operations before they're stored. Run `validateOverlay` from `@pliantui/core` before the storage handler:
+
+<include cwd lang="ts" meta='title="app/api/pliant/storage/route.ts"'>
+  snippets/storage/validated-route.ts#route
+</include>
+
+`validateOverlay` rejects an overlay with any operation that isn't valid, including one written by a newer version of Pliant, so update the server before the clients.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  `createStorageHandler` doesn't check operations against the catalog yet. It
+  stores them as sent, and the browser skips invalid ones when the change loads.
+</Callout>
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Built-in `requestsPerMinute` and `dailyTokensPerUser` limits for the ask
+  route, set in `pliant.config.ts`, aren't in Pliant yet. Add your own rate
+  limiting in front of the route until then.
+</Callout>
+
+## In this section
+
+- [What the AI sees](/docs/security/ai): what's sent to the model, and what never is.
+- [Permissions](/docs/security/permissions): rows and fields, decided on your server.
+- [Guardrails and limits](/docs/security/guardrails): what users can't change, and why that isn't access control.
+- [Usage data and consent](/docs/security/usage-data): what Pliant stores and sends, and where.
+- [Threat model](/docs/security/threat-model): the threats Pliant is designed against, and the control for each.
+- [Reporting vulnerabilities](/docs/security/reporting)
