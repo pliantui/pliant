@@ -163,11 +163,11 @@ for (const width of [1024, 1440]) {
   })
 }
 
-test("lists the recorded asks for any other ask", async ({ page, errors }) => {
+test("answers only the suggested asks", async ({ page, errors }) => {
   const panel = await askAboutKeyMetrics(
     page,
     "Put the overdue card first",
-    "This demo only answers its recorded asks. Try one of the suggestions."
+    "This demo answers only its suggested asks."
   )
 
   await expect(panel.getByRole("button", { name: "Lock in" })).toBeHidden()

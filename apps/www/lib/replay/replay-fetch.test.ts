@@ -60,20 +60,20 @@ describe("replayFetch", () => {
     expect(first.overlay.id).not.toBe(second.overlay.id)
   })
 
-  it("says an unrecorded ask isn't answered, and points at the suggestions", async () => {
+  it("says an ask that matches no suggestion isn't answered", async () => {
     const { body } = await ask({
       surface: "/",
       target: "orders-table",
       prompt: "make every row green",
     })
 
-    expect(body).toMatchObject({
+    expect(body).toEqual({
       status: "unavailable",
-      reason: expect.stringContaining("suggestions") as unknown,
+      reason: "This demo answers only its suggested asks.",
     })
   })
 
-  it("never answers with a scripted answer", async () => {
+  it("answers a scripted ask with its scripted answer", async () => {
     const [scripted] = scriptedAnswers
 
     expect(
@@ -84,7 +84,7 @@ describe("replayFetch", () => {
           prompt: scripted?.prompt,
         })
       ).body
-    ).toMatchObject({ status: "unavailable" })
+    ).toMatchObject({ status: "ok", explain: scripted?.explain })
   })
 
   it("rejects a request it can't read", async () => {
@@ -101,10 +101,7 @@ describe("scripted answers", () => {
   it("answer only when asked for, for a caller that labels them", () => {
     for (const { target, prompt, explain } of scriptedAnswers) {
       expect(isScriptedAsk(target, prompt)).toBe(true)
-      const answer = replayAnswer(
-        { surface: "/", target, prompt },
-        { scripted: true }
-      )
+      const answer = replayAnswer({ surface: "/", target, prompt })
       // Marked as a suggestion chip's change, never as an AI answer.
       expect(answer).toMatchObject({
         status: "ok",
@@ -130,12 +127,9 @@ describe("scripted answers", () => {
   it("decline an ask the data can't answer, changing nothing", () => {
     for (const { target, prompt, reason } of scriptedDeclines) {
       expect(isScriptedAsk(target, prompt)).toBe(true)
-      expect(
-        replayAnswer({ surface: "/", target, prompt }, { scripted: true })
-      ).toEqual({ status: "unavailable", reason })
-      expect(replayAnswer({ surface: "/", target, prompt })).toMatchObject({
+      expect(replayAnswer({ surface: "/", target, prompt })).toEqual({
         status: "unavailable",
-        reason: expect.stringContaining("suggestions") as unknown,
+        reason,
       })
     }
   })

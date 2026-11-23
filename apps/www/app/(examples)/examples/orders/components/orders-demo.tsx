@@ -7,11 +7,7 @@ import {
   CustomizeSurface,
   focusTableControls,
 } from "@/components/demo/customize-control"
-import {
-  DemoAskContext,
-  DemoAskPanel,
-  useDemoAsk,
-} from "@/components/demo/demo-ask-panel"
+import { DemoAsk, useDemoAsk } from "@/components/demo/demo-ask-panel"
 import {
   DemoCustomizeMenu,
   useDemoCustomize,
@@ -30,7 +26,19 @@ const flags = { "key-metrics/slots/revenue": { required: true } }
 // page in its header, a right-click Customize group on each part, and the
 // panel they open. Adjust by hand, or holding Alt, starts point mode to
 // select a part and change it by hand.
-export function OrdersDemo({
+export function OrdersDemo(props: {
+  header: React.ReactNode
+  metrics: React.ReactElement
+  table: React.ReactElement
+}) {
+  return (
+    <DemoAsk targets={askTargets}>
+      <OrdersPage {...props} />
+    </DemoAsk>
+  )
+}
+
+function OrdersPage({
   header,
   metrics,
   table,
@@ -39,20 +47,19 @@ export function OrdersDemo({
   metrics: React.ReactElement
   table: React.ReactElement
 }) {
-  const ask = useDemoAsk(askTargets)
+  const ask = useDemoAsk()
   const page = React.useRef<HTMLDivElement>(null)
-  const customize = React.useRef<HTMLButtonElement>(null)
   const pointMode = React.useRef<PliantPointModeHandle>(null)
   const metricsCustomize = useDemoCustomize({
     targets: ["key-metrics"],
     onAsk: () => {
-      ask.ask("key-metrics")
+      ask?.ask("key-metrics")
     },
   })
   const tableCustomize = useDemoCustomize({
     targets: ["orders-table"],
     onAsk: () => {
-      ask.ask("orders-table")
+      ask?.ask("orders-table")
     },
     onAdjust: () => {
       focusTableControls(page.current)
@@ -64,25 +71,22 @@ export function OrdersDemo({
   }
 
   return (
-    <DemoAskContext value={ask}>
+    <>
       <div ref={page} className="flex flex-col gap-6">
         <header className="flex items-start justify-between gap-4">
           {header}
           <DemoCustomizeMenu
-            ref={customize}
             targets={["key-metrics", "orders-table"]}
             label="the orders page"
             commands
-            askOpen={ask.open}
+            askOpen={ask?.open}
             onAsk={() => {
-              ask.ask()
+              ask?.ask()
             }}
             onAdjust={() => {
               pointMode.current?.start()
             }}
           />
-          {/* Next to the menu that opens it, so Tab moves into it. */}
-          <DemoAskPanel ask={ask} returnFocus={customize} />
         </header>
         <CustomizeSurface
           {...metricsCustomize}
@@ -104,6 +108,6 @@ export function OrdersDemo({
         flags={flags}
         actions={(target) => bar[target]}
       />
-    </DemoAskContext>
+    </>
   )
 }

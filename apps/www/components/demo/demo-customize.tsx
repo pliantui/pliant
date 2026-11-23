@@ -6,6 +6,7 @@ import {
   CustomizeControl,
   CustomizeSurface,
 } from "@/components/demo/customize-control"
+import { useDemoAsk } from "@/components/demo/demo-ask-panel"
 import { useCustomized } from "@/components/demo/use-customized"
 import type { ScriptedAsksState } from "@/components/demo/use-scripted-asks"
 
@@ -14,6 +15,7 @@ interface DemoCustomizeOptions {
   targets: readonly string[]
   // The scripted asks of the demo's mocked parts, which Reset also clears.
   scripted?: ScriptedAsksState | undefined
+  // Defaults to opening the demo's chat on the first target.
   onAsk?: (() => void) | undefined
   onAdjust?: (() => void) | undefined
   // Runs after Reset, such as to clear a list of the changes.
@@ -31,11 +33,18 @@ export function useDemoCustomize({
   const store = usePliantStore()
   const { status } = usePliantStatus()
   const customized = useCustomized(targets)
+  const chat = useDemoAsk()
 
   return {
     customized: customized || (scripted?.applied.length ?? 0) > 0,
     ready: status === "ready",
-    onAsk,
+    onAsk:
+      onAsk ??
+      (chat
+        ? () => {
+            chat.ask(targets[0])
+          }
+        : undefined),
     onAdjust,
     onReset: () => {
       for (const target of targets) store.resetNode(target)

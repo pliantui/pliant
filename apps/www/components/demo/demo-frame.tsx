@@ -10,10 +10,9 @@ import {
   actionsOf,
   CustomizeControl,
   CustomizeSurface,
-  focusFirstAsk,
   focusTableControls,
 } from "@/components/demo/customize-control"
-import { DemoAskPanel, useDemoAsk } from "@/components/demo/demo-ask-panel"
+import { DemoAsk, useDemoAsk } from "@/components/demo/demo-ask-panel"
 import { useDemoCustomize } from "@/components/demo/demo-customize"
 import { ReplayNote } from "@/components/demo/replay-note"
 import { ScriptedAsks } from "@/components/demo/scripted-asks"
@@ -25,9 +24,20 @@ import {
   type PliantPointModeHandle,
 } from "@/registry/pliant/pliant-point-mode"
 
-// Frames one live part of an app on a docs page with its Customize menu and
-// the asks that reshape it. Render it inside the demo's `PliantRoot`.
-export function DemoFrame({
+type DemoFrameProps = React.ComponentProps<typeof DemoFrameBody>
+
+// Frames one live part of an app on a docs page with its Customize menu,
+// the asks that reshape it and the chat its Ask opens. Render it inside the
+// demo's `PliantRoot`.
+export function DemoFrame(props: DemoFrameProps) {
+  return (
+    <DemoAsk targets={props.askTargets}>
+      <DemoFrameBody {...props} />
+    </DemoAsk>
+  )
+}
+
+function DemoFrameBody({
   target,
   label,
   asks,
@@ -44,8 +54,8 @@ export function DemoFrame({
   // The node's name, as the asks and Reset read it, like "key metrics".
   label: string
   asks: readonly string[]
-  // The ask panel's targets, when the demo has one: Ask opens it. Without
-  // it, Ask moves focus to the suggested asks.
+  // The chat's targets that are Pliant nodes, with their context. Without
+  // them, the chat offers the frame's part by its suggested asks.
   askTargets?: readonly PliantAskTarget[] | undefined
   // Whether the part has controls to adjust it by hand, such as a table's
   // toolbar or columns menu, which Adjust by hand moves focus to.
@@ -71,16 +81,14 @@ export function DemoFrame({
   const scripted =
     mocked !== undefined || asks.some((ask) => isScriptedAsk(target, ask))
   const frame = React.useRef<HTMLDivElement>(null)
-  const customizeButton = React.useRef<HTMLButtonElement>(null)
-  const panel = useDemoAsk(askTargets ?? [])
+  const panel = useDemoAsk()
   const pointModeRef = React.useRef<PliantPointModeHandle>(null)
   const selecting = askTargets !== undefined && pointMode
   const customize = useDemoCustomize({
     targets: [target],
     scripted: mocked?.scripted,
     onAsk: () => {
-      if (askTargets) panel.ask()
-      else focusFirstAsk(frame.current)
+      panel?.ask(target)
     },
     onAdjust: adjustable
       ? () => {
@@ -102,7 +110,7 @@ export function DemoFrame({
           },
         }
       : customize
-  const previewing = usePreview() !== null && !panel.open
+  const previewing = usePreview() !== null && !panel?.open
 
   return (
     <div
@@ -113,15 +121,7 @@ export function DemoFrame({
     >
       <div className="flex items-center justify-end gap-2">
         {toolbar}
-        <CustomizeControl
-          ref={customizeButton}
-          label={label}
-          previewing={previewing}
-          {...options}
-        />
-        {askTargets && (
-          <DemoAskPanel ask={panel} returnFocus={customizeButton} />
-        )}
+        <CustomizeControl label={label} previewing={previewing} {...options} />
       </div>
       <CustomizeSurface {...options}>
         <div className="flex min-w-0 flex-col gap-4">{children}</div>
@@ -129,6 +129,7 @@ export function DemoFrame({
       <div className="flex flex-col gap-3 border-t pt-4">
         {mocked && (
           <ScriptedAsks
+            target={target}
             label={mocked.label}
             asks={mocked.asks}
             scripted={mocked.scripted}

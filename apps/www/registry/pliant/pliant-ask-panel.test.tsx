@@ -603,6 +603,20 @@ describe("PliantAskPanel", () => {
     expect(screen.queryByRole("button")).toBeNull()
   })
 
+  it("focuses the prompt when it mounts opened by its parent, not by defaultOpen", async () => {
+    await renderPanel()
+    expect(document.activeElement).toBe(prompt())
+    cleanup()
+
+    render(
+      <PliantRoot surface={surface} storage={storage}>
+        <PliantAskPanel endpoint="/api/pliant" targets={targets} defaultOpen />
+      </PliantRoot>
+    )
+    await screen.findByRole("textbox", { name: "Ask" })
+    expect(document.activeElement).not.toBe(prompt())
+  })
+
   it("opens and closes through open and onOpenChange", async () => {
     const onOpenChange = vi.fn()
     await renderPanel({ defaultOpen: false, onOpenChange })
@@ -631,6 +645,23 @@ describe("PliantAskPanel", () => {
 
     expect(screen.getByRole("button", { name: "Lock in" })).toBeTruthy()
     expect(status()).toContain("Moved the Overdue card to the first position.")
+  })
+
+  it("heads each answer with its answerLabel", async () => {
+    const answerLabel = vi.fn(
+      ({ target, prompt }: { target: string; prompt: string }) =>
+        prompt === "put the overdue card first" ? (
+          <span>{`Written by hand for ${target}`}</span>
+        ) : null
+    )
+    await renderPanel({ answerLabel })
+    answer(okAnswer)
+    await ask()
+    answer({ status: "clarify", question: "Which card?" })
+    await ask("hide a card")
+
+    expect(status()).toContain("Written by hand for key-metrics")
+    expect(status().match(/Written by hand/g)).toHaveLength(1)
   })
 
   it("keeps the page outside it usable", async () => {

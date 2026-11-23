@@ -204,12 +204,14 @@ function findPreviewOwner(
 
 function ChangeMessage({
   message,
+  label,
   live,
   disabled,
   onLockIn,
   onDiscard,
 }: {
   message: Extract<PliantAskChatMessage, { kind: "change" }>
+  label: React.ReactNode
   live: boolean
   disabled: boolean
   onLockIn: () => void
@@ -228,6 +230,7 @@ function ChangeMessage({
   return (
     <Message from="assistant">
       <MessageContent className="w-full">
+        {label}
         <div id={replyId} className="flex flex-col gap-1 break-words">
           {explain.map((sentence) => (
             <p key={sentence}>{sentence}</p>
@@ -318,6 +321,7 @@ function PliantAskChat({
   autoFocus,
   answers,
   store,
+  answerLabel,
 }: {
   panel: PliantAskPanelState
   targets: readonly PliantAskTarget[]
@@ -329,6 +333,9 @@ function PliantAskChat({
   answers: Set<(answer: PliantAskAnswer) => void>
   /** The page's chats, which outlive the chat while the panel is closed. */
   store: PliantAskChatStore
+  /** Heads the answer to an ask, by the ask's target id and prompt. */
+  answerLabel?:
+    ((ask: { target: string; prompt: string }) => React.ReactNode) | undefined
 }) {
   const messages = usePliantMessages(askChatMessages)
   const chats = usePliantAskChats(store)
@@ -430,7 +437,7 @@ function PliantAskChat({
     if (asking || text === "" || !panel.target) {
       return
     }
-    const chatId = store.ask(text, panel.target.label)
+    const chatId = store.ask(text, panel.target.label, panel.target.id)
     pending.current = { chatId, target: panel.target.label }
     panel.ask()
     panel.setPrompt("")
@@ -592,7 +599,12 @@ function PliantAskChat({
               </div>
             </ConversationEmptyState>
           ) : (
-            chatMessages.map((message) => {
+            chatMessages.map((message, index) => {
+              const ask = chatMessages
+                .slice(0, index)
+                .findLast((entry) => entry.kind === "ask")
+              const label =
+                ask && answerLabel?.({ target: ask.targetId, prompt: ask.text })
               switch (message.kind) {
                 case "ask":
                   return (
@@ -612,6 +624,7 @@ function PliantAskChat({
                     <ChangeMessage
                       key={message.id}
                       message={message}
+                      label={label}
                       live={preview?.id === message.overlay}
                       disabled={asking}
                       onLockIn={() => {
@@ -647,6 +660,7 @@ function PliantAskChat({
                           message.kind === "error" && "text-destructive"
                         )}
                       >
+                        {label}
                         <p>{message.text}</p>
                       </MessageContent>
                     </Message>

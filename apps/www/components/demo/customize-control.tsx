@@ -1,6 +1,7 @@
 "use client"
 
 import { useRegisterCustomizeCommands } from "@/components/demo/customize-commands"
+import { DemoAskAnchor } from "@/components/demo/demo-ask-panel"
 import { UnfinishedDot } from "@/components/unfinished-dot"
 import {
   PliantCustomizeContextMenu,
@@ -56,13 +57,16 @@ export function CustomizeControl({
   useRegisterCustomizeCommands(commands ? actionsOf(options) : undefined)
 
   return (
-    <PliantCustomizeMenu
-      ref={ref}
-      aria-label={`Customize ${label}`}
-      customized={options.customized}
-      previewing={previewing}
-      {...actionsOf(options)}
-    />
+    <>
+      <PliantCustomizeMenu
+        ref={ref}
+        aria-label={`Customize ${label}`}
+        customized={options.customized}
+        previewing={previewing}
+        {...actionsOf(options)}
+      />
+      <DemoAskAnchor />
+    </>
   )
 }
 
@@ -80,16 +84,6 @@ export function CustomizeSurface({
 }
 
 export type { CustomizeControlOptions }
-
-// Moves focus to the first suggested ask under part of a demo, which stand
-// in for the ask panel where a demo has none.
-export function focusFirstAsk(container: HTMLElement | null) {
-  const asks = container?.querySelector<HTMLElement>(
-    '[role="group"][aria-label^="Ask about"]'
-  )
-  asks?.scrollIntoView({ block: "center", behavior: "smooth" })
-  asks?.querySelector("button")?.focus({ preventScroll: true })
-}
 
 // Moves focus to the first control of a data table's toolbar, or else its
 // columns menu, where the table is adjusted by hand.

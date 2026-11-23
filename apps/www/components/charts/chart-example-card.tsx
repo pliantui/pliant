@@ -5,8 +5,8 @@ import * as React from "react"
 import {
   CustomizeControl,
   CustomizeSurface,
-  focusFirstAsk,
 } from "@/components/demo/customize-control"
+import { DemoAsk, useDemoAsk } from "@/components/demo/demo-ask-panel"
 import { ScriptedAsks } from "@/components/demo/scripted-asks"
 import type { ScriptedAsksState } from "@/components/demo/use-scripted-asks"
 import {
@@ -19,10 +19,20 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
+type ChartExampleCardProps = React.ComponentProps<typeof ChartExampleCardBody>
+
 // A card of the charts page: a table or dashboard, the ask that charts it
-// in place, the follow-up asks that reshape the chart, and its Customize
-// menu.
-export function ChartExampleCard({
+// in place, the follow-up asks that reshape the chart, its Customize menu
+// and the chat its Ask opens.
+export function ChartExampleCard(props: ChartExampleCardProps) {
+  return (
+    <DemoAsk surface={`/charts/${props.id}`}>
+      <ChartExampleCardBody {...props} />
+    </DemoAsk>
+  )
+}
+
+function ChartExampleCardBody({
   id,
   title,
   description,
@@ -45,11 +55,11 @@ export function ChartExampleCard({
     | undefined
   children: React.ReactNode
 }) {
-  const card = React.useRef<HTMLDivElement>(null)
+  const chat = useDemoAsk()
   const options = {
     customized: scripted.applied.length > 0,
     onAsk: () => {
-      focusFirstAsk(card.current)
+      chat?.ask(label)
     },
     onReset: () => {
       scripted.reset()
@@ -59,7 +69,6 @@ export function ChartExampleCard({
 
   return (
     <Card
-      ref={card}
       role="region"
       aria-labelledby={`${id}-title`}
       className="min-w-0 gap-4"

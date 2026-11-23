@@ -6,7 +6,7 @@ import { LockIcon, UserIcon, UsersIcon } from "lucide-react"
 import { PliantRoot, type PliantInventory } from "@pliantui/react"
 
 import { AskChips } from "@/components/demo/ask-chips"
-import { focusFirstAsk } from "@/components/demo/customize-control"
+import { DemoAsk, useDemoAsk } from "@/components/demo/demo-ask-panel"
 import { DemoCustomizeMenu } from "@/components/demo/demo-customize"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
@@ -101,6 +101,25 @@ function PersonaBar({
   )
 }
 
+// The sidebar's Customize menu. Only you can ask for changes, in the chat.
+function SidebarCustomizeMenu({ asks }: { asks: boolean }) {
+  const chat = useDemoAsk()
+  return (
+    <DemoCustomizeMenu
+      targets={["app-sidebar"]}
+      label="the sidebar"
+      commands
+      onAsk={
+        asks
+          ? () => {
+              chat?.ask("app-sidebar")
+            }
+          : undefined
+      }
+    />
+  )
+}
+
 // The team workspace example: the support team's app, as you, your team
 // or an admin sees it.
 export function TeamWorkspaceShell({
@@ -122,52 +141,43 @@ export function TeamWorkspaceShell({
         storage={storageFor(persona)}
         inventory={inventory}
       >
-        {/* Layout containment keeps the fixed sidebar inside the example, between the site header and footer. */}
-        <PliantSidebarProvider
-          id="app-sidebar"
-          className="min-h-[calc(100svh-var(--header-height))] flex-1 contain-layout"
-        >
-          <AppSidebar />
-          <SidebarInset>
-            <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-              <SidebarTrigger className="-ml-1" />
-              <Separator
-                orientation="vertical"
-                className="mr-2 data-[orientation=vertical]:h-4"
-              />
-              <span className="text-sm text-muted-foreground">
-                Support desk
-              </span>
-              <div className="ml-auto">
-                <DemoCustomizeMenu
-                  targets={["app-sidebar"]}
-                  label="the sidebar"
-                  commands
-                  onAsk={
-                    persona === "you"
-                      ? () => {
-                          focusFirstAsk(document.getElementById("main"))
-                        }
-                      : undefined
-                  }
+        <DemoAsk>
+          {/* Layout containment keeps the fixed sidebar inside the example, between the site header and footer. */}
+          <PliantSidebarProvider
+            id="app-sidebar"
+            className="min-h-[calc(100svh-var(--header-height))] flex-1 contain-layout"
+          >
+            <AppSidebar />
+            <SidebarInset>
+              <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
+                <SidebarTrigger className="-ml-1" />
+                <Separator
+                  orientation="vertical"
+                  className="mr-2 data-[orientation=vertical]:h-4"
                 />
-              </div>
-            </header>
-            {persona === "you" && (
-              <div className="border-b p-4">
-                <AskChips
-                  target="app-sidebar"
-                  label="the sidebar"
-                  prompts={[
-                    "open Tickets when I log in",
-                    "move Reports and Settings under More",
-                  ]}
-                />
-              </div>
-            )}
-            {children}
-          </SidebarInset>
-        </PliantSidebarProvider>
+                <span className="text-sm text-muted-foreground">
+                  Support desk
+                </span>
+                <div className="ml-auto">
+                  <SidebarCustomizeMenu asks={persona === "you"} />
+                </div>
+              </header>
+              {persona === "you" && (
+                <div className="border-b p-4">
+                  <AskChips
+                    target="app-sidebar"
+                    label="the sidebar"
+                    prompts={[
+                      "open Tickets when I log in",
+                      "move Reports and Settings under More",
+                    ]}
+                  />
+                </div>
+              )}
+              {children}
+            </SidebarInset>
+          </PliantSidebarProvider>
+        </DemoAsk>
       </PliantRoot>
     </div>
   )

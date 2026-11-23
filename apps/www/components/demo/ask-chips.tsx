@@ -10,6 +10,7 @@ import {
   type Overlay,
 } from "@pliantui/react"
 
+import { useDemoAskSuggestions } from "@/components/demo/demo-ask-panel"
 import { ScriptedAnswerLabel } from "@/components/demo/scripted-answer-label"
 import { Button } from "@/components/ui/button"
 import { UnfinishedDot } from "@/components/unfinished-dot"
@@ -18,7 +19,7 @@ import { isScriptedAsk, replayAnswer } from "@/lib/replay/replay-fetch"
 const unavailable = "This change can't be shown right now. Try another ask."
 
 // Suggested asks for one part of a demo. Picking one previews its answer in
-// place, to lock in or discard.
+// place, to lock in or discard. The chat around the demo offers them too.
 export function AskChips({
   target,
   label,
@@ -46,6 +47,7 @@ export function AskChips({
   const store = usePliantStore()
   const surface = usePliantSurface()
   const preview = usePreview()
+  useDemoAskSuggestions({ target, label, prompts })
   const groupRef = React.useRef<HTMLDivElement>(null)
   const [asked, setAsked] = React.useState<{
     id: string | null
@@ -98,10 +100,7 @@ export function AskChips({
               size="sm"
               className="h-auto min-h-7 max-w-full rounded-full px-2.5 py-1 text-left text-xs font-normal whitespace-normal"
               onClick={() => {
-                const answer = replayAnswer(
-                  { surface, target, prompt },
-                  { scripted: true }
-                )
+                const answer = replayAnswer({ surface, target, prompt })
                 if (answer.status !== "ok") {
                   setAsked({
                     id: null,

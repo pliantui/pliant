@@ -5,6 +5,7 @@ import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
 import { CrmPipelineDemo } from "@/components/blocks/crm-pipeline-demo"
+import { DemoAsk } from "@/components/demo/demo-ask-panel"
 import { PageCustomizeMenu } from "@/components/demo/page-customize-menu"
 import { deals } from "@/lib/demo/data"
 import { formatCurrency } from "@/lib/demo/format"
@@ -26,25 +27,27 @@ export default function CrmPage() {
           storage={localAdapter}
           inventory={inventory["/examples/crm"]}
         >
-          <PliantPrePaint surface="/examples/crm" />
-          <header className="flex items-start justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <h2 className="text-2xl font-semibold tracking-tight">
-                Pipeline
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {open.length} open deals worth{" "}
-                {formatCurrency(
-                  open.reduce((sum, deal) => sum + deal.value, 0)
-                )}
-              </p>
-            </div>
-            <PageCustomizeMenu
-              targets={["crm-pipeline"]}
-              label="the pipeline page"
-            />
-          </header>
-          <CrmPipelineDemo deals={deals} />
+          <DemoAsk>
+            <PliantPrePaint surface="/examples/crm" />
+            <header className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-2xl font-semibold tracking-tight">
+                  Pipeline
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {open.length} open deals worth{" "}
+                  {formatCurrency(
+                    open.reduce((sum, deal) => sum + deal.value, 0)
+                  )}
+                </p>
+              </div>
+              <PageCustomizeMenu
+                targets={["crm-pipeline"]}
+                label="the pipeline page"
+              />
+            </header>
+            <CrmPipelineDemo deals={deals} />
+          </DemoAsk>
         </PliantRoot>
       </div>
     </div>

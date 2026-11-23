@@ -1,9 +1,10 @@
 import { recordedAnswers as recorded } from "./recorded-answers.generated"
 import { scriptedAnswers, scriptedDeclines } from "./scripted-answers"
 
-// Answers asks in the browser from the answers recorded for the demo, so
-// asking needs no server and calls no model. Pass `replayFetch` to
-// `PliantAskPanel` as `fetch`; it answers only from recordings.
+// Answers asks in the browser from the answers recorded for the demo, and
+// the hand-written answers for the asks marked scripted, so asking needs no
+// server and calls no model. Pass `replayFetch` to `PliantAskPanel` as
+// `fetch`.
 
 export const replayNote =
   "This demo replays recorded answers; no AI model is called."
@@ -11,8 +12,7 @@ export const replayNote =
 export const replayNoteWithScripted =
   "This demo replays recorded answers, and hand-written answers for the asks marked scripted; no AI model is called."
 
-const unrecordedReason =
-  "This demo only answers its recorded asks. Try one of the suggestions."
+const unmatchedReason = "This demo answers only its suggested asks."
 
 const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
@@ -69,12 +69,9 @@ type ReplayedAnswer =
   | { status: "clarify"; question: string }
   | { status: "unavailable"; reason: string }
 
-// The answer to an ask, in the shape `createPliantHandler` sends. Scripted
-// answers come back only with `scripted`, for callers that label them.
-export function replayAnswer(
-  { surface, target, prompt }: Ask,
-  { scripted = false }: { scripted?: boolean } = {}
-): ReplayedAnswer {
+// The answer to an ask, in the shape `createPliantHandler` sends. Callers
+// label scripted answers, found with `isScriptedAsk`.
+export function replayAnswer({ surface, target, prompt }: Ask): ReplayedAnswer {
   // Scripted answers are marked as coming from a suggestion chip, never as
   // an AI's answer.
   const overlay = (
@@ -111,16 +108,12 @@ export function replayAnswer(
       ? overlay(answer.ops, answer.basis, answer.explain)
       : answer
   }
-  const script = scripted
-    ? scriptedAnswers.find(
-        (entry) => entry.target === target && same(entry.prompt, prompt)
-      )
-    : undefined
-  const decline = scripted
-    ? scriptedDeclines.find(
-        (entry) => entry.target === target && same(entry.prompt, prompt)
-      )
-    : undefined
+  const script = scriptedAnswers.find(
+    (entry) => entry.target === target && same(entry.prompt, prompt)
+  )
+  const decline = scriptedDeclines.find(
+    (entry) => entry.target === target && same(entry.prompt, prompt)
+  )
   if (decline) return { status: "unavailable", reason: decline.reason }
   if (script) {
     return overlay(
@@ -130,7 +123,7 @@ export function replayAnswer(
       "chip"
     )
   }
-  return { status: "unavailable", reason: unrecordedReason }
+  return { status: "unavailable", reason: unmatchedReason }
 }
 
 export function replayFetch(

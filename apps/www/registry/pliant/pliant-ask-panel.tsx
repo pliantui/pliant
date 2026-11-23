@@ -153,6 +153,7 @@ function PliantAskPanel({
   defaultTarget,
   onTargetChange,
   placeholder,
+  answerLabel,
   open,
   defaultOpen,
   onOpenChange,
@@ -178,6 +179,12 @@ function PliantAskPanel({
   onTargetChange?: (target: string) => void
   /** The prompt's placeholder, in place of `askPromptPlaceholder`. */
   placeholder?: string
+  /**
+   * Heads the answer to an ask, given the ask's target id and prompt, such
+   * as to mark answers that weren't written by a model.
+   */
+  answerLabel?:
+    ((ask: { target: string; prompt: string }) => React.ReactNode) | undefined
   open?: boolean
   defaultOpen?: boolean
   /**
@@ -220,8 +227,10 @@ function PliantAskPanel({
   const id = React.useId()
   // Held here, so the chats outlive the chat while the panel is closed.
   const [chats] = React.useState(createPliantAskChatStore)
-  // The chat takes focus when it mounts, except on a panel that starts open.
-  const [focusOnMount, setFocusOnMount] = React.useState(false)
+  // The chat takes focus when it mounts, except on a panel that starts open
+  // by `defaultOpen`. A panel loaded after the parent opened it, as with
+  // `next/dynamic`, takes focus too.
+  const [focusOnMount, setFocusOnMount] = React.useState(open === true)
   const [wasOpen, setWasOpen] = React.useState(panel.open)
   if (wasOpen !== panel.open) {
     setWasOpen(panel.open)
@@ -254,6 +263,7 @@ function PliantAskPanel({
               autoFocus={focusOnMount}
               answers={answers}
               store={chats}
+              answerLabel={answerLabel}
             />
           </React.Suspense>
         </aside>

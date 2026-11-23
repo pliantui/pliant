@@ -6,15 +6,25 @@ import { cn } from "cn"
 import {
   CustomizeControl,
   CustomizeSurface,
-  focusFirstAsk,
 } from "@/components/demo/customize-control"
+import { DemoAsk, useDemoAsk } from "@/components/demo/demo-ask-panel"
 import { ScriptedAsks } from "@/components/demo/scripted-asks"
 import type { ScriptedAsksState } from "@/components/demo/use-scripted-asks"
 
-// Frames a preview of a component that isn't built yet: its Customize menu
-// and the scripted asks. The page's note says the component isn't
-// built.
-export function ScriptedFrame({
+type ScriptedFrameProps = React.ComponentProps<typeof ScriptedFrameBody>
+
+// Frames a preview of a component that isn't built yet: its Customize menu,
+// the scripted asks and the chat its Ask opens. The page's note says the
+// component isn't built.
+export function ScriptedFrame(props: ScriptedFrameProps) {
+  return (
+    <DemoAsk surface={`/preview/${props.label}`}>
+      <ScriptedFrameBody {...props} />
+    </DemoAsk>
+  )
+}
+
+function ScriptedFrameBody({
   label,
   asks,
   scripted,
@@ -28,18 +38,17 @@ export function ScriptedFrame({
   className?: string | undefined
   children: React.ReactNode
 }) {
-  const frame = React.useRef<HTMLDivElement>(null)
+  const chat = useDemoAsk()
   const options = {
     customized: scripted.applied.length > 0,
     onAsk: () => {
-      focusFirstAsk(frame.current)
+      chat?.ask(label)
     },
     onReset: scripted.reset,
   }
 
   return (
     <div
-      ref={frame}
       // Found by the unfinished work check, which keeps unfinished work out of
       // a build for the production site.
       data-unfinished="not-implemented"

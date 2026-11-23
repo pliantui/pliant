@@ -9,7 +9,7 @@ const maxTitleLength = 60
  * question or reason the answer gave instead, an error, or a cancelled ask.
  */
 type PliantAskChatMessage =
-  | { id: string; kind: "ask"; text: string; target: string }
+  | { id: string; kind: "ask"; text: string; target: string; targetId: string }
   | {
       id: string
       kind: "change"
@@ -118,16 +118,17 @@ function createPliantAskChatStore() {
       })
     },
     /**
-     * Adds an ask to the open chat, or to a new chat titled from it, and
-     * returns the chat's id.
+     * Adds an ask about `target`, by its label and id, to the open chat, or
+     * to a new chat titled from it, and returns the chat's id.
      */
-    ask: (text: string, target: string) => {
+    ask: (text: string, target: string, targetId: string) => {
       const current = getSnapshot()
       const message: PliantAskChatMessage = {
         id: createId(),
         kind: "ask",
         text,
         target,
+        targetId,
       }
       const open = current.chats.find(({ id }) => id === current.active)
       if (open) {

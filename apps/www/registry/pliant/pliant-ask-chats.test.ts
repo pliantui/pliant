@@ -8,15 +8,23 @@ function createStore() {
 
 describe("createPliantAskChatStore", () => {
   it("starts with no chats and a new chat open, apart from other stores", () => {
-    createStore().ask("put the overdue card first", "Key metrics")
+    createStore().ask(
+      "put the overdue card first",
+      "Key metrics",
+      "key-metrics"
+    )
     expect(createStore().getSnapshot()).toEqual({ active: null, chats: [] })
   })
 
   it("creates a chat, titled from its first ask, when a new chat gets one", () => {
     const store = createStore()
 
-    const chatId = store.ask("  put the overdue   card first ", "Key metrics")
-    store.ask("and hide orders", "Key metrics")
+    const chatId = store.ask(
+      "  put the overdue   card first ",
+      "Key metrics",
+      "key-metrics"
+    )
+    store.ask("and hide orders", "Key metrics", "key-metrics")
 
     const { active, chats } = store.getSnapshot()
     expect(active).toBe(chatId)
@@ -31,7 +39,7 @@ describe("createPliantAskChatStore", () => {
   it("shortens a long title", () => {
     const store = createStore()
 
-    store.ask("a".repeat(200), "Key metrics")
+    store.ask("a".repeat(200), "Key metrics", "key-metrics")
 
     const title = store.getSnapshot().chats[0]?.title ?? ""
     expect(title.length).toBeLessThanOrEqual(60)
@@ -40,11 +48,19 @@ describe("createPliantAskChatStore", () => {
 
   it("starts another chat after New chat and switches between them", () => {
     const store = createStore()
-    const first = store.ask("put the overdue card first", "Key metrics")
+    const first = store.ask(
+      "put the overdue card first",
+      "Key metrics",
+      "key-metrics"
+    )
 
     store.newChat()
     expect(store.getSnapshot().active).toBeNull()
-    const second = store.ask("hide the orders card", "Key metrics")
+    const second = store.ask(
+      "hide the orders card",
+      "Key metrics",
+      "key-metrics"
+    )
 
     expect(store.getSnapshot().chats.map(({ title }) => title)).toEqual([
       "hide the orders card",
@@ -59,9 +75,13 @@ describe("createPliantAskChatStore", () => {
 
   it("adds answers to their own chat after a switch", () => {
     const store = createStore()
-    const first = store.ask("put the overdue card first", "Key metrics")
+    const first = store.ask(
+      "put the overdue card first",
+      "Key metrics",
+      "key-metrics"
+    )
     store.newChat()
-    store.ask("hide the orders card", "Key metrics")
+    store.ask("hide the orders card", "Key metrics", "key-metrics")
 
     store.answer(first, { kind: "clarify", text: "Which card?" })
 
@@ -74,7 +94,11 @@ describe("createPliantAskChatStore", () => {
 
   it("records whether a change was locked in or discarded", () => {
     const store = createStore()
-    const chatId = store.ask("put the overdue card first", "Key metrics")
+    const chatId = store.ask(
+      "put the overdue card first",
+      "Key metrics",
+      "key-metrics"
+    )
     store.answer(chatId, {
       kind: "change",
       target: "Key metrics",
@@ -98,7 +122,11 @@ describe("createPliantAskChatStore", () => {
 
   it("deletes a chat and opens a new one in its place", () => {
     const store = createStore()
-    const chatId = store.ask("put the overdue card first", "Key metrics")
+    const chatId = store.ask(
+      "put the overdue card first",
+      "Key metrics",
+      "key-metrics"
+    )
 
     store.deleteChat(chatId)
 
@@ -112,7 +140,7 @@ describe("createPliantAskChatStore", () => {
       calls++
     })
 
-    store.ask("put the overdue card first", "Key metrics")
+    store.ask("put the overdue card first", "Key metrics", "key-metrics")
     unsubscribe()
     store.newChat()
 
@@ -123,7 +151,7 @@ describe("createPliantAskChatStore", () => {
     const store = createStore()
     for (let index = 0; index < 25; index++) {
       store.newChat()
-      store.ask(`ask ${String(index)}`, "Key metrics")
+      store.ask(`ask ${String(index)}`, "Key metrics", "key-metrics")
     }
 
     const { chats } = store.getSnapshot()
@@ -134,7 +162,7 @@ describe("createPliantAskChatStore", () => {
 
   it("keeps the last 40 messages of a chat", () => {
     const store = createStore()
-    const chatId = store.ask("ask 0", "Key metrics")
+    const chatId = store.ask("ask 0", "Key metrics", "key-metrics")
     for (let index = 1; index < 45; index++) {
       store.answer(chatId, { kind: "clarify", text: `answer ${String(index)}` })
     }

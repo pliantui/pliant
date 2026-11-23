@@ -410,7 +410,7 @@ test("moves Projects and Team under More", async ({ page, errors }) => {
   expect(errors).toEqual([])
 })
 
-test("point mode's Ask leads to the asks of the part selected", async ({
+test("point mode's Ask opens the chat on the part selected", async ({
   page,
   errors,
 }) => {
@@ -427,9 +427,11 @@ test("point mode's Ask leads to the asks of the part selected", async ({
     .getByRole("button", { name: "Ask" })
     .click()
 
-  await expect(
-    asks(page, "the sections table").getByRole("button").first()
-  ).toBeFocused()
+  const chat = page.getByRole("complementary", { name: "Ask" })
+  await expect(chat.getByRole("combobox", { name: "Change" })).toHaveText(
+    "Sections table"
+  )
+  await expect(chat.getByRole("textbox", { name: "Ask" })).toBeFocused()
   expect(errors).toEqual([])
 })
 

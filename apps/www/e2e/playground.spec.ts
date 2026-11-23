@@ -91,29 +91,33 @@ test("shows each example's asks, scripted where there's no recording", async ({
   ).toContainText('"op": "collapse"')
 })
 
-test("answers only the suggested asks when asked in your own words", async ({
+test("answers only the suggested asks in the chat, and lists what it keeps", async ({
   page,
 }) => {
   await page.goto("/playground")
-  const box = page.getByRole("textbox", { name: "Or ask in your own words" })
+  await pickCustomize(
+    step(page, "Compare before and after").getByRole("button", {
+      name: "Customize orders table",
+    }),
+    "Ask for a change…"
+  )
+  const chat = page.getByRole("complementary", { name: "Ask" })
+  const prompt = chat.getByRole("textbox", { name: "Ask" })
+  const log = chat.getByRole("log")
 
-  await box.fill("make everything purple")
-  await box.press("Enter")
+  await prompt.fill("make everything purple")
+  await prompt.press("Enter")
   await expect(
-    page.getByText("This demo only answers its recorded asks.", {
-      exact: false,
-    })
+    log.getByText("This demo answers only its suggested asks.")
   ).toBeVisible()
 
-  await box.fill("highlight overdue orders over ₹1L")
-  await page.getByRole("button", { name: "Ask", exact: true }).click()
-  const status = step(page, "Ask for a change")
-    .getByRole("status")
-    .filter({ hasText: "Highlighted the overdue orders" })
-  await expect(status).toContainText("Scripted answer")
-  await expect(status).toContainText(
-    "Highlighted the overdue orders worth more than ₹1,00,000."
-  )
+  await prompt.fill("highlight overdue orders over ₹1L")
+  await prompt.press("Enter")
+  await expect(log.getByText("Scripted answer")).toBeVisible()
+  await expect(
+    log.getByText("Highlighted the overdue orders worth more than ₹1,00,000.")
+  ).toBeVisible()
+  await chat.getByRole("button", { name: "Lock in" }).click()
   await expect(
     page.getByRole("region", { name: "Overlay JSON" })
   ).toContainText('"op": "addHighlight"')
@@ -128,22 +132,6 @@ test("answers only the suggested asks when asked in your own words", async ({
   for (const order of large) {
     await expect(highlighted.filter({ hasText: order.id })).toHaveCount(1)
   }
-})
-
-test("suggests one of the picked example's asks in the text box", async ({
-  page,
-}) => {
-  await page.goto("/playground")
-  const box = page.getByRole("textbox", { name: "Or ask in your own words" })
-  await expect(box).toHaveAttribute(
-    "placeholder",
-    "add a column for days since each order was placed"
-  )
-
-  await step(page, "Pick an example")
-    .getByRole("radio", { name: /^Sidebar/ })
-    .click()
-  await expect(box).toHaveAttribute("placeholder", "open Tickets when I log in")
 })
 
 test("fits a phone screen", async ({ page }) => {
