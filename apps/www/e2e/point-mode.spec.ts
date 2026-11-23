@@ -1,11 +1,22 @@
 import type { Locator, Page } from "@playwright/test"
 
-import { expect, test } from "./fixtures"
+import { expect, pickCustomize, test } from "./fixtures"
 
 const surface = "/examples/orders"
 
 function region(page: Page) {
   return page.locator('[data-pliant-id="key-metrics"]')
+}
+
+function pageMenu(page: Page) {
+  return page.getByRole("button", { name: "Customize the orders page" })
+}
+
+// ⌘. asks about the part that has focus, so it points only from outside
+// the page's parts, such as from the page's Customize button.
+async function startPointing(page: Page) {
+  await pageMenu(page).focus()
+  await page.keyboard.press("ControlOrMeta+Period")
 }
 
 function layer(page: Page) {
@@ -218,22 +229,18 @@ test("picks with the keyboard alone", async ({ page, errors }) => {
   expect(errors).toEqual([])
 })
 
-test("leaves on Escape and returns focus to the toggle", async ({
+test("leaves on Escape and returns focus to where it was", async ({
   page,
   errors,
 }) => {
   await load(page)
-  const toggle = page.getByRole("button", { name: "Point" })
 
-  await toggle.focus()
-  await page.keyboard.press("Enter")
-  await expect(toggle).toHaveAttribute("aria-pressed", "true")
+  await startPointing(page)
   await expect(keyMetricsBox(page)).toBeFocused()
   await page.keyboard.press("Escape")
 
   await expect(layer(page)).toBeHidden()
-  await expect(toggle).toHaveAttribute("aria-pressed", "false")
-  await expect(toggle).toBeFocused()
+  await expect(pageMenu(page)).toBeFocused()
   expect(errors).toEqual([])
 })
 
@@ -242,7 +249,7 @@ test("points again from the prompt at the target it already shows", async ({
   errors,
 }) => {
   await load(page)
-  await page.getByRole("button", { name: "Ask" }).click()
+  await pickCustomize(pageMenu(page), "Ask for a change…")
   const textbox = page.getByRole("textbox", { name: "Ask" })
   await expect(textbox).toBeFocused()
 
@@ -277,7 +284,7 @@ test("waits for the ask panel's target picker to close", async ({
   errors,
 }) => {
   await load(page)
-  await page.getByRole("button", { name: "Ask" }).click()
+  await pickCustomize(pageMenu(page), "Ask for a change…")
   const picker = page.getByRole("combobox", { name: "Change" })
   const listbox = page.getByRole("listbox")
 
@@ -341,7 +348,7 @@ test("keeps its outlines clickable under a modal layer", async ({
   errors,
 }) => {
   await load(page)
-  await page.getByRole("button", { name: "Point" }).click()
+  await startPointing(page)
   await expect(keyMetricsBox(page)).toBeFocused()
   await page.evaluate(() => {
     document.body.style.pointerEvents = "none"
@@ -481,14 +488,13 @@ async function buttons(page: Page) {
   )
 }
 
-test("is a modal dialog when started from the toggle", async ({
+test("is a modal dialog when started from the shortcut", async ({
   page,
   errors,
 }) => {
   await load(page)
-  const toggle = page.getByRole("button", { name: "Point" })
 
-  await toggle.click()
+  await startPointing(page)
   await expect(keyMetricsBox(page)).toBeFocused()
   await expect(
     page.getByRole("dialog", { name: "Point mode" })
@@ -507,9 +513,10 @@ test("is a modal dialog when started from the toggle", async ({
 
   await page.keyboard.press("Escape")
   await expect(layer(page)).toBeHidden()
-  await expect(toggle).toBeFocused()
-  await expect(toggle).toHaveAttribute("aria-pressed", "false")
-  expect(await buttons(page)).toEqual(expect.arrayContaining(["Point", "Ask"]))
+  await expect(pageMenu(page)).toBeFocused()
+  expect(await buttons(page)).toEqual(
+    expect.arrayContaining(["Customize the orders page"])
+  )
   expect(errors).toEqual([])
 })
 
@@ -526,7 +533,7 @@ test("announces the mode while Alt is held", async ({ page, errors }) => {
   await page.keyboard.down("Alt")
   await expect(keyMetricsBox(page)).toBeVisible()
   expect(await buttons(page)).toEqual(
-    expect.arrayContaining(["Point", "Ask", "Key metrics"])
+    expect.arrayContaining(["Customize the orders page", "Key metrics"])
   )
   await expect.poll(announced).toBe(true)
   await page.keyboard.up("Alt")
@@ -541,7 +548,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme })
     await load(page)
 
-    await page.getByRole("button", { name: "Point" }).click()
+    await startPointing(page)
     await expect(keyMetricsBox(page)).toBeVisible()
 
     await expectOutlinesClear(page)
@@ -560,7 +567,7 @@ test("moves a label out of the way of the outline above it", async ({
   const ordersLabel = orders.getByText("All orders", { exact: true })
 
   // The key metrics sit just above all orders, where its label would go.
-  await page.getByRole("button", { name: "Point" }).click()
+  await startPointing(page)
   await expect(orders).toBeVisible()
   expect(await isAbove(ordersLabel, orders)).toBe(false)
   await expectOutlinesClear(page)
@@ -582,13 +589,13 @@ test("moves a label out of the way of the outline above it", async ({
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 640 }, hasTouch: true })
 
-  test("points by touch and follows the page as it scrolls", async ({
+  test("picks by touch and follows the page as it scrolls", async ({
     page,
     errors,
   }) => {
     await load(page)
 
-    await page.getByRole("button", { name: "Point" }).tap()
+    await startPointing(page)
     await expect(keyMetricsBox(page)).toBeVisible()
     const before = await keyMetricsBox(page).boundingBox()
 

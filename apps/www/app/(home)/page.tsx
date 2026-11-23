@@ -33,6 +33,13 @@ export const metadata: Metadata = {
     title: site.headline,
     description: site.summary,
     siteName: site.name,
+    // A page's own `openGraph` replaces the root's, image included.
+    images: {
+      url: "/opengraph-image.png",
+      width: 1200,
+      height: 630,
+      alt: `${site.name}: ${site.headline}`,
+    },
   },
 }
 

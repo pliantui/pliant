@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright"
 import type { Page } from "@playwright/test"
 
-import { expect, test } from "./fixtures"
+import { expect, pickCustomize, test } from "./fixtures"
 
 const surface = "/examples/orders"
 
@@ -52,9 +52,13 @@ async function loadOrders(page: Page) {
   await expect(page.getByRole("table", { name: "All orders" })).toBeVisible()
 }
 
+function pageMenu(page: Page) {
+  return page.getByRole("button", { name: "Customize the orders page" })
+}
+
 async function openPanel(page: Page) {
   await loadOrders(page)
-  await page.getByRole("button", { name: "Ask" }).click()
+  await pickCustomize(pageMenu(page), "Ask for a change…")
   const panel = page.getByRole("complementary", { name: "Ask" })
   await expect(panel.getByRole("textbox", { name: "Ask" })).toBeFocused()
   return panel
@@ -205,7 +209,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       }) => {
         await page.goto(path)
         await expect(
-          page.getByRole("button", { name: /^Reset / }).first()
+          page.getByRole("button", { name: /^Customize / }).first()
         ).toBeVisible()
         expect(await violations(page, colorScheme)).toEqual([])
       })
@@ -316,8 +320,27 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(await violations(page, colorScheme, '[role="menu"]')).toEqual([])
       await page.keyboard.press("Escape")
       await expect(
-        page.getByRole("button", { name: "Reset", exact: true })
+        page
+          .locator('[data-slot="pliant-data-table-toolbar"]')
+          .getByText("Customized", { exact: true })
       ).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
+
+    test("the Customize menus have no accessibility violations", async ({
+      page,
+    }) => {
+      await loadOrders(page)
+      await pageMenu(page).click()
+      await expect(page.getByRole("menu")).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+      await page.keyboard.press("Escape")
+      await expect(page.getByRole("menu")).toBeHidden()
+
+      await page
+        .getByRole("group", { name: "Overdue" })
+        .click({ button: "right" })
+      await expect(page.getByRole("menu")).toBeVisible()
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
@@ -358,7 +381,9 @@ for (const colorScheme of ["light", "dark"] as const) {
 
     test("point mode has no accessibility violations", async ({ page }) => {
       await loadOrders(page)
-      await page.getByRole("button", { name: "Point" }).click()
+      // Outside the page's parts, ⌘. points at one instead of asking.
+      await pageMenu(page).focus()
+      await page.keyboard.press("ControlOrMeta+Period")
       await expect(
         page.getByRole("dialog", { name: "Point mode" })
       ).toBeVisible()
@@ -372,6 +397,17 @@ for (const colorScheme of ["light", "dark"] as const) {
 
     test.describe("on a small screen", () => {
       test.use({ viewport: { width: 390, height: 844 } })
+
+      test("the Customize menu has no accessibility violations", async ({
+        page,
+      }) => {
+        await loadOrders(page)
+        await pageMenu(page).click()
+        await expect(
+          page.getByRole("menuitem", { name: "Reset to default" })
+        ).toBeInViewport()
+        expect(await violations(page, colorScheme)).toEqual([])
+      })
 
       test("a docs page has no accessibility violations", async ({ page }) => {
         await page.goto("/docs/concepts/layers")

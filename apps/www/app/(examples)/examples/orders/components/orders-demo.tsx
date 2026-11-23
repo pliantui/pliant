@@ -50,6 +50,8 @@ export function OrdersDemo({
             }}
             onAdjust={adjustTable}
           />
+          {/* Next to the menu that opens it, so Tab moves into it. */}
+          <DemoAskPanel ask={ask} returnFocus={customize} />
         </header>
         <DemoCustomizeSurface
           targets={["key-metrics"]}
@@ -66,11 +68,10 @@ export function OrdersDemo({
           }}
           onAdjust={adjustTable}
         >
-          {table}
+          <div>{table}</div>
         </DemoCustomizeSurface>
       </div>
       <PliantPointMode targets={askTargets} onPick={ask.ask} trigger={null} />
-      <DemoAskPanel ask={ask} returnFocus={customize} />
     </DemoAskContext>
   )
 }

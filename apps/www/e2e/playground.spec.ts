@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test"
 
 import { orders } from "../lib/demo/data"
-import { expect, test } from "./fixtures"
+import { expect, pickCustomize, test } from "./fixtures"
 
 // The orders the playground's orders table shows: the latest 12.
 const recent = orders
@@ -55,9 +55,11 @@ test("asks for a change, compares it with the start, and resets it", async ({
   await compare.getByRole("radio", { name: "After" }).click()
   await expect(column).toBeVisible()
 
-  const reset = compare.getByRole("button", { name: "Reset orders table" })
-  await reset.click()
-  await expect(reset).toBeFocused()
+  const menu = compare.getByRole("button", {
+    name: "Customize orders table",
+  })
+  await pickCustomize(menu, "Reset to default")
+  await expect(menu).toBeFocused()
   await expect(column).toHaveCount(0)
   await expect(json).toContainText("No changes yet")
   expect(errors).toEqual([])

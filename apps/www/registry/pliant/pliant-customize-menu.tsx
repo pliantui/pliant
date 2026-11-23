@@ -145,17 +145,22 @@ function useCustomizeItems({
   ]
 }
 
-// Keeps a closing menu from taking focus back from an item that moved it.
-function useKeepFocus() {
-  const keep = React.useRef(false)
+// Runs an item that moves focus once its menu has closed, so the menu
+// doesn't take focus back or drop it as it goes. Other items run at once,
+// and focus goes back to the menu's trigger.
+function useRunAfterClose() {
+  const pending = React.useRef<(() => void) | null>(null)
   return {
-    select: (item: CustomizeItem) => {
-      keep.current = item.movesFocus
-      item.run?.()
+    run: (item: Pick<CustomizeItem, "run" | "movesFocus">) => {
+      if (item.movesFocus) pending.current = item.run ?? null
+      else item.run?.()
     },
     onCloseAutoFocus: (event: Event) => {
-      if (keep.current) event.preventDefault()
-      keep.current = false
+      const run = pending.current
+      pending.current = null
+      if (!run) return
+      event.preventDefault()
+      run()
     },
   }
 }
@@ -201,7 +206,7 @@ function PliantCustomizeMenu(
   } = splitActions(props)
   const messages = usePliantMessages(customizeMessages)
   const groups = useCustomizeItems(actions)
-  const focus = useKeepFocus()
+  const focus = useRunAfterClose()
 
   return (
     <div
@@ -246,7 +251,7 @@ function PliantCustomizeMenu(
                     key={item.id}
                     disabled={!item.run}
                     onSelect={() => {
-                      focus.select(item)
+                      focus.run(item)
                     }}
                   >
                     {item.icon}
@@ -265,15 +270,21 @@ function PliantCustomizeMenu(
 
 /**
  * The Customize group for a `ContextMenuContent` of your own, as when a part
- * already has a right-click menu. The menu should keep focus where Ask moved
- * it, which `PliantCustomizeContextMenu` does for you.
+ * already has a right-click menu. An item that moves focus, like Ask, should
+ * run once the menu has closed, from `runItem` and the menu's
+ * `onCloseAutoFocus`; `PliantCustomizeContextMenu` does this for you.
  */
 function PliantCustomizeContextMenuGroup({
-  onSelect,
+  runItem,
   ...actions
 }: PliantCustomizeActions & {
-  /** Called with each item as it's picked, before its handler. */
-  onSelect?: ((item: { movesFocus: boolean }) => void) | undefined
+  /**
+   * Runs a picked item's handler, in place of running it at once, as to
+   * wait for the menu to close.
+   */
+  runItem?:
+    | ((item: { run: (() => void) | undefined; movesFocus: boolean }) => void)
+    | undefined
 }) {
   const messages = usePliantMessages(customizeMessages)
   const groups = useCustomizeItems(actions)
@@ -295,8 +306,8 @@ function PliantCustomizeContextMenuGroup({
                 item.id === "ask" && item.run ? askShortcut.keys : undefined
               }
               onSelect={() => {
-                onSelect?.(item)
-                item.run?.()
+                if (runItem) runItem(item)
+                else item.run?.()
               }}
             >
               {item.icon}
@@ -326,7 +337,7 @@ function PliantCustomizeContextMenu({
 }: PliantCustomizeActions & {
   children: React.ReactElement
 }) {
-  const keep = React.useRef(false)
+  const focus = useRunAfterClose()
   const { onAsk } = actions
 
   return (
@@ -350,17 +361,9 @@ function PliantCustomizeContextMenu({
       </ContextMenuTrigger>
       <ContextMenuContent
         className="w-52"
-        onCloseAutoFocus={(event) => {
-          if (keep.current) event.preventDefault()
-          keep.current = false
-        }}
+        onCloseAutoFocus={focus.onCloseAutoFocus}
       >
-        <PliantCustomizeContextMenuGroup
-          {...actions}
-          onSelect={(item) => {
-            keep.current = item.movesFocus
-          }}
-        />
+        <PliantCustomizeContextMenuGroup {...actions} runItem={focus.run} />
       </ContextMenuContent>
     </ContextMenu>
   )

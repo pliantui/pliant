@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test"
 
-import { expect, test } from "./fixtures"
+import { expect, pickCustomize, test } from "./fixtures"
 
 function example(page: Page, name: string) {
   return page.getByRole("region", { name, exact: true })
@@ -45,8 +45,10 @@ test("charts a table above it, reshapes the chart, and resets it", async ({
   await reshape.getByRole("button", { name: /^make this a line chart/ }).click()
   await expect(card.locator("svg polyline")).toHaveCount(3)
 
-  const reset = card.getByRole("button", { name: "Reset the regions table" })
-  await reset.click()
+  const reset = card.getByRole("button", {
+    name: "Customize the regions table",
+  })
+  await pickCustomize(reset, "Reset to default")
   await expect(card.locator("figure svg")).toHaveCount(0)
   await expect(reshape).toHaveCount(0)
   await expect(reset).toBeFocused()

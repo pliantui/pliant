@@ -1,8 +1,12 @@
 import type { Page } from "@playwright/test"
 
-import { expect, test } from "./fixtures"
+import { expect, pickCustomize, test } from "./fixtures"
 
 const surface = "/examples/orders"
+
+function pageMenu(page: Page) {
+  return page.getByRole("button", { name: "Customize the orders page" })
+}
 
 function region(page: Page) {
   return page.locator('[data-pliant-id="key-metrics"]')
@@ -19,7 +23,7 @@ async function slotOrder(page: Page) {
 async function openPanel(page: Page) {
   await page.goto(surface)
   await expect(region(page)).not.toHaveAttribute("data-pliant-pending")
-  await page.getByRole("button", { name: "Ask" }).click()
+  await pickCustomize(pageMenu(page), "Ask for a change…")
   const panel = page.getByRole("complementary", { name: "Ask" })
   await expect(panel.getByRole("textbox", { name: "Ask" })).toBeFocused()
   return panel
@@ -121,7 +125,7 @@ for (const width of [1024, 1440]) {
     )
 
     for (const locator of [
-      page.getByRole("button", { name: "Ask" }),
+      pageMenu(page),
       ...(await region(page).getByRole("group").all()),
     ]) {
       expect(
@@ -199,7 +203,7 @@ test("doesn't trap focus or take Escape from the page", async ({
   errors,
 }) => {
   const panel = await openPanel(page)
-  const trigger = page.getByRole("button", { name: "Ask" })
+  const trigger = pageMenu(page)
 
   await page.getByRole("heading", { level: 1 }).evaluate((heading) => {
     heading.setAttribute("tabindex", "-1")

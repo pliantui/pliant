@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test"
 
 import { sections } from "../lib/acme/data"
-import { expect, test } from "./fixtures"
+import { expect, pickCustomize, test } from "./fixtures"
 
 function app(page: Page) {
   return page.getByRole("tabpanel", { name: "Preview" })
@@ -140,7 +140,10 @@ test("adds a derived column, shows it in Changes, and resets it", async ({
   await expect(overlay).toContainText('"id": "over-limit"')
 
   await openTab(page, "Preview")
-  await app(page).getByRole("button", { name: "Reset the dashboard" }).click()
+  await pickCustomize(
+    app(page).getByRole("button", { name: "Customize the dashboard" }),
+    "Reset to default"
+  )
   await expect(
     sectionsTable(page).getByRole("columnheader", { name: /Over limit/ })
   ).toBeHidden()
@@ -313,7 +316,10 @@ test("previews, keeps and discards the asks the demo draws", async ({
   await expect(app(page).getByText("$101.30")).toBeVisible()
   await expect(app(page).getByText("October: $71.91")).toBeVisible()
 
-  await app(page).getByRole("button", { name: "Reset the dashboard" }).click()
+  await pickCustomize(
+    app(page).getByRole("button", { name: "Customize the dashboard" }),
+    "Reset to default"
+  )
   await expect(app(page).getByText(/^Revenue per New Customer/)).toBeHidden()
   expect(errors).toEqual([])
 })
@@ -410,9 +416,12 @@ test("point mode leads to the asks of the part picked", async ({
 }) => {
   await load(page)
   await sectionsTable(page).scrollIntoViewIfNeeded()
-  await app(page).getByRole("button", { name: "Point" }).click()
-  await page.getByRole("button", { name: "Sections table" }).focus()
-  await page.keyboard.press("Enter")
+  await page.keyboard.down("Alt")
+  await page
+    .locator('[data-slot="pliant-point-mode"]')
+    .getByRole("button", { name: "Sections table" })
+    .click()
+  await page.keyboard.up("Alt")
 
   await expect(
     asks(page, "the sections table").getByRole("button").first()

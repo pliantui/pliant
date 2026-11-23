@@ -30,7 +30,8 @@ export function SiteHeader() {
             className="mr-3 ml-3 flex items-center gap-2 rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 xl:ml-0"
           >
             <Logo className="size-5" />
-            <span className="text-lg leading-none font-semibold tracking-tight">
+            {/* On a phone, beside the menu button, only the logo fits. */}
+            <span className="text-lg leading-none font-semibold tracking-tight max-sm:sr-only">
               pliant
             </span>
           </Link>

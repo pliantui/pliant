@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test"
 
 import { orders } from "../lib/demo/data"
 import { formatNumber } from "../lib/demo/format"
-import { expect, test } from "./fixtures"
+import { expect, pickCustomize, test } from "./fixtures"
 
 const surface = "/examples/orders"
 const total = formatNumber(orders.length)
@@ -341,7 +341,10 @@ test("fits the table next to the open panel at 1440px", async ({
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await load(page)
-  await page.getByRole("button", { name: "Ask" }).click()
+  await pickCustomize(
+    page.getByRole("button", { name: "Customize the orders page" }),
+    "Ask for a change…"
+  )
   await expect(panel(page)).toBeVisible()
 
   expect(

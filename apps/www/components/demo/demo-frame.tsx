@@ -92,6 +92,7 @@ export function DemoFrame({
       <div className="flex items-center justify-end gap-2">
         {toolbar}
         <DemoCustomizeMenu ref={customize} label={label} {...options} />
+        {askTargets && <DemoAskPanel ask={panel} returnFocus={customize} />}
       </div>
       <DemoCustomizeSurface {...options}>
         <div className="flex min-w-0 flex-col gap-4">{children}</div>
@@ -107,7 +108,6 @@ export function DemoFrame({
         <AskChips target={target} label={label} prompts={asks} />
         {recorded && <ReplayNote scripted={scripted} />}
       </div>
-      {askTargets && <DemoAskPanel ask={panel} returnFocus={customize} />}
       {askTargets && pointMode && (
         <PliantPointMode
           targets={askTargets}
