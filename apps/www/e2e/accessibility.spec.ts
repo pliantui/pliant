@@ -65,7 +65,7 @@ async function askForPreview(page: Page) {
   const textbox = panel.getByRole("textbox", { name: "Ask" })
   await textbox.fill("put the overdue card first")
   await textbox.press("Enter")
-  await expect(panel.getByRole("status")).toContainText(
+  await expect(panel.getByRole("log", { name: "Conversation" })).toContainText(
     "Moved the Overdue card to the first position."
   )
   await expect(panel.getByRole("button", { name: "Lock in" })).toBeVisible()
@@ -392,7 +392,9 @@ for (const colorScheme of ["light", "dark"] as const) {
         page,
       }) => {
         const panel = await askForPreview(page)
-        await expect(panel.getByRole("status")).toBeInViewport({ ratio: 1 })
+        await expect(
+          panel.getByRole("log", { name: "Conversation" })
+        ).toBeInViewport({ ratio: 1 })
         expect(await violations(page, colorScheme)).toEqual([])
       })
     })

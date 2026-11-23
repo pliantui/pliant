@@ -218,7 +218,7 @@ test.describe("asking about the table", () => {
       await load(page)
       await ask(page, suggestion)
 
-      const status = panel(page).getByRole("status")
+      const status = panel(page).getByRole("log", { name: "Conversation" })
       for (const sentence of explain) {
         await expect(status).toContainText(sentence)
       }
@@ -248,9 +248,9 @@ test.describe("asking about the table", () => {
 
     await ask(page, "make the customer column 240 pixels wide")
 
-    await expect(panel(page).getByRole("status")).toContainText(
-      "Set the Customer column width to 240 pixels."
-    )
+    await expect(
+      panel(page).getByRole("log", { name: "Conversation" })
+    ).toContainText("Set the Customer column width to 240 pixels.")
     expect((await header(page, "Customer").boundingBox())?.width).toBe(240)
     expect(errors).toEqual([])
   })
@@ -259,7 +259,9 @@ test.describe("asking about the table", () => {
     await load(page)
     await ask(page, "make it nicer")
 
-    await expect(panel(page).getByRole("status")).toHaveText(
+    await expect(
+      panel(page).getByRole("log", { name: "Conversation" })
+    ).toContainText(
       "What would make the orders table nicer for you: easier scanning, a cleaner layout, or something specific like sorting or hiding columns?"
     )
     await expect(
@@ -278,7 +280,9 @@ test.describe("asking about the table", () => {
     )
 
     await panel(page).getByRole("button", { name: "Discard" }).click()
-    await expect(panel(page).getByRole("status")).toHaveText("Discarded.")
+    await expect(
+      panel(page).getByRole("log", { name: "Conversation" })
+    ).toContainText("Discarded.")
     await showsBase(page)
 
     await page.reload()
@@ -361,9 +365,9 @@ test.describe("on a phone", () => {
   }) => {
     await load(page)
     await ask(page, "put customer before order")
-    await expect(panel(page).getByRole("status")).toContainText(
-      "Moved Customer column before Order."
-    )
+    await expect(
+      panel(page).getByRole("log", { name: "Conversation" })
+    ).toContainText("Moved Customer column before Order.")
 
     const customer = header(page, "Customer")
     await expect(customer).toBeInViewport({ ratio: 1 })
