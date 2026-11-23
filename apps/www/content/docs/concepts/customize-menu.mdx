@@ -1,0 +1,71 @@
+---
+title: The Customize menu
+description: Where users find every Pliant action, why it all sits behind one menu, and why Pliant says "Adjust" instead of "Edit".
+---
+
+Users reach everything Pliant offers through one menu, called **Customize**. It opens from the part of the page they're looking at, or from the page header for the whole page, and it holds the same four items wherever it appears. Pliant adds no buttons of its own anywhere else on the page.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The Customize menu isn't in Pliant yet. Today, users open the ask panel from
+  its own **Ask** button, and point mode from its **Point** button.
+</Callout>
+
+## What's in the menu
+
+| Item                  | Icon                | What it does                                                                                                      |
+| --------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Ask for a change…** | `Sparkles`          | Opens the [ask panel](/docs/components/ask-panel) on this part, so the user can describe a change in plain words. |
+| **Adjust by hand**    | `SlidersHorizontal` | Selects this part in [point mode](/docs/components/point-mode), with handles to drag, resize and hide it.         |
+| **History**           | `History`           | Lists the user's changes to this part, so they can undo one or go back to an earlier point.                       |
+| **Reset to default**  | `RotateCcw`         | Drops the user's own changes to this part. Their team's defaults and your base stay as they are.                  |
+
+The icons come from [lucide](https://lucide.dev). The menu itself is marked with the [Customize icon](/docs/components/customize-icon), which Pliant ships in the same style so it sits next to your other icons.
+
+The menu acts on what it was opened from. Opened from the orders table, **Reset to default** resets the table; opened from the page header, it resets the whole page. Items that don't apply are disabled, such as **Reset to default** on a part the user hasn't changed, and **Ask for a change…** is left out when the page has no ask panel.
+
+## Where users find it
+
+| Entry point               | What the user does                                                                                        | Built from              |
+| ------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------- |
+| Right-click               | Right-clicks a part of the page, or long-presses it on a touch screen, and opens the **Customize** group. | shadcn's `ContextMenu`  |
+| A region's header         | Clicks the **Customize** button in the header of a table, a row of cards or a form.                       | shadcn's `DropdownMenu` |
+| The page header           | Clicks **Customize** in the page header to act on the whole page.                                         | shadcn's `DropdownMenu` |
+| <Kbd>⌘</Kbd> <Kbd>K</Kbd> | Opens your command menu and picks from its **Customize** group.                                           | shadcn's `Command`      |
+| <Kbd>⌘</Kbd> <Kbd>.</Kbd> | Asks for a change to the part that has focus, straight from the keyboard.                                 |                         |
+
+The right-click menu and the region's header button are the defaults, because they're where people already look for actions on a thing. The page header button covers changes that aren't about one part, such as the page's density. The last two are for people who live on the keyboard; on Windows and Linux they use <Kbd>Ctrl</Kbd> in place of <Kbd>⌘</Kbd>.
+
+If your app has its own right-click menu or command menu, the **Customize** group joins it instead of replacing it. The [Customize Menu component](/docs/components/customize-menu) has the code for each entry point.
+
+## Why one menu
+
+A floating button in a corner covers content and doesn't say which part of the page it acts on. Separate **Ask** and **Reset** buttons on every card add clutter to a page that, most of the time, people just want to use. Putting every action behind **Customize** keeps the page as you designed it, and gives users one word to learn.
+
+## Why "Adjust", not "Edit"
+
+In a business app, **Edit** and a pencil icon mean changing the record: the order's value, the ticket's priority. Pliant never changes your data, so it never uses either. It says **Customize** for the menu and **Adjust** for its actions, such as "Adjust this table" or "Adjust layout". Your app's own **Edit** buttons keep their meaning.
+
+## Adjust by hand
+
+**Adjust by hand** is for changes users would rather make directly. It selects the part in point mode, where they drag it to a new place, resize it or hide it, and a small bar offers **Ask**, **Adjust** and **Reset** for that part. Tables also keep their own column menus and toolbar.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Generated forms and the expression builder aren't in Pliant yet.
+</Callout>
+
+Every change users can ask for can also be made by hand. **Adjust** opens a form for the change, generated from the [operation's](/docs/concepts/operations) schema, and a calculated column or a highlight gets an expression builder in place of a formula typed from memory.
+
+## Related
+
+- [Point mode](/docs/components/point-mode)
+- [Ask panel](/docs/components/ask-panel)
+- [Customize Menu](/docs/components/customize-menu)
+- [What users can do](/docs/what-users-can-do)

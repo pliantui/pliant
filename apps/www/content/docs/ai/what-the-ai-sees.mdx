@@ -32,6 +32,10 @@ All of it comes from the target you describe, and from what the user typed.
 - Anything about the user, such as their id, name or email.
 - Your code, other users' asks, or other pages.
 
+## Within a chat
+
+Each ask is sent on its own, even in a chat with earlier asks. The model never gets the chat's other messages or the user's other chats. Chats are saved in the user's browser, so your server only sees the asks it answers.
+
 ## Fields from your datasets
 
 The ask route builds each target's `fields` from your [dataset](/docs/data/datasets), for the user who asked, with `describeDataset(dataset, { user, audience: "ai" })`. That leaves out every field marked `exposeToAI: false`, and every field the user may not read, so the model is never told those fields exist.
