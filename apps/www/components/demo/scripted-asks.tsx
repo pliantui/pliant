@@ -32,7 +32,7 @@ export function ScriptedAsks({
             variant="outline"
             size="sm"
             aria-pressed={scripted.has(prompt)}
-            className="h-7 rounded-full px-2.5 text-xs font-normal aria-pressed:border-primary aria-pressed:bg-accent"
+            className="h-auto min-h-7 max-w-full rounded-full px-2.5 py-1 text-left text-xs font-normal whitespace-normal aria-pressed:border-primary aria-pressed:bg-accent"
             onClick={() => {
               scripted.ask(prompt)
             }}

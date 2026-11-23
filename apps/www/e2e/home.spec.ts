@@ -1,34 +1,56 @@
 import type { Page } from "@playwright/test"
 
+import { sections } from "../lib/acme/data"
 import { expect, test } from "./fixtures"
 
-function card(page: Page, name: string) {
-  return page.getByRole("region", { name })
+function app(page: Page) {
+  return page.getByRole("tabpanel", { name: "Preview" })
 }
 
-function chip(page: Page, cardName: string, ask: string | RegExp) {
-  return card(page, cardName)
-    .getByRole("group", { name: `Ask about ${cardName.toLowerCase()}` })
-    .getByRole("button", { name: ask })
+function sidebar(page: Page) {
+  return app(page).getByRole("navigation", { name: "Acme" })
 }
 
-async function statOrder(page: Page) {
-  return card(page, "Key metrics")
-    .locator('[data-pliant-id="key-metrics"]')
-    .getByRole("group")
-    .evaluateAll((groups) =>
-      groups.map((group) => group.getAttribute("aria-label"))
-    )
+function sectionsTable(page: Page) {
+  return app(page).getByRole("table", { name: "Proposal sections" })
+}
+
+function asks(page: Page, part: string) {
+  return app(page).getByRole("group", { name: `Ask about ${part}` })
+}
+
+function moreAsks(page: Page, part: string) {
+  return app(page).getByRole("group", { name: `More asks about ${part}` })
+}
+
+function row(page: Page, header: string) {
+  return sectionsTable(page).getByRole("row").filter({ hasText: header })
 }
 
 async function load(page: Page) {
   await page.goto("/")
   await expect(
-    card(page, "Key metrics").locator('[data-pliant-id="key-metrics"]')
+    app(page).locator('[data-pliant-id="acme-sections"]')
   ).not.toHaveAttribute("data-pliant-pending")
 }
 
-test("leads to the docs and the components", async ({ page }) => {
+async function ask(page: Page, part: string, prompt: string) {
+  await asks(page, part)
+    .getByRole("button", { name: new RegExp(`^${prompt}`) })
+    .click()
+}
+
+async function lockIn(page: Page) {
+  await app(page).getByRole("button", { name: "Lock in" }).click()
+}
+
+async function openTab(page: Page, name: string) {
+  await page.getByRole("tab", { name, exact: true }).click()
+}
+
+test("leads to the docs, the components and the launch post", async ({
+  page,
+}) => {
   await page.goto("/")
   const main = page.getByRole("main")
 
@@ -38,6 +60,11 @@ test("leads to the docs and the components", async ({ page }) => {
       name: "Your app, shaped by the people who use it.",
     })
   ).toBeVisible()
+  await expect(
+    main.getByText(
+      "Point at any part of your shadcn app and ask for a change. Pliant reshapes it with your own components, within the rules you set."
+    )
+  ).toBeVisible()
   await expect(main.getByRole("link", { name: "Get started" })).toHaveAttribute(
     "href",
     "/docs"
@@ -45,11 +72,6 @@ test("leads to the docs and the components", async ({ page }) => {
   await expect(
     main.getByRole("link", { name: "View components" })
   ).toHaveAttribute("href", "/docs/components")
-  await expect(
-    main.getByText(
-      "Point at any part of your shadcn app and ask for a change. Pliant reshapes it with your own components, within the rules you set."
-    )
-  ).toBeVisible()
   await main.getByRole("link", { name: "Introducing Pliant" }).click()
   await expect(
     page.getByRole("heading", { level: 1, name: "Introducing Pliant" })
@@ -57,134 +79,294 @@ test("leads to the docs and the components", async ({ page }) => {
   await expect(page.getByText("The full post is on its way.")).toBeVisible()
 })
 
-test("says the demo replays recorded answers", async ({ page }) => {
-  await page.goto("/")
-
-  await expect(
-    page.getByText("This demo replays recorded answers; no AI model is called.")
-  ).toBeVisible()
-})
-
-test("reshapes the key metrics with a recorded ask, and resets them", async ({
-  page,
-  errors,
-}) => {
-  await load(page)
-  const metrics = card(page, "Key metrics")
-  const before = await statOrder(page)
-
-  await chip(page, "Key metrics", "put the overdue card first").click()
-  await expect(metrics.getByRole("status")).toHaveText(
-    "Moved the Overdue card to the first position."
-  )
-  expect(await statOrder(page)).toEqual([
-    "Overdue",
-    ...before.filter((name) => name !== "Overdue"),
-  ])
-  await expect(metrics.getByText("Customized")).toBeHidden()
-
-  await metrics.getByRole("button", { name: "Lock in" }).click()
-  await expect(metrics.getByText("Customized")).toBeVisible()
-
-  await metrics.getByRole("button", { name: "Reset key metrics" }).click()
-  await expect(metrics.getByText("Customized")).toBeHidden()
-  await expect.poll(() => statOrder(page)).toEqual(before)
-  expect(errors).toEqual([])
-})
-
-test("labels scripted asks and discards their preview", async ({
-  page,
-  errors,
-}) => {
-  await load(page)
-  const settings = card(page, "Notifications")
-  const ask = chip(page, "Notifications", /^hide product news ?, Scripted$/)
-
-  await expect(ask).toBeVisible()
-  await ask.click()
-  await expect(
-    settings.getByRole("checkbox", { name: "Product news" })
-  ).toBeHidden()
-
-  await settings.getByRole("button", { name: "Discard" }).click()
-  await expect(
-    settings.getByRole("checkbox", { name: "Product news" })
-  ).toBeVisible()
-  expect(errors).toEqual([])
-})
-
-test("filters the recent orders with a recorded ask, and resets them", async ({
-  page,
-  errors,
-}) => {
-  await load(page)
-  const orders = card(page, "Recent orders")
-  const rows = orders
-    .getByRole("table")
-    .getByRole("row")
-    .filter({ has: page.getByRole("cell") })
-  const before = await rows.allTextContents()
-
-  await chip(page, "Recent orders", "only show overdue orders").click()
-  await expect(rows.first()).toContainText(/overdue/i)
-  for (const row of await rows.all()) {
-    await expect(row).toContainText(/overdue/i)
-  }
-
-  await orders.getByRole("button", { name: "Lock in" }).click()
-  await expect(orders.getByText("Customized")).toBeVisible()
-
-  const reset = orders.getByRole("button", { name: "Reset recent orders" })
-  await reset.click()
-  await expect(orders.getByText("Customized")).toBeHidden()
-  await expect(reset).toBeFocused()
-  await expect.poll(() => rows.allTextContents()).toEqual(before)
-  expect(errors).toEqual([])
-})
-
-test("plays the scripted chart asks under a banner, and resets", async ({
-  page,
-  errors,
-}) => {
-  await load(page)
-  const revenue = card(page, "Revenue")
-
-  await expect(
-    revenue.getByTitle("Not fully implemented yet").first()
-  ).toBeVisible()
-  await chip(page, "Revenue", /stack by status/).click()
-  await expect(revenue.getByRole("list")).toHaveText(/Paid.*Pending.*Overdue/)
-  await expect(revenue.getByText("Customized")).toBeVisible()
-
-  await revenue.getByRole("button", { name: "Reset revenue" }).click()
-  await expect(revenue.getByRole("list")).toBeHidden()
-  expect(errors).toEqual([])
-})
-
-test("answers the ask panel from the recordings", async ({ page, errors }) => {
-  await load(page)
-
-  await page.getByRole("button", { name: "Ask" }).click()
-  const panel = page.getByRole("complementary", { name: "Ask" })
-  await panel
-    .getByRole("group", { name: "Suggestions" })
-    .getByRole("button", { name: "hide the average order value card" })
-    .click()
-  await page.keyboard.press("Enter")
-
-  await expect(panel.getByRole("status")).toContainText(
-    "Hid the Average order value card"
-  )
-  expect(errors).toEqual([])
-})
-
-test("drops the features and install sections", async ({ page }) => {
+test("has no features or install sections", async ({ page }) => {
   await page.goto("/")
 
   await expect(
     page.getByRole("heading", { name: "Add it to your app" })
   ).toHaveCount(0)
   await expect(page.getByText("Safe by design")).toHaveCount(0)
+})
+
+test("switches the dashboard's page from its sidebar", async ({
+  page,
+  errors,
+}) => {
+  await load(page)
+  const title = app(page).getByRole("heading", { level: 3 }).first()
+  await expect(title).toHaveText("Dashboard")
+
+  await sidebar(page).getByRole("link", { name: "Analytics" }).click()
+  await expect(title).toHaveText("Analytics")
+  await expect(
+    app(page).getByRole("cell", { name: "November 2026" })
+  ).toBeVisible()
+  await expect(page).toHaveURL("/")
+
+  await app(page).getByRole("button", { name: "Settings" }).click()
+  await expect(title).toHaveText("Settings")
+  await expect(app(page).getByLabel("Email")).toHaveValue("eddie@acme.example")
+
+  await sidebar(page).getByRole("link", { name: "Dashboard" }).click()
+  await expect(title).toHaveText("Dashboard")
+  await expect(sectionsTable(page)).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test("adds a derived column, shows it in Changes, and resets it", async ({
+  page,
+  errors,
+}) => {
+  await load(page)
+  await openTab(page, "Changes")
+  await expect(page.getByText("No changes yet")).toBeVisible()
+  await openTab(page, "Preview")
+
+  await ask(
+    page,
+    "the sections table",
+    "add a column for how far each section is over its limit"
+  )
+  await expect(
+    sectionsTable(page).getByRole("columnheader", { name: /Over limit/ })
+  ).toBeVisible()
+  // Cover page: a target of 18 against a limit of 5.
+  await expect(row(page, "Cover page")).toContainText("13")
+  await lockIn(page)
+
+  await openTab(page, "Changes")
+  const overlay = page.getByLabel("Overlay")
+  await expect(overlay).toContainText('"op": "addDerived"')
+  await expect(overlay).toContainText('"id": "over-limit"')
+
+  await openTab(page, "Preview")
+  await app(page).getByRole("button", { name: "Reset the dashboard" }).click()
+  await expect(
+    sectionsTable(page).getByRole("columnheader", { name: /Over limit/ })
+  ).toBeHidden()
+  await openTab(page, "Changes")
+  await expect(page.getByText("No changes yet")).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test("highlights the sections in process that are over their limit", async ({
+  page,
+  errors,
+}) => {
+  await load(page)
+  await ask(
+    page,
+    "the sections table",
+    "highlight sections in process that are over their limit"
+  )
+
+  // In process, 18 against 5.
+  await expect(row(page, "Cover page")).toContainText("Highlighted")
+  // In process, but 2 against 16.
+  await expect(row(page, "Design")).not.toContainText("Highlighted")
+  // 29 against 24, but done.
+  await expect(row(page, "Table of contents")).not.toContainText("Highlighted")
+  expect(errors).toEqual([])
+})
+
+test("groups the sections by type with the average target", async ({
+  page,
+  errors,
+}) => {
+  await load(page)
+  await ask(
+    page,
+    "the sections table",
+    "group by section type with the average target"
+  )
+
+  const narrative = sections.filter((section) => section.type === "Narrative")
+  const average =
+    narrative.reduce((sum, section) => sum + section.target, 0) /
+    narrative.length
+  const group = sectionsTable(page)
+    .getByRole("row")
+    .filter({ has: page.getByRole("button", { name: /Narrative/ }) })
+  await expect(group).toContainText(
+    new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(average)
+  )
+  await expect(group).toContainText(String(narrative.length))
+  expect(errors).toEqual([])
+})
+
+test("the Data tab shows no request for a computed ask, and the query server mode would run", async ({
+  page,
+  errors,
+}) => {
+  await load(page)
+  await ask(
+    page,
+    "the sections table",
+    "show each section's share of the total target"
+  )
+  await lockIn(page)
+  await openTab(page, "Data")
+  const data = page.getByRole("tabpanel", { name: "Data" })
+  await expect(
+    data.getByText("Computed in the browser: no new request")
+  ).toBeVisible()
+  await expect(data.getByText('"op": "addDerived"')).toBeVisible()
+
+  await openTab(page, "Preview")
+  await ask(
+    page,
+    "the sections table",
+    "only show Eddie Lake's sections that are in process"
+  )
+  const rows = sectionsTable(page).locator("tbody").getByRole("row")
+  const expected = sections.filter(
+    (section) =>
+      section.reviewer === "Eddie Lake" && section.status === "In Process"
+  )
+  await expect(rows).toHaveCount(expected.length)
+  await lockIn(page)
+  await openTab(page, "Data")
+  await expect(
+    data.getByText("Computed in the browser: no new request")
+  ).toBeVisible()
+  await expect(
+    data.getByText("In server mode, Pliant compiles this filter to:")
+  ).toBeVisible()
+  await expect(
+    data.getByText(/WHERE "workspace_id" = \$1 AND "reviewer" = \$2/)
+  ).toBeVisible()
+  await expect(
+    data.getByText('values: ["acme","Eddie Lake","In Process",10,0]')
+  ).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test("says no to profit margin and changes nothing", async ({
+  page,
+  errors,
+}) => {
+  await load(page)
+  const cards = app(page).locator('[data-pliant-id="acme-metrics"]')
+  await expect(cards.getByText("Total Revenue")).toBeVisible()
+  const before = await cards.textContent()
+
+  await moreAsks(page, "the metric cards")
+    .getByRole("button", { name: /^add a card for profit margin/ })
+    .click()
+  await expect(
+    app(page).getByText(
+      "There's no cost data in this dashboard, so profit margin can't be worked out. Nothing changed."
+    )
+  ).toBeVisible()
+  expect(await cards.textContent()).toBe(before)
+  await openTab(page, "Changes")
+  await expect(page.getByText("No changes yet")).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test("previews, keeps and discards the asks the demo draws", async ({
+  page,
+  errors,
+}) => {
+  await load(page)
+  const chartAsks = asks(page, "the visitors chart")
+  await chartAsks
+    .getByRole("button", { name: /^chart visitors by device as a line/ })
+    .click()
+  await expect(
+    chartAsks.getByRole("button", {
+      name: /^chart visitors by device as a line ?, Scripted$/,
+    })
+  ).toHaveAttribute("aria-pressed", "true")
+  await app(page).getByRole("button", { name: "Lock in" }).click()
+
+  await openTab(page, "Data")
+  await expect(page.getByText("Drawn by the demo: no request")).toBeVisible()
+  await openTab(page, "Changes")
+  await expect(page.getByLabel("Overlay")).toContainText(
+    '"op": "configureChart"'
+  )
+  await openTab(page, "Preview")
+
+  const cardAsk = moreAsks(page, "the metric cards").getByRole("button", {
+    name: /^add a card for revenue per new customer/,
+  })
+  await cardAsk.click()
+  await expect(app(page).getByText(/^Revenue per New Customer/)).toBeVisible()
+  await app(page).getByRole("button", { name: "Discard" }).click()
+  await expect(app(page).getByText(/^Revenue per New Customer/)).toBeHidden()
+  // The kept chart change is the latest again.
+  await openTab(page, "Changes")
+  await expect(page.getByLabel("Overlay")).toContainText(
+    '"op": "configureChart"'
+  )
+  await openTab(page, "Preview")
+
+  await cardAsk.click()
+  await app(page).getByRole("button", { name: "Lock in" }).click()
+  // November's $125,000 over 1,234 new customers, against October's
+  // $111,100 over 1,545.
+  await expect(app(page).getByText("$101.30")).toBeVisible()
+  await expect(app(page).getByText("October: $71.91")).toBeVisible()
+
+  await app(page).getByRole("button", { name: "Reset the dashboard" }).click()
+  await expect(app(page).getByText(/^Revenue per New Customer/)).toBeHidden()
+  expect(errors).toEqual([])
+})
+
+test("says on the page that the suggestions are hand-written", async ({
+  page,
+}) => {
+  await page.goto("/")
+
+  await expect(
+    page.getByText("Suggestions play hand-written answers. No model is called.")
+  ).toBeVisible()
+})
+
+test("opens the start page the user picked", async ({ page, errors }) => {
+  await load(page)
+  await ask(page, "the sidebar", "open Analytics when I log in")
+  await lockIn(page)
+
+  await page.reload()
+  await expect(app(page).getByRole("heading", { level: 3 }).first()).toHaveText(
+    "Analytics"
+  )
+  expect(errors).toEqual([])
+})
+
+test("moves Projects and Team under More", async ({ page, errors }) => {
+  await load(page)
+  await expect(
+    sidebar(page).getByRole("link", { name: "Projects" })
+  ).toBeVisible()
+
+  await ask(page, "the sidebar", "move Projects and Team under More")
+  await expect(
+    sidebar(page).getByRole("link", { name: "Projects" })
+  ).toBeHidden()
+  await sidebar(page).getByRole("button", { name: "More", exact: true }).click()
+  await expect(
+    sidebar(page).getByRole("link", { name: "Projects" })
+  ).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test("point mode leads to the asks of the part picked", async ({
+  page,
+  errors,
+}) => {
+  await load(page)
+  await sectionsTable(page).scrollIntoViewIfNeeded()
+  await app(page).getByRole("button", { name: "Point" }).click()
+  await page.getByRole("button", { name: "Sections table" }).focus()
+  await page.keyboard.press("Enter")
+
+  await expect(
+    asks(page, "the sections table").getByRole("button").first()
+  ).toBeFocused()
+  expect(errors).toEqual([])
 })
 
 test.describe("on a phone", () => {

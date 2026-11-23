@@ -134,4 +134,227 @@ export const scriptedAnswers: ScriptedAnswer[] = [
     ],
     explain: ["Moved the Proposal column to the start."],
   },
+  {
+    target: "acme-sections",
+    kind: "data-table",
+    prompt: "add a column for how far each section is over its limit",
+    ops: [
+      {
+        op: "addDerived",
+        target: "acme-sections",
+        id: "over-limit",
+        label: "Over limit",
+        expr: {
+          fn: "max2",
+          args: [
+            { fn: "sub", args: [{ field: "target" }, { field: "limit" }] },
+            { value: 0 },
+          ],
+        },
+        format: { type: "number", decimals: 0 },
+      },
+    ],
+    explain: [
+      "Added an Over limit column: how many pages each section's target is over its limit, or 0.",
+    ],
+  },
+  {
+    target: "acme-sections",
+    kind: "data-table",
+    prompt: "highlight sections in process that are over their limit",
+    ops: [
+      {
+        op: "addHighlight",
+        target: "acme-sections",
+        id: "in-process-over-limit",
+        when: {
+          fn: "and",
+          args: [
+            { fn: "eq", args: [{ field: "status" }, { value: "In Process" }] },
+            { fn: "gt", args: [{ field: "target" }, { field: "limit" }] },
+          ],
+        },
+        tone: "warning",
+      },
+    ],
+    explain: [
+      "Highlighted the sections in process whose target is over their limit.",
+    ],
+  },
+  {
+    target: "acme-sections",
+    kind: "data-table",
+    prompt: "group by section type with the average target",
+    ops: [
+      { op: "setGroupBy", target: "acme-sections", fields: ["type"] },
+      {
+        op: "addAggregate",
+        target: "acme-sections",
+        id: "average-target",
+        label: "Average target",
+        expr: { fn: "mean", args: [{ field: "target" }] },
+      },
+      {
+        op: "addAggregate",
+        target: "acme-sections",
+        id: "section-count",
+        label: "Sections",
+        expr: { fn: "count", args: [] },
+      },
+    ],
+    explain: [
+      "Grouped the sections by type.",
+      "Added each type's average target.",
+      "Added each type's number of sections.",
+    ],
+  },
+  {
+    target: "acme-sections",
+    kind: "data-table",
+    prompt: "show each section's share of the total target",
+    ops: [
+      {
+        op: "addDerived",
+        target: "acme-sections",
+        id: "target-share",
+        label: "Share of target",
+        expr: { fn: "share", args: [{ field: "target" }] },
+        format: { type: "percent", decimals: 1 },
+      },
+    ],
+    explain: [
+      "Added a Share of target column: each section's share of the total target.",
+    ],
+  },
+  {
+    target: "acme-sections",
+    kind: "data-table",
+    prompt: "only show Eddie Lake's sections that are in process",
+    ops: [
+      {
+        op: "setFilter",
+        target: "acme-sections",
+        filter: { field: "reviewer", operator: "eq", value: "Eddie Lake" },
+      },
+      {
+        op: "setFilter",
+        target: "acme-sections",
+        filter: { field: "status", operator: "eq", value: "In Process" },
+      },
+    ],
+    explain: [
+      "Showing only the sections Eddie Lake reviews.",
+      "Showing only the sections in process.",
+    ],
+  },
+  {
+    target: "acme-metrics",
+    kind: "region",
+    prompt: "show the cards in two columns",
+    ops: [
+      { op: "setLayout", target: "acme-metrics", mode: "grid", columns: 2 },
+    ],
+    explain: ["Laid the metric cards out in two columns."],
+  },
+  {
+    target: "acme-metrics",
+    kind: "region",
+    prompt: "add a card for revenue per new customer",
+    ops: [
+      {
+        op: "insert",
+        target: "acme-metrics",
+        node: {
+          id: "acme-metrics-revenue-per-customer",
+          kind: "stat",
+          dataset: "monthly-figures",
+          label: "Revenue per New Customer",
+        },
+        at: { index: 4 },
+      },
+      {
+        op: "configureStat",
+        target: "acme-metrics-revenue-per-customer",
+        metric: "revenue-per-new-customer",
+        comparison: {
+          metric: "previous-revenue-per-new-customer",
+          display: "percent",
+        },
+        format: { type: "currency", currency: "USD" },
+      },
+    ],
+    explain: [
+      "Added a Revenue per New Customer card.",
+      "Set the card to this month's revenue divided by its new customers, with the change from last month.",
+    ],
+  },
+  {
+    target: "acme-visitors",
+    kind: "chart",
+    prompt: "chart visitors by device as a line",
+    ops: [
+      {
+        op: "configureChart",
+        target: "acme-visitors",
+        type: "line",
+        x: "date",
+        y: ["desktop", "mobile"],
+      },
+    ],
+    explain: ["Showing desktop and mobile visitors as two lines."],
+  },
+  {
+    target: "acme-visitors",
+    kind: "chart",
+    prompt: "show mobile's share of visitors over time",
+    ops: [
+      {
+        op: "configureChart",
+        target: "acme-visitors",
+        type: "area",
+        x: "date",
+        y: ["desktop", "mobile"],
+        stacking: "percent",
+      },
+    ],
+    explain: [
+      "Stacked desktop and mobile visitors as a share of each day's total.",
+    ],
+  },
+  {
+    target: "acme-nav",
+    kind: "nav",
+    prompt: "open Analytics when I log in",
+    ops: [{ op: "setLanding", target: "acme-nav/items/analytics" }],
+    explain: ["Analytics is now your start page."],
+  },
+  {
+    target: "acme-nav",
+    kind: "nav",
+    prompt: "move Projects and Team under More",
+    ops: [
+      {
+        op: "collapse",
+        target: "acme-nav",
+        items: ["projects", "team"],
+        into: "more",
+      },
+    ],
+    explain: ["Moved Projects and Team under More."],
+  },
+]
+
+// Hand-written answers that decline an ask Pliant can't do with the data the
+// app has, and change nothing.
+export const scriptedDeclines: {
+  target: string
+  prompt: string
+  reason: string
+}[] = [
+  {
+    target: "acme-metrics",
+    prompt: "add a card for profit margin",
+    reason:
+      "There's no cost data in this dashboard, so profit margin can't be worked out. Nothing changed.",
+  },
 ]
