@@ -4,6 +4,13 @@ import { expect, test } from "./fixtures"
 
 const repository = "https://github.com/pliantui/pliant"
 
+// A docs link's name, with or without the dot that marks a page for
+// something that isn't fully built.
+function docsLink(name: string) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  return new RegExp(`^${escaped}( ?, Not fully implemented yet)?$`)
+}
+
 async function hasHorizontalScroll(page: Page) {
   return page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth
@@ -206,14 +213,14 @@ test.describe("on a wide screen", () => {
       "Expressions and functions",
     ]) {
       await expect(
-        sidebar.getByRole("link", { name, exact: true })
+        sidebar.getByRole("link", { name: docsLink(name) })
       ).toBeVisible()
     }
     await expect(
       sidebar.getByRole("link", { name: "Overlays and layers" })
     ).toHaveAttribute("aria-current", "page")
 
-    await sidebar.getByRole("link", { name: "Guardrails", exact: true }).click()
+    await sidebar.getByRole("link", { name: docsLink("Guardrails") }).click()
     await expect(
       page.getByRole("heading", { level: 1, name: "Guardrails" })
     ).toBeVisible()
@@ -284,51 +291,19 @@ test.describe("on a wide screen", () => {
     )
   })
 
-  test("the footer links lead to pages that exist", async ({
-    page,
-    request,
-  }) => {
-    await page.goto("/")
-    const footer = page.getByRole("contentinfo")
-    const links = await footer
-      .getByRole("navigation", { name: "Footer" })
-      .getByRole("link")
-      .evaluateAll((links) =>
-        links.map((link) => [link.textContent, link.getAttribute("href")])
-      )
-
-    expect(links).toEqual([
-      ["Docs", "/docs"],
-      ["Components", "/docs/components"],
-      ["Examples", "/examples/orders"],
-      ["Roadmap", "/roadmap"],
-      ["Changelog", "/changelog"],
-      ["GitHub", repository],
-      ["License", `${repository}/blob/main/LICENSE.md`],
-      ["Code of conduct", `${repository}/blob/main/CODE_OF_CONDUCT.md`],
-      ["Security policy", `${repository}/blob/main/SECURITY.md`],
-    ])
-    for (const [, href] of links) {
-      if (href?.startsWith("/")) {
-        expect((await request.get(href)).status(), href).toBe(200)
-      }
-    }
-  })
-
-  test("the footer credits shadcn/ui and links its license", async ({
+  test("the footer credits the author and links the source", async ({
     page,
   }) => {
     await page.goto("/")
     const footer = page.getByRole("contentinfo")
 
-    await expect(
-      footer.getByRole("link", { name: "shadcn/ui" })
-    ).toHaveAttribute("href", "https://ui.shadcn.com")
-    await expect(
-      footer.getByRole("link", { name: "MIT license" })
-    ).toHaveAttribute(
+    await expect(footer).toHaveText(
+      "Built by Hitesh Shivkumar. The source code is available on GitHub."
+    )
+    await expect(footer.getByRole("link")).toHaveCount(1)
+    await expect(footer.getByRole("link", { name: "GitHub" })).toHaveAttribute(
       "href",
-      `${repository}/blob/main/apps/www/LICENSE-shadcn.md`
+      repository
     )
   })
 
@@ -399,10 +374,12 @@ test.describe("on a phone", () => {
       "Overlays and layers",
       "Expressions and functions",
     ]) {
-      await expect(menu.getByRole("link", { name, exact: true })).toBeVisible()
+      await expect(
+        menu.getByRole("link", { name: docsLink(name) })
+      ).toBeVisible()
     }
 
-    await menu.getByRole("link", { name: "Guardrails", exact: true }).click()
+    await menu.getByRole("link", { name: docsLink("Guardrails") }).click()
     await expect(page).toHaveURL("/docs/concepts/guardrails")
     await expect(menu).toBeHidden()
   })
@@ -489,5 +466,52 @@ test.describe("the 404 page", () => {
       page.getByRole("heading", { level: 1, name: "Page not found" })
     ).toBeVisible()
     expect(await hasHorizontalScroll(page)).toBe(false)
+  })
+})
+
+test.describe("focus rings", () => {
+  async function ring(page: Page) {
+    return page.evaluate(() => {
+      const active = document.activeElement
+      if (!active || active === document.body) return null
+      const style = getComputedStyle(active)
+      return style.boxShadow !== "none" || style.outlineStyle !== "none"
+    })
+  }
+
+  for (const path of ["/", "/docs", "/blog", "/examples/orders"]) {
+    test(`${path} focuses nothing when it loads`, async ({ page }) => {
+      await page.goto(path)
+      await page.waitForLoadState("networkidle")
+
+      expect(await page.evaluate(() => document.activeElement?.tagName)).toBe(
+        "BODY"
+      )
+      expect(
+        await page.evaluate(
+          () => document.querySelectorAll(":focus-visible").length
+        )
+      ).toBe(0)
+    })
+  }
+
+  test("show for keyboard focus, not for a mouse click", async ({ page }) => {
+    await page.goto("/")
+    const header = page.getByRole("banner")
+    const toggle = header.getByRole("button", { name: "Toggle theme" })
+
+    await toggle.click()
+    await expect(toggle).toBeFocused()
+    expect(await ring(page)).toBe(false)
+
+    await page.goto("/")
+    await page.keyboard.press("Tab")
+    await page.keyboard.press("Tab")
+    await expect(
+      page.getByRole("navigation", { name: "Main" }).getByRole("link", {
+        name: "Home",
+      })
+    ).toBeFocused()
+    expect(await ring(page)).toBe(true)
   })
 })

@@ -7,7 +7,6 @@ import { PliantRoot, type PliantInventory } from "@pliantui/react"
 
 import { AskChips } from "@/components/demo/ask-chips"
 import { CustomizedReset } from "@/components/demo/customized-reset"
-import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import {
@@ -93,12 +92,10 @@ function PersonaBar({
           </li>
         </ul>
       </section>
-      <NotImplementedBanner variant="preview">
-        The Customized badge previews an indicator that isn&apos;t in Pliant
-        yet, and asks marked Scripted play hand-written answers. The team
-        default loads from this page rather than a server, and the admin lock is
-        a preview that isn&apos;t enforced.
-      </NotImplementedBanner>
+      <p className="text-xs text-muted-foreground">
+        The team default loads from this page rather than a server, and the
+        admin lock is a preview that isn&apos;t enforced.
+      </p>
     </div>
   )
 }

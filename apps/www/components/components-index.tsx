@@ -1,7 +1,9 @@
 import Link from "next/link"
 import type { Item } from "fumadocs-core/page-tree"
 
+import { UnfinishedDot } from "@/components/unfinished-dot"
 import { source } from "@/lib/source"
+import { getUnfinishedDocs } from "@/lib/unfinished-docs"
 
 interface ComponentGroup {
   name: string
@@ -32,7 +34,8 @@ function componentGroups(): ComponentGroup[] {
 }
 
 // Every component, grouped by what it's for, as links to their pages.
-export function ComponentsIndex() {
+export async function ComponentsIndex() {
+  const unfinished = await getUnfinishedDocs()
   return (
     <div data-not-typeset className="mt-8 flex flex-col gap-10">
       {componentGroups().map((group) => {
@@ -50,9 +53,10 @@ export function ComponentsIndex() {
                 <li key={page.url}>
                   <Link
                     href={page.url}
-                    className="text-lg font-medium underline-offset-4 hover:underline md:text-base"
+                    className="inline-flex items-center gap-2 text-lg font-medium underline-offset-4 hover:underline md:text-base"
                   >
                     {page.name}
+                    {unfinished.includes(page.url) && <UnfinishedDot />}
                   </Link>
                 </li>
               ))}

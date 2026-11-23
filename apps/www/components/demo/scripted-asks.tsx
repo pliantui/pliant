@@ -1,8 +1,8 @@
 "use client"
 
-import { ScriptedBadge } from "@/components/demo/scripted-badge"
 import type { ScriptedAsksState } from "@/components/demo/use-scripted-asks"
 import { Button } from "@/components/ui/button"
+import { UnfinishedDot } from "@/components/unfinished-dot"
 
 // The scripted asks for one part of a preview, as toggles, with a status
 // line that says which answer is playing.
@@ -38,7 +38,7 @@ export function ScriptedAsks({
             }}
           >
             {prompt}
-            <ScriptedBadge />
+            <UnfinishedDot kind="scripted" />
           </Button>
         ))}
       </div>

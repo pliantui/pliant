@@ -19,7 +19,6 @@ export function SettingsPageDemo({ user }: { user: TeamMember }) {
         label: "the defaults",
         asks: [teamDefaultsAsk],
         scripted,
-        note: "Team defaults are shown by a scripted answer.",
       }}
       className="mx-auto max-w-2xl"
     >

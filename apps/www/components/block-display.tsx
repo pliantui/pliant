@@ -4,7 +4,7 @@ import { dirname, join, normalize } from "node:path"
 import { BlockViewer } from "@/components/block-viewer"
 import type { Block } from "@/lib/blocks/blocks"
 import { highlightCode } from "@/lib/highlight-code"
-import { site } from "@/lib/site"
+import { pliantItemName } from "@/lib/registry-name"
 
 function withoutExtension(path: string) {
   return path.replace(/\.tsx?$/, "")
@@ -53,9 +53,7 @@ async function installCommand(components: readonly string[]) {
       throw new Error(`No registry item named ${name}`)
     }
   }
-  return `npx shadcn@latest add ${components
-    .map((name) => `${site.url}/r/${name}.json`)
-    .join(" ")}`
+  return `npx shadcn@latest add ${components.map(pliantItemName).join(" ")}`
 }
 
 // One block on the blocks page: its live preview, and its files to copy.

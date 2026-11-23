@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Link from "next/link"
 
 import { AnchorNav } from "@/components/anchor-nav"
-import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import {
   PageActions,
   PageHeader,
@@ -11,6 +10,7 @@ import {
 } from "@/components/page-header"
 import { PageNav } from "@/components/page-nav"
 import { Button } from "@/components/ui/button"
+import { UnfinishedStrip } from "@/components/unfinished-strip"
 
 const title = "Charts"
 const description =
@@ -23,14 +23,15 @@ export const metadata: Metadata = {
 }
 
 const sections = [
-  { name: "from-a-table", label: "From a table" },
-  { name: "from-a-dashboard", label: "From a dashboard" },
-  { name: "server-mode", label: "Server mode" },
+  { name: "from-a-table", label: "From a table", unfinished: true },
+  { name: "from-a-dashboard", label: "From a dashboard", unfinished: true },
+  { name: "server-mode", label: "Server mode", unfinished: true },
 ]
 
 export default function ChartsLayout({ children }: LayoutProps<"/charts">) {
   return (
     <>
+      <UnfinishedStrip />
       <PageHeader>
         <PageHeaderHeading>{title}</PageHeaderHeading>
         <PageHeaderDescription>{description}</PageHeaderDescription>
@@ -42,12 +43,11 @@ export default function ChartsLayout({ children }: LayoutProps<"/charts">) {
             <Link href="/docs/components/chart">Documentation</Link>
           </Button>
         </PageActions>
-        <NotImplementedBanner className="mt-4 max-w-2xl text-left">
-          Charts aren&apos;t in Pliant yet, so every ask on this page plays a
-          hand-written answer. The server mode example sums 250,000 generated
-          orders when the page builds, in place of a database query, and its
-          asks switch between the precomputed monthly and weekly totals.
-        </NotImplementedBanner>
+        <p className="max-w-2xl text-sm text-balance text-muted-foreground">
+          The server mode example sums 250,000 generated orders when the page
+          builds, in place of a database query, and its asks switch between the
+          precomputed monthly and weekly totals.
+        </p>
       </PageHeader>
       <PageNav id="charts">
         <AnchorNav label="Charts" items={sections} />

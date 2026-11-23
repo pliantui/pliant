@@ -15,7 +15,7 @@ export function SiteHeader() {
   const pageTree = source.getPageTree()
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-background">
+    <header className="sticky top-0 z-50 w-full bg-background group-has-[[data-slot=unfinished-strip]]/layout:mt-(--unfinished-strip-height)">
       <SkipLink />
       <div className="container-wrapper px-6">
         <div className="flex h-(--header-height) items-center **:data-[slot=separator]:h-4!">

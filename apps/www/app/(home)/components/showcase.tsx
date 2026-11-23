@@ -1,6 +1,5 @@
 import { DemoAskToolbar } from "@/components/demo/demo-ask-toolbar"
 import { ReplayNote } from "@/components/demo/replay-note"
-import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { monthlyRevenue, orders, team } from "@/lib/demo/data"
 import { company } from "@/lib/demo/schema"
 import { getOrderStats } from "@/lib/demo/stats"
@@ -38,10 +37,6 @@ export function Showcase() {
           </div>
           <DemoAskToolbar targets={homeTargets} />
         </div>
-        <NotImplementedBanner variant="preview">
-          Customized badges and asks marked Scripted preview parts that
-          aren&apos;t in Pliant yet. Scripted asks play hand-written answers.
-        </NotImplementedBanner>
         <div className="grid min-w-0 items-stretch gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
           <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
             <StatsCard stats={getOrderStats(orders)} />
