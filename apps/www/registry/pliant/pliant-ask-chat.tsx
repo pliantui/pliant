@@ -14,7 +14,6 @@ import * as z from "zod"
 import type { OpName } from "@pliantui/contract"
 import {
   usePliantMessages,
-  usePliantSurface,
   usePreview,
   type PliantMessages,
 } from "@pliantui/react"
@@ -69,6 +68,7 @@ import {
   usePliantAskChats,
   type PliantAskChatEntry,
   type PliantAskChatMessage,
+  type PliantAskChatStore,
 } from "./pliant-ask-chats"
 import type { PliantAskAnswer, PliantAskTarget } from "./pliant-ask-panel"
 import { pliantAskChosenOps, pliantAskOpLabels } from "./pliant-ask-steps"
@@ -84,7 +84,7 @@ declare module "@pliantui/react" {
     askNoChats: string
     askDeleteChat: string
     askConfirmDelete: string
-    askSavedLocally: string
+    askNotSaved: string
     askConversation: string
     askEmptyTitle: string
     askScrollDown: string
@@ -124,10 +124,10 @@ const askChatMessages = {
   askChats: "Chats",
   askCurrentChat: "Current chat:",
   askNewChat: "New chat",
-  askNoChats: "No saved chats",
+  askNoChats: "No chats yet",
   askDeleteChat: "Delete this chat",
   askConfirmDelete: "Delete",
-  askSavedLocally: "Chats are saved in this browser only.",
+  askNotSaved: "Chats aren't saved. They clear when you leave the page.",
   askConversation: "Conversation",
   askEmptyTitle: "Ask for a change",
   askScrollDown: "Scroll to the latest message",
@@ -317,7 +317,7 @@ function PliantAskChat({
   titleId,
   autoFocus,
   answers,
-  chatScope,
+  store,
 }: {
   panel: PliantAskPanelState
   targets: readonly PliantAskTarget[]
@@ -327,12 +327,11 @@ function PliantAskChat({
   autoFocus: boolean
   /** Where the panel reports each answer before it previews it. */
   answers: Set<(answer: PliantAskAnswer) => void>
-  /** Keeps the chats of each scope apart, as for each signed-in user. */
-  chatScope: string | undefined
+  /** The page's chats, which outlive the chat while the panel is closed. */
+  store: PliantAskChatStore
 }) {
   const messages = usePliantMessages(askChatMessages)
-  const surface = usePliantSurface()
-  const { chats, store } = usePliantAskChats(surface, chatScope)
+  const chats = usePliantAskChats(store)
   const preview = usePreview()
   const [promptElement, setPromptElement] =
     React.useState<HTMLTextAreaElement | null>(null)
@@ -588,7 +587,7 @@ function PliantAskChat({
                   {messages.askDescription}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {messages.askSavedLocally}
+                  {messages.askNotSaved}
                 </p>
               </div>
             </ConversationEmptyState>

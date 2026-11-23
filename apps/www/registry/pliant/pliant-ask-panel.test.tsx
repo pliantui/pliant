@@ -449,13 +449,14 @@ describe("PliantAskPanel", () => {
     ).toBe(true)
   })
 
-  it("shows the open chat again when the panel mounts again", async () => {
-    const view = await renderPanel()
+  it("shows the open chat again when the panel opens again", async () => {
+    await renderPanel()
     answer({ status: "clarify", question: "Which card?" })
     await ask("put the overdue card first")
-    view.unmount()
+    fireEvent.click(screen.getByRole("button", { name: "Close" }))
 
-    await renderPanel()
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }))
+    await screen.findByRole("textbox", { name: "Ask" })
 
     expect(status()).toContain("put the overdue card first")
     expect(status()).toContain("Which card?")
@@ -463,6 +464,20 @@ describe("PliantAskPanel", () => {
       screen.getByRole("button", {
         name: "Current chat: put the overdue card first",
       })
+    ).toBeTruthy()
+  })
+
+  it("forgets its chats once it unmounts", async () => {
+    const view = await renderPanel()
+    answer({ status: "clarify", question: "Which card?" })
+    await ask("put the overdue card first")
+    view.unmount()
+
+    await renderPanel()
+
+    expect(status()).not.toContain("put the overdue card first")
+    expect(
+      screen.getByRole("button", { name: "Current chat: New chat" })
     ).toBeTruthy()
   })
 

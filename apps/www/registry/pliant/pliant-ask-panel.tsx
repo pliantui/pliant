@@ -9,6 +9,8 @@ import { useAskPanel } from "@pliantui/react/ask"
 
 import { Skeleton } from "@/components/ui/skeleton"
 
+import { createPliantAskChatStore } from "./pliant-ask-chats"
+
 declare module "@pliantui/react" {
   interface PliantMessages {
     askUnreadableAnswer: (status: number) => string
@@ -117,11 +119,9 @@ async function requestAnswer(
  * sends the root's surface with each ask. Its behaviour comes from
  * `useAskPanel`.
  *
- * Each surface keeps its chats in the browser's `localStorage`, under keys
- * that start with `pliant:ask-chats:`, titled from their first ask, and a
- * menu switches between them. By default every user of the browser shares
- * them; pass `chatScope`, such as the signed-in user's id, to keep each
- * user's chats apart.
+ * The panel keeps several chats about the page, titled from their first
+ * ask, and a menu switches between them. They're kept in memory only, and
+ * clear when the user leaves the page.
  *
  * The chat's code loads in the browser when the panel first opens, so it
  * adds nothing to the page's first load there. A server-rendering bundler
@@ -159,7 +159,6 @@ function PliantAskPanel({
   open,
   defaultOpen,
   onOpenChange,
-  chatScope,
 }: {
   /** The URL of the route that answers asks with `createPliantHandler`. */
   endpoint: string
@@ -191,11 +190,6 @@ function PliantAskPanel({
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
-  /**
-   * Keeps chats apart by scope, such as the signed-in user's id, on a
-   * browser several users share. By default the chats are per surface only.
-   */
-  chatScope?: string | undefined
 }) {
   const messages = usePliantMessages(askPanelMessages)
   const [answers] = React.useState(
@@ -229,6 +223,8 @@ function PliantAskPanel({
     },
   })
   const id = React.useId()
+  // Held here, so the chats outlive the chat while the panel is closed.
+  const [chats] = React.useState(createPliantAskChatStore)
   // The chat takes focus when it mounts, except on a panel that starts open.
   const [focusOnMount, setFocusOnMount] = React.useState(false)
   const [wasOpen, setWasOpen] = React.useState(panel.open)
@@ -263,7 +259,7 @@ function PliantAskPanel({
               titleId={`${id}-title`}
               autoFocus={focusOnMount}
               answers={answers}
-              chatScope={chatScope}
+              store={chats}
             />
           </React.Suspense>
         </aside>

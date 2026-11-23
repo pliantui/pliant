@@ -64,7 +64,7 @@ const messages: PliantMessages = {
   askNoChats: "⟦askNoChats⟧",
   askDeleteChat: "⟦askDeleteChat⟧",
   askConfirmDelete: "⟦askConfirmDelete⟧",
-  askSavedLocally: "⟦askSavedLocally⟧",
+  askNotSaved: "⟦askNotSaved⟧",
   askConversation: "⟦askConversation⟧",
   askEmptyTitle: "⟦askEmptyTitle⟧",
   askScrollDown: "⟦askScrollDown⟧",

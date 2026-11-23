@@ -133,7 +133,10 @@ test("starts a new chat and switches back with the keyboard", async ({
   expect(errors).toEqual([])
 })
 
-test("keeps chats across a reload", async ({ page, errors }) => {
+test("forgets chats on a reload", async ({ page, errors }) => {
+  await expect(panel(page)).toContainText(
+    "Chats aren't saved. They clear when you leave the page."
+  )
   await ask(page, "put the overdue card first")
   await expect(log(page)).toContainText("Moved the Overdue card")
 
@@ -141,12 +144,13 @@ test("keeps chats across a reload", async ({ page, errors }) => {
   await openPanel(page)
 
   await expect(
-    panel(page).getByRole("button", {
-      name: "Current chat: put the overdue card first",
-    })
+    panel(page).getByRole("button", { name: "Current chat: New chat" })
   ).toBeVisible()
-  await expect(log(page)).toContainText("put the overdue card first")
-  await expect(log(page)).toContainText("Moved the Overdue card")
+  await expect(log(page)).not.toContainText("put the overdue card first")
+  await panel(page)
+    .getByRole("button", { name: "Current chat: New chat" })
+    .click()
+  await expect(page.getByRole("menuitemradio")).toHaveCount(0)
   expect(errors).toEqual([])
 })
 
