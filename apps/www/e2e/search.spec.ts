@@ -9,10 +9,10 @@ test("finds a docs page from the search dialog", async ({ page, errors }) => {
   const dialog = page.getByRole("dialog", { name: /^Search/ })
   await dialog
     .getByRole("combobox", { name: "Search documentation" })
-    .fill("before you added Pliant")
+    .fill("AI is optional")
 
   const result = dialog.getByRole("option", {
-    name: /^The page looks the same as it did before you added Pliant\./,
+    name: "AI is optional, and Pliant sends no analytics of its own.",
   })
   await expect(result).toBeVisible()
   await result.click()
