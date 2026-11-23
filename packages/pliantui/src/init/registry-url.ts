@@ -1,8 +1,9 @@
 const allowedCharacters = /^(?:[A-Za-z0-9\-._~:/]|%[0-9A-Fa-f]{2})+$/
 
-// The value is passed to a shell on Windows, so only characters that are inert
-// there are accepted, and a query string, fragment or credentials can't be
-// written with them.
+// The value becomes the base of the `{name}.json` template in components.json,
+// a file that is usually committed. Without `?`, `#`, `@` or braces it can't
+// carry a query string or fragment that the appended path would land inside,
+// credentials, or a placeholder of its own.
 export function parseRegistryUrl(value: string) {
   if (!allowedCharacters.test(value)) {
     return null

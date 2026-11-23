@@ -19,7 +19,7 @@ Pliant lets the users of a shadcn app reshape its pages: reorder, hide, pin and 
 npx pliantui init --yes
 ```
 
-This adds `@pliantui/react` with the project's package manager and the `pliant-region` component to the `pliant` folder inside the `components` alias from `components.json` (usually `components/pliant`). Without `--yes` it asks before each step and needs an interactive terminal, which agent shells usually aren't. Running it again is safe: it skips what is installed.
+This adds `@pliantui/react` with the project's package manager, adds the `@pliant` registry to `components.json`, and adds the `pliant-region` component to the `pliant` folder inside the `components` alias from `components.json` (usually `components/pliant`). Without `--yes` it asks before each step and needs an interactive terminal, which agent shells usually aren't. Running it again is safe: it skips what is installed.
 
 ## 2. Wrap a route
 
@@ -62,7 +62,7 @@ Rules that matter:
 Only for pages that have a data table. Add the table components:
 
 ```bash
-npx shadcn@latest add https://pliantui.dev/r/pliant-data-table.json --yes
+npx shadcn@latest add @pliant/pliant-data-table --yes
 ```
 
 Build the table in a client component with TanStack Table, pass its options through `usePliantTable`, and give the table node an id:
