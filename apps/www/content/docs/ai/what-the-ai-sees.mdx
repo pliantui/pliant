@@ -34,15 +34,7 @@ All of it comes from the target you describe, and from what the user typed.
 
 ## Within a chat
 
-<Callout
-  variant="warning"
-  title="Not fully implemented yet"
-  data-unfinished="not-implemented"
->
-  The ask panel isn't a chat yet, so each ask is sent on its own.
-</Callout>
-
-When a user refines a change in the same chat, the model also gets that chat's earlier asks and the changes it proposed, so "make it a percent" has something to refer to. It never gets the user's other chats. Chats are stored for each user in their browser by default, so your server only sees the asks it answers.
+Each ask is sent on its own, even in a chat with earlier asks. The model never gets the chat's other messages or the user's other chats. Chats are saved in the user's browser, so your server only sees the asks it answers.
 
 ## Fields from your datasets
 

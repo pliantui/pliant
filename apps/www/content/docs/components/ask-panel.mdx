@@ -33,7 +33,7 @@ npx shadcn@latest add @pliant/pliant-ask-panel
 </TabsContent>
 </CodeTabs>
 
-The panel is built from [AI Elements](https://ai-sdk.dev/elements), Vercel's shadcn-style chat components, which the command installs with it. You also need a route that answers asks with `createPliantHandler` from `@pliantui/server`. See [AI](/docs/ai).
+The panel is built from [AI Elements](https://ai-sdk.dev/elements), Vercel's shadcn-style chat components, which the command installs with it. The chat's code loads when the panel first opens, so it adds nothing to the page's first load in the browser. You also need a route that answers asks with `createPliantHandler` from `@pliantui/server`. See [AI](/docs/ai).
 
 ## Usage
 
@@ -50,9 +50,8 @@ Give the panel your ask route and the parts of the page users can ask about. Eac
   title="Not fully implemented yet"
   data-unfinished="not-implemented"
 >
-  The panel isn't a chat yet: it holds one ask and its answer, without steps or
-  saved chats, and opens from its own **Ask** button. It can't add cards, and
-  chats can't be kept on your server.
+  The Customize menu isn't in Pliant yet, so the panel opens from its own
+  **Ask** button. The panel can't add cards yet.
 </Callout>
 
 Users ask for what they'd otherwise file a feature request for, about the part of the page they chose:
@@ -62,54 +61,80 @@ Users ask for what they'd otherwise file a feature request for, about the part o
 | add a card for this quarter's refund rate | A **Refund rate** card shows the share of this quarter's orders refunded. |
 | show the cards in a two-column grid       | The cards sit in two columns.                                             |
 
-Each answer in the chat shows:
-
-- the AI's reply, in plain words;
-- the steps it took, in readable form, such as "Chose an operation: Add column" or "Checked the change against the table's rules";
-- a preview of the change, inline in the chat and on the page, with **Lock in** and **Discard**.
-
-Nothing applies until the user chooses **Lock in**. They can keep talking to refine it, such as "make it a percent", and each new preview replaces the last.
-
-A dropdown at the top of the panel switches between the user's chats, and **New chat** starts another. Chats are personal: each user's chats are stored for them, in their browser by default, and other users of your app, admins included, can't see them. The text of each ask still goes to your ask route and your model provider.
-
 The preview above offers both asks under the cards; the refund rate card, marked scripted, plays a hand-written answer. It replays recorded answers without calling a model, so an ask that isn't recorded gets a reply that lists the suggestions.
+
+### The chat
+
+Each ask and its answer stay in the chat. An answer that changes the page shows:
+
+- the sentences describing the change;
+- **Steps**, which name each operation it chose, such as "Chose an operation: Add column", and end with the check against the part's rules;
+- **Lock in** and **Discard**, inline under the answer, while its preview shows on the page.
+
+Nothing is saved until the user chooses **Lock in**. Once they decide, the answer says **Locked in.** or **Discarded.**, and notes any change that stays for this session only, such as the page of a table. An answer can also ask a short question back, or say why it can't make the change. Each ask is answered on its own, so a follow-up should say the whole change again.
+
+Only one preview shows on the page at a time. If it belongs to another chat, a bar above the prompt says so, with **Lock in**, **Discard** and **Go to chat**.
+
+### Several chats
+
+The menu at the top of the panel lists the user's chats, titled from their first ask, and switches between them. The **New chat** button starts another. **Delete this chat** opens a confirm step, **Delete**, so a chat isn't lost to a stray click. Deleting a chat doesn't undo the changes locked in from it.
+
+### Where chats are kept
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Chats can't be kept on your server yet.
+</Callout>
+
+Chats are saved in this browser only, as the panel tells users. Each surface keeps up to 20 chats in `localStorage` under `pliant:ask-chats:<surface>`, and tabs on the same page stay in sync. Without `chatScope`, everyone who uses that browser shares the same chats. On browsers several people share, pass the signed-in user's id as `chatScope`, which stores each user's chats under `pliant:ask-chats:<scope>:<surface>`. [Usage data](/docs/security/usage-data) lists what a chat stores and how to erase it.
 
 ## Rules and guardrails
 
 - The AI never writes code or queries. It picks from the operations the target's manifest allows, and every answer is checked before it previews.
 - A change previews first. Nothing is saved until the user locks it in, and discarding a preview leaves the page as it was.
-- A chat only holds what the user typed and the answers. Locked-in changes are saved like any other change, so they stay when a chat is deleted.
+- A chat holds the asks, the answers' sentences, the names of the operations they chose and whether each was locked in. It never holds rows or the change itself; locked-in changes are saved like any other change.
 - The AI only sees what each target's context describes: labels, ids and field types, never your rows. See [what the AI sees](/docs/ai/what-the-ai-sees).
 
 ## Examples
 
-### Open from the Customize menu
+### Keep the panel out of the server bundle
 
-Put a [Customize Menu](/docs/components/customize-menu) in the header of each part. Its **Ask for a change…** item opens the panel on that part, so the panel needs no button of its own.
+In an app that renders on the server, the chat's code still lands in the server bundle. Load the panel only in the browser to keep it out:
 
-```tsx
-<PliantRoot surface="/orders">
-  <PliantCustomizeMenu target="key-metrics" />
-  <PliantAskPanel endpoint="/api/pliant" targets={askTargets} />
-</PliantRoot>
+```tsx title="components/ask-panel.tsx"
+"use client"
+
+import dynamic from "next/dynamic"
+
+export const AskPanel = dynamic(
+  () =>
+    import("@/components/pliant/pliant-ask-panel").then(
+      (module) => module.PliantAskPanel
+    ),
+  { ssr: false }
+)
 ```
 
 ## Options
 
-| Prop                                    | Type                       | Description                                                                                |
-| --------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------ |
-| `endpoint`                              | `string`                   | The URL of the route that answers asks with `createPliantHandler`.                         |
-| `targets`                               | `PliantAskTarget[]`        | The nodes users can ask about, in picker order.                                            |
-| `target` / `defaultTarget`              | `string`                   | The picked target, controlled or uncontrolled. Defaults to the first.                      |
-| `onTargetChange`                        | `(target: string) => void` | Called when the user picks a target.                                                       |
-| `open` / `defaultOpen` / `onOpenChange` |                            | The panel's open state.                                                                    |
-| `placeholder`                           | `string`                   | The prompt's placeholder.                                                                  |
-| `trigger`                               | `ReactElement`             | An element that opens the panel. By default there's none, and the Customize menu opens it. |
-| `fetch`                                 | `typeof fetch`             | Sends each ask in place of the global `fetch`, as for tests.                               |
+| Prop                                    | Type                       | Description                                                                |
+| --------------------------------------- | -------------------------- | -------------------------------------------------------------------------- |
+| `endpoint`                              | `string`                   | The URL of the route that answers asks with `createPliantHandler`.         |
+| `targets`                               | `PliantAskTarget[]`        | The nodes users can ask about, in picker order.                            |
+| `target` / `defaultTarget`              | `string`                   | The picked target, controlled or uncontrolled. Defaults to the first.      |
+| `onTargetChange`                        | `(target: string) => void` | Called when the user picks a target.                                       |
+| `open` / `defaultOpen` / `onOpenChange` |                            | The panel's open state.                                                    |
+| `placeholder`                           | `string`                   | The prompt's placeholder.                                                  |
+| `trigger`                               | `ReactElement`             | The element that opens the panel. Defaults to an **Ask** button.           |
+| `fetch`                                 | `typeof fetch`             | Sends each ask in place of the global `fetch`, as for tests.               |
+| `chatScope`                             | `string`                   | Keeps chats apart on a shared browser, such as by the signed-in user's id. |
 
 ## Accessibility
 
 - The panel is a labelled complementary landmark, and focus moves to the prompt when it opens.
-- The chat is a log, so screen readers announce each new answer, its steps and its preview as they arrive.
-- The chat switcher is a Radix menu, with full keyboard support.
+- The conversation is a polite live region, so screen readers announce each new answer as it arrives. Switching chats doesn't announce the old messages again.
+- The chat menu is a Radix menu, with full keyboard support. <Kbd>Enter</Kbd> sends an ask and <Kbd>Shift</Kbd> <Kbd>Enter</Kbd> adds a new line.
 - On phones it docks to the bottom of the screen, and the page stays scrollable above it.
