@@ -14,6 +14,20 @@ async function ask(body: unknown) {
   return { status: response.status, body: (await response.json()) as unknown }
 }
 
+describe("replay data", () => {
+  it("never has an ask that is both recorded and scripted", () => {
+    const key = (ask: { target: string; prompt: string }) =>
+      `${ask.target}\u0000${ask.prompt.toLowerCase()}`
+    const recorded = new Set(recordedAnswers.map(key))
+
+    expect(
+      [...scriptedAnswers, ...scriptedDeclines].filter((ask) =>
+        recorded.has(key(ask))
+      )
+    ).toEqual([])
+  })
+})
+
 describe("replayFetch", () => {
   it("answers a recorded ask with its recording, on the asking surface", async () => {
     const { body } = await ask({

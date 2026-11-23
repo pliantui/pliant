@@ -557,8 +557,9 @@ function siblingsOf(part: PointPart, shown: ReadonlySet<string>) {
  * and the slot's `flags`, which your app passes in, don't forbid it:
  * `required` hides the hide handle, and `locked` hides them all. With a
  * slot selected, the arrow keys move it, Shift with the arrow keys resizes
- * it, and Delete or Backspace hides it. Each change is announced. A bar under the selection runs `actions`
- * for the selected target, or the slot's target: Ask, Adjust and Reset.
+ * it, and Delete or Backspace hides it. Each change is announced. A bar
+ * under the selection runs `actions` for the selected target, or the slot's
+ * target: Ask, Adjust and Reset.
  * Ask and Adjust end point mode first, so their handlers can move focus.
  *
  * Release Alt without selecting, press Escape or click outside the outlines
