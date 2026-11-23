@@ -140,8 +140,7 @@ export function VisitorsChart() {
           target="acme-visitors"
           label="the visitors chart"
           prompts={[lineAsk, shareAsk]}
-          applied={applied}
-          onApply={setApplied}
+          onShow={setApplied}
         />
       </CardFooter>
     </Card>

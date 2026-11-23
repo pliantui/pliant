@@ -4,23 +4,28 @@ import * as React from "react"
 
 import { usePreview } from "@pliantui/react"
 
-// The overlay of the visitor's latest customization of the showcase, for
-// its Data and Changes tabs, and whether it's kept or still a preview.
+// A change the visitor made to the showcase, for its Data and Changes tabs:
+// its overlay, whether it's kept or still a preview, and, for a part that
+// isn't in Pliant yet, the part the showcase draws the change in.
 export interface ShowcaseChange {
   overlay: { id: string } & Record<string, unknown>
   state: "previewing" | "kept"
+  local: string | null
 }
 
 interface ShowcaseActivity {
+  // The change being previewed, else the latest kept one.
   latest: ShowcaseChange | null
-  // For an ask a part of the showcase plays itself, rather than through the
-  // layers, like the chart's.
-  record: (change: ShowcaseChange | null) => void
-  // Called when the user discards the previewed change.
+  // Previews a change a part draws itself.
+  previewLocal: (target: string, overlay: ShowcaseChange["overlay"]) => void
+  // Keeps the change being previewed.
+  keep: () => void
+  // Drops the change being previewed.
   discard: () => void
+  // Takes back the kept changes a part drew itself.
+  removeLocal: (target: string) => void
   // The parts showing a change they draw themselves.
   local: ReadonlySet<string>
-  setLocal: (target: string, changed: boolean) => void
   // Forgets every change, after Reset.
   clear: () => void
 }
@@ -35,52 +40,62 @@ export function ShowcaseActivityProvider({
   children: React.ReactNode
 }) {
   const preview = usePreview()
-  const [latest, setLatest] = React.useState<ShowcaseChange | null>(null)
-  const [seen, setSeen] = React.useState<string | null>(null)
-  const [local, setLocalTargets] = React.useState<ReadonlySet<string>>(
-    () => new Set()
+  const [kept, setKept] = React.useState<readonly ShowcaseChange[]>([])
+  const [previewing, setPreviewing] = React.useState<ShowcaseChange | null>(
+    null
   )
+  const [seen, setSeen] = React.useState<string | null>(null)
 
-  // A preview from the layers becomes the latest change, and is kept when
-  // the preview ends, unless the user discarded it.
+  // A preview from the layers is the change being previewed, and is kept
+  // when the preview ends, unless the user discarded it.
   const previewId = preview?.id ?? null
   if (previewId !== seen) {
     setSeen(previewId)
     if (preview) {
       // The overlay as Pliant stores it, without the checks it was
       // loaded with.
-      setLatest({
+      setPreviewing({
         overlay: { ...preview, ops: preview.ops.map((check) => check.op) },
         state: "previewing",
+        local: null,
       })
-    } else if (latest?.state === "previewing" && latest.overlay.id === seen) {
-      setLatest({ ...latest, state: "kept" })
+    } else if (previewing?.local === null && previewing.overlay.id === seen) {
+      setKept([...kept, { ...previewing, state: "kept" }])
+      setPreviewing(null)
     }
   }
 
-  const value = React.useMemo<ShowcaseActivity>(
-    () => ({
-      latest,
-      record: setLatest,
+  const value = React.useMemo<ShowcaseActivity>(() => {
+    const local = new Set(
+      [...kept, ...(previewing ? [previewing] : [])].flatMap((change) =>
+        change.local === null ? [] : [change.local]
+      )
+    )
+    return {
+      latest: previewing ?? kept.at(-1) ?? null,
+      previewLocal: (target, overlay) => {
+        setPreviewing({ overlay, state: "previewing", local: target })
+      },
+      keep: () => {
+        if (!previewing) return
+        setKept((current) => [...current, { ...previewing, state: "kept" }])
+        setPreviewing(null)
+      },
       discard: () => {
-        setLatest(null)
+        setPreviewing(null)
+      },
+      removeLocal: (target) => {
+        setKept((current) =>
+          current.filter((change) => change.local !== target)
+        )
       },
       local,
-      setLocal: (target, changed) => {
-        setLocalTargets((current) => {
-          const next = new Set(current)
-          if (changed) next.add(target)
-          else next.delete(target)
-          return next
-        })
-      },
       clear: () => {
-        setLatest(null)
-        setLocalTargets(new Set())
+        setKept([])
+        setPreviewing(null)
       },
-    }),
-    [latest, local]
-  )
+    }
+  }, [kept, previewing])
 
   return (
     <ShowcaseActivityContext value={value}>{children}</ShowcaseActivityContext>

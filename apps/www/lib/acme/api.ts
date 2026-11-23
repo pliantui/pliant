@@ -48,7 +48,7 @@ export const apiCalls: ApiCall[] = [
   {
     id: "sections",
     method: "GET",
-    path: "/api/sections?page=0&size=10",
+    path: "/api/sections",
     usedBy: "Sections table",
     response: {
       rows: sections.slice(0, 2),

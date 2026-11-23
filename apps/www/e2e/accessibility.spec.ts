@@ -105,7 +105,9 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(await violations(page, colorScheme)).toEqual([])
 
       await page.getByRole("tab", { name: "Data" }).click()
-      await expect(page.getByText("Server mode: one new request")).toBeVisible()
+      await expect(
+        page.getByText("In server mode, Pliant compiles this filter to:")
+      ).toBeVisible()
       expect(await violations(page, colorScheme)).toEqual([])
 
       await page.getByRole("tab", { name: "Changes" }).click()

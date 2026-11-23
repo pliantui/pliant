@@ -6,10 +6,8 @@ const { getSectionsQueries } = await import("./sections-query")
 
 describe("getSectionsQueries", () => {
   it("compiles the filter ask to a parameterized query in the user's workspace", () => {
-    const { base, asks } = getSectionsQueries()
+    const { asks } = getSectionsQueries()
 
-    expect(base.text).toContain('FROM "sections"')
-    expect(base.values).toContain("acme")
     expect(asks).toHaveLength(1)
     const [ask] = asks
     expect(ask?.filters).toEqual([
@@ -19,6 +17,7 @@ describe("getSectionsQueries", () => {
     expect(ask?.query.values).toEqual(
       expect.arrayContaining(["acme", "Eddie Lake", "In Process"])
     )
+    expect(ask?.query.text).toContain('FROM "sections"')
     expect(ask?.query.text).not.toContain("Eddie Lake")
   })
 })

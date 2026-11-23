@@ -211,7 +211,7 @@ export const scriptedAnswers: ScriptedAnswer[] = [
   {
     target: "acme-sections",
     kind: "data-table",
-    prompt: "show each section's share of all target pages",
+    prompt: "show each section's share of the total target",
     ops: [
       {
         op: "addDerived",
@@ -223,7 +223,7 @@ export const scriptedAnswers: ScriptedAnswer[] = [
       },
     ],
     explain: [
-      "Added a Share of target column: each section's target as a share of all the sections shown.",
+      "Added a Share of target column: each section's share of the total target.",
     ],
   },
   {
@@ -259,30 +259,33 @@ export const scriptedAnswers: ScriptedAnswer[] = [
   {
     target: "acme-metrics",
     kind: "region",
-    prompt: "add a card comparing this month's revenue with last month's",
+    prompt: "add a card for revenue per new customer",
     ops: [
       {
         op: "insert",
         target: "acme-metrics",
         node: {
-          id: "acme-metrics-revenue-comparison",
+          id: "acme-metrics-revenue-per-customer",
           kind: "stat",
           dataset: "monthly-figures",
-          label: "Revenue vs last month",
+          label: "Revenue per New Customer",
         },
         at: { index: 4 },
       },
       {
         op: "configureStat",
-        target: "acme-metrics-revenue-comparison",
-        metric: "revenue",
-        comparison: { metric: "previous-revenue", display: "percent" },
+        target: "acme-metrics-revenue-per-customer",
+        metric: "revenue-per-new-customer",
+        comparison: {
+          metric: "previous-revenue-per-new-customer",
+          display: "percent",
+        },
         format: { type: "currency", currency: "USD" },
       },
     ],
     explain: [
-      "Added a Revenue vs last month card.",
-      "Set the card to this month's revenue, with the change from last month's.",
+      "Added a Revenue per New Customer card.",
+      "Set the card to this month's revenue divided by its new customers, with the change from last month.",
     ],
   },
   {
@@ -328,7 +331,7 @@ export const scriptedAnswers: ScriptedAnswer[] = [
   {
     target: "acme-nav",
     kind: "nav",
-    prompt: "move what I don't use under More",
+    prompt: "move Projects and Team under More",
     ops: [
       {
         op: "collapse",
@@ -337,7 +340,7 @@ export const scriptedAnswers: ScriptedAnswer[] = [
         into: "more",
       },
     ],
-    explain: ["Moved Projects and Team, which you haven't opened, under More."],
+    explain: ["Moved Projects and Team under More."],
   },
 ]
 

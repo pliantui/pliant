@@ -16,7 +16,7 @@ import { UnfinishedDot } from "@/components/unfinished-dot"
 import {
   formatUsd,
   getMetrics,
-  getRevenueComparison,
+  getRevenuePerNewCustomer,
   type Metric,
 } from "@/lib/acme/metrics"
 import { PliantRegion } from "@/registry/pliant/pliant-region"
@@ -32,7 +32,7 @@ function metric(id: Metric["id"]) {
   return found
 }
 
-const comparison = getRevenueComparison()
+const perCustomer = getRevenuePerNewCustomer()
 
 const signed = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 1,
@@ -68,33 +68,37 @@ function MetricCard({ metric }: { metric: Metric }) {
   )
 }
 
-// The card the "compare revenue" ask adds. A stat card isn't in Pliant yet,
-// so the showcase draws it.
-function RevenueComparisonCard() {
+const revenuePerCustomerAsk = "add a card for revenue per new customer"
+
+// The card the revenue per new customer ask adds. A stat card isn't in
+// Pliant yet, so the showcase draws it.
+function RevenuePerCustomerCard() {
+  const Trend = perCustomer.change >= 0 ? TrendingUpIcon : TrendingDownIcon
   return (
     <Card className="@container/card bg-linear-to-t from-primary/5 to-card shadow-xs dark:bg-card">
       <CardHeader>
         <CardDescription className="flex items-center gap-1.5">
-          Revenue vs last month
+          Revenue per New Customer
           <UnfinishedDot />
         </CardDescription>
         <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-          {formatUsd(comparison.current)}
+          {formatUsd(perCustomer.value)}
         </CardTitle>
         <CardAction>
           <Badge variant="outline">
-            <TrendingUpIcon aria-hidden="true" />
-            {signed.format(comparison.change)}%
+            <Trend aria-hidden="true" />
+            {signed.format(perCustomer.change)}%
           </Badge>
         </CardAction>
       </CardHeader>
       <CardFooter className="flex-col items-start gap-1.5 text-sm">
         <div className="line-clamp-1 flex gap-2 font-medium">
-          {comparison.difference >= 0 ? "Up " : "Down "}
-          {formatUsd(Math.abs(comparison.difference))} on October
+          {perCustomer.change >= 0 ? "Up" : "Down"} on{" "}
+          {perCustomer.previousMonth}
+          <Trend aria-hidden="true" className="size-4" />
         </div>
         <div className="text-muted-foreground">
-          October: {formatUsd(comparison.previous)}
+          {perCustomer.previousMonth}: {formatUsd(perCustomer.previous)}
         </div>
       </CardFooter>
     </Card>
@@ -102,7 +106,7 @@ function RevenueComparisonCard() {
 }
 
 export function SectionCards() {
-  const [applied, setApplied] = React.useState<string | null>(null)
+  const [shown, setShown] = React.useState<string | null>(null)
 
   return (
     <section
@@ -119,9 +123,9 @@ export function SectionCards() {
           "growth-rate": <MetricCard metric={metric("growth-rate")} />,
         }}
       />
-      {applied && (
+      {shown === revenuePerCustomerAsk && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <RevenueComparisonCard />
+          <RevenuePerCustomerCard />
         </div>
       )}
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start">
@@ -134,12 +138,8 @@ export function SectionCards() {
           target="acme-metrics"
           label="the metric cards"
           more
-          prompts={[
-            "add a card comparing this month's revenue with last month's",
-            "add a card for profit margin",
-          ]}
-          applied={applied}
-          onApply={setApplied}
+          prompts={[revenuePerCustomerAsk, "add a card for profit margin"]}
+          onShow={setShown}
         />
       </div>
     </section>

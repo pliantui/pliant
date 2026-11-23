@@ -194,7 +194,7 @@ test("groups the sections by type with the average target", async ({
   expect(errors).toEqual([])
 })
 
-test("the Data tab shows no request for a computed ask and the query for a server one", async ({
+test("the Data tab shows no request for a computed ask, and the query server mode would run", async ({
   page,
   errors,
 }) => {
@@ -202,7 +202,7 @@ test("the Data tab shows no request for a computed ask and the query for a serve
   await ask(
     page,
     "the sections table",
-    "show each section's share of all target pages"
+    "show each section's share of the total target"
   )
   await lockIn(page)
   await openTab(page, "Data")
@@ -226,7 +226,12 @@ test("the Data tab shows no request for a computed ask and the query for a serve
   await expect(rows).toHaveCount(expected.length)
   await lockIn(page)
   await openTab(page, "Data")
-  await expect(data.getByText("Server mode: one new request")).toBeVisible()
+  await expect(
+    data.getByText("Computed in the browser: no new request")
+  ).toBeVisible()
+  await expect(
+    data.getByText("In server mode, Pliant compiles this filter to:")
+  ).toBeVisible()
   await expect(
     data.getByText(/WHERE "workspace_id" = \$1 AND "reviewer" = \$2/)
   ).toBeVisible()
@@ -259,34 +264,64 @@ test("says no to profit margin and changes nothing", async ({
   expect(errors).toEqual([])
 })
 
-test("plays the scripted chart and card asks with their overlays", async ({
+test("previews, keeps and discards the asks the demo draws", async ({
   page,
   errors,
 }) => {
   await load(page)
-  await asks(page, "the visitors chart")
+  const chartAsks = asks(page, "the visitors chart")
+  await chartAsks
     .getByRole("button", { name: /^chart visitors by device as a line/ })
     .click()
   await expect(
-    asks(page, "the visitors chart").getByRole("button", {
+    chartAsks.getByRole("button", {
       name: /^chart visitors by device as a line ?, Scripted$/,
     })
   ).toHaveAttribute("aria-pressed", "true")
+  await app(page).getByRole("button", { name: "Lock in" }).click()
+
+  await openTab(page, "Data")
+  await expect(page.getByText("Drawn by the demo: no request")).toBeVisible()
   await openTab(page, "Changes")
   await expect(page.getByLabel("Overlay")).toContainText(
     '"op": "configureChart"'
   )
   await openTab(page, "Preview")
 
-  await moreAsks(page, "the metric cards")
-    .getByRole("button", { name: /^add a card comparing/ })
-    .click()
-  await expect(app(page).getByText(/^Revenue vs last month/)).toBeVisible()
-  await expect(app(page).getByText("October: $111,100.00")).toBeVisible()
+  const cardAsk = moreAsks(page, "the metric cards").getByRole("button", {
+    name: /^add a card for revenue per new customer/,
+  })
+  await cardAsk.click()
+  await expect(app(page).getByText(/^Revenue per New Customer/)).toBeVisible()
+  await app(page).getByRole("button", { name: "Discard" }).click()
+  await expect(app(page).getByText(/^Revenue per New Customer/)).toBeHidden()
+  // The kept chart change is the latest again.
+  await openTab(page, "Changes")
+  await expect(page.getByLabel("Overlay")).toContainText(
+    '"op": "configureChart"'
+  )
+  await openTab(page, "Preview")
+
+  await cardAsk.click()
+  await app(page).getByRole("button", { name: "Lock in" }).click()
+  // November's $125,000 over 1,234 new customers, against October's
+  // $111,100 over 1,545.
+  await expect(app(page).getByText("$101.30")).toBeVisible()
+  await expect(app(page).getByText("October: $71.91")).toBeVisible()
 
   await app(page).getByRole("button", { name: "Reset the dashboard" }).click()
-  await expect(app(page).getByText(/^Revenue vs last month/)).toBeHidden()
+  await expect(app(page).getByText(/^Revenue per New Customer/)).toBeHidden()
   expect(errors).toEqual([])
+})
+
+test("says on the page that the suggestions are hand-written", async ({
+  page,
+}) => {
+  await page.goto("/")
+
+  await expect(
+    page.getByText("Suggestions play hand-written answers. No model is called.")
+  ).toBeVisible()
 })
 
 test("opens the start page the user picked", async ({ page, errors }) => {
@@ -301,20 +336,17 @@ test("opens the start page the user picked", async ({ page, errors }) => {
   expect(errors).toEqual([])
 })
 
-test("moves the pages the user doesn't use under More", async ({
-  page,
-  errors,
-}) => {
+test("moves Projects and Team under More", async ({ page, errors }) => {
   await load(page)
   await expect(
     sidebar(page).getByRole("link", { name: "Projects" })
   ).toBeVisible()
 
-  await ask(page, "the sidebar", "move what I don't use under More")
+  await ask(page, "the sidebar", "move Projects and Team under More")
   await expect(
     sidebar(page).getByRole("link", { name: "Projects" })
   ).toBeHidden()
-  await sidebar(page).getByRole("button", { name: "More" }).click()
+  await sidebar(page).getByRole("button", { name: "More", exact: true }).click()
   await expect(
     sidebar(page).getByRole("link", { name: "Projects" })
   ).toBeVisible()

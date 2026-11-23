@@ -7,8 +7,11 @@ import { AcmeShowcase } from "./acme/acme-showcase"
 // `PliantRoot`.
 export function Showcase() {
   return (
-    <section aria-label="Live demo" className="container-wrapper">
+    <section aria-labelledby="live-demo" className="container-wrapper">
       <div className="container pb-12">
+        <h2 id="live-demo" className="sr-only">
+          Live demo
+        </h2>
         <AcmeShowcase queries={getSectionsQueries()} />
       </div>
     </section>

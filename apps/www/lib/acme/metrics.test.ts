@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { getMetrics, getRevenueComparison } from "./metrics"
+import { getMetrics, getRevenuePerNewCustomer } from "./metrics"
 
 describe("getMetrics", () => {
   it("compares this month with last month", () => {
@@ -44,13 +44,14 @@ describe("getMetrics", () => {
   })
 })
 
-describe("getRevenueComparison", () => {
-  it("gives both months and the change", () => {
-    expect(getRevenueComparison()).toEqual({
-      current: 125_000,
-      previous: 111_100,
-      difference: 13_900,
-      change: expect.closeTo(12.51, 2) as number,
+describe("getRevenuePerNewCustomer", () => {
+  it("divides each month's revenue by its new customers", () => {
+    expect(getRevenuePerNewCustomer()).toEqual({
+      value: 125_000 / 1_234,
+      previous: 111_100 / 1_545,
+      change: expect.closeTo(40.87, 2) as number,
+      month: "November",
+      previousMonth: "October",
     })
   })
 })

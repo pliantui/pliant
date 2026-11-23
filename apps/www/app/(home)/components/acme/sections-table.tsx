@@ -6,7 +6,6 @@ import {
   CheckCircle2Icon,
   ChevronDownIcon,
   Columns3Icon,
-  GripVerticalIcon,
   LoaderIcon,
   MoreVerticalIcon,
   PlusIcon,
@@ -112,18 +111,6 @@ function RowMenu({ section }: { section: Section }) {
 const columnHelper = createColumnHelper<PliantDataTableFeatures, Section>()
 
 const columns = columnHelper.columns([
-  columnHelper.display({
-    id: "drag",
-    size: 32,
-    enableHiding: false,
-    header: () => null,
-    cell: () => (
-      <GripVerticalIcon
-        aria-hidden="true"
-        className="size-3 text-muted-foreground"
-      />
-    ),
-  }),
   columnHelper.display({
     id: "select",
     size: 40,
@@ -288,9 +275,9 @@ export function SectionsTable({
   return (
     <Tabs value={tab} onValueChange={setTab} className="w-full flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 lg:px-6">
-        <h2 id={titleId} className="sr-only">
+        <h4 id={titleId} className="sr-only">
           Proposal sections
-        </h2>
+        </h4>
         <Select value={tab} onValueChange={setTab}>
           <SelectTrigger
             className="flex w-fit @4xl/main:hidden"
@@ -390,7 +377,7 @@ export function SectionsTable({
             "add a column for how far each section is over its limit",
             "highlight sections in process that are over their limit",
             "group by section type with the average target",
-            "show each section's share of all target pages",
+            "show each section's share of the total target",
             "only show Eddie Lake's sections that are in process",
           ]}
         />

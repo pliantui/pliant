@@ -188,7 +188,7 @@ export function AcmeSidebar({
               label="the sidebar"
               prompts={[
                 "open Analytics when I log in",
-                "move what I don't use under More",
+                "move Projects and Team under More",
               ]}
             />
           </div>
@@ -208,7 +208,7 @@ export function AcmeSidebar({
                 }}
               >
                 <MoreHorizontalIcon className="text-sidebar-foreground/70" />
-                <span>{showMore ? "Less" : "More"}</span>
+                <span>{showMore ? "Fewer documents" : "More documents"}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

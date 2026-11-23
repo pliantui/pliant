@@ -40,6 +40,8 @@ export function AcmeDashboard({ toolbar }: { toolbar: React.ReactNode }) {
     // in an app, inside the showcase.
     <PliantSidebarProvider
       id="acme-nav"
+      // Cmd/Ctrl+B belongs to the page, not the demo inside it.
+      keyboardShortcut={false}
       className="min-h-[720px] contain-layout"
       style={
         {

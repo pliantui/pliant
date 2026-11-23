@@ -8,7 +8,6 @@ import { apiCalls } from "@/lib/acme/api"
 import { useShowcaseActivity, type ShowcaseChange } from "./showcase-activity"
 
 export interface ShowcaseQueries {
-  base: CompiledQuery
   asks: { filters: unknown[]; query: CompiledQuery }[]
 }
 
@@ -81,27 +80,31 @@ function LatestAsk({ queries }: { queries: ShowcaseQueries }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {server ? (
-        <div className="flex flex-col gap-2">
-          <h4 className="text-sm font-medium">Server mode: one new request</h4>
-          <p className="text-sm text-muted-foreground">
-            The sections table loads its rows from the server, so it sends these
-            filters with its next{" "}
-            <code className="font-mono">GET /api/sections</code>. Pliant
-            compiles them into this parameterized query, scoped to the
-            user&apos;s workspace. Every value is a parameter.
-          </p>
-          <Query query={server.query} />
-        </div>
-      ) : (
+      {latest.local === null ? (
         <div className="flex flex-col gap-2">
           <h4 className="text-sm font-medium">
             Computed in the browser: no new request
           </h4>
           <p className="text-sm text-muted-foreground">
-            Pliant applied the operations below to the rows the page already
-            loaded.
+            The dashboard loads all its rows, so Pliant applied the operations
+            below to the rows the page already has.
           </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <h4 className="text-sm font-medium">Drawn by the demo: no request</h4>
+          <p className="text-sm text-muted-foreground">
+            This part isn&apos;t in Pliant yet, so the demo draws the change
+            itself. The answer is still the list of operations below.
+          </p>
+        </div>
+      )}
+      {server && (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-muted-foreground">
+            In server mode, Pliant compiles this filter to:
+          </p>
+          <Query query={server.query} />
         </div>
       )}
       <Json label="Operations the answer contains" value={ops} />
@@ -149,17 +152,8 @@ export function DataTab({ queries }: { queries: ShowcaseQueries }) {
                 </span>
               </div>
               <div className="grid gap-3 lg:grid-cols-2">
-                {call.id === "sections" ? (
-                  <div className="flex min-w-0 flex-col gap-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      Query the server runs
-                    </span>
-                    <Query query={queries.base} />
-                  </div>
-                ) : (
-                  call.request !== undefined && (
-                    <Json label="Request" value={call.request} />
-                  )
+                {call.request !== undefined && (
+                  <Json label="Request" value={call.request} />
                 )}
                 <Json label="Response" value={call.response} />
               </div>

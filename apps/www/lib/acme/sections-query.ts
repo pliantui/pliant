@@ -39,13 +39,10 @@ export interface SectionsQuery {
   query: CompiledQuery
 }
 
-// The query the sections table's server runs for the first page, with no
-// filters and with the filters of each scripted ask that sets some. Pliant's
-// own compiler writes it, so every value is a parameter.
-export function getSectionsQueries(): {
-  base: CompiledQuery
-  asks: SectionsQuery[]
-} {
+// The query a server-mode sections table would run for the filters of each
+// scripted ask that sets some. Pliant's own compiler writes it, so every
+// value is a parameter.
+export function getSectionsQueries(): { asks: SectionsQuery[] } {
   const grant = authorizeDataset(sectionsDataset, user)
   if (!grant) throw new Error("The demo user can't read the sections")
   const compile = (filters: Filter[]) =>
@@ -62,5 +59,5 @@ export function getSectionsQueries(): {
     )
     .filter((filters) => filters.length > 0)
     .map((filters) => ({ filters, query: compile(filters) }))
-  return { base: compile([]), asks }
+  return { asks }
 }

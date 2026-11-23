@@ -72,9 +72,14 @@ export function AcmeShowcase({ queries }: { queries: ShowcaseQueries }) {
             <TabsTrigger value="data">Data</TabsTrigger>
             <TabsTrigger value="changes">Changes</TabsTrigger>
           </TabsList>
-          <p className="text-sm text-muted-foreground">
-            Try a suggestion under any part, or press Point and pick one.
-          </p>
+          <div className="flex flex-col gap-0.5">
+            <p className="text-sm text-muted-foreground">
+              Try a suggestion under any part, or press Point and pick one.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Suggestions play hand-written answers. No model is called.
+            </p>
+          </div>
         </div>
         <TabsContent
           value="preview"

@@ -22,6 +22,16 @@ const signed = new Intl.NumberFormat("en-US", {
   signDisplay: "exceptZero",
 })
 
+const monthName = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  timeZone: "UTC",
+})
+
+// A month of figures by name, like "November".
+function monthOf(figures: MonthlyFigures) {
+  return monthName.format(new Date(figures.month))
+}
+
 function percentChange(from: number, to: number) {
   return ((to - from) / Math.abs(from)) * 100
 }
@@ -65,7 +75,7 @@ export function getMetrics(
       change: revenue,
       changeLabel: `${signed.format(revenue)}%`,
       trend: revenue >= 0 ? "Trending up this month" : "Down this month",
-      caption: "Revenue for November",
+      caption: `Revenue for ${monthOf(current)}`,
     },
     {
       id: "new-customers",
@@ -102,15 +112,19 @@ export function getMetrics(
   ]
 }
 
-// This month's revenue against last month's, for the card an ask adds.
-export function getRevenueComparison(
+// Revenue per new customer, this month against last month, for the card
+// an ask adds: a figure the dashboard's own cards don't show.
+export function getRevenuePerNewCustomer(
   figures: readonly MonthlyFigures[] = monthlyFigures
 ) {
   const { current, previous } = lastTwo(figures)
+  const now = current.revenue / current.newCustomers
+  const before = previous.revenue / previous.newCustomers
   return {
-    current: current.revenue,
-    previous: previous.revenue,
-    difference: current.revenue - previous.revenue,
-    change: percentChange(previous.revenue, current.revenue),
+    value: now,
+    previous: before,
+    change: percentChange(before, now),
+    month: monthOf(current),
+    previousMonth: monthOf(previous),
   }
 }

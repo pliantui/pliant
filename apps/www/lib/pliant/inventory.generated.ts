@@ -14,7 +14,6 @@ export const inventory = {
         "acme-nav/items/team",
         "acme-sections",
         "acme-sections/columns/actions",
-        "acme-sections/columns/drag",
         "acme-sections/columns/header",
         "acme-sections/columns/limit",
         "acme-sections/columns/reviewer",
@@ -79,10 +78,6 @@ export const inventory = {
         hash: "f873f0295ae458a8",
       },
       "acme-sections/columns/actions": {
-        kind: "pliant:column",
-        hash: "ee1eb3e11724472b",
-      },
-      "acme-sections/columns/drag": {
         kind: "pliant:column",
         hash: "ee1eb3e11724472b",
       },
