@@ -12,6 +12,7 @@ import {
 import { ArrowRightIcon, CornerDownLeftIcon } from "lucide-react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
+import { useCustomizeCommands } from "@/components/demo/customize-commands"
 import { Button } from "@/components/ui/button"
 import {
   Command,
@@ -33,6 +34,10 @@ import { Spinner } from "@/components/ui/spinner"
 import { useMutationObserver } from "@/hooks/use-mutation-observer"
 import { getDocsGroups } from "@/lib/docs-nav"
 import type { NavItem } from "@/lib/nav"
+import {
+  PliantCustomizeCommandGroup,
+  type PliantCustomizeActions,
+} from "@/registry/pliant/pliant-customize-menu"
 
 const groupClassName =
   "p-0! **:[[cmdk-group-heading]]:scroll-mt-16 **:[[cmdk-group-heading]]:p-3! **:[[cmdk-group-heading]]:pb-1!"
@@ -63,6 +68,30 @@ export function CommandMenu({
   const { search, onSearchChange, isLoading, data } = useStaticSearch()
 
   const groups = React.useMemo(() => getDocsGroups(tree), [tree])
+
+  // The Customize menu of the demo on the page. Its items run once the
+  // dialog has closed, so focus can go where they move it rather than back
+  // to the search button.
+  const customize = useCustomizeCommands()
+  const [pending, setPending] = React.useState<(() => void) | null>(null)
+  const later = (run: (() => void) | undefined) =>
+    run &&
+    (() => {
+      setPending(() => run)
+      handleOpenChange(false)
+    })
+  const customizeCommands: PliantCustomizeActions | null = customize && {
+    ...customize,
+    onAsk: later(customize.onAsk),
+    onAdjust: later(customize.onAdjust),
+    onHistory: later(customize.onHistory),
+    onReset:
+      customize.onReset &&
+      (() => {
+        handleOpenChange(false)
+        customize.onReset?.()
+      }),
+  }
 
   const handleOpenChange = React.useCallback((open: boolean) => {
     setOpen(open)
@@ -119,7 +148,15 @@ export function CommandMenu({
           <span className="inline-flex xl:hidden">Search...</span>
         </Button>
       </DialogTrigger>
-      <CommandDialogContent className="rounded-xl border-none bg-clip-padding p-2 pb-11 shadow-2xl ring-4 ring-neutral-200/80 dark:bg-neutral-900 dark:ring-neutral-800">
+      <CommandDialogContent
+        onCloseAutoFocus={(event) => {
+          if (!pending) return
+          event.preventDefault()
+          setPending(null)
+          pending()
+        }}
+        className="rounded-xl border-none bg-clip-padding p-2 pb-11 shadow-2xl ring-4 ring-neutral-200/80 dark:bg-neutral-900 dark:ring-neutral-800"
+      >
         <DialogHeader className="sr-only">
           <DialogTitle>Search documentation</DialogTitle>
           <DialogDescription>
@@ -150,6 +187,12 @@ export function CommandMenu({
             <CommandEmpty className="py-12 text-center text-sm text-muted-foreground">
               {isLoading ? "Searching..." : "No results found."}
             </CommandEmpty>
+            {customizeCommands && (
+              <PliantCustomizeCommandGroup
+                {...customizeCommands}
+                className={groupClassName}
+              />
+            )}
             <CommandGroup heading="Pages" className={groupClassName}>
               {navItems.map((item) => (
                 <CommandMenuItem

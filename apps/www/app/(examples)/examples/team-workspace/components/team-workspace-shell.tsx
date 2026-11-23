@@ -6,7 +6,8 @@ import { LockIcon, UserIcon, UsersIcon } from "lucide-react"
 import { PliantRoot, type PliantInventory } from "@pliantui/react"
 
 import { AskChips } from "@/components/demo/ask-chips"
-import { CustomizedReset } from "@/components/demo/customized-reset"
+import { focusFirstAsk } from "@/components/demo/customize-control"
+import { DemoCustomizeMenu } from "@/components/demo/demo-customize"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import {
@@ -138,9 +139,17 @@ export function TeamWorkspaceShell({
                 Support desk
               </span>
               <div className="ml-auto">
-                <CustomizedReset
+                <DemoCustomizeMenu
                   targets={["app-sidebar"]}
                   label="the sidebar"
+                  commands
+                  onAsk={
+                    persona === "you"
+                      ? () => {
+                          focusFirstAsk(document.getElementById("main"))
+                        }
+                      : undefined
+                  }
                 />
               </div>
             </header>

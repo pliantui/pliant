@@ -90,7 +90,13 @@ const messages: PliantMessages = {
     `⟦dataTableFilterPlaceholder ${label}⟧`,
   dataTableSort: "⟦dataTableSort⟧",
   dataTablePresets: "⟦dataTablePresets⟧",
-  dataTableReset: "⟦dataTableReset⟧",
+  customizeOpen: "⟦customizeOpen⟧",
+  customizeCustomized: "⟦customizeCustomized⟧",
+  customizeAsk: "⟦customizeAsk⟧",
+  customizeAdjust: "⟦customizeAdjust⟧",
+  customizeHistory: "⟦customizeHistory⟧",
+  customizeReset: "⟦customizeReset⟧",
+  navCustomize: "⟦navCustomize⟧",
   dataTableHighlighted: (names) => `⟦dataTableHighlighted ${names.join(" ")}⟧`,
   dataTableHighlightEmphasis: "⟦dataTableHighlightEmphasis⟧",
   dataTableHighlightSuccess: "⟦dataTableHighlightSuccess⟧",
@@ -546,6 +552,7 @@ describe("the registry components with every message given", () => {
     expect(
       screen.getByRole("menuitemcheckbox", { name: "⟦navStartPage⟧" })
     ).toBeTruthy()
+    expect(screen.getByText("⟦navCustomize⟧")).toBeTruthy()
     expect(unmarkedText()).toEqual([])
   })
 
@@ -626,10 +633,22 @@ describe("the registry components with every message given", () => {
         .getAttribute("placeholder")
     ).toBe("⟦dataTableFilterPlaceholder «Order»⟧")
     expect(screen.getByText("⟦dataTableRowsPerPage⟧")).toBeTruthy()
+    expect(screen.getByText("⟦customizeCustomized⟧")).toBeTruthy()
+    fireEvent.keyDown(screen.getByRole("button", { name: "⟦customizeOpen⟧" }), {
+      key: "Enter",
+    })
+    await settle(20)
     expect(
-      screen.getByRole("button", { name: "⟦dataTableReset⟧" })
-    ).toBeTruthy()
+      screen.getAllByRole("menuitem").map((item) => item.textContent)
+    ).toEqual([
+      "⟦customizeAsk⟧",
+      "⟦customizeAdjust⟧",
+      "⟦customizeHistory⟧",
+      "⟦customizeReset⟧",
+    ])
     expect(unmarkedText()).toEqual([])
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" })
+    await settle(20)
 
     fireEvent.keyDown(screen.getByRole("button", { name: "«Amounts»" }), {
       key: "Enter",

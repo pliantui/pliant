@@ -10,7 +10,11 @@ import {
 } from "@pliantui/react"
 
 import { AskChips } from "@/components/demo/ask-chips"
-import { CustomizedReset } from "@/components/demo/customized-reset"
+import { focusFirstAsk } from "@/components/demo/customize-control"
+import {
+  DemoCustomizeMenu,
+  DemoCustomizeSurface,
+} from "@/components/demo/demo-customize"
 import { ReplayNote } from "@/components/demo/replay-note"
 import { ScriptedAnswerLabel } from "@/components/demo/scripted-answer-label"
 import { Button } from "@/components/ui/button"
@@ -155,6 +159,15 @@ export function Playground({
       [example.id]: [...(current[example.id] ?? []), overlay],
     }))
   }
+  const customize = {
+    targets: [example.target],
+    onAsk: () => {
+      focusFirstAsk(document.getElementById("main"))
+    },
+    onReset: () => {
+      setChanges((current) => ({ ...current, [example.id]: [] }))
+    },
+  }
 
   return (
     <PliantRoot surface="/playground" storage={memoryAdapter()}>
@@ -233,17 +246,17 @@ export function Playground({
                   Before
                 </ToggleGroupItem>
               </ToggleGroup>
-              <CustomizedReset
-                targets={[example.target]}
+              <DemoCustomizeMenu
+                {...customize}
                 label={example.label.toLowerCase()}
-                onReset={() => {
-                  setChanges((current) => ({ ...current, [example.id]: [] }))
-                }}
+                commands
               />
             </div>
             <div className="min-w-0 rounded-xl border p-4 sm:p-6">
               {view === "after" ? (
-                example.node
+                <DemoCustomizeSurface {...customize}>
+                  <div>{example.node}</div>
+                </DemoCustomizeSurface>
               ) : (
                 // The untouched example, with layers of its own. Only one copy
                 // is mounted at a time, so ids stay unique. The kept answers

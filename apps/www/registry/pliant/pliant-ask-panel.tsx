@@ -223,8 +223,13 @@ function PliantAskPanel({
   onTargetChange?: (target: string) => void
   /** The prompt's placeholder, in place of `askPromptPlaceholder`. */
   placeholder?: string
-  /** The element that opens the panel. Defaults to an `askOpen` button. */
-  trigger?: React.ReactElement
+  /**
+   * The element that opens the panel. Defaults to an `askOpen` button. Pass
+   * `null` when something else opens it, such as `PliantCustomizeMenu`'s
+   * Ask item with `open` and `onOpenChange`; focus then goes nowhere when
+   * the panel closes, so `onOpenChange` should move it.
+   */
+  trigger?: React.ReactElement | null
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
@@ -262,19 +267,21 @@ function PliantAskPanel({
 
   return (
     <>
-      <Slot.Root {...panel.getTriggerProps()}>
-        {trigger ?? (
-          <Button type="button" variant="outline" size="sm">
-            <SparklesIcon />
-            {messages.askOpen}
-            {previewing && !panel.open && (
-              <span className="size-2 rounded-full bg-primary">
-                <span className="sr-only">{messages.askPreviewActive}</span>
-              </span>
-            )}
-          </Button>
-        )}
-      </Slot.Root>
+      {trigger !== null && (
+        <Slot.Root {...panel.getTriggerProps()}>
+          {trigger ?? (
+            <Button type="button" variant="outline" size="sm">
+              <SparklesIcon />
+              {messages.askOpen}
+              {previewing && !panel.open && (
+                <span className="size-2 rounded-full bg-primary">
+                  <span className="sr-only">{messages.askPreviewActive}</span>
+                </span>
+              )}
+            </Button>
+          )}
+        </Slot.Root>
+      )}
       {panel.open && (
         <aside
           {...panel.getPanelProps()}

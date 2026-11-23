@@ -4,7 +4,10 @@ import * as React from "react"
 
 import { usePliantStatus, usePliantStore } from "@pliantui/react"
 
-import { ResetControl } from "@/components/demo/reset-control"
+import {
+  CustomizeControl,
+  CustomizeSurface,
+} from "@/components/demo/customize-control"
 import { useCustomized } from "@/components/demo/use-customized"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PliantPointMode } from "@/registry/pliant/pliant-point-mode"
@@ -24,9 +27,9 @@ const targets = [
   { id: "acme-sections", label: "Sections table" },
 ]
 
-// Moves focus to the suggested asks of the part the user pointed at.
+// Moves focus to the suggested asks of a part of the dashboard.
 function focusAsks(id: string) {
-  // After point mode closes, which puts focus back on its button.
+  // After the menu or point mode closes, which may put focus back.
   requestAnimationFrame(() => {
     const asks = document.querySelector(`[data-asks-for="${id}"]`)
     asks?.scrollIntoView({ block: "center", behavior: "smooth" })
@@ -34,27 +37,46 @@ function focusAsks(id: string) {
   })
 }
 
+// The part of the dashboard that has focus, or else the first one.
+function focusedPart() {
+  const part = document.activeElement?.closest("[data-pliant-id]")
+  const id = part?.getAttribute("data-pliant-id")
+  return targets.find((target) => target.id === id)?.id ?? targetIds[0] ?? ""
+}
+
 const targetIds = targets.map((target) => target.id)
 
-function Toolbar({ onReset }: { onReset: () => void }) {
+// The dashboard's Customize menu, in its header, and the same items in its
+// right-click menu. There's no ask panel here, so Ask moves focus to the
+// suggested asks of the part that has focus. Holding Alt points at a part.
+function ShowcasePreview({ onReset }: { onReset: () => void }) {
   const store = usePliantStore()
   const { status } = usePliantStatus()
   const { local, clear } = useShowcaseActivity()
   const customized = useCustomized(targetIds)
+  const options = {
+    customized: customized || local.size > 0,
+    ready: status === "ready",
+    onAsk: () => {
+      focusAsks(focusedPart())
+    },
+    onReset: () => {
+      for (const target of targetIds) store.resetNode(target)
+      clear()
+      onReset()
+    },
+  }
+
   return (
-    <>
-      <ResetControl
-        customized={customized || local.size > 0}
-        ready={status === "ready"}
-        label="the dashboard"
-        onReset={() => {
-          for (const target of targetIds) store.resetNode(target)
-          clear()
-          onReset()
-        }}
-      />
-      <PliantPointMode targets={targets} onPick={focusAsks} />
-    </>
+    <CustomizeSurface {...options}>
+      <div>
+        <AcmeDashboard
+          toolbar={
+            <CustomizeControl label="the dashboard" commands {...options} />
+          }
+        />
+      </div>
+    </CustomizeSurface>
   )
 }
 
@@ -74,7 +96,8 @@ export function AcmeShowcase({ queries }: { queries: ShowcaseQueries }) {
           </TabsList>
           <div className="flex flex-col gap-0.5">
             <p className="text-sm text-muted-foreground">
-              Try a suggestion under any part, or press Point and pick one.
+              Try a suggestion under any part, or open Customize to ask for a
+              change.
             </p>
             <p className="text-xs text-muted-foreground">
               Suggestions play hand-written answers. No model is called.
@@ -88,15 +111,25 @@ export function AcmeShowcase({ queries }: { queries: ShowcaseQueries }) {
           // keeps its changes.
           className="overflow-hidden rounded-xl border bg-sidebar data-[state=inactive]:hidden"
         >
-          <AcmeDashboard
+          <ShowcasePreview
             key={generation}
-            toolbar={
-              <Toolbar
-                onReset={() => {
-                  setGeneration((current) => current + 1)
-                }}
-              />
-            }
+            onReset={() => {
+              setGeneration((current) => current + 1)
+              // The menu's button remounts with the dashboard, so focus
+              // goes to the new one.
+              requestAnimationFrame(() => {
+                document
+                  .querySelector<HTMLElement>(
+                    '[aria-label="Customize the dashboard"]'
+                  )
+                  ?.focus()
+              })
+            }}
+          />
+          <PliantPointMode
+            targets={targets}
+            onPick={focusAsks}
+            trigger={null}
           />
         </TabsContent>
         <TabsContent value="data" className="rounded-xl border">

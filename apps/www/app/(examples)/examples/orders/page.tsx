@@ -4,8 +4,6 @@ import { PliantRoot } from "@pliantui/react"
 import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
-import { CustomizedReset } from "@/components/demo/customized-reset"
-import { DemoAskToolbar } from "@/components/demo/demo-ask-toolbar"
 import { ReplayNote } from "@/components/demo/replay-note"
 import { orders } from "@/lib/demo/data"
 import { formatCurrency, formatNumber } from "@/lib/demo/format"
@@ -14,7 +12,7 @@ import { inventory } from "@/lib/pliant/inventory.generated"
 import { KpiCard } from "@/registry/blocks/analytics-dashboard/kpi-card"
 import { PliantRegion } from "@/registry/pliant/pliant-region"
 
-import { askTargets } from "./ask-targets"
+import { OrdersDemo } from "./components/orders-demo"
 import { OrdersTable } from "./components/orders-table"
 
 export const metadata: Metadata = {
@@ -34,59 +32,58 @@ export default function OrdersPage() {
           inventory={inventory["/examples/orders"]}
         >
           <PliantPrePaint surface="/examples/orders" />
-          <header className="flex items-start justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <h2 className="text-2xl font-semibold tracking-tight">Orders</h2>
-              <p className="text-sm text-muted-foreground">
-                Orders placed Jan–Oct 2026
-              </p>
-              <ReplayNote />
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <CustomizedReset
-                targets={["key-metrics", "orders-table"]}
-                label="the orders page"
-              />
-              <DemoAskToolbar targets={askTargets} />
-            </div>
-          </header>
-          <section aria-label="Key metrics">
-            <PliantRegion
-              id="key-metrics"
-              slots={{
-                revenue: (
-                  <KpiCard
-                    label="Revenue"
-                    value={formatCurrency(stats.revenue)}
-                    definition="Total value of paid orders"
-                  />
-                ),
-                orders: (
-                  <KpiCard
-                    label="Orders"
-                    value={formatNumber(stats.orders)}
-                    definition="All orders placed"
-                  />
-                ),
-                "average-order-value": (
-                  <KpiCard
-                    label="Average order value"
-                    value={formatCurrency(stats.averageOrderValue)}
-                    definition="Revenue per paid order"
-                  />
-                ),
-                overdue: (
-                  <KpiCard
-                    label="Overdue"
-                    value={formatNumber(stats.overdue)}
-                    definition="Orders marked overdue"
-                  />
-                ),
-              }}
-              className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"
-            />
-          </section>
-          <OrdersTable data={orders} />
+          <OrdersDemo
+            header={
+              <div className="flex flex-col gap-1">
+                <h2 className="text-2xl font-semibold tracking-tight">
+                  Orders
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Orders placed Jan–Oct 2026
+                </p>
+                <ReplayNote />
+              </div>
+            }
+            metrics={
+              <section aria-label="Key metrics">
+                <PliantRegion
+                  id="key-metrics"
+                  slots={{
+                    revenue: (
+                      <KpiCard
+                        label="Revenue"
+                        value={formatCurrency(stats.revenue)}
+                        definition="Total value of paid orders"
+                      />
+                    ),
+                    orders: (
+                      <KpiCard
+                        label="Orders"
+                        value={formatNumber(stats.orders)}
+                        definition="All orders placed"
+                      />
+                    ),
+                    "average-order-value": (
+                      <KpiCard
+                        label="Average order value"
+                        value={formatCurrency(stats.averageOrderValue)}
+                        definition="Revenue per paid order"
+                      />
+                    ),
+                    overdue: (
+                      <KpiCard
+                        label="Overdue"
+                        value={formatNumber(stats.overdue)}
+                        definition="Orders marked overdue"
+                      />
+                    ),
+                  }}
+                  className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"
+                />
+              </section>
+            }
+            table={<OrdersTable data={orders} />}
+          />
         </PliantRoot>
       </div>
     </div>

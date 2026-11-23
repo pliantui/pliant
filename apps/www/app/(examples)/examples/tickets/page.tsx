@@ -4,7 +4,8 @@ import { PliantRoot } from "@pliantui/react"
 import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
-import { CustomizedReset } from "@/components/demo/customized-reset"
+import { DemoCustomizeSurface } from "@/components/demo/demo-customize"
+import { PageCustomizeMenu } from "@/components/demo/page-customize-menu"
 import { inventory } from "@/lib/pliant/inventory.generated"
 import { TicketForm } from "@/registry/blocks/ticket-form/ticket-form"
 
@@ -32,9 +33,17 @@ export default function TicketsPage() {
                 Tell us what went wrong and we&apos;ll get back to you.
               </p>
             </div>
-            <CustomizedReset targets={["ticket-form"]} label="the form" />
+            <PageCustomizeMenu
+              targets={["ticket-form"]}
+              label="the form"
+              asks={false}
+            />
           </header>
-          <TicketForm />
+          <DemoCustomizeSurface targets={["ticket-form"]}>
+            <div>
+              <TicketForm />
+            </div>
+          </DemoCustomizeSurface>
         </PliantRoot>
       </div>
     </div>

@@ -455,8 +455,11 @@ function PliantPointMode({
   targets: readonly PliantPointTarget[]
   /** Called with the id of the target the user picked. */
   onPick: (id: string) => void
-  /** The element that toggles point mode. Defaults to a `pointModeOpen` button. */
-  trigger?: React.ReactElement
+  /**
+   * The element that toggles point mode. Defaults to a `pointModeOpen`
+   * button. Pass `null` for no toggle, leaving Alt and the shortcut.
+   */
+  trigger?: React.ReactElement | null
 }) {
   const messages = usePliantMessages(pointModeMessages)
   const { mode, boxes, announcement, pick, getTriggerProps, getLayerProps } =
@@ -511,19 +514,21 @@ function PliantPointMode({
 
   return (
     <>
-      <Slot.Root {...getTriggerProps()}>
-        {trigger ?? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
-          >
-            <SquareDashedMousePointerIcon />
-            {messages.pointModeOpen}
-          </Button>
-        )}
-      </Slot.Root>
+      {trigger !== null && (
+        <Slot.Root {...getTriggerProps()}>
+          {trigger ?? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
+            >
+              <SquareDashedMousePointerIcon />
+              {messages.pointModeOpen}
+            </Button>
+          )}
+        </Slot.Root>
+      )}
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}
       </span>

@@ -4,6 +4,40 @@
   "homepage": "https://pliantui-www.pliantui-dev.workers.dev",
   "items": [
     {
+      "name": "customize-icon",
+      "type": "registry:component",
+      "title": "Customize Icon",
+      "description": "The Customize icon, outline by default and filled for emphasis, with the same props as a lucide-react icon.",
+      "files": [
+        {
+          "path": "registry/pliant/customize-icon.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/customize-icon.tsx"
+        }
+      ]
+    },
+    {
+      "name": "pliant-customize-menu",
+      "type": "registry:component",
+      "title": "Pliant Customize Menu",
+      "description": "The Customize menu that holds a part's Pliant actions (Ask for a change, Adjust by hand, History and Reset to default) as a header button, a right-click group and a command menu group, with ⌘. to ask about the focused part.",
+      "dependencies": ["@pliantui/react", "cn", "lucide-react"],
+      "registryDependencies": [
+        "button",
+        "command",
+        "context-menu",
+        "dropdown-menu",
+        "https://pliantui.dev/r/customize-icon.json"
+      ],
+      "files": [
+        {
+          "path": "registry/pliant/pliant-customize-menu.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-customize-menu.tsx"
+        }
+      ]
+    },
+    {
       "name": "pliant-region",
       "type": "registry:component",
       "title": "Pliant Region",
@@ -45,7 +79,11 @@
       "title": "Pliant Nav",
       "description": "The links of a sidebar, which users can reorder, hide and collapse into a \"More\" item with Pliant overlays, pick their start page from, and keep open or closed.",
       "dependencies": ["@pliantui/react", "cn", "lucide-react"],
-      "registryDependencies": ["dropdown-menu", "sidebar"],
+      "registryDependencies": [
+        "dropdown-menu",
+        "sidebar",
+        "https://pliantui.dev/r/customize-icon.json"
+      ],
       "files": [
         {
           "path": "registry/pliant/pliant-nav.tsx",
@@ -146,7 +184,7 @@
       "name": "pliant-data-table-toolbar",
       "type": "registry:component",
       "title": "Pliant Data Table Toolbar",
-      "description": "A toolbar for pliant-data-table with a search box, faceted filters with row counts, sort options, presets, the columns menu and a Reset button, which also shows the filters, sort options and presets that ops add.",
+      "description": "A toolbar for pliant-data-table with a search box, faceted filters with row counts, sort options, presets, the columns menu and the table's Customize menu, which also shows the filters, sort options and presets that ops add.",
       "dependencies": [
         "@pliantui/contract",
         "@pliantui/react",
@@ -160,7 +198,8 @@
         "dropdown-menu",
         "input",
         "separator",
-        "https://pliantui.dev/r/pliant-data-table.json"
+        "https://pliantui.dev/r/pliant-data-table.json",
+        "https://pliantui.dev/r/pliant-customize-menu.json"
       ],
       "files": [
         {

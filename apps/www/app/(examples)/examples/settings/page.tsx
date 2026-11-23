@@ -5,6 +5,7 @@ import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
 import { SettingsPageDemo } from "@/components/blocks/settings-page-demo"
+import { PageCustomizeMenu } from "@/components/demo/page-customize-menu"
 import { team } from "@/lib/demo/data"
 import { inventory } from "@/lib/pliant/inventory.generated"
 
@@ -26,11 +27,19 @@ export default function SettingsExamplePage() {
           inventory={inventory["/examples/settings"]}
         >
           <PliantPrePaint surface="/examples/settings" />
-          <header className="flex flex-col gap-1">
-            <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
-            <p className="text-sm text-muted-foreground">
-              Your profile and the emails you get.
-            </p>
+          <header className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-2xl font-semibold tracking-tight">
+                Settings
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Your profile and the emails you get.
+              </p>
+            </div>
+            <PageCustomizeMenu
+              targets={["notification-settings"]}
+              label="the settings page"
+            />
           </header>
           <SettingsPageDemo user={user} />
         </PliantRoot>
