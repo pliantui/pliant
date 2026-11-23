@@ -137,14 +137,43 @@ function page(
           overdue: <p>Overdue</p>,
         }}
       />
+      <OpenedPanel {...props} />
+    </PliantRoot>
+  )
+}
+
+// Opens the panel from a button of the app's, as a Customize menu's Ask item
+// does, and gives that button focus back when it closes.
+function OpenedPanel({
+  defaultOpen = true,
+  onOpenChange,
+  ...props
+}: Partial<React.ComponentProps<typeof PliantAskPanel>>) {
+  const [open, setOpen] = React.useState(defaultOpen)
+  const opener = React.useRef<HTMLButtonElement>(null)
+  return (
+    <>
+      <button
+        ref={opener}
+        type="button"
+        onClick={() => {
+          setOpen(!open)
+        }}
+      >
+        Ask
+      </button>
       <PliantAskPanel
         endpoint="/api/pliant"
         targets={targets}
-        defaultOpen
-        trigger={<button type="button">Ask</button>}
         {...props}
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next)
+          onOpenChange?.(next)
+          if (!next) opener.current?.focus()
+        }}
       />
-    </PliantRoot>
+    </>
   )
 }
 
@@ -217,10 +246,8 @@ afterEach(() => {
 describe("PliantAskPanel", () => {
   it("labels its controls and focuses the prompt when opened", async () => {
     await renderPanel({ defaultOpen: false })
-    const trigger = screen.getByRole("button", { name: "Ask" })
-    expect(trigger.getAttribute("type")).toBe("button")
 
-    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }))
     await screen.findByRole("textbox", { name: "Ask" })
 
     expect(screen.getByRole("complementary", { name: "Ask" })).toBeTruthy()
@@ -566,33 +593,32 @@ describe("PliantAskPanel", () => {
   })
 
   it("has no button of its own", async () => {
-    await renderPanel({ defaultOpen: false, trigger: undefined })
+    render(
+      <PliantRoot surface={surface} storage={storage}>
+        <PliantAskPanel endpoint="/api/pliant" targets={targets} />
+      </PliantRoot>
+    )
+    await settle()
 
     expect(screen.queryByRole("button")).toBeNull()
   })
 
-  it("opens and closes from its trigger", async () => {
-    await renderPanel({ defaultOpen: false })
-    const trigger = screen.getByRole("button", { name: "Ask" })
-    expect(trigger.getAttribute("aria-expanded")).toBe("false")
+  it("opens and closes through open and onOpenChange", async () => {
+    const onOpenChange = vi.fn()
+    await renderPanel({ defaultOpen: false, onOpenChange })
     expect(screen.queryByRole("complementary")).toBeNull()
 
-    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }))
     await screen.findByRole("textbox", { name: "Ask" })
-
-    expect(trigger.getAttribute("aria-expanded")).toBe("true")
-    expect(trigger.getAttribute("aria-controls")).toBe(
-      screen.getByRole("complementary", { name: "Ask" }).id
-    )
     expect(document.activeElement).toBe(prompt())
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }))
 
+    expect(onOpenChange).toHaveBeenCalledWith(false)
     expect(screen.queryByRole("complementary")).toBeNull()
-    expect(document.activeElement).toBe(trigger)
   })
 
-  it("keeps the preview when it closes and marks the trigger", async () => {
+  it("keeps the preview when it closes", async () => {
     await renderPanel()
     answer(okAnswer)
     await ask()
@@ -600,11 +626,7 @@ describe("PliantAskPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }))
 
     expect(order()).toEqual(["overdue", "revenue", "orders"])
-    const trigger = screen.getByRole("button", { name: "Ask" })
-    expect(trigger.hasAttribute("data-preview")).toBe(true)
-    expect(trigger.getAttribute("data-state")).toBe("closed")
-
-    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }))
     await settle()
 
     expect(screen.getByRole("button", { name: "Lock in" })).toBeTruthy()

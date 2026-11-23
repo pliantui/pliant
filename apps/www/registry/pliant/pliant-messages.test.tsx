@@ -32,7 +32,10 @@ import { PliantDataTablePagination } from "./pliant-data-table-pagination"
 import { PliantDataTableToolbar } from "./pliant-data-table-toolbar"
 import { PliantForm } from "./pliant-form"
 import { PliantNav, PliantSidebarProvider } from "./pliant-nav"
-import { PliantPointMode } from "./pliant-point-mode"
+import {
+  PliantPointMode,
+  type PliantPointModeHandle,
+} from "./pliant-point-mode"
 import { PliantRegion } from "./pliant-region"
 
 // Every entry, so a new one must be added here, and every text marked: what
@@ -205,16 +208,42 @@ function renderPage(layers: StorageAdapter = storage) {
           orders: <p>«Orders»</p>,
         }}
       />
-      <PliantPointMode
-        targets={targets}
-        trigger={<button type="button">«Point»</button>}
-      />
+      <Openers />
+    </PliantRoot>
+  )
+}
+
+// The app's own controls that open point mode and the ask panel, as a
+// Customize menu's items do.
+function Openers() {
+  const pointMode = React.useRef<PliantPointModeHandle>(null)
+  const [open, setOpen] = React.useState(false)
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          pointMode.current?.start()
+        }}
+      >
+        «Point»
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true)
+        }}
+      >
+        «Ask»
+      </button>
+      <PliantPointMode ref={pointMode} targets={targets} />
       <PliantAskPanel
         endpoint="/api/pliant"
         targets={targets}
-        trigger={<button type="button">«Ask»</button>}
+        open={open}
+        onOpenChange={setOpen}
       />
-    </PliantRoot>
+    </>
   )
 }
 
@@ -469,9 +498,6 @@ describe("the registry components with every message given", () => {
     expect(unmarkedText()).toEqual([])
 
     fireEvent.click(screen.getByRole("button", { name: "⟦askClose⟧" }))
-    expect(
-      screen.getByRole("button", { name: "«Ask»" }).hasAttribute("data-preview")
-    ).toBe(true)
     expect(unmarkedText()).toEqual([])
 
     await open()

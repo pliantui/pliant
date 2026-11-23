@@ -10,7 +10,6 @@ import {
   SlidersHorizontalIcon,
   SparklesIcon,
 } from "lucide-react"
-import { Slot } from "radix-ui"
 import { createPortal } from "react-dom"
 
 import type { Op } from "@pliantui/contract"
@@ -544,11 +543,11 @@ function siblingsOf(part: PointPart, shown: ReadonlySet<string>) {
 
 /**
  * Point mode, a selection mode: users select the part of the page they want
- * to change instead of picking it from a list. Hold Alt (Option on a Mac),
- * call `start` on its `ref`, as a Customize menu's Adjust by hand does, or
- * press the `trigger`, and the targets on the page are outlined with their
- * labels, along with the slots of each target that has a `slots`
- * collection. Clicking or tapping an outline, or moving to it with Tab or
+ * to change instead of picking it from a list. Hold Alt (Option on a Mac)
+ * or call `start` on its `ref`, as a Customize menu's Adjust by hand does,
+ * and the targets on the page are outlined with their labels, along with
+ * the slots of each target that has a `slots` collection. It has no button
+ * of its own. Clicking or tapping an outline, or moving to it with Tab or
  * the arrow keys and pressing Enter, selects it.
  *
  * A selected slot shows handles to drag it among its siblings (`move`),
@@ -556,14 +555,14 @@ function siblingsOf(part: PointPart, shown: ReadonlySet<string>) {
  * saved for the user at once, as a change made by hand. A handle shows only
  * when its region's manifest allows it (`slots`, `layout` and `hideable`)
  * and the slot's `flags`, which your app passes in, don't forbid it:
- * `required` hides the hide handle, and `locked` hides them all. With a slot selected, the arrow keys move
- * it, Shift with the arrow keys resizes it, and Delete or Backspace hides
- * it. Each change is announced. A bar under the selection runs `actions`
+ * `required` hides the hide handle, and `locked` hides them all. With a
+ * slot selected, the arrow keys move it, Shift with the arrow keys resizes
+ * it, and Delete or Backspace hides it. Each change is announced. A bar under the selection runs `actions`
  * for the selected target, or the slot's target: Ask, Adjust and Reset.
  * Ask and Adjust end point mode first, so their handlers can move focus.
  *
  * Release Alt without selecting, press Escape or click outside the outlines
- * to leave. Started from `start` or the trigger, or once something is
+ * to leave. Started from `start`, or once something is
  * selected, point mode is a modal dialog: the rest of the page is `inert`
  * until it ends, and focus then goes back to where it was unless an action
  * moves it. Its behaviour comes from `usePointMode`.
@@ -581,7 +580,6 @@ function PliantPointMode({
   targets,
   actions,
   flags = {},
-  trigger,
   ref,
 }: {
   /** The nodes users can point at, usually the ask panel's targets. */
@@ -594,8 +592,6 @@ function PliantPointMode({
    * them: point mode doesn't read them from the region or its manifest.
    */
   flags?: PliantPointFlags | undefined
-  /** An element that turns point mode on and off. By default there's none. */
-  trigger?: React.ReactElement | undefined
   ref?: React.Ref<PliantPointModeHandle> | undefined
 }) {
   const messages = usePliantMessages(pointModeMessages)
@@ -608,15 +604,8 @@ function PliantPointMode({
     ],
     [targets, parts]
   )
-  const {
-    mode,
-    boxes,
-    announcement,
-    start,
-    exit,
-    getTriggerProps,
-    getLayerProps,
-  } = usePointMode({ targets: outlined, labelWidth })
+  const { mode, boxes, announcement, start, exit, getLayerProps } =
+    usePointMode({ targets: outlined, labelWidth })
   const [selected, setSelected] = React.useState<string | null>(null)
   const [status, setStatus] = React.useState("")
   const [drag, setDrag] = React.useState<Drag | null>(null)
@@ -1045,7 +1034,6 @@ function PliantPointMode({
 
   return (
     <>
-      {trigger && <Slot.Root {...getTriggerProps()}>{trigger}</Slot.Root>}
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}
       </span>

@@ -64,16 +64,26 @@ function Page({
 }: {
   actions?: (target: string) => PliantPointActions | undefined
   flags?: PliantPointFlags
-  handle?: React.Ref<PliantPointModeHandle>
+  handle?: React.RefObject<PliantPointModeHandle | null>
 }) {
+  const own = React.useRef<PliantPointModeHandle>(null)
+  const ref = handle ?? own
   return (
     <>
+      {/* Stands in for a Customize menu's Adjust by hand. */}
+      <button
+        type="button"
+        onClick={() => {
+          ref.current?.start()
+        }}
+      >
+        Adjust by hand
+      </button>
       <PliantPointMode
-        ref={handle}
+        ref={ref}
         targets={targets}
         actions={actions}
         flags={flags}
-        trigger={<button type="button">Point</button>}
       />
       <input aria-label="Search" />
       <PliantRegion
@@ -99,10 +109,6 @@ function renderPage(props: React.ComponentProps<typeof Page> = {}) {
 
 async function wait(ms = 20) {
   await act(() => new Promise((resolve) => setTimeout(resolve, ms)))
-}
-
-function toggle() {
-  return screen.getByRole("button", { name: "Point" })
 }
 
 function layer() {
@@ -140,7 +146,7 @@ function isHidden(element: Element) {
 }
 
 async function start() {
-  fireEvent.click(toggle())
+  fireEvent.click(screen.getByRole("button", { name: "Adjust by hand" }))
   await wait()
 }
 

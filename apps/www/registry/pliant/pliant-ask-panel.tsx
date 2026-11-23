@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { Slot } from "radix-ui"
 import * as z from "zod"
 
 import { usePliantMessages, type PliantMessages } from "@pliantui/react"
@@ -140,8 +139,7 @@ async function requestAnswer(
  * and `onOpenChange`, such as `PliantCustomizeMenu`'s Ask item, which then
  * gets focus back when the panel closes. Closing the panel keeps the
  * preview; with `usePreview`, the app can mark what opens the panel while a
- * preview shows, as `PliantCustomizeMenu`'s `previewing` does. A `trigger`
- * of your own also gets `data-preview` then.
+ * preview shows, as `PliantCustomizeMenu`'s `previewing` does.
  *
  * The target can be controlled with `target` and `onTargetChange`, so a
  * target picked elsewhere on the page, as with `PliantPointMode`, can be
@@ -155,7 +153,6 @@ function PliantAskPanel({
   defaultTarget,
   onTargetChange,
   placeholder,
-  trigger,
   open,
   defaultOpen,
   onOpenChange,
@@ -181,14 +178,12 @@ function PliantAskPanel({
   onTargetChange?: (target: string) => void
   /** The prompt's placeholder, in place of `askPromptPlaceholder`. */
   placeholder?: string
-  /**
-   * An element that opens and closes the panel, and gets focus back when it
-   * closes. Without one, focus goes nowhere when the panel closes, so
-   * `onOpenChange` should move it.
-   */
-  trigger?: React.ReactElement | undefined
   open?: boolean
   defaultOpen?: boolean
+  /**
+   * Called when the panel opens or closes. Focus goes nowhere when the
+   * panel closes, so this should move it, as back to what opened the panel.
+   */
   onOpenChange?: (open: boolean) => void
 }) {
   const messages = usePliantMessages(askPanelMessages)
@@ -235,7 +230,6 @@ function PliantAskPanel({
 
   return (
     <>
-      {trigger && <Slot.Root {...panel.getTriggerProps()}>{trigger}</Slot.Root>}
       {panel.open && (
         <aside
           {...panel.getPanelProps()}
