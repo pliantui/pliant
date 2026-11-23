@@ -929,6 +929,7 @@ export const messages = {
       "Changes from a team or organization default are listed with their source, and members can adjust but not remove them.",
       "A preview from the ask panel shows separately, and isn't counted until the user locks it in.",
       "When nothing is changed, the indicator renders nothing.",
+      "The indicator only lists changes. Users drop their own with Reset to default in the part's Customize menu.",
     ],
     examples: [
       {
@@ -961,12 +962,6 @@ export const messages = {
             description:
               "Which layers' changes to show. All of them by default.",
           },
-          {
-            name: "showReset",
-            type: "boolean",
-            default: "true",
-            description: "Show a Reset button in the list of changes.",
-          },
         ],
       },
     ],
@@ -981,8 +976,12 @@ export const messages = {
     registryItem: "pliant-reset",
     dependencies: ["@pliantui/react", "lucide-react"],
     usage: {
-      imports: `import { PliantReset } from "@/components/pliant/pliant-reset"`,
-      code: `<PliantReset node="orders-table" />`,
+      imports: `import { usePliantStore } from "@pliantui/react"
+
+import { PliantCustomizeMenu } from "@/components/pliant/pliant-customize-menu"`,
+      code: `const { resetNode } = usePliantStore()
+
+<PliantCustomizeMenu onReset={() => resetNode("orders-table")} />`,
     },
     asks: [
       {
@@ -1002,22 +1001,24 @@ export const messages = {
       },
     ],
     rules: [
+      "Reset lives in the Customize menu as Reset to default, so a part needs no reset button of its own.",
       "Reset drops only the user's own personal and session changes. Team and organization defaults stay, so a member returns to the team's default, not your original page.",
       "Resetting a part leaves where that part sits on the page, which belongs to its container.",
-      "Resetting the whole page asks for confirmation first, and Undo brings the changes back.",
-      "Reset needs storage that can remove a change. Without it, the button is disabled.",
+      "Resetting the whole page from its header's Customize menu asks for confirmation first, and Undo brings the changes back.",
+      "Reset needs storage that can remove a change. Without it, Reset to default is disabled.",
     ],
     examples: [
       {
         title: "Reset the whole page",
-        description: "Put a page-wide reset in a settings menu.",
-        code: `<DropdownMenuContent>
-  <DropdownMenuItem asChild>
-    <PliantReset scope="surface" variant="ghost">
-      Reset this page
-    </PliantReset>
-  </DropdownMenuItem>
-</DropdownMenuContent>`,
+        description:
+          "Give the page header's Customize menu a Reset to default that resets every part.",
+        code: `const { resetNode } = usePliantStore()
+
+<PliantCustomizeMenu
+  onReset={() => {
+    for (const node of ["key-metrics", "orders-table"]) resetNode(node)
+  }}
+/>`,
       },
       {
         title: "Reset from your own code",
@@ -1033,49 +1034,27 @@ function onReset() {
     ],
     options: [
       {
-        component: "PliantReset",
+        component: "PliantCustomizeMenu",
         props: [
           {
-            name: "node",
-            type: "string",
-            description:
-              'The address of the part to reset. Required unless `scope` is `"surface"`.',
-          },
-          {
-            name: "scope",
-            type: '"node" | "surface"',
-            default: '"node"',
-            description: "Reset one part, or every change on the surface.",
-          },
-          {
-            name: "confirm",
-            type: "boolean",
-            default: "true for a surface, false for a node",
-            description: "Ask before resetting.",
-          },
-          {
-            name: "variant",
-            type: 'ButtonProps["variant"]',
-            default: '"outline"',
-            description: "The button's style.",
-          },
-          {
-            name: "children",
-            type: "ReactNode",
-            default: '"Reset"',
-            description: "The button's label.",
-          },
-          {
             name: "onReset",
-            type: "(result: ResetNodeResult) => void",
-            description: "Called after a reset, with whether it succeeded.",
+            type: "() => void",
+            description:
+              "Runs Reset to default. Without it, the item is disabled.",
+          },
+          {
+            name: "canReset",
+            type: "boolean",
+            default: "true",
+            description:
+              "Whether there's anything to reset. While it's false, the item is disabled.",
           },
         ],
       },
     ],
     accessibility: [
-      "The button is disabled, with a reason in its tooltip, while there's nothing to reset.",
-      'After a reset, the change is announced, such as "Orders table reset", and focus stays on the button.',
+      "Reset to default is disabled while there's nothing to reset.",
+      'After a reset, the change is announced, such as "Orders table reset", and focus goes back to the Customize button.',
       "The confirmation is an alert dialog that focuses Cancel first.",
     ],
   },

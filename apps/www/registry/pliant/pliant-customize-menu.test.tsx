@@ -129,7 +129,7 @@ describe("PliantCustomizeContextMenu", () => {
     fireEvent.contextMenu(screen.getByText("Orders"))
     await settle()
 
-    expect(screen.getByRole("group").textContent).toMatch(/^Customize/)
+    expect(screen.getByRole("group", { name: "Customize" })).toBeTruthy()
     expect(items().map((item) => item.name)).toEqual([
       "Ask for a change…⌘.",
       "Adjust by hand",
@@ -171,6 +171,60 @@ describe("PliantCustomizeContextMenu", () => {
       key: ".",
     })
     expect(onAsk).toHaveBeenCalledTimes(2)
+  })
+
+  it("asks only about the innermost part with ⌘.", () => {
+    const outer = vi.fn()
+    const inner = vi.fn()
+    render(
+      <PliantCustomizeContextMenu onAsk={outer}>
+        <div>
+          <PliantCustomizeContextMenu onAsk={inner}>
+            <div>
+              <button type="button">Inside</button>
+            </div>
+          </PliantCustomizeContextMenu>
+        </div>
+      </PliantCustomizeContextMenu>
+    )
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Inside" }), {
+      key: ".",
+      metaKey: true,
+    })
+
+    expect(inner).toHaveBeenCalledOnce()
+    expect(outer).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ["a field", <input key="field" aria-label="Search" />, "Search"],
+    [
+      "a link",
+      <a key="link" href="https://example.com/orders">
+        Orders
+      </a>,
+      "Orders",
+    ],
+  ])("leaves the browser's menu on %s", async (_, child, name) => {
+    render(
+      <PliantCustomizeContextMenu onAsk={vi.fn()}>
+        <div>{child}</div>
+      </PliantCustomizeContextMenu>
+    )
+
+    const event = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+    })
+    const target =
+      screen.queryByRole("textbox", { name }) ??
+      screen.getByRole("link", { name })
+    fireEvent(target, event)
+    await settle()
+
+    expect(event.defaultPrevented).toBe(false)
+    expect(screen.queryByRole("menu")).toBeNull()
   })
 })
 

@@ -42,6 +42,7 @@ declare module "@pliantui/react" {
     customizeAdjust: string
     customizeHistory: string
     customizeReset: string
+    customizePreviewing: string
   }
 }
 
@@ -52,6 +53,7 @@ const customizeMessages = {
   customizeAdjust: "Adjust by hand",
   customizeHistory: "History",
   customizeReset: "Reset to default",
+  customizePreviewing: "A preview is showing",
 } satisfies Partial<PliantMessages>
 
 /**
@@ -63,7 +65,10 @@ interface PliantCustomizeActions {
   onAsk?: (() => void) | undefined
   /** Opens the controls for changing the part by hand. */
   onAdjust?: (() => void) | undefined
-  /** Shows the changes made to the part. */
+  /**
+   * Shows the changes made to the part, such as in a panel, and moves focus
+   * there.
+   */
   onHistory?: (() => void) | undefined
   /** Drops the user's changes, as with `resetNode`. */
   onReset?: (() => void) | undefined
@@ -76,6 +81,17 @@ interface PliantCustomizeActions {
 // ⌘. on a Mac, Ctrl+. elsewhere. `code` finds the key on layouts where "."
 // needs Shift.
 const askShortcut = { label: "⌘.", keys: "Meta+Period Control+Period" }
+
+// Where the browser's own menu is the one users want: in a field, on a link,
+// or over selected text.
+const nativeMenuTargets = "a[href], input, textarea, select, [contenteditable]"
+
+function wantsNativeMenu(target: EventTarget) {
+  return (
+    (target instanceof Element && target.closest(nativeMenuTargets) !== null) ||
+    (window.getSelection()?.toString() ?? "") !== ""
+  )
+}
 
 function isAskShortcut(event: React.KeyboardEvent) {
   return (
@@ -145,9 +161,10 @@ function useCustomizeItems({
   ]
 }
 
-// Runs an item that moves focus once its menu has closed, so the menu
-// doesn't take focus back or drop it as it goes. Other items run at once,
-// and focus goes back to the menu's trigger.
+// Runs an item that moves focus once its menu has closed and put focus back
+// on its trigger, so the menu doesn't take focus back or drop it as it goes,
+// and a handler that saves where focus was, like point mode, finds the
+// trigger. Other items run at once.
 function useRunAfterClose() {
   const pending = React.useRef<(() => void) | null>(null)
   return {
@@ -155,12 +172,10 @@ function useRunAfterClose() {
       if (item.movesFocus) pending.current = item.run ?? null
       else item.run?.()
     },
-    onCloseAutoFocus: (event: Event) => {
+    onCloseAutoFocus: () => {
       const run = pending.current
       pending.current = null
-      if (!run) return
-      event.preventDefault()
-      run()
+      if (run) queueMicrotask(run)
     },
   }
 }
@@ -188,12 +203,18 @@ function splitActions<T extends PliantCustomizeActions>({
  *
  * Reset to default puts focus back on the button. The other items leave
  * focus where their handler moved it, such as on the ask panel's prompt.
+ *
+ * While `previewing` is set, as while a preview shows and the ask panel is
+ * closed, the button shows a dot and is described as `customizePreviewing`,
+ * and the trigger has `data-preview`.
  */
 function PliantCustomizeMenu(
   props: Omit<React.ComponentProps<typeof Button>, "children"> &
     PliantCustomizeActions & {
       /** Whether the user has changed the part. */
       customized?: boolean
+      /** Whether a preview shows that nothing else on screen marks. */
+      previewing?: boolean
       /** The element that opens the menu. Defaults to a Customize button. */
       trigger?: React.ReactElement
       /** How the menu lines up with its trigger. Defaults to `"end"`. */
@@ -202,11 +223,19 @@ function PliantCustomizeMenu(
 ) {
   const {
     actions,
-    rest: { customized = false, trigger, align = "end", className, ...button },
+    rest: {
+      customized = false,
+      previewing = false,
+      trigger,
+      align = "end",
+      className,
+      ...button
+    },
   } = splitActions(props)
   const messages = usePliantMessages(customizeMessages)
   const groups = useCustomizeItems(actions)
   const focus = useRunAfterClose()
+  const previewId = React.useId()
 
   return (
     <div
@@ -222,18 +251,30 @@ function PliantCustomizeMenu(
           {messages.customizeCustomized}
         </span>
       )}
+      {previewing && (
+        <span id={previewId} hidden>
+          {messages.customizePreviewing}
+        </span>
+      )}
       <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
+        <DropdownMenuTrigger asChild data-preview={previewing ? "" : undefined}>
           {trigger ?? (
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className={cn("data-[state=open]:bg-accent", className)}
+              className={cn("relative data-[state=open]:bg-accent", className)}
+              aria-describedby={previewing ? previewId : undefined}
               {...button}
             >
               <CustomizeIcon />
               {messages.customizeOpen}
+              {previewing && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-1 -right-1 size-2.5 rounded-full border-2 border-background bg-primary"
+                />
+              )}
             </Button>
           )}
         </DropdownMenuTrigger>
@@ -288,10 +329,14 @@ function PliantCustomizeContextMenuGroup({
 }) {
   const messages = usePliantMessages(customizeMessages)
   const groups = useCustomizeItems(actions)
+  const labelId = React.useId()
 
   return (
-    <ContextMenuGroup>
-      <ContextMenuLabel className="flex items-center gap-2 text-xs text-muted-foreground">
+    <ContextMenuGroup aria-labelledby={labelId}>
+      <ContextMenuLabel
+        id={labelId}
+        className="flex items-center gap-2 text-xs text-muted-foreground"
+      >
         <CustomizeIcon className="size-3.5" />
         {messages.customizeOpen}
       </ContextMenuLabel>
@@ -344,6 +389,12 @@ function PliantCustomizeContextMenu({
     <ContextMenu modal={false}>
       <ContextMenuTrigger
         asChild
+        // Stopping the event before the trigger's own handler leaves the
+        // browser's menu in place. A long press on touch screens fires it
+        // too, so selecting text that way keeps working.
+        onContextMenuCapture={(event) => {
+          if (wantsNativeMenu(event.target)) event.stopPropagation()
+        }}
         onKeyDown={(event) => {
           if (
             !onAsk ||

@@ -141,6 +141,7 @@ function page(
         endpoint="/api/pliant"
         targets={targets}
         defaultOpen
+        trigger={<button type="button">Ask</button>}
         {...props}
       />
     </PliantRoot>
@@ -549,6 +550,12 @@ describe("PliantAskPanel", () => {
     ).toBe(true)
   })
 
+  it("has no button of its own", async () => {
+    await renderPanel({ defaultOpen: false, trigger: undefined })
+
+    expect(screen.queryByRole("button")).toBeNull()
+  })
+
   it("opens and closes from its trigger", async () => {
     await renderPanel({ defaultOpen: false })
     const trigger = screen.getByRole("button", { name: "Ask" })
@@ -578,9 +585,7 @@ describe("PliantAskPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }))
 
     expect(order()).toEqual(["overdue", "revenue", "orders"])
-    const trigger = screen.getByRole("button", {
-      name: "Ask (preview active)",
-    })
+    const trigger = screen.getByRole("button", { name: "Ask" })
     expect(trigger.hasAttribute("data-preview")).toBe(true)
     expect(trigger.getAttribute("data-state")).toBe("closed")
 

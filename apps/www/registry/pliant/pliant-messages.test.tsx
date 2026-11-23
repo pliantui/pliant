@@ -44,8 +44,6 @@ const messages: PliantMessages = {
   askLockInFailed: () => "⟦askLockInFailed⟧",
   pointModeOn: "⟦pointModeOn⟧",
   pointModeOff: "⟦pointModeOff⟧",
-  askOpen: "⟦askOpen⟧",
-  askPreviewActive: "⟦askPreviewActive⟧",
   askTitle: "⟦askTitle⟧",
   askDescription: "⟦askDescription⟧",
   askClose: "⟦askClose⟧",
@@ -114,6 +112,7 @@ const messages: PliantMessages = {
   customizeAdjust: "⟦customizeAdjust⟧",
   customizeHistory: "⟦customizeHistory⟧",
   customizeReset: "⟦customizeReset⟧",
+  customizePreviewing: "⟦customizePreviewing⟧",
   navCustomize: "⟦navCustomize⟧",
   dataTableHighlighted: (names) => `⟦dataTableHighlighted ${names.join(" ")}⟧`,
   dataTableHighlightEmphasis: "⟦dataTableHighlightEmphasis⟧",
@@ -192,7 +191,11 @@ function renderPage(layers: StorageAdapter = storage) {
         }}
       />
       <PliantPointMode targets={targets} onPick={() => undefined} />
-      <PliantAskPanel endpoint="/api/pliant" targets={targets} />
+      <PliantAskPanel
+        endpoint="/api/pliant"
+        targets={targets}
+        trigger={<button type="button">«Ask»</button>}
+      />
     </PliantRoot>
   )
 }
@@ -320,7 +323,7 @@ async function settle(ms = 0) {
 }
 
 async function open() {
-  fireEvent.click(screen.getByRole("button", { name: /^⟦askOpen⟧/ }))
+  fireEvent.click(screen.getByRole("button", { name: "«Ask»" }))
   await screen.findByRole("textbox", { name: "⟦askPromptLabel⟧" })
 }
 
@@ -449,8 +452,8 @@ describe("the registry components with every message given", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "⟦askClose⟧" }))
     expect(
-      screen.getByRole("button", { name: "⟦askOpen⟧ ⟦askPreviewActive⟧" })
-    ).toBeTruthy()
+      screen.getByRole("button", { name: "«Ask»" }).hasAttribute("data-preview")
+    ).toBe(true)
     expect(unmarkedText()).toEqual([])
 
     await open()

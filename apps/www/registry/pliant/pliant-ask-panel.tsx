@@ -1,36 +1,22 @@
 "use client"
 
 import * as React from "react"
-import { SparklesIcon } from "lucide-react"
 import { Slot } from "radix-ui"
 import * as z from "zod"
 
-import {
-  usePliantMessages,
-  usePreview,
-  type PliantMessages,
-} from "@pliantui/react"
+import { usePliantMessages, type PliantMessages } from "@pliantui/react"
 import { useAskPanel } from "@pliantui/react/ask"
 
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
 declare module "@pliantui/react" {
   interface PliantMessages {
-    askOpen: string
-    /**
-     * Appended to `askOpen` to form the trigger's accessible name while a
-     * preview shows and the panel is closed. Defaults to "(preview active)".
-     */
-    askPreviewActive: string
     askUnreadableAnswer: (status: number) => string
   }
 }
 
 const askPanelMessages = {
-  askOpen: "Ask",
   askTitle: "Ask",
-  askPreviewActive: "(preview active)",
   askUnreadableAnswer: (status) =>
     `Couldn't read the answer (HTTP ${String(status)}).`,
 } satisfies Partial<PliantMessages>
@@ -148,8 +134,14 @@ async function requestAnswer(
  * the panel has `data-slot="pliant-ask-panel"` while it is open, so a
  * layout can add padding with, for example,
  * `sm:has-[[data-slot=pliant-ask-panel]]:pr-96` and
- * `max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh]`. Closing the panel
- * keeps the preview, which the trigger then marks with `data-preview`.
+ * `max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh]`.
+ *
+ * The panel has no button of its own: something else opens it with `open`
+ * and `onOpenChange`, such as `PliantCustomizeMenu`'s Ask item, which then
+ * gets focus back when the panel closes. Closing the panel keeps the
+ * preview; with `usePreview`, the app can mark what opens the panel while a
+ * preview shows, as `PliantCustomizeMenu`'s `previewing` does. A `trigger`
+ * of your own also gets `data-preview` then.
  *
  * The target can be controlled with `target` and `onTargetChange`, so a
  * target picked elsewhere on the page, as with `PliantPointMode`, can be
@@ -191,12 +183,11 @@ function PliantAskPanel({
   /** The prompt's placeholder, in place of `askPromptPlaceholder`. */
   placeholder?: string
   /**
-   * The element that opens the panel. Defaults to an `askOpen` button. Pass
-   * `null` when something else opens it, such as `PliantCustomizeMenu`'s
-   * Ask item with `open` and `onOpenChange`; focus then goes nowhere when
-   * the panel closes, so `onOpenChange` should move it.
+   * An element that opens and closes the panel, and gets focus back when it
+   * closes. Without one, focus goes nowhere when the panel closes, so
+   * `onOpenChange` should move it.
    */
-  trigger?: React.ReactElement | null
+  trigger?: React.ReactElement | undefined
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
@@ -238,8 +229,6 @@ function PliantAskPanel({
     },
   })
   const id = React.useId()
-  const preview = usePreview()
-  const previewing = preview !== null
   // The chat takes focus when it mounts, except on a panel that starts open.
   const [focusOnMount, setFocusOnMount] = React.useState(false)
   const [wasOpen, setWasOpen] = React.useState(panel.open)
@@ -250,21 +239,7 @@ function PliantAskPanel({
 
   return (
     <>
-      {trigger !== null && (
-        <Slot.Root {...panel.getTriggerProps()}>
-          {trigger ?? (
-            <Button type="button" variant="outline" size="sm">
-              <SparklesIcon />
-              {messages.askOpen}
-              {previewing && !panel.open && (
-                <span className="size-2 rounded-full bg-primary">
-                  <span className="sr-only">{messages.askPreviewActive}</span>
-                </span>
-              )}
-            </Button>
-          )}
-        </Slot.Root>
-      )}
+      {trigger && <Slot.Root {...panel.getTriggerProps()}>{trigger}</Slot.Root>}
       {panel.open && (
         <aside
           {...panel.getPanelProps()}

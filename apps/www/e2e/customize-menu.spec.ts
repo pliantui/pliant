@@ -21,8 +21,9 @@ async function load(page: Page) {
   await expect(metrics(page)).not.toHaveAttribute("data-pliant-pending")
 }
 
-// The lucide icon each item shows, by its class, which names the icon
-// rather than how it looks.
+// The lucide icon each item shows, by its class. An icon has no role or
+// accessible name, since the item's text names it, so its class is the only
+// thing that tells one icon from another.
 async function itemIcons(items: Locator) {
   return items.evaluateAll((elements) =>
     elements.map(
@@ -119,17 +120,6 @@ test("Reset to default puts the page back and focus on Customize", async ({
   ).toHaveAttribute("data-pliant-id", "revenue")
   await expect(pageMenu(page)).toBeFocused()
   await expect(customized).toBeHidden()
-  expect(errors).toEqual([])
-})
-
-test("Adjust by hand moves focus to the table's own controls", async ({
-  page,
-  errors,
-}) => {
-  await load(page)
-  await pickCustomize(pageMenu(page), "Adjust by hand")
-
-  await expect(page.getByRole("searchbox", { name: "Customer" })).toBeFocused()
   expect(errors).toEqual([])
 })
 

@@ -49,7 +49,6 @@ export function DemoAskPanel({
           }
         })
       }}
-      trigger={null}
     />
   )
 }

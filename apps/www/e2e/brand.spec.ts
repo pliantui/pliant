@@ -10,6 +10,8 @@ test("serves the favicon, app icons and web app manifest", async ({
   const hrefs = await icons.evaluateAll((links) =>
     links.map((link) => link.getAttribute("href") ?? "")
   )
+  // Browsers and crawlers ask for it without a link.
+  hrefs.push("/favicon.ico")
   hrefs.push(
     (await page
       .locator('head link[rel="apple-touch-icon"]')

@@ -1,7 +1,7 @@
 // #region trigger
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 
 import { PliantAskPanel } from "@/components/pliant/pliant-ask-panel"
 import { PliantCustomizeMenu } from "@/components/pliant/pliant-customize-menu"
@@ -10,10 +10,12 @@ import { askTargets } from "../ai/ask-targets"
 
 export function CustomizeAsk() {
   const [open, setOpen] = useState(false)
+  const customize = useRef<HTMLButtonElement>(null)
 
   return (
     <>
       <PliantCustomizeMenu
+        ref={customize}
         onAsk={() => {
           setOpen(true)
         }}
@@ -22,8 +24,10 @@ export function CustomizeAsk() {
         endpoint="/api/pliant"
         targets={askTargets}
         open={open}
-        onOpenChange={setOpen}
-        trigger={null}
+        onOpenChange={(next) => {
+          setOpen(next)
+          if (!next) customize.current?.focus()
+        }}
       />
     </>
   )
