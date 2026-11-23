@@ -83,14 +83,20 @@ interface PliantCustomizeActions {
 const askShortcut = { label: "⌘.", keys: "Meta+Period Control+Period" }
 
 // Where the browser's own menu is the one users want: in a field, on a link,
-// or over selected text.
-const nativeMenuTargets = "a[href], input, textarea, select, [contenteditable]"
+// or over the text the user has selected.
+const nativeMenuTargets =
+  'a[href], input, textarea, select, [contenteditable]:not([contenteditable="false"])'
 
 function wantsNativeMenu(target: EventTarget) {
-  return (
-    (target instanceof Element && target.closest(nativeMenuTargets) !== null) ||
-    (window.getSelection()?.toString() ?? "") !== ""
-  )
+  if (!(target instanceof Node)) return false
+  const element = target instanceof Element ? target : target.parentElement
+  if (element?.closest(nativeMenuTargets)) return true
+  const selection = window.getSelection()
+  if (!selection || selection.isCollapsed) return false
+  for (let index = 0; index < selection.rangeCount; index++) {
+    if (selection.getRangeAt(index).intersectsNode(target)) return true
+  }
+  return false
 }
 
 function isAskShortcut(event: React.KeyboardEvent) {

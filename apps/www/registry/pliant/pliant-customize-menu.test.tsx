@@ -31,6 +31,7 @@ function items() {
 
 afterEach(() => {
   cleanup()
+  window.getSelection()?.removeAllRanges()
 })
 
 describe("PliantCustomizeMenu", () => {
@@ -225,6 +226,80 @@ describe("PliantCustomizeContextMenu", () => {
 
     expect(event.defaultPrevented).toBe(false)
     expect(screen.queryByRole("menu")).toBeNull()
+  })
+
+  function rightClick(target: Element) {
+    const event = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+    })
+    fireEvent(target, event)
+    return event
+  }
+
+  function selectText(element: Element) {
+    const range = document.createRange()
+    range.selectNodeContents(element)
+    window.getSelection()?.removeAllRanges()
+    window.getSelection()?.addRange(range)
+  }
+
+  it("leaves the browser's menu on the text the user has selected", async () => {
+    render(
+      <PliantCustomizeContextMenu onAsk={vi.fn()}>
+        <div>
+          <p>Overdue orders</p>
+        </div>
+      </PliantCustomizeContextMenu>
+    )
+    const text = screen.getByText("Overdue orders")
+    selectText(text)
+
+    const event = rightClick(text)
+    await settle()
+
+    expect(event.defaultPrevented).toBe(false)
+    expect(screen.queryByRole("menu")).toBeNull()
+  })
+
+  it("opens its menu while text elsewhere on the page is selected", async () => {
+    render(
+      <>
+        <p>Page heading</p>
+        <PliantCustomizeContextMenu onAsk={vi.fn()}>
+          <div>
+            <p>Overdue orders</p>
+          </div>
+        </PliantCustomizeContextMenu>
+      </>
+    )
+    selectText(screen.getByText("Page heading"))
+
+    const event = rightClick(screen.getByText("Overdue orders"))
+    await settle()
+
+    expect(event.defaultPrevented).toBe(true)
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" })
+    await settle()
+  })
+
+  it("opens its menu on an element that isn't editable", async () => {
+    render(
+      <PliantCustomizeContextMenu onAsk={vi.fn()}>
+        <div>
+          <p contentEditable={false} suppressContentEditableWarning>
+            Overdue orders
+          </p>
+        </div>
+      </PliantCustomizeContextMenu>
+    )
+
+    const event = rightClick(screen.getByText("Overdue orders"))
+    await settle()
+
+    expect(event.defaultPrevented).toBe(true)
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" })
+    await settle()
   })
 })
 

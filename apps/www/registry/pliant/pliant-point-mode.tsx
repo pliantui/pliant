@@ -50,6 +50,7 @@ declare module "@pliantui/react" {
     pointModeAsk: string
     pointModeAdjust: string
     pointModeResetAction: string
+    pointModeResetOwner: (label: string) => string
   }
 }
 
@@ -72,6 +73,7 @@ const pointModeMessages = {
   pointModeAsk: "Ask",
   pointModeAdjust: "Adjust",
   pointModeResetAction: "Reset",
+  pointModeResetOwner: (label) => `Reset ${label}`,
 } satisfies Partial<PliantMessages>
 
 // The outline sits this far outside its target, so it never runs along the
@@ -553,8 +555,8 @@ function siblingsOf(part: PointPart, shown: ReadonlySet<string>) {
  * resize it across a grid's columns (`span`) and hide it (`hide`), each
  * saved for the user at once, as a change made by hand. A handle shows only
  * when its region's manifest allows it (`slots`, `layout` and `hideable`)
- * and the slot's `flags` don't forbid it: `required` hides the hide handle,
- * and `locked` hides them all. With a slot selected, the arrow keys move
+ * and the slot's `flags`, which your app passes in, don't forbid it:
+ * `required` hides the hide handle, and `locked` hides them all. With a slot selected, the arrow keys move
  * it, Shift with the arrow keys resizes it, and Delete or Backspace hides
  * it. Each change is announced. A bar under the selection runs `actions`
  * for the selected target, or the slot's target: Ask, Adjust and Reset.
@@ -586,7 +588,11 @@ function PliantPointMode({
   targets: readonly PliantPointTarget[]
   /** What the selection bar runs for a target, by its id. */
   actions?: ((target: string) => PliantPointActions | undefined) | undefined
-  /** What each slot's flags forbid, by its address. */
+  /**
+   * What each slot's flags forbid, by its address, such as
+   * `{ "key-metrics/slots/revenue": { required: true } }`. Your app supplies
+   * them: point mode doesn't read them from the region or its manifest.
+   */
   flags?: PliantPointFlags | undefined
   /** An element that turns point mode on and off. By default there's none. */
   trigger?: React.ReactElement | undefined
@@ -614,6 +620,27 @@ function PliantPointMode({
   const [selected, setSelected] = React.useState<string | null>(null)
   const [status, setStatus] = React.useState("")
   const [drag, setDrag] = React.useState<Drag | null>(null)
+  const [barSize, setBarSize] = React.useState({ width: 0, height: 0 })
+  // The bar's size depends on its labels, so it's measured to keep the bar
+  // on screen.
+  const measureBar = React.useCallback((node: HTMLDivElement | null) => {
+    if (!node) return
+    const measure = () => {
+      const width = node.offsetWidth
+      const height = node.offsetHeight
+      setBarSize((size) =>
+        size.width === width && size.height === height
+          ? size
+          : { width, height }
+      )
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
   // Focus to restore once the outlines are laid out again, as after a move
   // reorders them.
   const focusAfter = React.useRef<string | null>(null)
@@ -831,6 +858,7 @@ function PliantPointMode({
           nearest = index
         }
       }
+      if (nearest === -1) return
       move(() => nearest, focus ?? `outline:${part.id}`)
     } else if (grid) {
       const box = boxes.find((item) => item.id === part.id)
@@ -953,14 +981,18 @@ function PliantPointMode({
       )}
       {selectedOutline && owner !== null && (
         <div
+          ref={measureBar}
           role="toolbar"
           aria-label={messages.pointModeBar(ownerLabel)}
-          className="absolute z-10 flex cursor-default items-center gap-1 rounded-lg border bg-popover p-1 text-popover-foreground shadow-md"
-          style={barPosition(selectedOutline.outline, {
-            top: page?.top ?? 0,
-            width,
-            height,
-          })}
+          className="absolute z-10 flex cursor-default flex-wrap items-center gap-1 rounded-lg border bg-popover p-1 text-popover-foreground shadow-md"
+          style={{
+            ...barPosition(
+              selectedOutline.outline,
+              { top: page?.top ?? 0, width, height },
+              barSize
+            ),
+            maxWidth: Math.max(0, width - 2 * ring),
+          }}
         >
           <Button
             type="button"
@@ -1000,7 +1032,10 @@ function PliantPointMode({
             }}
           >
             <RotateCcwIcon />
-            {messages.pointModeResetAction}
+            {/* A slot's Reset resets its whole target, so it names it. */}
+            {part
+              ? messages.pointModeResetOwner(ownerLabel)
+              : messages.pointModeResetAction}
             {!bar?.onReset && bar?.unavailable}
           </Button>
         </div>
@@ -1084,9 +1119,10 @@ const handleClassName =
 // screen, as for a part taller than the screen, never under a sticky header.
 function barPosition(
   outline: Rect,
-  viewport: { top: number; width: number; height: number }
+  viewport: Viewport,
+  size: { width: number; height: number }
 ) {
-  const barHeight = 40
+  const barHeight = size.height
   const below = outline.bottom + ring + gap
   const above = outline.top - ring - gap - barHeight
   const top =
@@ -1103,7 +1139,10 @@ function barPosition(
       viewport.top + gap,
       Math.min(top, viewport.height - gap - barHeight)
     ),
-    left: Math.max(ring, Math.min(outline.left, viewport.width - 280)),
+    left: Math.max(
+      ring,
+      Math.min(outline.left, viewport.width - ring - size.width)
+    ),
   }
 }
 

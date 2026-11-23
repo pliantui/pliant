@@ -98,6 +98,7 @@ const messages: PliantMessages = {
   pointModeAsk: "⟦pointModeAsk⟧",
   pointModeAdjust: "⟦pointModeAdjust⟧",
   pointModeResetAction: "⟦pointModeResetAction⟧",
+  pointModeResetOwner: (label) => `⟦pointModeResetOwner ${label}⟧`,
   formMoreFields: "⟦formMoreFields⟧",
   navMore: "⟦navMore⟧",
   navItemOptions: (title) => `⟦navItemOptions ${title}⟧`,

@@ -251,7 +251,9 @@ export function usePointMode({
   }, [mode])
 
   useEffect(() => {
-    const first = layerRef.current?.querySelector("button")
+    const first = layerRef.current?.querySelector<HTMLButtonElement>(
+      "button:not(:disabled)"
+    )
     if (focusOnShow.current && first) {
       focusOnShow.current = false
       first.focus()
@@ -279,7 +281,11 @@ export function usePointMode({
   }
 
   function moveFocus(event: ReactKeyboardEvent<HTMLElement>) {
-    const buttons = [...event.currentTarget.querySelectorAll("button")]
+    const buttons = [
+      ...event.currentTarget.querySelectorAll<HTMLButtonElement>(
+        "button:not(:disabled)"
+      ),
+    ]
     const index = buttons.findIndex(
       (button) => button === document.activeElement
     )

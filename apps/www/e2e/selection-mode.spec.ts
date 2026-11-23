@@ -108,7 +108,24 @@ test.describe("entering", () => {
     expect(errors).toEqual([])
   })
 
-  test("Adjust by hand in a part's right-click menu selects that part", async ({
+  test("Adjust by hand in a region's right-click menu selects that region", async ({
+    page,
+    errors,
+  }) => {
+    await load(page)
+    await card(page, "orders").click({ button: "right" })
+    await page.getByRole("menuitem", { name: "Adjust by hand" }).click()
+
+    await expect(outline(page, "Key metrics")).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    )
+    await expect(outline(page, "Key metrics")).toBeFocused()
+    await expect(bar(page)).toBeVisible()
+    expect(errors).toEqual([])
+  })
+
+  test("Adjust by hand in the table's right-click menu goes to its controls", async ({
     page,
     errors,
   }) => {
@@ -120,12 +137,10 @@ test.describe("entering", () => {
       .click({ button: "right" })
     await page.getByRole("menuitem", { name: "Adjust by hand" }).click()
 
-    await expect(outline(page, "All orders")).toHaveAttribute(
-      "aria-pressed",
-      "true"
-    )
-    await expect(outline(page, "All orders")).toBeFocused()
-    await expect(bar(page, "All orders")).toBeVisible()
+    await expect(
+      page.getByRole("searchbox", { name: "Customer" })
+    ).toBeFocused()
+    await expect(page.locator('[data-slot="pliant-point-mode"]')).toHaveCount(0)
     expect(errors).toEqual([])
   })
 
@@ -314,6 +329,22 @@ test.describe("guardrails", () => {
   test.describe("on a phone", () => {
     test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })
 
+    test("the bar stays on screen", async ({ page, errors }) => {
+      await load(page)
+      await pickCustomize(pageMenu(page), "Adjust by hand")
+      await outline(page, "Overdue").tap()
+      await expect(
+        bar(page).getByRole("button", {
+          name: /^Adjust.*Not fully implemented/,
+        })
+      ).toBeVisible()
+
+      const box = await bar(page).boundingBox()
+      expect(box?.x).toBeGreaterThanOrEqual(0)
+      expect((box?.x ?? 0) + (box?.width ?? Infinity)).toBeLessThanOrEqual(390)
+      expect(errors).toEqual([])
+    })
+
     test("a single column has no resize handle, and a tap selects", async ({
       page,
       errors,
@@ -378,6 +409,28 @@ test.describe("the bar", () => {
     await expect(
       page.getByRole("searchbox", { name: "Customer" })
     ).toBeFocused()
+    expect(errors).toEqual([])
+  })
+
+  test("Tab skips the bar's disabled buttons", async ({ page, errors }) => {
+    await load(page)
+    await select(page, "Overdue")
+    await expect(
+      bar(page).getByRole("button", { name: "Reset Key metrics" })
+    ).toBeDisabled()
+
+    const ask = bar(page).getByRole("button", { name: "Ask" })
+    for (let press = 0; press < 5; press++) {
+      if (await ask.evaluate((element) => element === document.activeElement))
+        break
+      await page.keyboard.press("Tab")
+    }
+    await expect(ask).toBeFocused()
+    await page.keyboard.press("Tab")
+
+    await expect(outline(page, "All orders")).toBeFocused()
+    await page.keyboard.press("Shift+Tab")
+    await expect(ask).toBeFocused()
     expect(errors).toEqual([])
   })
 

@@ -88,16 +88,20 @@ export function DemoFrame({
         }
       : undefined,
   })
-  // With point mode, Adjust by hand selects the part, and the selection's
-  // bar adjusts it.
-  const options = selecting
-    ? {
-        ...customize,
-        onAdjust: () => {
-          pointModeRef.current?.start(target)
-        },
-      }
-    : customize
+  // With point mode, Adjust by hand selects a part with slots, whose handles
+  // adjust it. A part without them goes straight to its own controls.
+  const hasSlots =
+    askTargets?.find((item) => item.id === target)?.context.collection?.name ===
+    "slots"
+  const options =
+    selecting && hasSlots
+      ? {
+          ...customize,
+          onAdjust: () => {
+            pointModeRef.current?.start(target)
+          },
+        }
+      : customize
   const previewing = usePreview() !== null && !panel.open
 
   return (

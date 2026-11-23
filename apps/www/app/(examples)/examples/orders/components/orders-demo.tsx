@@ -92,12 +92,9 @@ export function OrdersDemo({
         >
           {metrics}
         </CustomizeSurface>
-        <CustomizeSurface
-          {...tableCustomize}
-          onAdjust={() => {
-            pointMode.current?.start("orders-table")
-          }}
-        >
+        {/* The table has no handles, so Adjust by hand goes straight to its
+            own controls. */}
+        <CustomizeSurface {...tableCustomize}>
           <div>{table}</div>
         </CustomizeSurface>
       </div>

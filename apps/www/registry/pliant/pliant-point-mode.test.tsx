@@ -331,7 +331,9 @@ describe("PliantPointMode", () => {
     expect(adjust.textContent).toBe("Adjust, unavailable")
     expect(adjust.hasAttribute("disabled")).toBe(true)
 
-    fireEvent.click(within(bar).getByRole("button", { name: "Reset" }))
+    fireEvent.click(
+      within(bar).getByRole("button", { name: "Reset Key metrics" })
+    )
     await wait()
     expect(onReset).toHaveBeenCalledOnce()
     expect(status()).toBe("Reset Key metrics.")
