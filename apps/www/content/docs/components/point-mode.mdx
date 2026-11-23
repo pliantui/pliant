@@ -93,11 +93,11 @@ The preview above offers both asks under the cards; the refund rate card, marked
 
 ## Options
 
-| Prop      | Type                              | Description                                                                                    |
-| --------- | --------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `targets` | `{ id: string; label: string }[]` | The nodes users can point at, usually the ask panel's targets.                                 |
-| `onPick`  | `(id: string) => void`            | Called with the id of the target the user picked.                                              |
-| `trigger` | `ReactElement`                    | An element that toggles point mode. By default there's none, and the Customize menu starts it. |
+| Prop      | Type                              | Description                                                                         |
+| --------- | --------------------------------- | ----------------------------------------------------------------------------------- |
+| `targets` | `{ id: string; label: string }[]` | The nodes users can point at, usually the ask panel's targets.                      |
+| `onPick`  | `(id: string) => void`            | Called with the id of the target the user picked.                                   |
+| `trigger` | `ReactElement \| null`            | An element that toggles point mode. Defaults to none; the Customize menu starts it. |
 
 ## Accessibility
 

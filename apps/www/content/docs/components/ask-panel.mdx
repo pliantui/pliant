@@ -50,8 +50,8 @@ Give the panel your ask route and the parts of the page users can ask about. Eac
   title="Not fully implemented yet"
   data-unfinished="not-implemented"
 >
-  The Customize menu isn't in Pliant yet, so the panel opens from its own
-  **Ask** button. The panel can't add cards yet.
+  The panel can't add cards yet. Saving chats, and follow-ups that remember
+  earlier messages, aren't built yet.
 </Callout>
 
 Users ask for what they'd otherwise file a feature request for, about the part of the page they chose:
@@ -79,26 +79,26 @@ Only one preview shows on the page at a time. If it belongs to another chat, a b
 
 The menu at the top of the panel lists the user's chats, titled from their first ask, and switches between them. The **New chat** button starts another. **Delete this chat** opens a confirm step, **Delete**, so a chat isn't lost to a stray click. Deleting a chat doesn't undo the changes locked in from it.
 
-### Where chats are kept
+### Chats aren't saved
 
-<Callout
-  variant="warning"
-  title="Not fully implemented yet"
-  data-unfinished="not-implemented"
->
-  Chats can't be kept on your server yet.
-</Callout>
-
-Chats are saved in this browser only, as the panel tells users. Each surface keeps up to 20 chats in `localStorage` under `pliant:ask-chats:<surface>`, and tabs on the same page stay in sync. Without `chatScope`, everyone who uses that browser shares the same chats. On browsers several people share, pass the signed-in user's id as `chatScope`, which stores each user's chats under `pliant:ask-chats:<scope>:<surface>`. [Usage data](/docs/security/usage-data) lists what a chat stores and how to erase it.
+Chats live in memory and clear when the user leaves or reloads the page; the panel tells them so with "Chats aren't saved. They clear when you leave the page." Locked-in changes are saved as usual, so they stay.
 
 ## Rules and guardrails
 
 - The AI never writes code or queries. It picks from the operations the target's manifest allows, and every answer is checked before it previews.
 - A change previews first. Nothing is saved until the user locks it in, and discarding a preview leaves the page as it was.
-- A chat holds the asks, the answers' sentences, the names of the operations they chose and whether each was locked in. It never holds rows or the change itself; locked-in changes are saved like any other change.
+- Chats are kept only in memory, so nothing about them is stored in the browser or sent to your server beyond each ask.
 - The AI only sees what each target's context describes: labels, ids and field types, never your rows. See [what the AI sees](/docs/ai/what-the-ai-sees).
 
 ## Examples
+
+### Open the panel from the Customize menu
+
+The panel has no button of its own. Open it from the [Customize Menu](/docs/components/customize-menu)'s **Ask for a change…** item, and return focus to the menu's button when it closes:
+
+<include cwd lang="tsx">
+  snippets/components/ask-panel-trigger.tsx#trigger
+</include>
 
 ### Keep the panel out of the server bundle
 
@@ -120,17 +120,16 @@ export const AskPanel = dynamic(
 
 ## Options
 
-| Prop                                    | Type                       | Description                                                                |
-| --------------------------------------- | -------------------------- | -------------------------------------------------------------------------- |
-| `endpoint`                              | `string`                   | The URL of the route that answers asks with `createPliantHandler`.         |
-| `targets`                               | `PliantAskTarget[]`        | The nodes users can ask about, in picker order.                            |
-| `target` / `defaultTarget`              | `string`                   | The picked target, controlled or uncontrolled. Defaults to the first.      |
-| `onTargetChange`                        | `(target: string) => void` | Called when the user picks a target.                                       |
-| `open` / `defaultOpen` / `onOpenChange` |                            | The panel's open state.                                                    |
-| `placeholder`                           | `string`                   | The prompt's placeholder.                                                  |
-| `trigger`                               | `ReactElement`             | The element that opens the panel. Defaults to an **Ask** button.           |
-| `fetch`                                 | `typeof fetch`             | Sends each ask in place of the global `fetch`, as for tests.               |
-| `chatScope`                             | `string`                   | Keeps chats apart on a shared browser, such as by the signed-in user's id. |
+| Prop                                    | Type                       | Description                                                                     |
+| --------------------------------------- | -------------------------- | ------------------------------------------------------------------------------- |
+| `endpoint`                              | `string`                   | The URL of the route that answers asks with `createPliantHandler`.              |
+| `targets`                               | `PliantAskTarget[]`        | The nodes users can ask about, in picker order.                                 |
+| `target` / `defaultTarget`              | `string`                   | The picked target, controlled or uncontrolled. Defaults to the first.           |
+| `onTargetChange`                        | `(target: string) => void` | Called when the user picks a target.                                            |
+| `open` / `defaultOpen` / `onOpenChange` |                            | The panel's open state.                                                         |
+| `placeholder`                           | `string`                   | The prompt's placeholder.                                                       |
+| `trigger`                               | `ReactElement \| null`     | An element that opens the panel. Defaults to none; the Customize menu opens it. |
+| `fetch`                                 | `typeof fetch`             | Sends each ask in place of the global `fetch`, as for tests.                    |
 
 ## Accessibility
 

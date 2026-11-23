@@ -44,7 +44,7 @@ The preview above offers both asks on a region. The grid replays a recorded answ
 
 ## Rules and guardrails
 
-- Layers apply in order: your base, then team defaults, then the user's own changes. A user's change never edits a team default.
+- Layers apply in order: your base, then team defaults, then the user's own changes. A user's change never alters a team default; it sits on top of it.
 - Every change is checked against the components' manifests and your rules before it applies. A change that would break a rule is skipped, and the rest still applies.
 - Changes are saved per surface, so two pages with the same component ids keep separate layouts.
 
