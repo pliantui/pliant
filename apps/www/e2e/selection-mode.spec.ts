@@ -332,7 +332,7 @@ test.describe("guardrails", () => {
     test("the bar stays on screen", async ({ page, errors }) => {
       await load(page)
       await pickCustomize(pageMenu(page), "Adjust by hand")
-      await outline(page, "Overdue").tap()
+      await outline(page, "Orders").tap()
       await expect(
         bar(page).getByRole("button", {
           name: /^Adjust.*Not fully implemented/,
