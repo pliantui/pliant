@@ -7,7 +7,6 @@ import { PliantPrePaint } from "@pliantui/react/pre-paint"
 import { CustomizedReset } from "@/components/demo/customized-reset"
 import { DemoAskToolbar } from "@/components/demo/demo-ask-toolbar"
 import { ReplayNote } from "@/components/demo/replay-note"
-import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { orders } from "@/lib/demo/data"
 import { formatCurrency, formatNumber } from "@/lib/demo/format"
 import { getOrderStats } from "@/lib/demo/stats"
@@ -35,10 +34,6 @@ export default function OrdersPage() {
           inventory={inventory["/examples/orders"]}
         >
           <PliantPrePaint surface="/examples/orders" />
-          <NotImplementedBanner variant="preview">
-            The Customized badge previews an indicator that isn&apos;t in Pliant
-            yet.
-          </NotImplementedBanner>
           <header className="flex items-start justify-between gap-4">
             <div className="flex flex-col gap-1">
               <h2 className="text-2xl font-semibold tracking-tight">Orders</h2>

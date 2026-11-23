@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { PlayCircleIcon } from "lucide-react"
 
 import { PliantRoot } from "@pliantui/react"
 import { localAdapter } from "@pliantui/react/local"
@@ -11,12 +12,11 @@ import {
   PageHeaderHeading,
 } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
+import { UnfinishedStrip } from "@/components/unfinished-strip"
 import { inventory } from "@/lib/pliant/inventory.generated"
 import { site } from "@/lib/site"
 
 import { Announcement } from "./components/announcement"
-import { Beats } from "./components/beats"
-import { Install } from "./components/install"
 import { Showcase } from "./components/showcase"
 
 export const dynamic = "force-static"
@@ -38,6 +38,7 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <div className="flex flex-1 flex-col">
+      <UnfinishedStrip />
       <PageHeader className="md:**:[.container]:pb-8 lg:**:[.container]:pb-12">
         <Announcement />
         <PageHeaderHeading className="max-w-4xl">
@@ -52,12 +53,20 @@ export default function HomePage() {
             <Link href="/docs/components">View components</Link>
           </Button>
         </PageActions>
+        <Link
+          href={site.links.tour}
+          // The tour video isn't recorded yet, so the unfinished work check
+          // keeps this link out of a build for the production site.
+          data-unfinished="coming-soon"
+          className="mt-1 flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
+          <PlayCircleIcon aria-hidden="true" className="size-4" />
+          Watch the 60-second tour
+        </Link>
       </PageHeader>
       <PliantRoot surface="/" storage={localAdapter} inventory={inventory["/"]}>
         <Showcase />
       </PliantRoot>
-      <Beats />
-      <Install />
     </div>
   )
 }

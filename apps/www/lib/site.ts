@@ -20,17 +20,16 @@ const url =
 export const site = {
   name: "Pliant",
   description: "Let the users of your shadcn app reshape it to fit their work.",
-  headline: "Build pliant interfaces: apps your users can reshape.",
+  headline: "Your app, shaped by the people who use it.",
   summary:
-    "Your users reshape your shadcn app, by hand or by asking, within the rules you set.",
+    "Point at any part of your shadcn app and ask for a change. Pliant reshapes it with your own components, within the rules you set.",
+  author: "Hitesh Shivkumar",
   url,
   repository,
   links: {
     getStarted: "/docs",
-    license: `${repository}/blob/main/LICENSE.md`,
-    shadcnLicense: `${repository}/blob/main/apps/www/LICENSE-shadcn.md`,
-    codeOfConduct: `${repository}/blob/main/CODE_OF_CONDUCT.md`,
-    security: `${repository}/blob/main/SECURITY.md`,
+    launchPost: "/blog/introducing-pliant",
+    tour: "/tour",
   },
   navItems: [
     { href: "/", label: "Home" },

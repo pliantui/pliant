@@ -5,7 +5,6 @@ import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
 import { CustomizedReset } from "@/components/demo/customized-reset"
-import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { inventory } from "@/lib/pliant/inventory.generated"
 import { TicketForm } from "@/registry/blocks/ticket-form/ticket-form"
 
@@ -35,10 +34,6 @@ export default function TicketsPage() {
             </div>
             <CustomizedReset targets={["ticket-form"]} label="the form" />
           </header>
-          <NotImplementedBanner variant="preview">
-            The Customized badge previews an indicator that isn&apos;t in Pliant
-            yet.
-          </NotImplementedBanner>
           <TicketForm />
         </PliantRoot>
       </div>

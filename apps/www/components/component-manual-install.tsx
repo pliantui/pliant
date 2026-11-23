@@ -3,6 +3,7 @@ import { join } from "node:path"
 
 import { CodeBlockCommand } from "@/components/code-block-command"
 import { ComponentSource } from "@/components/component-source"
+import { isPliantItemUrl, pliantItemName } from "@/lib/registry-name"
 
 interface RegistryItem {
   name: string
@@ -43,7 +44,9 @@ export async function ComponentManualInstall({ name }: { name: string }) {
     ? registry.items.find((entry) => entry.name === name)
     : undefined
   if (!item) throw new Error(`No registry item named ${name}`)
-  const components = item.registryDependencies ?? []
+  const dependencies = item.registryDependencies ?? []
+  const components = dependencies.filter((name) => !isPliantItemUrl(name))
+  const pliantItems = dependencies.filter(isPliantItemUrl).map(pliantItemName)
 
   return (
     <>
@@ -53,6 +56,12 @@ export async function ComponentManualInstall({ name }: { name: string }) {
         <>
           <h3>Add the shadcn/ui components it builds on.</h3>
           <Command npm={`shadcn@latest add ${components.join(" ")}`} run />
+        </>
+      )}
+      {pliantItems.length > 0 && (
+        <>
+          <h3>Add the Pliant components it builds on.</h3>
+          <Command npm={`shadcn@latest add ${pliantItems.join(" ")}`} run />
         </>
       )}
       <h3>Copy and paste the following code into your project.</h3>

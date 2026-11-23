@@ -1,4 +1,5 @@
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import { UnfinishedDot } from "@/components/unfinished-dot"
 
 // Links to the sections of a page, like the blocks on the blocks page.
 export function AnchorNav({
@@ -7,8 +8,9 @@ export function AnchorNav({
 }: {
   // The nav's accessible name.
   label: string
-  // Each section's element id and link text.
-  items: readonly { name: string; label: string }[]
+  // Each section's element id and link text, and whether what it shows
+  // isn't fully built.
+  items: readonly { name: string; label: string; unfinished?: boolean }[]
 }) {
   return (
     <nav aria-label={label} className="relative overflow-hidden">
@@ -18,9 +20,10 @@ export function AnchorNav({
             <a
               key={item.name}
               href={`#${item.name}`}
-              className="flex h-7 items-center justify-center px-4 text-center text-base font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-primary"
+              className="flex h-7 items-center justify-center gap-1.5 px-4 text-center text-base font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-primary"
             >
               {item.label}
+              {item.unfinished && <UnfinishedDot />}
             </a>
           ))}
         </div>

@@ -50,7 +50,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 the layout makes room for it so it covers none of the page. */}
             <div
               data-slot="layout"
-              className="group/layout relative z-10 flex min-h-svh flex-col bg-background max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh] sm:has-[[data-slot=pliant-ask-panel]]:pr-96"
+              className="group/layout relative z-10 flex min-h-svh flex-col bg-background [--unfinished-strip-height:--spacing(8)] max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh] sm:has-[[data-slot=pliant-ask-panel]]:pr-96"
             >
               <SiteHeader />
               <main

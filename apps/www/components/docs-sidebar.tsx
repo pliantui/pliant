@@ -16,12 +16,18 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { UnfinishedDot } from "@/components/unfinished-dot"
 import { getDocsGroups } from "@/lib/docs-nav"
 
 export function DocsSidebar({
   tree,
+  unfinished,
   ...props
-}: React.ComponentProps<typeof Sidebar> & { tree: Root }) {
+}: React.ComponentProps<typeof Sidebar> & {
+  tree: Root
+  // The URLs of pages for things that aren't fully built.
+  unfinished: readonly string[]
+}) {
   const pathname = usePathname()
   const groups = getDocsGroups(tree)
 
@@ -47,6 +53,7 @@ export function DocsSidebar({
                     key={page.url}
                     page={page}
                     isActive={page.url === pathname}
+                    isUnfinished={unfinished.includes(page.url)}
                   />
                 ))}
               </SidebarMenu>
@@ -61,9 +68,11 @@ export function DocsSidebar({
 function DocsSidebarLink({
   page,
   isActive,
+  isUnfinished,
 }: {
   page: Item
   isActive: boolean
+  isUnfinished: boolean
 }) {
   return (
     <SidebarMenuItem>
@@ -75,6 +84,7 @@ function DocsSidebarLink({
         <Link href={page.url} aria-current={isActive ? "page" : undefined}>
           <span className="absolute inset-0 flex w-(--sidebar-menu-width) bg-transparent" />
           {page.name}
+          {isUnfinished && <UnfinishedDot />}
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>

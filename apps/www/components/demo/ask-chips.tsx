@@ -10,8 +10,8 @@ import {
   type Overlay,
 } from "@pliantui/react"
 
-import { ScriptedBadge } from "@/components/demo/scripted-badge"
 import { Button } from "@/components/ui/button"
+import { UnfinishedDot } from "@/components/unfinished-dot"
 import { isScriptedAsk, replayAnswer } from "@/lib/replay/replay-fetch"
 
 const unavailable = "This change can't be shown right now. Try another ask."
@@ -120,7 +120,7 @@ export function AskChips({
             >
               {!isScripted && <SparklesIcon className="size-3" />}
               {prompt}
-              {isScripted && <ScriptedBadge />}
+              {isScripted && <UnfinishedDot kind="scripted" />}
             </Button>
           )
         })}

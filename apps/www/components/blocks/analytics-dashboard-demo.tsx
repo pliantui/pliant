@@ -31,7 +31,6 @@ export function AnalyticsDashboardDemo({
         label: "the chart",
         asks: Object.values(chartAsks),
         scripted,
-        note: "Charts aren't in Pliant yet, so the chart's asks are scripted.",
       }}
       className="max-w-none"
     >

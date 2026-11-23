@@ -432,7 +432,8 @@ test("stays below the sticky site header when the page is scrolled", async ({
   await load(page)
   const header = await page.getByRole("banner").boundingBox()
   expect(header).not.toBeNull()
-  const headerBottom = (header?.y ?? 0) + (header?.height ?? 0)
+  // Once the page scrolls, the sticky header sits at the top.
+  const headerBottom = header?.height ?? 0
   // Scrolls the key metrics partly under the header.
   await region(page).evaluate((element, offset) => {
     window.scrollBy(0, element.getBoundingClientRect().top - offset)

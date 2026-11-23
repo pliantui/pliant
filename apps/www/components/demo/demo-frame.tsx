@@ -5,7 +5,6 @@ import { CustomizedReset } from "@/components/demo/customized-reset"
 import { ReplayNote } from "@/components/demo/replay-note"
 import { ScriptedAsks } from "@/components/demo/scripted-asks"
 import type { ScriptedAsksState } from "@/components/demo/use-scripted-asks"
-import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { isScriptedAsk } from "@/lib/replay/replay-fetch"
 
 // Frames one live part of an app on a docs page with a Reset and the asks
@@ -26,24 +25,25 @@ export function DemoFrame({
   asks: readonly string[]
   // Controls shown beside Reset, like Point and Ask.
   toolbar?: React.ReactNode
-  // A part of the demo that isn't built yet: its scripted asks, and what
-  // the banner says about it. Reset clears its asks too.
+  // A part of the demo that isn't built yet, and its scripted asks. Reset
+  // clears its asks too.
   mocked?:
     | {
         label: string
         asks: readonly string[]
         scripted: ScriptedAsksState
-        note: string
       }
     | undefined
   className?: string | undefined
   children: React.ReactNode
 }) {
-  const scripted = asks.some((ask) => isScriptedAsk(target, ask))
   const recorded = asks.some((ask) => !isScriptedAsk(target, ask))
 
   return (
     <div
+      // The Customized badge previews an indicator that isn't in Pliant yet.
+      // The page's note says so once; the badge carries the unfinished dot.
+      data-unfinished="not-implemented"
       className={cn("flex w-full max-w-3xl min-w-0 flex-col gap-4", className)}
     >
       <div className="flex items-center justify-end gap-2">
@@ -65,13 +65,6 @@ export function DemoFrame({
           />
         )}
         {recorded && <ReplayNote />}
-        <NotImplementedBanner variant="preview">
-          The Customized badge previews an indicator that isn&apos;t in Pliant
-          yet.
-          {(scripted || mocked) &&
-            " Asks marked Scripted play hand-written answers instead of recorded ones."}
-          {mocked && ` ${mocked.note}`}
-        </NotImplementedBanner>
       </div>
     </div>
   )

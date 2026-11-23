@@ -22,7 +22,6 @@ export function CrmPipelineDemo({ deals }: { deals: Deal[] }) {
         label: "the cards",
         asks: Object.values(viewAsks),
         scripted,
-        note: "Stage totals and compact cards are shown by scripted answers.",
       }}
       className="max-w-none"
     >
