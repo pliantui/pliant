@@ -8,6 +8,7 @@ import {
   PageHeaderHeading,
 } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
+import { UnfinishedStrip } from "@/components/unfinished-strip"
 
 const title = "Playground"
 const description =
@@ -24,6 +25,7 @@ export default function PlaygroundLayout({
 }: LayoutProps<"/playground">) {
   return (
     <>
+      <UnfinishedStrip />
       <PageHeader>
         <PageHeaderHeading>{title}</PageHeaderHeading>
         <PageHeaderDescription>{description}</PageHeaderDescription>

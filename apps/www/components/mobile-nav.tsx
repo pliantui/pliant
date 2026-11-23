@@ -11,19 +11,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { UnfinishedDot } from "@/components/unfinished-dot"
 import { getDocsGroups } from "@/lib/docs-nav"
 import type { NavItem } from "@/lib/nav"
 
 export function MobileNav({
   tree,
-  unfinished,
   items,
   className,
 }: {
   tree: Root
-  // The URLs of docs pages for things that aren't fully built.
-  unfinished: readonly string[]
   items: readonly NavItem[]
   className?: string
 }) {
@@ -88,7 +84,6 @@ export function MobileNav({
                 {group.pages.map((page) => (
                   <MobileLink key={page.url} href={page.url} onNavigate={close}>
                     {page.name}
-                    {unfinished.includes(page.url) && <UnfinishedDot />}
                   </MobileLink>
                 ))}
               </MobileGroup>

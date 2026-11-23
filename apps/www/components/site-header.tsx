@@ -10,20 +10,17 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { site } from "@/lib/site"
 import { source } from "@/lib/source"
-import { getUnfinishedDocs } from "@/lib/unfinished-docs"
 
-export async function SiteHeader() {
+export function SiteHeader() {
   const pageTree = source.getPageTree()
-  const unfinished = await getUnfinishedDocs()
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-background">
+    <header className="sticky top-0 z-50 w-full bg-background group-has-[[data-slot=unfinished-strip]]/layout:mt-(--unfinished-strip-height)">
       <SkipLink />
       <div className="container-wrapper px-6">
         <div className="flex h-(--header-height) items-center **:data-[slot=separator]:h-4!">
           <MobileNav
             tree={pageTree}
-            unfinished={unfinished}
             items={site.navItems}
             className="flex xl:hidden"
           />

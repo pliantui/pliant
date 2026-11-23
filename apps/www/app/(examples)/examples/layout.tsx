@@ -9,6 +9,7 @@ import {
 } from "@/components/page-header"
 import { PageNav } from "@/components/page-nav"
 import { Button } from "@/components/ui/button"
+import { UnfinishedStrip } from "@/components/unfinished-strip"
 import { site } from "@/lib/site"
 
 export const dynamic = "force-static"
@@ -17,6 +18,7 @@ export const revalidate = false
 export default function ExamplesLayout({ children }: LayoutProps<"/examples">) {
   return (
     <>
+      <UnfinishedStrip />
       <PageHeader>
         <PageHeaderHeading className="max-w-4xl">
           {site.headline}
