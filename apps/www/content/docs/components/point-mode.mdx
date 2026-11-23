@@ -3,9 +3,9 @@ title: Point Mode
 description: Users select the part of the page they want to change, then move, resize or hide it directly, or ask for a change to it.
 ---
 
-Point mode is a selection mode. The parts of the page users can change are outlined, and selecting one shows handles to drag, resize and hide it, with a small bar for asking, adjusting and resetting that part.
-
 <ComponentPreview name="point-mode-demo" />
+
+Point mode is a selection mode. The parts of the page users can change are outlined, and selecting a card shows handles to drag, resize and hide it, with a small bar to ask about it, adjust it or reset it.
 
 ## Installation
 
@@ -35,39 +35,35 @@ npx shadcn@latest add @pliant/pliant-point-mode
 
 ## Usage
 
-Put it next to the [ask panel](/docs/components/ask-panel), with the same targets. Users reach it through the [Customize menu](/docs/concepts/customize-menu): **Adjust by hand** selects the part the menu was opened on, and from the page header it outlines every part so they can choose one.
+Render it once per page, inside `PliantRoot`, with the [ask panel](/docs/components/ask-panel)'s targets. It has no button of its own: the page's [Customize Menu](/docs/components/customize-menu) starts it from **Adjust by hand** through its `ref`, and `actions` says what the bar's **Ask**, **Adjust** and **Reset** run for each target.
 
 <include cwd lang="tsx">
   snippets/ai/ask-toolbar.tsx#toolbar
 </include>
 
+Each target is outlined with its label. A target with a `slots` collection, such as a region of cards, also outlines each of its slots.
+
 ## What users can ask
 
-<Callout
-  variant="warning"
-  title="Not fully implemented yet"
-  data-unfinished="not-implemented"
->
-  Handles, the bar and the Customize menu entry aren't in point mode yet. Today,
-  it only picks a part and opens the ask panel on it, and it starts from its own
-  **Point** button or <Kbd>Alt</Kbd>. [The ask panel](/docs/ai) can't add cards
-  yet.
-</Callout>
+Users get into point mode in one of these ways:
 
-Users choose **Adjust by hand** from the Customize menu, or hold <Kbd>Alt</Kbd> (<Kbd>Option</Kbd> on a Mac), and select a part. The selected part shows:
+- **Adjust by hand** in the page header's Customize menu outlines every part.
+- **Adjust by hand** in a part's Customize menu selects that part, by calling `start` with its id.
+- Holding <Kbd>Alt</Kbd> (<Kbd>Option</Kbd> on a Mac) outlines the parts, and clicking one selects it.
+- On a touch screen, after starting it from a Customize menu, tapping an outline selects it.
 
-| Control       | What it does                                                                                   |
-| ------------- | ---------------------------------------------------------------------------------------------- |
-| Drag handle   | Moves the part to another place among its siblings, such as the **Overdue** card to the front. |
-| Resize handle | Changes how many columns the part spans in a grid.                                             |
-| Hide          | Hides the part. The Customize menu's **History** and **Reset to default** bring it back.       |
-| **Ask**       | Opens the ask panel on this part.                                                              |
-| **Adjust**    | Opens the part's own controls, such as a table's column settings.                              |
-| **Reset**     | Drops the user's changes to this part.                                                         |
+A selected card shows these controls:
 
-A part only shows the handles its manifest allows: a card in a stack has no resize handle, and a [locked](/docs/guides/locks) part shows no handles at all.
+| Control       | What it does                                                                                    |
+| ------------- | ----------------------------------------------------------------------------------------------- |
+| Drag handle   | Moves the card among the other cards in its region.                                             |
+| Resize handle | Changes how many columns the card spans, at the screen width the user is on. Grid regions only. |
+| Hide          | Hides the card. **Reset** brings it back.                                                       |
+| **Ask**       | Ends point mode and runs the target's `onAsk`, such as opening the ask panel on it.             |
+| **Adjust**    | Ends point mode and runs `onAdjust`, such as moving focus to a table's own controls.            |
+| **Reset**     | Runs `onReset`. For a card, it resets the card's region.                                        |
 
-Asking from the bar keeps the selection, so the ask is about that part alone:
+Moves, resizes and hides apply straight away and are saved for the user, like any other change they make by hand; there's no preview to lock in. From the bar, the ask is about the selected part alone:
 
 | Select          | Ask                                       | What changes                                                              |
 | --------------- | ----------------------------------------- | ------------------------------------------------------------------------- |
@@ -76,34 +72,67 @@ Asking from the bar keeps the selection, so the ask is about that part alone:
 
 The preview above offers both asks under the cards; the refund rate card, marked scripted, plays a hand-written answer.
 
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  [The ask panel](/docs/ai) can't add cards yet.
+</Callout>
+
 ## Rules and guardrails
 
-- Only the targets you pass are outlined. Everything else on the page stays out of reach.
-- Every change made with the handles is checked against the part's manifest before it applies, like a change from the ask panel.
-- A drag, resize or hide saves for that user only, and **Reset** returns the part to their team's default or your base.
+- Only the targets you pass, and their slots, are outlined. Everything else on the page stays out of reach.
+- A handle shows only when the region's manifest allows it: `slots` to move, `layout` to resize and `hideable` to hide. Resizing also needs a grid of more than one column.
+- `flags` can take handles away from a slot. `required` removes **Hide**, and `locked` removes every handle.
+- Top-level parts, such as a whole region, get the bar but no handles.
+- Every change is checked against the region's manifest before it applies, like a change from the ask panel.
 - Outlines and labels stay below a sticky header when the page sets `scroll-padding-top` to the header's height, and labels avoid covering the page's text.
 
 ## Examples
 
 ### Your own toggle
 
+`trigger` adds a button that turns point mode on and off, for pages without a Customize menu.
+
 <include cwd lang="tsx">
   snippets/components/point-mode-trigger.tsx#trigger
 </include>
 
+### Protect a card
+
+```tsx
+<PliantPointMode
+  targets={askTargets}
+  flags={{
+    "key-metrics/slots/revenue": { required: true },
+    "key-metrics/slots/overdue": { locked: true },
+  }}
+/>
+```
+
 ## Options
 
-| Prop      | Type                              | Description                                                                         |
-| --------- | --------------------------------- | ----------------------------------------------------------------------------------- |
-| `targets` | `{ id: string; label: string }[]` | The nodes users can point at, usually the ask panel's targets.                      |
-| `onPick`  | `(id: string) => void`            | Called with the id of the target the user picked.                                   |
-| `trigger` | `ReactElement \| null`            | An element that toggles point mode. Defaults to none; the Customize menu starts it. |
+| Prop      | Type                                                       | Description                                                                                                             |
+| --------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `targets` | `PliantAskTarget[]`                                        | The nodes users can select, usually the ask panel's targets.                                                            |
+| `actions` | `(target: string) => PliantPointActions \| undefined`      | What the bar runs for a target: `onAsk`, `onAdjust`, `onReset`, `canReset` and `unavailable`. A card uses its region's. |
+| `flags`   | `Record<string, { required?: boolean; locked?: boolean }>` | What each slot's flags forbid, by its address, such as `key-metrics/slots/revenue`.                                     |
+| `trigger` | `ReactElement`                                             | An element that turns point mode on and off. Defaults to none.                                                          |
+| `ref`     | `Ref<PliantPointModeHandle>`                               | Gives you `start(target?)`, which turns point mode on, with `target` selected when it's given.                          |
+
+The hook underneath, `usePointMode` from `@pliantui/react/point-mode`, returns `start()` and `exit()` for building your own.
+
+### Messages
+
+The `pointMode*` message keys name the controls and announce each change, such as `pointModeBar` ("Change {part}"), `pointModeMoved` and `pointModeHidden` ("Hid {part}. Reset brings it back."). [Messages](/docs/components/messages) shows how to translate them.
 
 ## Accessibility
 
-- Started from the Customize menu, point mode is a modal dialog: the rest of the page is inert, and focus moves to the selected part, or to the first outline.
+- Started from a Customize menu or the trigger, or once a part is selected, point mode is a modal dialog: the rest of the page is inert, and focus goes back where it was when it ends, unless an action moves it.
 - <Kbd>Tab</Kbd> and the arrow keys move between outlines, and <Kbd>Enter</Kbd>
-  selects. With a part selected, the arrow keys move it, <Kbd>Shift</Kbd> with
-  the arrow keys resizes it, and <Kbd>Tab</Kbd> reaches the bar.
-  <Kbd>Escape</Kbd> leaves and returns focus.
-- On touch screens, users start it from the Customize menu in the part's or the page's header.
+  selects. With a card selected, the arrow keys move it, <Kbd>Shift</Kbd> with
+  the arrow keys resizes it, and <Kbd>Delete</Kbd> or <Kbd>Backspace</Kbd> hides
+  it. <Kbd>Escape</Kbd> leaves.
+- Each move, resize and hide is announced, such as "Moved Revenue to position 1 of 4."
+- The bar is a toolbar named "Change" and the part's label, and each handle has a label such as "Move Revenue".
