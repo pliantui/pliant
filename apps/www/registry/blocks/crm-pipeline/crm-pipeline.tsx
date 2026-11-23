@@ -7,8 +7,15 @@ import { PliantRegion } from "@/registry/pliant/pliant-region"
 export interface PipelineView {
   // Whether each column shows the value of its deals.
   totals: boolean
-  compact: boolean
+  // Flags the deals with no activity since this day, as YYYY-MM-DD.
+  staleBefore: string | null
 }
+
+const day = new Intl.DateTimeFormat("en-IN", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+})
 
 const stageNames: Record<DealStage, string> = {
   lead: "Lead",
@@ -47,28 +54,35 @@ function Stage({
           </span>
         )}
       </h3>
-      <ul className={cn("flex flex-col", view.compact ? "gap-1" : "gap-2")}>
-        {inStage.map((deal) => (
-          <li
-            key={deal.id}
-            className={cn(
-              "flex flex-col rounded-lg border bg-background text-sm shadow-xs",
-              view.compact ? "px-2 py-1.5" : "gap-1 p-3"
-            )}
-          >
-            <span className="flex items-baseline justify-between gap-2">
-              <span className="truncate font-medium">{deal.customer}</span>
-              <span className="shrink-0 text-xs tabular-nums">
-                {formatCurrency(deal.value)}
+      <ul className="flex flex-col gap-2">
+        {inStage.map((deal) => {
+          const stale =
+            view.staleBefore !== null && deal.lastActivityAt < view.staleBefore
+          return (
+            <li
+              key={deal.id}
+              className={cn(
+                "flex flex-col gap-1 rounded-lg border bg-background p-3 text-sm shadow-xs",
+                stale && "border-amber-500/60"
+              )}
+            >
+              <span className="flex items-baseline justify-between gap-2">
+                <span className="truncate font-medium">{deal.customer}</span>
+                <span className="shrink-0 text-xs tabular-nums">
+                  {formatCurrency(deal.value)}
+                </span>
               </span>
-            </span>
-            {!view.compact && (
               <span className="text-xs text-muted-foreground">
                 {deal.owner}
               </span>
-            )}
-          </li>
-        ))}
+              {stale && (
+                <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                  No activity since {day.format(new Date(deal.lastActivityAt))}
+                </span>
+              )}
+            </li>
+          )
+        })}
       </ul>
     </section>
   )

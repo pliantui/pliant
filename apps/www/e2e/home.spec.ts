@@ -278,6 +278,10 @@ test("previews, keeps and discards the asks the demo draws", async ({
       name: /^chart visitors by device as a line ?, Scripted$/,
     })
   ).toHaveAttribute("aria-pressed", "true")
+  const status = app(page)
+    .getByRole("status")
+    .filter({ hasText: "Showing desktop and mobile visitors as two lines." })
+  await expect(status).toContainText("Scripted answer")
   await app(page).getByRole("button", { name: "Lock in" }).click()
 
   await openTab(page, "Data")

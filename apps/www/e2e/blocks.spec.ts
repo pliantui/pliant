@@ -70,7 +70,11 @@ test("shows a block's files in the Code view and keeps its preview's changes", a
 }) => {
   await load(page)
   const section = block(page, /^A sales pipeline board/)
-  await section.getByRole("button", { name: /^make the cards compact/ }).click()
+  await section
+    .getByRole("button", { name: /^flag deals with no activity in 14 days/ })
+    .click()
+  const flagged = section.getByText(/^No activity since /)
+  await expect(flagged.first()).toBeVisible()
 
   await section.getByRole("tab", { name: "Code" }).click()
   const files = section.getByRole("list", { name: "Files" })
@@ -88,7 +92,7 @@ test("shows a block's files in the Code view and keeps its preview's changes", a
 
   await section.getByRole("tab", { name: "Preview" }).click()
   await expect(section.getByRole("region", { name: "Lead" })).toBeVisible()
-  await expect(section.getByText("Kavya Reddy")).toHaveCount(0)
+  await expect(flagged.first()).toBeVisible()
 })
 
 test("shows the import paths an app would have in the Code view", async ({

@@ -6,8 +6,21 @@ import type { Deal } from "@/lib/demo/schema"
 import { CrmPipeline } from "@/registry/blocks/crm-pipeline/crm-pipeline"
 
 const viewAsks = {
+  stale: "flag deals with no activity in 14 days",
   totals: "show the total for each stage",
-  compact: "make the cards compact",
+}
+
+const dayInMs = 24 * 60 * 60 * 1000
+
+// The demo's data stops on its latest activity, so the 14 days count back
+// from that day rather than from today.
+function staleBefore(deals: Deal[]) {
+  const latest = deals.reduce(
+    (last, deal) => (deal.lastActivityAt > last ? deal.lastActivityAt : last),
+    ""
+  )
+  if (!latest) return null
+  return new Date(Date.parse(latest) - 13 * dayInMs).toISOString().slice(0, 10)
 }
 
 export function CrmPipelineDemo({ deals }: { deals: Deal[] }) {
@@ -29,7 +42,7 @@ export function CrmPipelineDemo({ deals }: { deals: Deal[] }) {
         deals={deals}
         view={{
           totals: scripted.has(viewAsks.totals),
-          compact: scripted.has(viewAsks.compact),
+          staleBefore: scripted.has(viewAsks.stale) ? staleBefore(deals) : null,
         }}
       />
     </DemoFrame>
