@@ -80,6 +80,10 @@ async function pointAtTable(page: Page) {
   )
   await box.click()
   await page.keyboard.up("Alt")
+  await page
+    .getByRole("toolbar", { name: "Change All orders" })
+    .getByRole("button", { name: "Ask" })
+    .click()
   await expect(
     panel(page).getByRole("combobox", { name: "Change" })
   ).toHaveText("All orders")

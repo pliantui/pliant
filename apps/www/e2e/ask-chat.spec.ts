@@ -121,6 +121,7 @@ test("starts a new chat and switches back with the keyboard", async ({
   ])
   await expect(items.first()).toBeFocused()
   await page.keyboard.press("ArrowDown")
+  await expect(items.nth(1)).toBeFocused()
   await page.keyboard.press("Enter")
 
   await expect(

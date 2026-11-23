@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { cn } from "cn"
 import {
   EyeOffIcon,
   GripVerticalIcon,
@@ -883,7 +884,10 @@ function PliantPointMode({
               type="button"
               aria-label={messages.pointModeMove(label)}
               data-pliant-point-focus="move"
-              className={handleClassName}
+              className={cn(
+                handleClassName,
+                "cursor-grab active:cursor-grabbing"
+              )}
               style={{
                 top: selectedOutline.outline.top - 12,
                 left:
@@ -909,7 +913,7 @@ function PliantPointMode({
               type="button"
               aria-label={messages.pointModeResize(label)}
               data-pliant-point-focus="resize"
-              className={cnHandle("cursor-ew-resize")}
+              className={cn(handleClassName, "cursor-ew-resize")}
               style={{
                 top:
                   (selectedOutline.outline.top +
@@ -935,7 +939,7 @@ function PliantPointMode({
               type="button"
               aria-label={messages.pointModeHide(label)}
               data-pliant-point-focus="hide"
-              className={cnHandle("cursor-pointer")}
+              className={cn(handleClassName, "cursor-pointer")}
               style={{
                 top: selectedOutline.outline.top - 12,
                 left: selectedOutline.outline.right - 12,
@@ -951,7 +955,7 @@ function PliantPointMode({
         <div
           role="toolbar"
           aria-label={messages.pointModeBar(ownerLabel)}
-          className="absolute flex cursor-default items-center gap-1 rounded-lg border bg-popover p-1 text-popover-foreground shadow-md"
+          className="absolute z-10 flex cursor-default items-center gap-1 rounded-lg border bg-popover p-1 text-popover-foreground shadow-md"
           style={barPosition(selectedOutline.outline, {
             top: page?.top ?? 0,
             width,
@@ -1074,11 +1078,7 @@ function PliantPointMode({
 }
 
 const handleClassName =
-  "absolute flex size-6 cursor-grab touch-none items-center justify-center rounded-full border bg-background text-foreground shadow-sm outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 active:cursor-grabbing [&_svg]:size-3.5"
-
-function cnHandle(cursor: string) {
-  return `${handleClassName.replace("cursor-grab ", "").replace(" active:cursor-grabbing", "")} ${cursor}`
-}
+  "absolute z-10 flex size-6 touch-none items-center justify-center rounded-full border bg-background text-foreground shadow-sm outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_svg]:size-3.5"
 
 // Under the selection, or above it, or else inside its bottom edge on
 // screen, as for a part taller than the screen, never under a sticky header.
