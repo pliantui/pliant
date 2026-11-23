@@ -6,7 +6,7 @@ import { SiteHeader } from "@/components/site-header"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { fontVariables } from "@/lib/fonts"
-import { META_THEME_COLORS, site } from "@/lib/site"
+import { META_THEME_COLORS, ogImage, site } from "@/lib/site"
 
 import "./globals.css"
 
@@ -17,6 +17,17 @@ export const metadata: Metadata = {
     template: `%s - ${site.name}`,
   },
   description: site.description,
+  // Served from `public` rather than the app directory's icon and image
+  // files, which the server bundle would carry.
+  icons: {
+    icon: [
+      { url: "/pliant-logo.svg", type: "image/svg+xml" },
+      { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  openGraph: { images: [ogImage] },
 }
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

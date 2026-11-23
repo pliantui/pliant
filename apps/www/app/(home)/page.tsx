@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { UnfinishedStrip } from "@/components/unfinished-strip"
 import { inventory } from "@/lib/pliant/inventory.generated"
-import { site } from "@/lib/site"
+import { ogImage, site } from "@/lib/site"
 
 import { Announcement } from "./components/announcement"
 import { Showcase } from "./components/showcase"
@@ -34,12 +34,7 @@ export const metadata: Metadata = {
     description: site.summary,
     siteName: site.name,
     // A page's own `openGraph` replaces the root's, image included.
-    images: {
-      url: "/opengraph-image.png",
-      width: 1200,
-      height: 630,
-      alt: `${site.name}: ${site.headline}`,
-    },
+    images: [ogImage],
   },
 }
 

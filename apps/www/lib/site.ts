@@ -44,6 +44,14 @@ export const site = {
   ],
 } as const
 
+// The image a link to the site shows when shared.
+export const ogImage = {
+  url: "/og.png",
+  width: 1200,
+  height: 630,
+  alt: `${site.name}: ${site.headline}`,
+}
+
 export const META_THEME_COLORS = {
   light: "#ffffff",
   dark: "#0a0a0a",
