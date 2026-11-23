@@ -1,7 +1,9 @@
 ---
 title: Ask Panel
-description: A panel where users ask for a change in their own words, preview it, and lock it in or discard it.
+description: A chat where users ask for changes in their own words, see each step the AI took, and lock in or discard every preview.
 ---
+
+The ask panel is a chat about the page. Users open it from the [Customize menu](/docs/concepts/customize-menu) with **Ask for a change…**, describe what they want, and get a preview they can lock in or discard.
 
 <ComponentPreview name="ask-panel-demo" />
 
@@ -31,11 +33,11 @@ npx shadcn@latest add @pliant/pliant-ask-panel
 </TabsContent>
 </CodeTabs>
 
-You also need a route that answers asks with `createPliantHandler` from `@pliantui/server`. See [AI](/docs/ai).
+The panel is built from [AI Elements](https://ai-sdk.dev/elements), Vercel's shadcn-style chat components, which the command installs with it. You also need a route that answers asks with `createPliantHandler` from `@pliantui/server`. See [AI](/docs/ai).
 
 ## Usage
 
-Give the panel your ask route and the parts of the page users can ask about. Each target describes the node to the AI and offers suggestions.
+Give the panel your ask route and the parts of the page users can ask about. Each target describes the node to the AI and offers suggestions. Render it once per page, inside `PliantRoot`; the Customize menu and [point mode](/docs/components/point-mode) open it on the part the user chose.
 
 <include cwd lang="tsx">
   snippets/components/ask-panel.tsx#usage
@@ -43,53 +45,71 @@ Give the panel your ask route and the parts of the page users can ask about. Eac
 
 ## What users can ask
 
-Users ask for what they'd otherwise file a feature request for, about the part of the page they picked:
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The panel isn't a chat yet: it holds one ask and its answer, without steps or
+  saved chats, and opens from its own **Ask** button. It can't add cards, and
+  chats can't be kept on your server.
+</Callout>
+
+Users ask for what they'd otherwise file a feature request for, about the part of the page they chose:
 
 | Ask                                       | What changes                                                              |
 | ----------------------------------------- | ------------------------------------------------------------------------- |
 | add a card for this quarter's refund rate | A **Refund rate** card shows the share of this quarter's orders refunded. |
 | show the cards in a two-column grid       | The cards sit in two columns.                                             |
 
-The asks under the cards in the preview above are these two; the refund rate card, marked scripted, plays a hand-written answer. Open the panel and pick a suggestion, or type "show the cards in a two-column grid", "put the overdue card first" or "hide the average order value card". The panel replays recorded answers; no AI model is called, and an ask that isn't recorded gets a reply that lists the suggestions.
+Each answer in the chat shows:
 
-<Callout
-  variant="warning"
-  title="Not fully implemented yet"
-  data-unfinished="not-implemented"
->
-  The panel can't add cards yet. [How asking works](/docs/ai) lists what it can
-  make today.
-</Callout>
+- the AI's reply, in plain words;
+- the steps it took, in readable form, such as "Chose an operation: Add column" or "Checked the change against the table's rules";
+- a preview of the change, inline in the chat and on the page, with **Lock in** and **Discard**.
+
+Nothing applies until the user chooses **Lock in**. They can keep talking to refine it, such as "make it a percent", and each new preview replaces the last.
+
+A dropdown at the top of the panel switches between the user's chats, and **New chat** starts another. Chats are personal: each user's chats are stored for them, in their browser by default, and other users of your app, admins included, can't see them. The text of each ask still goes to your ask route and your model provider.
+
+The preview above offers both asks under the cards; the refund rate card, marked scripted, plays a hand-written answer. It replays recorded answers without calling a model, so an ask that isn't recorded gets a reply that lists the suggestions.
 
 ## Rules and guardrails
 
 - The AI never writes code or queries. It picks from the operations the target's manifest allows, and every answer is checked before it previews.
-- A change previews first. Nothing is saved until the user locks it in.
+- A change previews first. Nothing is saved until the user locks it in, and discarding a preview leaves the page as it was.
+- A chat only holds what the user typed and the answers. Locked-in changes are saved like any other change, so they stay when a chat is deleted.
 - The AI only sees what each target's context describes: labels, ids and field types, never your rows. See [what the AI sees](/docs/ai/what-the-ai-sees).
 
 ## Examples
 
-### Open the panel from your own button
+### Open from the Customize menu
 
-<include cwd lang="tsx">
-  snippets/components/ask-panel-trigger.tsx#trigger
-</include>
+Put a [Customize Menu](/docs/components/customize-menu) in the header of each part. Its **Ask for a change…** item opens the panel on that part, so the panel needs no button of its own.
+
+```tsx
+<PliantRoot surface="/orders">
+  <PliantCustomizeMenu target="key-metrics" />
+  <PliantAskPanel endpoint="/api/pliant" targets={askTargets} />
+</PliantRoot>
+```
 
 ## Options
 
-| Prop                                    | Type                       | Description                                                           |
-| --------------------------------------- | -------------------------- | --------------------------------------------------------------------- |
-| `endpoint`                              | `string`                   | The URL of the route that answers asks with `createPliantHandler`.    |
-| `targets`                               | `PliantAskTarget[]`        | The nodes users can ask about, in picker order.                       |
-| `target` / `defaultTarget`              | `string`                   | The picked target, controlled or uncontrolled. Defaults to the first. |
-| `onTargetChange`                        | `(target: string) => void` | Called when the user picks a target.                                  |
-| `open` / `defaultOpen` / `onOpenChange` |                            | The panel's open state.                                               |
-| `placeholder`                           | `string`                   | The prompt's placeholder.                                             |
-| `trigger`                               | `ReactElement`             | The element that opens the panel. Defaults to an Ask button.          |
-| `fetch`                                 | `typeof fetch`             | Sends each ask in place of the global `fetch`, as for tests.          |
+| Prop                                    | Type                       | Description                                                                                |
+| --------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------ |
+| `endpoint`                              | `string`                   | The URL of the route that answers asks with `createPliantHandler`.                         |
+| `targets`                               | `PliantAskTarget[]`        | The nodes users can ask about, in picker order.                                            |
+| `target` / `defaultTarget`              | `string`                   | The picked target, controlled or uncontrolled. Defaults to the first.                      |
+| `onTargetChange`                        | `(target: string) => void` | Called when the user picks a target.                                                       |
+| `open` / `defaultOpen` / `onOpenChange` |                            | The panel's open state.                                                                    |
+| `placeholder`                           | `string`                   | The prompt's placeholder.                                                                  |
+| `trigger`                               | `ReactElement`             | An element that opens the panel. By default there's none, and the Customize menu opens it. |
+| `fetch`                                 | `typeof fetch`             | Sends each ask in place of the global `fetch`, as for tests.                               |
 
 ## Accessibility
 
 - The panel is a labelled complementary landmark, and focus moves to the prompt when it opens.
-- Answers and previews are announced in a live region.
+- The chat is a log, so screen readers announce each new answer, its steps and its preview as they arrive.
+- The chat switcher is a Radix menu, with full keyboard support.
 - On phones it docks to the bottom of the screen, and the page stays scrollable above it.

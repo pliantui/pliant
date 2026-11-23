@@ -1,0 +1,145 @@
+---
+title: Customize Menu
+description: The one menu that holds every Pliant action, opened from the right-click menu, a header button or the command menu.
+---
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This component isn't in Pliant yet, and its API may still change.
+</Callout>
+
+`pliant-customize-menu` puts **Ask for a change…**, **Adjust by hand**, **History** and **Reset to default** behind one **Customize** entry. [The Customize menu](/docs/concepts/customize-menu) explains where users find it and why Pliant has no other buttons.
+
+## Installation
+
+<CodeTabs>
+
+<TabsList>
+  <TabsTrigger value="cli">Command</TabsTrigger>
+  <TabsTrigger value="manual">Manual</TabsTrigger>
+</TabsList>
+<TabsContent value="cli">
+
+```bash
+npx shadcn@latest add @pliant/pliant-customize-menu
+```
+
+</TabsContent>
+<TabsContent value="manual">
+
+<Steps className="mb-0 pt-2">
+
+<Step>Add the shadcn/ui components it builds on.</Step>
+
+```bash
+npx shadcn@latest add button context-menu dropdown-menu command
+```
+
+<Step>Add the Customize icon.</Step>
+
+```bash
+npx shadcn@latest add @pliant/customize-icon
+```
+
+<Step>
+  Copy the component's source into
+  `components/pliant/pliant-customize-menu.tsx`.
+</Step>
+
+</Steps>
+
+</TabsContent>
+</CodeTabs>
+
+## Usage
+
+Put a `PliantCustomizeMenu` in the header of each part users can change, with that part's id as `target`, and one without a `target` in the page header. Wrap the part in `PliantCustomizeContextMenu` to add the **Customize** group to its right-click menu.
+
+```tsx
+<header className="flex items-center justify-between">
+  <h1>Orders</h1>
+  <PliantCustomizeMenu />
+</header>
+
+<PliantCustomizeContextMenu target="orders-table">
+  <section>
+    <div className="flex items-center justify-between">
+      <h2>All orders</h2>
+      <PliantCustomizeMenu target="orders-table" />
+    </div>
+    <OrdersTable />
+  </section>
+</PliantCustomizeContextMenu>
+```
+
+Render the menu inside `PliantRoot`, next to the [ask panel](/docs/components/ask-panel) and [point mode](/docs/components/point-mode). Its items open them, so you don't add their own buttons to the page.
+
+## What users can ask
+
+The menu doesn't take asks itself. **Ask for a change…** opens the ask panel on the part the menu belongs to, so "show the cards in a two-column grid" is about that row of cards without the user picking it from a list. <Kbd>⌘</Kbd> <Kbd>.</Kbd> (<Kbd>Ctrl</Kbd> <Kbd>.</Kbd> on Windows and Linux) does the same for the part that has focus.
+
+## Rules and guardrails
+
+- The menu only opens Pliant's own tools. Every change still goes through the same checks, whether it's asked for or made by hand.
+- It never offers an action the part's manifest doesn't allow. A [locked](/docs/guides/locks) part shows **History** and nothing that would change it.
+- **Reset to default** is disabled until the user has changed the part, and it never touches team defaults or your base.
+- **Ask for a change…** is left out when the page has no ask panel.
+- The labels say **Customize** and **Adjust**, never **Edit**, which in your app means changing a record.
+
+## Examples
+
+### In your command menu
+
+Add the **Customize** group to the command menu your app already has. It acts on the part that had focus when the user opened the menu, or on the whole page.
+
+```tsx
+<CommandDialog open={open} onOpenChange={setOpen}>
+  <CommandInput placeholder="Type a command or search…" />
+  <CommandList>
+    <CommandGroup heading="Orders">{/* your app's commands */}</CommandGroup>
+    <PliantCustomizeCommandGroup />
+  </CommandList>
+</CommandDialog>
+```
+
+### Inside your own right-click menu
+
+If a part already has a `ContextMenu`, put `PliantCustomizeContextMenuGroup` inside its content instead of wrapping the part again.
+
+```tsx
+<ContextMenuContent>
+  <ContextMenuItem>Open order</ContextMenuItem>
+  <ContextMenuSeparator />
+  <PliantCustomizeContextMenuGroup target="orders-table" />
+</ContextMenuContent>
+```
+
+## Options
+
+### PliantCustomizeMenu
+
+| Prop      | Type                           | Description                                                                        |
+| --------- | ------------------------------ | ---------------------------------------------------------------------------------- |
+| `target`  | `string`                       | The id of the part the menu acts on. Leave it out to act on the whole page.        |
+| `trigger` | `ReactElement`                 | The element that opens the menu. Defaults to a **Customize** button with its icon. |
+| `align`   | `"start" \| "center" \| "end"` | How the menu lines up with its trigger. Defaults to `"end"`.                       |
+
+### PliantCustomizeContextMenu
+
+| Prop       | Type        | Description                                          |
+| ---------- | ----------- | ---------------------------------------------------- |
+| `target`   | `string`    | The id of the part the menu acts on.                 |
+| `children` | `ReactNode` | The part users right-click or long-press to open it. |
+
+`PliantCustomizeContextMenuGroup` takes `target` too. `PliantCustomizeCommandGroup` takes an optional `heading`, which defaults to "Customize".
+
+## Accessibility
+
+- The menus are Radix menus, with full keyboard support. Arrow keys move between items, and <Kbd>Escape</Kbd> closes the menu and returns focus.
+- The header button is labelled with the part it acts on, as in "Customize All orders", so several on one page can be told apart.
+- Right-click is hard to discover and to reach without a mouse, so give every part with a context menu a header button too. On touch screens, a long press opens the context menu.
+- <Kbd>⌘</Kbd> <Kbd>.</Kbd> works from the keyboard alone, on whatever part has
+  focus.

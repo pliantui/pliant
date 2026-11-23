@@ -32,6 +32,18 @@ All of it comes from the target you describe, and from what the user typed.
 - Anything about the user, such as their id, name or email.
 - Your code, other users' asks, or other pages.
 
+## Within a chat
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The ask panel isn't a chat yet, so each ask is sent on its own.
+</Callout>
+
+When a user refines a change in the same chat, the model also gets that chat's earlier asks and the changes it proposed, so "make it a percent" has something to refer to. It never gets the user's other chats. Chats are stored for each user in their browser by default, so your server only sees the asks it answers.
+
 ## Fields from your datasets
 
 The ask route builds each target's `fields` from your [dataset](/docs/data/datasets), for the user who asked, with `describeDataset(dataset, { user, audience: "ai" })`. That leaves out every field marked `exposeToAI: false`, and every field the user may not read, so the model is never told those fields exist.

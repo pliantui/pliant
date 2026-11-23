@@ -1,9 +1,9 @@
 ---
 title: How asking works
-description: Set up the ask route, the ask panel and point mode, and follow an ask from the user's words to a saved change.
+description: Set up the ask route, the ask panel and point mode, and follow an ask from the Customize menu to a saved change.
 ---
 
-With the ask panel, a user points at part of the page and types what they want, such as "add a column for days since each order was placed" or "highlight overdue orders over ₹1L". The change shows on the page as a preview, and it's saved only when they choose **Lock in**. AI is optional: everything it can do, users can also do by hand with the controls on the page.
+With the ask panel, a user opens the [Customize menu](/docs/concepts/customize-menu) on part of the page, chooses **Ask for a change…** and types what they want, such as "add a column for days since each order was placed" or "highlight overdue orders over ₹1L". The change shows on the page as a preview, and it's saved only when they choose **Lock in**. AI is optional: everything it can do, users can also do by hand with the controls on the page.
 
 <Callout
   variant="warning"
@@ -66,12 +66,24 @@ Render them inside `PliantRoot`, such as in the page header:
 
 ## What the user sees
 
-1. They turn on point mode in one of three ways: hold <Kbd>Alt</Kbd> (<Kbd>Option</Kbd> on a Mac), press <Kbd>Ctrl</Kbd> <Kbd>.</Kbd> (<Kbd>⌘</Kbd> <Kbd>.</Kbd> on a Mac), or click the point mode button. The parts they can ask about light up, and they click one. They can also open the panel and pick a part from its list.
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The Customize menu and the chat aren't in Pliant yet. Today, users start point
+  mode from the **Point** button, <Kbd>Alt</Kbd> or <Kbd>⌘</Kbd> <Kbd>.</Kbd>,
+  and the panel holds one ask at a time.
+</Callout>
+
+1. They open the Customize menu on a part of the page, from its header or by right-clicking it, and choose **Ask for a change…**. <Kbd>⌘</Kbd> <Kbd>.</Kbd> (<Kbd>Ctrl</Kbd> <Kbd>.</Kbd> on Windows and Linux) does the same for the part that has focus.
 2. They type an ask, or pick a suggestion, and press <Kbd>Enter</Kbd>. <Kbd>Shift</Kbd> <Kbd>Enter</Kbd> adds a new line.
-3. The change appears on the page as a preview, with a short sentence describing it.
-4. **Lock in** saves it. **Discard** drops it. Until then, nothing is saved.
+3. The answer arrives in the chat with the steps the AI took, such as "Chose an operation: Add column", and a preview of the change, both in the chat and on the page.
+4. **Lock in** saves it. **Discard** drops it. Until then, nothing is applied.
 
 If the ask is unclear, the panel asks a short question back. If it's about changing data, such as "delete these orders", it explains that it can only change how the page looks.
+
+Each user has their own chats, stored in their browser by default, and switches between them from the top of the panel. [Ask Panel](/docs/components/ask-panel) covers the chat in detail.
 
 ## What happens on your server
 
@@ -111,7 +123,7 @@ The route never changes your data, and the model never sees your rows. See [What
 | `defaultOpen`    | `false`             | Whether the panel starts open, when you don't control it             |
 | `onOpenChange`   | None                | Called when the panel opens or closes                                |
 | `placeholder`    | "Describe a change" | The prompt's placeholder                                             |
-| `trigger`        | An **Ask** button   | The element that opens the panel                                     |
+| `trigger`        | None                | An element that opens the panel, besides the Customize menu          |
 | `fetch`          | The global `fetch`  | Sends each ask in place of the global `fetch`                        |
 
 `fetch` has the type of the global `fetch`. The panel calls it with `endpoint` and a `POST` request whose JSON body is the ask, then reads the answer from the response. Pass your own to add headers, to stub answers in tests, or to answer asks without a network request, as [Recordings and replay](/docs/ai/recordings#replaying-in-the-browser) shows.

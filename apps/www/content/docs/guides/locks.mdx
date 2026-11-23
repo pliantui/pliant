@@ -15,7 +15,7 @@ A lock keeps part of a page as an admin set it. Locking the orders table's **Sta
 
 ## Lock a part of the page
 
-An admin points at the part with point mode, and chooses **Lock for my team** or **Lock for everyone**. Locked parts show a small lock icon. Members can still use them; they just can't change them.
+An admin opens the part's [Customize menu](/docs/concepts/customize-menu), from its header or by right-clicking it, and chooses **Lock for my team** or **Lock for everyone**. Locked parts show a small lock icon. Members can still use them; they just can't change them.
 
 ## What a lock covers
 
@@ -26,7 +26,7 @@ An admin points at the part with point mode, and chooses **Lock for my team** or
 | A whole region     | Change anything inside it |
 | A table's sort     | Sort it another way       |
 
-Your own code can lock a region too, with the `locked` prop. Nothing inside it is editable:
+Your own code can lock a region too, with the `locked` prop. Users can't customize anything inside it:
 
 ```tsx
 <PliantRegion id="compliance" locked slots={{ notice: <ComplianceNotice /> }} />

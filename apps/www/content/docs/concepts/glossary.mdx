@@ -5,6 +5,14 @@ description: Short definitions of the terms used across Pliant's docs.
 
 The terms Pliant's docs use, in plain words, with a link to where each one is explained in full.
 
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The Customize menu and point mode's handles aren't in Pliant yet.
+</Callout>
+
 **Address.** The name of the thing a change targets: a node's id, such as `orders-table`, or an item's path, such as `orders-table/columns/notes`. See [Surfaces, nodes and addresses](/docs/concepts/surfaces#addresses).
 
 **Ask panel.** An optional panel where users describe a change in plain words, see it as a preview, and lock it in or discard it. See [How asking works](/docs/ai).
@@ -16,6 +24,8 @@ The terms Pliant's docs use, in plain words, with a link to where each one is ex
 **Catalog.** The fixed list of operations, and the fixed list of functions expressions can use. Nothing outside it can appear in a change.
 
 **Collection.** A named list of items inside a node: `slots`, `columns`, `fields`, `items` or `actions`.
+
+**Customize menu.** The one menu that holds every Pliant action: **Ask for a change…**, **Adjust by hand**, **History** and **Reset to default**. Users open it by right-clicking a part, from a **Customize** button in a header, or from the command menu. See [The Customize menu](/docs/concepts/customize-menu).
 
 **Dataset.** A description of the fields behind a table, with their types, which Pliant uses to compute calculated columns, totals and highlights.
 
@@ -41,7 +51,7 @@ The terms Pliant's docs use, in plain words, with a link to where each one is ex
 
 **Pliant interface.** An interface its users can reshape, safely and without code, while the page you wrote stays underneath. See [Why Pliant](/docs/why#what-we-mean-by-a-pliant-interface).
 
-**Point mode.** A mode in which the parts of the page users can change light up, so they can click the one they want to ask about.
+**Point mode.** A selection mode in which the parts of the page users can change are outlined. Selecting one shows handles to drag, resize and hide it, and a bar to ask about it, adjust it or reset it. See [Point Mode](/docs/components/point-mode).
 
 **Pre-paint.** A small script that keeps a customized page from flashing its default layout while it loads. See [Rendering modes](/docs/concepts/rendering#pre-paint).
 

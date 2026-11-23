@@ -1,7 +1,9 @@
 ---
 title: Point Mode
-description: Users point at the part of the page they want to change instead of picking it from a list.
+description: Users select the part of the page they want to change, then move, resize or hide it directly, or ask for a change to it.
 ---
+
+Point mode is a selection mode. The parts of the page users can change are outlined, and selecting one shows handles to drag, resize and hide it, with a small bar for asking, adjusting and resetting that part.
 
 <ComponentPreview name="point-mode-demo" />
 
@@ -33,7 +35,7 @@ npx shadcn@latest add @pliant/pliant-point-mode
 
 ## Usage
 
-Put it next to the [ask panel](/docs/components/ask-panel), with the same targets. Picking a part opens the panel on it.
+Put it next to the [ask panel](/docs/components/ask-panel), with the same targets. Users reach it through the [Customize menu](/docs/concepts/customize-menu): **Adjust by hand** selects the part the menu was opened on, and from the page header it outlines every part so they can choose one.
 
 <include cwd lang="tsx">
   snippets/ai/ask-toolbar.tsx#toolbar
@@ -41,27 +43,44 @@ Put it next to the [ask panel](/docs/components/ask-panel), with the same target
 
 ## What users can ask
 
-Press Point above, or hold <Kbd>Alt</Kbd>, and click the part of the page to change. The panel opens on it, so the ask can be about that part alone:
-
-| Point at        | Ask                                       | What changes                                                              |
-| --------------- | ----------------------------------------- | ------------------------------------------------------------------------- |
-| The key metrics | add a card for this quarter's refund rate | A **Refund rate** card shows the share of this quarter's orders refunded. |
-| The key metrics | show the cards in a two-column grid       | The cards sit in two columns.                                             |
-
-The preview above offers both asks under the cards; the refund rate card, marked scripted, plays a hand-written answer. Point at the key metrics and the panel replays its recorded suggestions, such as "show the cards in a two-column grid".
-
 <Callout
   variant="warning"
   title="Not fully implemented yet"
   data-unfinished="not-implemented"
 >
-  [The ask panel](/docs/ai) can't add cards yet.
+  Handles, the bar and the Customize menu entry aren't in point mode yet. Today,
+  it only picks a part and opens the ask panel on it, and it starts from its own
+  **Point** button or <Kbd>Alt</Kbd>. [The ask panel](/docs/ai) can't add cards
+  yet.
 </Callout>
+
+Users choose **Adjust by hand** from the Customize menu, or hold <Kbd>Alt</Kbd> (<Kbd>Option</Kbd> on a Mac), and select a part. The selected part shows:
+
+| Control       | What it does                                                                                   |
+| ------------- | ---------------------------------------------------------------------------------------------- |
+| Drag handle   | Moves the part to another place among its siblings, such as the **Overdue** card to the front. |
+| Resize handle | Changes how many columns the part spans in a grid.                                             |
+| Hide          | Hides the part. The Customize menu's **History** and **Reset to default** bring it back.       |
+| **Ask**       | Opens the ask panel on this part.                                                              |
+| **Adjust**    | Opens the part's own controls, such as a table's column settings.                              |
+| **Reset**     | Drops the user's changes to this part.                                                         |
+
+A part only shows the handles its manifest allows: a card in a stack has no resize handle, and a [locked](/docs/guides/locks) part shows no handles at all.
+
+Asking from the bar keeps the selection, so the ask is about that part alone:
+
+| Select          | Ask                                       | What changes                                                              |
+| --------------- | ----------------------------------------- | ------------------------------------------------------------------------- |
+| The key metrics | add a card for this quarter's refund rate | A **Refund rate** card shows the share of this quarter's orders refunded. |
+| The key metrics | show the cards in a two-column grid       | The cards sit in two columns.                                             |
+
+The preview above offers both asks under the cards; the refund rate card, marked scripted, plays a hand-written answer.
 
 ## Rules and guardrails
 
 - Only the targets you pass are outlined. Everything else on the page stays out of reach.
-- Point mode only picks. The change itself goes through the ask panel, with its preview and its checks.
+- Every change made with the handles is checked against the part's manifest before it applies, like a change from the ask panel.
+- A drag, resize or hide saves for that user only, and **Reset** returns the part to their team's default or your base.
 - Outlines and labels stay below a sticky header when the page sets `scroll-padding-top` to the header's height, and labels avoid covering the page's text.
 
 ## Examples
@@ -74,15 +93,17 @@ The preview above offers both asks under the cards; the refund rate card, marked
 
 ## Options
 
-| Prop      | Type                              | Description                                                      |
-| --------- | --------------------------------- | ---------------------------------------------------------------- |
-| `targets` | `{ id: string; label: string }[]` | The nodes users can point at, usually the ask panel's targets.   |
-| `onPick`  | `(id: string) => void`            | Called with the id of the target the user picked.                |
-| `trigger` | `ReactElement`                    | The element that toggles point mode. Defaults to a Point button. |
+| Prop      | Type                              | Description                                                                                    |
+| --------- | --------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `targets` | `{ id: string; label: string }[]` | The nodes users can point at, usually the ask panel's targets.                                 |
+| `onPick`  | `(id: string) => void`            | Called with the id of the target the user picked.                                              |
+| `trigger` | `ReactElement`                    | An element that toggles point mode. By default there's none, and the Customize menu starts it. |
 
 ## Accessibility
 
-- Started from the toggle or <Kbd>⌘</Kbd> <Kbd>.</Kbd> (<Kbd>Ctrl</Kbd> <Kbd>.</Kbd> on Windows and Linux), point mode is a modal dialog: the rest of the page is inert, and focus moves to the first outline.
-- <Kbd>Tab</Kbd> and the arrow keys move between outlines, <Kbd>Enter</Kbd>
-  picks, and <Kbd>Escape</Kbd> leaves and returns focus.
-- The toggle is the way in that always works, and the only one on touch screens.
+- Started from the Customize menu, point mode is a modal dialog: the rest of the page is inert, and focus moves to the selected part, or to the first outline.
+- <Kbd>Tab</Kbd> and the arrow keys move between outlines, and <Kbd>Enter</Kbd>
+  selects. With a part selected, the arrow keys move it, <Kbd>Shift</Kbd> with
+  the arrow keys resizes it, and <Kbd>Tab</Kbd> reaches the bar.
+  <Kbd>Escape</Kbd> leaves and returns focus.
+- On touch screens, users start it from the Customize menu in the part's or the page's header.

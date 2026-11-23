@@ -1,0 +1,91 @@
+---
+title: Customize Icon
+description: The icon that marks the Customize menu, drawn in the lucide style so it sits next to your other icons.
+---
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  This icon isn't in Pliant yet, and its API may still change.
+</Callout>
+
+`customize-icon` is the icon on every **Customize** button and menu entry. Lucide has no icon that means "reshape this for me" without also meaning settings or editing, so Pliant ships its own, drawn on lucide's 24-pixel grid with the same stroke and round caps.
+
+## Installation
+
+<CodeTabs>
+
+<TabsList>
+  <TabsTrigger value="cli">Command</TabsTrigger>
+  <TabsTrigger value="manual">Manual</TabsTrigger>
+</TabsList>
+<TabsContent value="cli">
+
+```bash
+npx shadcn@latest add @pliant/customize-icon
+```
+
+</TabsContent>
+<TabsContent value="manual">
+
+<Steps className="mb-0 pt-2">
+
+<Step>Copy the icon's source into `components/pliant/customize-icon.tsx`.</Step>
+
+</Steps>
+
+</TabsContent>
+</CodeTabs>
+
+The [Customize Menu](/docs/components/customize-menu) installs it for you.
+
+## Usage
+
+Use it like any lucide icon. Inside a shadcn `Button`, it picks up the button's size and color.
+
+```tsx
+<Button variant="ghost" size="sm">
+  <CustomizeIcon />
+  Customize
+</Button>
+```
+
+## What users can ask
+
+Nothing; the icon is a marker. It shows users where the [Customize menu](/docs/concepts/customize-menu) is, and the asks start from there.
+
+## Rules and guardrails
+
+- Use it only for the Customize menu, so it keeps one meaning across your app.
+- Don't swap in a pencil or a gear. A pencil means changing the record's data, and a gear means your app's settings.
+- Next to text, the icon is decorative. When it stands alone in an icon button, give the button an `aria-label` such as "Customize".
+
+## Examples
+
+### Icon-only button
+
+```tsx
+<Button variant="ghost" size="icon" aria-label="Customize orders table">
+  <CustomizeIcon />
+</Button>
+```
+
+## Options
+
+It takes the same props as a lucide icon.
+
+| Prop                  | Type      | Description                                                |
+| --------------------- | --------- | ---------------------------------------------------------- |
+| `size`                | `number`  | Width and height in pixels. Defaults to 24.                |
+| `strokeWidth`         | `number`  | The stroke width. Defaults to 2.                           |
+| `absoluteStrokeWidth` | `boolean` | Keeps the stroke width the same at any size, as in lucide. |
+| `className`           | `string`  | Classes for the `svg`, such as a size or text color.       |
+
+It also takes the props of an `svg`.
+
+## Accessibility
+
+- The icon renders with `aria-hidden="true"`, so screen readers read the button's text or label, not the drawing.
+- It draws with `currentColor`, so it follows your text color and keeps the contrast you've set in both themes.
