@@ -3,15 +3,7 @@ title: Customize Icon
 description: The icon that marks the Customize menu, drawn in the lucide style so it sits next to your other icons.
 ---
 
-<Callout
-  variant="warning"
-  title="Not fully implemented yet"
-  data-unfinished="not-implemented"
->
-  This icon isn't in Pliant yet, and its API may still change.
-</Callout>
-
-`customize-icon` is the icon on every **Customize** button and menu entry. Lucide has no icon that means "reshape this for me" without also meaning settings or editing, so Pliant ships its own, drawn on lucide's 24-pixel grid with the same stroke and round caps.
+`customize-icon` is the icon on every **Customize** button and menu label: a square split on its diagonal, with the top piece smaller and nudged away. Lucide has no icon that means "reshape this for me" without also meaning settings or editing, so Pliant ships its own, drawn on lucide's 24-pixel grid with the same stroke and round caps.
 
 ## Installation
 
@@ -32,7 +24,7 @@ npx shadcn@latest add @pliant/customize-icon
 
 <Steps className="mb-0 pt-2">
 
-<Step>Copy the icon's source into `components/pliant/customize-icon.tsx`.</Step>
+<ComponentManualInstall name="customize-icon" />
 
 </Steps>
 
@@ -43,10 +35,10 @@ The [Customize Menu](/docs/components/customize-menu) installs it for you.
 
 ## Usage
 
-Use it like any lucide icon. Inside a shadcn `Button`, it picks up the button's size and color.
+Use it like a lucide icon. Inside a shadcn `Button`, it picks up the button's icon size and text color.
 
 ```tsx
-<Button variant="ghost" size="sm">
+<Button variant="outline" size="sm">
   <CustomizeIcon />
   Customize
 </Button>
@@ -54,7 +46,7 @@ Use it like any lucide icon. Inside a shadcn `Button`, it picks up the button's 
 
 ## What users can ask
 
-Nothing; the icon is a marker. It shows users where the [Customize menu](/docs/concepts/customize-menu) is, and the asks start from there.
+Nothing; the icon is a marker. It shows users where the [Customize menu](/docs/concepts/customize-menu) is, and their asks start from there.
 
 ## Rules and guardrails
 
@@ -72,18 +64,21 @@ Nothing; the icon is a marker. It shows users where the [Customize menu](/docs/c
 </Button>
 ```
 
+### Filled, for emphasis
+
+```tsx
+<CustomizeIcon variant="filled" />
+```
+
 ## Options
 
-It takes the same props as a lucide icon.
+| Prop          | Type                    | Description                                                                  |
+| ------------- | ----------------------- | ---------------------------------------------------------------------------- |
+| `size`        | `number \| string`      | Width and height. Defaults to 24.                                            |
+| `strokeWidth` | `number \| string`      | The stroke width of the outline. Defaults to 2.                              |
+| `variant`     | `"outline" \| "filled"` | Drawn as an outline, or filled with the text color. Defaults to `"outline"`. |
 
-| Prop                  | Type      | Description                                                |
-| --------------------- | --------- | ---------------------------------------------------------- |
-| `size`                | `number`  | Width and height in pixels. Defaults to 24.                |
-| `strokeWidth`         | `number`  | The stroke width. Defaults to 2.                           |
-| `absoluteStrokeWidth` | `boolean` | Keeps the stroke width the same at any size, as in lucide. |
-| `className`           | `string`  | Classes for the `svg`, such as a size or text color.       |
-
-It also takes the props of an `svg`.
+It also takes the props of an `svg`, such as `className`.
 
 ## Accessibility
 

@@ -1,17 +1,9 @@
 ---
 title: Customize Menu
-description: The one menu that holds every Pliant action, opened from the right-click menu, a header button or the command menu.
+description: The one menu that holds every Pliant action, opened from a header button, the right-click menu or your command menu.
 ---
 
-<Callout
-  variant="warning"
-  title="Not fully implemented yet"
-  data-unfinished="not-implemented"
->
-  This component isn't in Pliant yet, and its API may still change.
-</Callout>
-
-`pliant-customize-menu` puts **Ask for a change…**, **Adjust by hand**, **History** and **Reset to default** behind one **Customize** entry. [The Customize menu](/docs/concepts/customize-menu) explains where users find it and why Pliant has no other buttons.
+`pliant-customize-menu` puts **Ask for a change…**, **Adjust by hand**, **History** and **Reset to default** behind one **Customize** entry, so the ask panel and point mode need no buttons of their own. [The Customize menu](/docs/concepts/customize-menu) explains where users find it and why.
 
 ## Installation
 
@@ -32,114 +24,126 @@ npx shadcn@latest add @pliant/pliant-customize-menu
 
 <Steps className="mb-0 pt-2">
 
-<Step>Add the shadcn/ui components it builds on.</Step>
-
-```bash
-npx shadcn@latest add button context-menu dropdown-menu command
-```
-
-<Step>Add the Customize icon.</Step>
-
-```bash
-npx shadcn@latest add @pliant/customize-icon
-```
-
-<Step>
-  Copy the component's source into
-  `components/pliant/pliant-customize-menu.tsx`.
-</Step>
+<ComponentManualInstall name="pliant-customize-menu" />
 
 </Steps>
 
 </TabsContent>
 </CodeTabs>
 
+It installs the [Customize Icon](/docs/components/customize-icon) with it.
+
 ## Usage
 
-Put a `PliantCustomizeMenu` in the header of each part users can change, with that part's id as `target`, and one without a `target` in the page header. Wrap the part in `PliantCustomizeContextMenu` to add the **Customize** group to its right-click menu.
+Give `PliantCustomizeMenu` a handler for each item you support. Here, **Ask for a change…** opens the [ask panel](/docs/components/ask-panel), and focus returns to the Customize button when the panel closes:
 
-```tsx
-<header className="flex items-center justify-between">
-  <h1>Orders</h1>
-  <PliantCustomizeMenu />
-</header>
+<include cwd lang="tsx">
+  snippets/components/ask-panel-trigger.tsx#trigger
+</include>
 
-<PliantCustomizeContextMenu target="orders-table">
-  <section>
-    <div className="flex items-center justify-between">
-      <h2>All orders</h2>
-      <PliantCustomizeMenu target="orders-table" />
-    </div>
-    <OrdersTable />
-  </section>
-</PliantCustomizeContextMenu>
-```
-
-Render the menu inside `PliantRoot`, next to the [ask panel](/docs/components/ask-panel) and [point mode](/docs/components/point-mode). Its items open them, so you don't add their own buttons to the page.
+An item without a handler is disabled. Put one menu in the header of each part users can change, and one in the page header for the whole page. [`PliantDataTableToolbar`](/docs/components/data-table) already includes the table's menu, with **Reset to default** and **Adjust by hand** wired up; pass the other handlers through its `customize` prop.
 
 ## What users can ask
 
-The menu doesn't take asks itself. **Ask for a change…** opens the ask panel on the part the menu belongs to, so "show the cards in a two-column grid" is about that row of cards without the user picking it from a list. <Kbd>⌘</Kbd> <Kbd>.</Kbd> (<Kbd>Ctrl</Kbd> <Kbd>.</Kbd> on Windows and Linux) does the same for the part that has focus.
+The menu doesn't take asks itself. **Ask for a change…** runs your `onAsk`, which usually opens the ask panel on the part the menu belongs to, so "show the cards in a two-column grid" is about that row of cards without the user picking it from a list. Inside a `PliantCustomizeContextMenu`, <Kbd>⌘</Kbd> <Kbd>.</Kbd> (<Kbd>Ctrl</Kbd> <Kbd>.</Kbd> on Windows and Linux) runs `onAsk` for the part that has focus.
 
 ## Rules and guardrails
 
-- The menu only opens Pliant's own tools. Every change still goes through the same checks, whether it's asked for or made by hand.
-- It never offers an action the part's manifest doesn't allow. A [locked](/docs/guides/locks) part shows **History** and nothing that would change it.
-- **Reset to default** is disabled until the user has changed the part, and it never touches team defaults or your base.
-- **Ask for a change…** is left out when the page has no ask panel.
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  There's no History view yet, so **History** has no handler and stays disabled.
+  **Adjust by hand** is disabled too on parts with no controls of their own,
+  until point mode can select them.
+</Callout>
+
+- The menu only runs your handlers. Every change they lead to goes through the same checks, whether it's asked for or made by hand.
+- **Reset to default** is disabled while `canReset` is `false`. Pass whether the user has changed the part, so it's only on when there's something to reset. Resetting never touches team defaults or your base.
+- `unavailable` is shown after the name of an item with no handler, so users can tell an item that doesn't exist yet from one that's switched off.
 - The labels say **Customize** and **Adjust**, never **Edit**, which in your app means changing a record.
 
 ## Examples
 
-### In your command menu
+### In your right-click menu
 
-Add the **Customize** group to the command menu your app already has. It acts on the part that had focus when the user opened the menu, or on the whole page.
+`PliantCustomizeContextMenu` wraps one element, such as a region, and adds the Customize group to its right-click menu, or its long-press menu on a touch screen. Fields, links and selected text keep the browser's own menu.
 
 ```tsx
-<CommandDialog open={open} onOpenChange={setOpen}>
-  <CommandInput placeholder="Type a command or search…" />
-  <CommandList>
-    <CommandGroup heading="Orders">{/* your app's commands */}</CommandGroup>
-    <PliantCustomizeCommandGroup />
-  </CommandList>
-</CommandDialog>
+<PliantCustomizeContextMenu onAsk={() => setOpen(true)}>
+  <section aria-label="Key metrics">…</section>
+</PliantCustomizeContextMenu>
 ```
 
-### Inside your own right-click menu
+If the part already has a `ContextMenu`, put `PliantCustomizeContextMenuGroup` inside its `ContextMenuContent` instead. Items that move focus, like **Ask for a change…**, should run once the menu has closed: pass them through `runItem` and run them from the menu's `onCloseAutoFocus`.
 
-If a part already has a `ContextMenu`, put `PliantCustomizeContextMenuGroup` inside its content instead of wrapping the part again.
+### In your command menu
+
+Add `PliantCustomizeCommandGroup` to the ⌘K menu your app already has. Close the command menu in each handler before moving focus.
 
 ```tsx
-<ContextMenuContent>
-  <ContextMenuItem>Open order</ContextMenuItem>
-  <ContextMenuSeparator />
-  <PliantCustomizeContextMenuGroup target="orders-table" />
-</ContextMenuContent>
+<CommandList>
+  <CommandGroup heading="Orders">{/* your app's commands */}</CommandGroup>
+  <PliantCustomizeCommandGroup
+    onAsk={() => {
+      setCommandOpen(false)
+      setAskOpen(true)
+    }}
+  />
+</CommandList>
 ```
 
 ## Options
 
+### PliantCustomizeActions
+
+Every component here takes these props:
+
+| Prop          | Type         | Description                                                          |
+| ------------- | ------------ | -------------------------------------------------------------------- |
+| `onAsk`       | `() => void` | Runs **Ask for a change…**, such as opening the ask panel.           |
+| `onAdjust`    | `() => void` | Runs **Adjust by hand**, opening the controls for changing the part. |
+| `onHistory`   | `() => void` | Runs **History**, showing the part's changes and moving focus there. |
+| `onReset`     | `() => void` | Runs **Reset to default**, as with `resetNode`.                      |
+| `canReset`    | `boolean`    | Whether there's anything to reset. Defaults to `true`.               |
+| `unavailable` | `ReactNode`  | Shown after the name of an item that has no handler.                 |
+
 ### PliantCustomizeMenu
 
-| Prop      | Type                           | Description                                                                        |
-| --------- | ------------------------------ | ---------------------------------------------------------------------------------- |
-| `target`  | `string`                       | The id of the part the menu acts on. Leave it out to act on the whole page.        |
-| `trigger` | `ReactElement`                 | The element that opens the menu. Defaults to a **Customize** button with its icon. |
-| `align`   | `"start" \| "center" \| "end"` | How the menu lines up with its trigger. Defaults to `"end"`.                       |
+It also takes the props of a shadcn `Button`, except `children`, and forwards `ref` to the button.
 
-### PliantCustomizeContextMenu
+| Prop         | Type                           | Description                                                                                                        |
+| ------------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `customized` | `boolean`                      | Shows a quiet **Customized** mark beside the button.                                                               |
+| `previewing` | `boolean`                      | Marks the button with a dot while a preview shows that nothing else on screen marks, as with the ask panel closed. |
+| `trigger`    | `ReactElement`                 | The element that opens the menu. Defaults to a **Customize** button.                                               |
+| `align`      | `"start" \| "center" \| "end"` | How the menu lines up with its trigger. Defaults to `"end"`.                                                       |
 
-| Prop       | Type        | Description                                          |
-| ---------- | ----------- | ---------------------------------------------------- |
-| `target`   | `string`    | The id of the part the menu acts on.                 |
-| `children` | `ReactNode` | The part users right-click or long-press to open it. |
+### Other parts
 
-`PliantCustomizeContextMenuGroup` takes `target` too. `PliantCustomizeCommandGroup` takes an optional `heading`, which defaults to "Customize".
+| Component                         | Props besides the actions                                     |
+| --------------------------------- | ------------------------------------------------------------- |
+| `PliantCustomizeContextMenu`      | `children`: the one element users right-click or long-press.  |
+| `PliantCustomizeContextMenuGroup` | `runItem`: runs a picked item in place of running it at once. |
+| `PliantCustomizeCommandGroup`     | `heading`, which defaults to "Customize", and `className`.    |
+
+### Messages
+
+| Key                   | Default              |
+| --------------------- | -------------------- |
+| `customizeOpen`       | Customize            |
+| `customizeCustomized` | Customized           |
+| `customizeAsk`        | Ask for a change…    |
+| `customizeAdjust`     | Adjust by hand       |
+| `customizeHistory`    | History              |
+| `customizeReset`      | Reset to default     |
+| `customizePreviewing` | A preview is showing |
 
 ## Accessibility
 
 - The menus are Radix menus, with full keyboard support. Arrow keys move between items, and <Kbd>Escape</Kbd> closes the menu and returns focus.
-- The header button is labelled with the part it acts on, as in "Customize All orders", so several on one page can be told apart.
-- Right-click is hard to discover and to reach without a mouse, so give every part with a context menu a header button too. On touch screens, a long press opens the context menu.
-- <Kbd>⌘</Kbd> <Kbd>.</Kbd> works from the keyboard alone, on whatever part has
-  focus.
+- With several menus on a page, give each button an `aria-label` that names its part, such as "Customize orders table".
+- **Reset to default** returns focus to the button. The other items leave focus where their handler moved it, such as on the ask panel's prompt.
+- While `previewing` is set, the button is described as "A preview is showing", so the dot isn't the only signal.
+- In the right-click menu, **Ask for a change…** announces its <Kbd>⌘</Kbd> <Kbd>.</Kbd> shortcut. Right-click is hard to find without a mouse, so give every part with a context menu a header button too.
