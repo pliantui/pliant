@@ -5,6 +5,7 @@ import { PlayCircleIcon } from "lucide-react"
 import { PliantRoot } from "@pliantui/react"
 import { localAdapter } from "@pliantui/react/local"
 
+import { Logo } from "@/components/logo"
 import {
   PageActions,
   PageHeader,
@@ -14,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { UnfinishedStrip } from "@/components/unfinished-strip"
 import { inventory } from "@/lib/pliant/inventory.generated"
-import { site } from "@/lib/site"
+import { ogImage, site } from "@/lib/site"
 
 import { Announcement } from "./components/announcement"
 import { Showcase } from "./components/showcase"
@@ -32,6 +33,8 @@ export const metadata: Metadata = {
     title: site.headline,
     description: site.summary,
     siteName: site.name,
+    // A page's own `openGraph` replaces the root's, image included.
+    images: [ogImage],
   },
 }
 
@@ -40,6 +43,7 @@ export default function HomePage() {
     <div className="flex flex-1 flex-col">
       <UnfinishedStrip />
       <PageHeader className="md:**:[.container]:pb-8 lg:**:[.container]:pb-12">
+        <Logo className="mb-2 size-12 md:size-14" />
         <Announcement />
         <PageHeaderHeading className="max-w-4xl">
           {site.headline}

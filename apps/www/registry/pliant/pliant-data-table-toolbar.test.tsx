@@ -192,6 +192,27 @@ async function close() {
   await settle()
 }
 
+function customize() {
+  return screen.getByRole("button", { name: "Customize" })
+}
+
+async function pick(item: string) {
+  await open("Customize")
+  fireEvent.click(screen.getByRole("menuitem", { name: item }))
+  await settle()
+}
+
+// Whether the Customize menu's Reset to default is on.
+async function canReset() {
+  await open("Customize")
+  const on =
+    screen
+      .getByRole("menuitem", { name: "Reset to default" })
+      .getAttribute("aria-disabled") !== "true"
+  await close()
+  return on
+}
+
 const filters = [
   { field: "id", control: "search" },
   { field: "status", control: "multi-select" },
@@ -360,7 +381,7 @@ describe("PliantDataTableToolbar", () => {
 
   it("resets the table and removes what the user added", async () => {
     await renderOrders({ filters: [...filters] })
-    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull()
+    expect(await canReset()).toBe(false)
 
     apply(
       {
@@ -390,8 +411,7 @@ describe("PliantDataTableToolbar", () => {
     expect(cells(2)).toEqual(["120", "110", "100"])
     expect(screen.getAllByText("Highlighted: Danger")).toHaveLength(2)
 
-    fireEvent.click(screen.getByRole("button", { name: "Reset" }))
-    await settle()
+    await pick("Reset to default")
 
     expect(cells(0)).toEqual(orders.slice(0, 10).map((order) => order.id))
     expect(
@@ -404,10 +424,8 @@ describe("PliantDataTableToolbar", () => {
     expect(
       screen.getByRole<HTMLInputElement>("searchbox", { name: "Order" }).value
     ).toBe("")
-    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull()
-    expect(document.activeElement).toBe(
-      screen.getByRole("searchbox", { name: "Order" })
-    )
+    expect(document.activeElement).toBe(customize())
+    expect(await canReset()).toBe(false)
   })
 
   it("resets to the team's table without overriding it", async () => {
@@ -426,7 +444,7 @@ describe("PliantDataTableToolbar", () => {
         .map((header) => header.textContent)
     expect(cells(2).slice(0, 2)).toEqual(["120", "110"])
     expect(headers()).not.toContain("Flagged")
-    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull()
+    expect(await canReset()).toBe(false)
 
     apply(
       {
@@ -437,19 +455,18 @@ describe("PliantDataTableToolbar", () => {
       { op: "show", target: "orders-table/columns/flagged" }
     )
     expect(cells(2).slice(0, 2)).toEqual(["10", "20"])
-    fireEvent.click(screen.getByRole("button", { name: "Reset" }))
-    await settle()
+    await pick("Reset to default")
 
     expect(cells(2).slice(0, 2)).toEqual(["120", "110"])
     expect(headers()).not.toContain("Flagged")
-    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull()
+    expect(await canReset()).toBe(false)
     // Unmounting saves what is waiting, and after a reload the team's
     // table still shows.
     cleanup()
     expect(personal.size).toBe(0)
     await renderOrders()
     expect(cells(2).slice(0, 2)).toEqual(["120", "110"])
-    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull()
+    expect(await canReset()).toBe(false)
   })
 
   it("shows Reset when a column's width or the page size changes", async () => {
@@ -459,10 +476,8 @@ describe("PliantDataTableToolbar", () => {
       target: "orders-table/columns/value",
       width: 300,
     })
-    const reset = screen.getByRole("button", { name: "Reset" })
-    fireEvent.click(reset)
-    await settle()
-    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull()
+    await pick("Reset to default")
+    expect(await canReset()).toBe(false)
 
     act(() => {
       expect(
@@ -472,8 +487,7 @@ describe("PliantDataTableToolbar", () => {
       ).toBe(true)
     })
     expect(screen.getByText("1–12 of 12 orders")).toBeTruthy()
-    fireEvent.click(screen.getByRole("button", { name: "Reset" }))
-    await settle()
+    await pick("Reset to default")
     expect(screen.getByText("1–10 of 12 orders")).toBeTruthy()
   })
 
@@ -482,18 +496,17 @@ describe("PliantDataTableToolbar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next" }))
     await settle()
     expect(screen.getByText("11–12 of 12 orders")).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull()
+    expect(await canReset()).toBe(false)
 
     apply({ op: "hide", target: "orders-table/columns/flagged" })
     expect(screen.getByText("11–12 of 12 orders")).toBeTruthy()
-    fireEvent.click(screen.getByRole("button", { name: "Reset" }))
-    await settle()
+    await pick("Reset to default")
 
     expect(screen.getByText("1–10 of 12 orders")).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull()
+    expect(await canReset()).toBe(false)
   })
 
-  it("moves focus past disabled and hidden buttons after a reset", async () => {
+  it("moves focus to the first control it can to adjust by hand", async () => {
     await renderOrders({
       children: (
         <>
@@ -506,10 +519,7 @@ describe("PliantDataTableToolbar", () => {
         </>
       ),
     })
-    apply({ op: "hide", target: "orders-table/columns/flagged" })
-
-    fireEvent.click(screen.getByRole("button", { name: "Reset" }))
-    await settle()
+    await pick("Adjust by hand")
 
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Columns" })
@@ -530,12 +540,11 @@ describe("PliantDataTableToolbar", () => {
     )
     apply({ op: "hide", target: "orders-table/columns/flagged" })
 
-    fireEvent.click(screen.getByRole("button", { name: "Reset" }))
-    await settle()
+    await pick("Reset to default")
 
     expect(onError).toHaveBeenCalledWith(
       new Error("The storage adapter of /orders can't remove overlays")
     )
-    expect(screen.getByRole("button", { name: "Reset" })).toBeTruthy()
+    expect(await canReset()).toBe(true)
   })
 })

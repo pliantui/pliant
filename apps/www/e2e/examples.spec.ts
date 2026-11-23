@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test"
 
 import { deals } from "../lib/demo/data"
-import { expect, test } from "./fixtures"
+import { expect, pickCustomize, test } from "./fixtures"
 
 test("lists the six example apps", async ({ page }) => {
   await page.goto("/examples/orders")
@@ -75,10 +75,10 @@ test.describe("the team workspace", () => {
 
     await viewAs(page, "You")
     await expect(reports).toBeHidden()
-    const reset = page.getByRole("button", { name: "Reset the sidebar" })
-    await reset.click()
+    const menu = page.getByRole("button", { name: "Customize the sidebar" })
+    await pickCustomize(menu, "Reset to default")
     await expect(reports).toBeVisible()
-    await expect(reset).toBeFocused()
+    await expect(menu).toBeFocused()
     expect((await tickets.boundingBox())?.y ?? 0).toBeLessThan(
       (await inbox.boundingBox())?.y ?? 0
     )
@@ -112,10 +112,13 @@ test("flags the deals with no activity in 14 days and resets it", async ({
   for (const deal of stale) {
     await expect(flagged.filter({ hasText: deal.customer })).toHaveCount(1)
   }
-  const reset = page.getByRole("button", { name: "Reset the pipeline" })
-  await reset.click()
+  const menu = page.getByRole("button", {
+    name: "Customize the pipeline",
+    exact: true,
+  })
+  await pickCustomize(menu, "Reset to default")
   await expect(flagged).toHaveCount(0)
-  await expect(reset).toBeFocused()
+  await expect(menu).toBeFocused()
 })
 
 test("folds notification settings under More on the settings page and resets it", async ({
@@ -134,11 +137,16 @@ test("folds notification settings under More on the settings page and resets it"
   await expect(news).toBeHidden()
   await region.getByRole("button", { name: /More/ }).click()
   await expect(news).toBeVisible()
-  await expect(page.getByText("Customized", { exact: true })).toBeVisible()
+  await expect(
+    page.getByText("Customized", { exact: true }).first()
+  ).toBeVisible()
 
-  const reset = page.getByRole("button", { name: "Reset the settings" })
-  await reset.click()
-  await expect(reset).toBeFocused()
+  const menu = page.getByRole("button", {
+    name: "Customize the settings",
+    exact: true,
+  })
+  await pickCustomize(menu, "Reset to default")
+  await expect(menu).toBeFocused()
   await expect(region.getByRole("button", { name: /More/ })).toHaveCount(0)
 })
 
@@ -171,7 +179,7 @@ for (const path of [
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto(path)
     await expect(
-      page.getByRole("button", { name: /^Reset / }).first()
+      page.getByRole("button", { name: /^Customize / }).first()
     ).toBeVisible()
 
     expect(

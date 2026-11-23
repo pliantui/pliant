@@ -2,6 +2,7 @@ import Link from "next/link"
 
 import { CommandMenu } from "@/components/command-menu"
 import { GitHubLink } from "@/components/github-link"
+import { Logo } from "@/components/logo"
 import { MainNav } from "@/components/main-nav"
 import { MobileNav } from "@/components/mobile-nav"
 import { ModeSwitcher } from "@/components/mode-switcher"
@@ -24,6 +25,16 @@ export function SiteHeader() {
             items={site.navItems}
             className="flex xl:hidden"
           />
+          <Link
+            href="/"
+            className="mr-3 ml-3 flex items-center gap-2 rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 xl:ml-0"
+          >
+            <Logo className="size-5" />
+            {/* On a phone, beside the menu button, only the logo fits. */}
+            <span className="text-lg leading-none font-semibold tracking-tight max-sm:sr-only">
+              pliant
+            </span>
+          </Link>
           <MainNav items={site.navItems} className="hidden xl:flex" />
           <div className="ml-auto flex items-center gap-2 md:flex-1 md:justify-end">
             <div className="hidden w-full flex-1 md:flex md:w-auto md:flex-none">

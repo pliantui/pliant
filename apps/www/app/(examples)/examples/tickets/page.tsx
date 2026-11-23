@@ -4,7 +4,10 @@ import { PliantRoot } from "@pliantui/react"
 import { localAdapter } from "@pliantui/react/local"
 import { PliantPrePaint } from "@pliantui/react/pre-paint"
 
-import { CustomizedReset } from "@/components/demo/customized-reset"
+import { DemoAsk } from "@/components/demo/demo-ask-panel"
+import { DemoCustomizeSurface } from "@/components/demo/demo-customize"
+import { PageCustomizeMenu } from "@/components/demo/page-customize-menu"
+import { ticketFormAsks } from "@/lib/demo/asks"
 import { inventory } from "@/lib/pliant/inventory.generated"
 import { TicketForm } from "@/registry/blocks/ticket-form/ticket-form"
 
@@ -22,19 +25,33 @@ export default function TicketsPage() {
           storage={localAdapter}
           inventory={inventory["/examples/tickets"]}
         >
-          <PliantPrePaint surface="/examples/tickets" />
-          <header className="flex items-start justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <h2 className="text-2xl font-semibold tracking-tight">
-                New ticket
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Tell us what went wrong and we&apos;ll get back to you.
-              </p>
-            </div>
-            <CustomizedReset targets={["ticket-form"]} label="the form" />
-          </header>
-          <TicketForm />
+          <DemoAsk
+            targets={[
+              {
+                id: "ticket-form",
+                label: "Ticket form",
+                suggestions: ticketFormAsks,
+              },
+            ]}
+          >
+            <PliantPrePaint surface="/examples/tickets" />
+            <header className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-2xl font-semibold tracking-tight">
+                  New ticket
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Tell us what went wrong and we&apos;ll get back to you.
+                </p>
+              </div>
+              <PageCustomizeMenu targets={["ticket-form"]} label="the form" />
+            </header>
+            <DemoCustomizeSurface targets={["ticket-form"]}>
+              <div>
+                <TicketForm />
+              </div>
+            </DemoCustomizeSurface>
+          </DemoAsk>
         </PliantRoot>
       </div>
     </div>

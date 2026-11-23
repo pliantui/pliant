@@ -1,11 +1,13 @@
 "use client"
 
-import { useId } from "react"
+import { use, useId } from "react"
 import { useTable } from "@tanstack/react-table"
 
 import { usePliantNodeProps } from "@pliantui/react"
 import { usePliantTable } from "@pliantui/react/table"
 
+import { DemoAskContext } from "@/components/demo/demo-ask-panel"
+import { UnfinishedDot } from "@/components/unfinished-dot"
 import { formatNumber } from "@/lib/demo/format"
 import { ordersDataset, type Order } from "@/lib/demo/schema"
 import { columns } from "@/registry/blocks/orders-list/columns"
@@ -72,6 +74,7 @@ export function OrdersTable({ data }: { data: Order[] }) {
     { id: nodeId, dataset: ordersDataset }
   )
   const table = useTable(options)
+  const ask = use(DemoAskContext)
 
   return (
     <div {...node} className="flex flex-col gap-4">
@@ -85,6 +88,14 @@ export function OrdersTable({ data }: { data: Order[] }) {
         sortOptions={sortOptions}
         presets={presets}
         formatValue={formatValue}
+        customize={{
+          onAsk: ask
+            ? () => {
+                ask.ask(nodeId)
+              }
+            : undefined,
+          unavailable: <UnfinishedDot />,
+        }}
       >
         <DataTableColumnMenu node={nodeId} />
         <DataTableHighlightMenu node={nodeId} />

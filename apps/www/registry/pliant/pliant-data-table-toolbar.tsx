@@ -3,7 +3,7 @@
 import { useMemo, useRef, type ComponentProps, type ReactNode } from "react"
 import type { Column, ReactTable, RowData } from "@tanstack/react-table"
 import { cn } from "cn"
-import { ChevronDown, X } from "lucide-react"
+import { ChevronDown } from "lucide-react"
 
 import type { Op } from "@pliantui/contract"
 import {
@@ -24,6 +24,10 @@ import {
 import { Input } from "@/components/ui/input"
 
 import {
+  PliantCustomizeMenu,
+  type PliantCustomizeActions,
+} from "./pliant-customize-menu"
+import {
   PliantDataTableFacetedFilter,
   type PliantDataTableFacet,
 } from "./pliant-data-table-faceted-filter"
@@ -35,7 +39,6 @@ declare module "@pliantui/react" {
     dataTableFilterPlaceholder: (label: string) => string
     dataTableSort: string
     dataTablePresets: string
-    dataTableReset: string
   }
 }
 
@@ -43,7 +46,6 @@ const toolbarMessages = {
   dataTableFilterPlaceholder: (label) => `Filter ${label.toLowerCase()}…`,
   dataTableSort: "Sort",
   dataTablePresets: "Presets",
-  dataTableReset: "Reset",
 } satisfies Partial<PliantMessages>
 
 type ItemOp<Name extends Op["op"]> = Omit<
@@ -205,9 +207,9 @@ function PliantDataTableChoice({
 }
 
 /**
- * The bar above a data table: its filters, then a Reset button, and on the
- * other side the sort options, the presets, the app's own buttons
- * (`children`) and the columns menu.
+ * The bar above a data table: its filters, and on the other side the sort
+ * options, the presets, the app's own buttons (`children`), the columns menu
+ * and the table's Customize menu.
  *
  * The filters are the ones in `filters`, then the ones `addFilterControl`
  * ops add to the table; sort options and presets come from their props and
@@ -222,10 +224,12 @@ function PliantDataTableChoice({
  * Other controls aren't shown. Picking a sort option replaces the sort, and
  * picking a preset replaces the filters, and the sort when it has one.
  *
- * Reset shows while the user has changed the table: its sort, filters,
- * grouping, rows per page, columns, or the items they added. It drops those changes
- * with `resetNode`, so the table shows as the team and org layers, and then
- * your own setup, have it, and moves focus to the first filter or button.
+ * The Customize menu's Reset to default is on while the user has changed
+ * the table: its sort, filters, grouping, rows per page, columns, or the
+ * items they added, and the menu marks the table as customized. Reset drops
+ * those changes with `resetNode`, so the table shows as the team and org
+ * layers, and then your own setup, have it. Adjust by hand moves focus to
+ * the first filter or button. Ask and History run what `customize` gives.
  */
 function PliantDataTableToolbar<TData extends RowData>({
   table,
@@ -234,6 +238,7 @@ function PliantDataTableToolbar<TData extends RowData>({
   sortOptions = [],
   presets = [],
   formatValue,
+  customize,
   children,
   className,
   ...props
@@ -253,6 +258,12 @@ function PliantDataTableToolbar<TData extends RowData>({
    * Defaults to the value as text.
    */
   formatValue?: (value: PliantDataTableFacet, field: string) => string
+  /**
+   * The Customize menu's other items, such as `onAsk` to open the ask panel
+   * about the table. Reset to default and Adjust by hand come from the
+   * toolbar.
+   */
+  customize?: Omit<PliantCustomizeActions, "onReset" | "canReset">
   /** More buttons, shown before the columns menu. */
   children?: ReactNode
 }) {
@@ -313,20 +324,19 @@ function PliantDataTableToolbar<TData extends RowData>({
   const sorting = sortKey(table.state.sorting)
   const filtering = filtersKey(table.state.columnFilters)
 
-  function reset(button: HTMLElement) {
+  function reset() {
     // A rejection reaches `PliantRoot`'s `onError` from the store.
-    if (!store.resetNode(node).success) {
-      return
+    if (store.resetNode(node).success) {
+      table.resetExpanded()
     }
-    table.resetExpanded()
-    // The button goes away, so focus moves to the first other control
-    // rather than to the page.
+  }
+
+  function adjust() {
     Array.from(
       toolbar.current?.querySelectorAll<HTMLElement>("input, button") ?? []
     )
       .find(
         (control) =>
-          control !== button &&
           !control.matches(":disabled, [hidden], [hidden] *, [inert] *")
       )
       ?.focus()
@@ -361,18 +371,6 @@ function PliantDataTableToolbar<TData extends RowData>({
             <PliantDataTableToggle key={id} column={column} label={label} />
           ) : null
         )}
-        {changed ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(event) => {
-              reset(event.currentTarget)
-            }}
-          >
-            {messages.dataTableReset}
-            <X />
-          </Button>
-        ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {sorts.length > 0 ? (
@@ -416,6 +414,13 @@ function PliantDataTableToolbar<TData extends RowData>({
         ) : null}
         {children}
         <PliantDataTableViewOptions table={table} />
+        <PliantCustomizeMenu
+          {...customize}
+          customized={changed}
+          canReset={changed}
+          onReset={reset}
+          onAdjust={customize?.onAdjust ?? adjust}
+        />
       </div>
     </div>
   )

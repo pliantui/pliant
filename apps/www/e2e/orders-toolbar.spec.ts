@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test"
 import { orders } from "../lib/demo/data"
 import { formatCurrency, formatNumber } from "../lib/demo/format"
 import { orderRegions, orderStatuses, type Order } from "../lib/demo/schema"
-import { expect, test } from "./fixtures"
+import { expect, pickCustomize, test } from "./fixtures"
 
 const surface = "/examples/orders"
 
@@ -36,6 +36,20 @@ async function seed(page: Page, ops: unknown[]) {
 
 function node(page: Page) {
   return page.locator('[data-pliant-id="orders-table"]')
+}
+
+function toolbar(page: Page) {
+  return page.locator('[data-slot="pliant-data-table-toolbar"]')
+}
+
+// The table's own Customize menu, in its toolbar.
+function tableMenu(page: Page) {
+  return toolbar(page).getByRole("button", { name: "Customize", exact: true })
+}
+
+// The mark the toolbar's menu shows while the user has changed the table.
+function customized(page: Page) {
+  return toolbar(page).getByText("Customized", { exact: true })
 }
 
 function table(page: Page) {
@@ -252,23 +266,22 @@ test("shows the filters ops add", async ({ page, errors }) => {
 
 test("shows a chosen number of rows per page", async ({ page, errors }) => {
   await load(page)
-  const reset = page.getByRole("button", { name: "Reset", exact: true })
   await page.getByRole("button", { name: "Next" }).click()
   await expect(
     page.getByText(new RegExp(`^11–20 of ${formatNumber(orders.length)} `))
   ).toBeVisible()
   // Moving between pages isn't a change to reset.
-  await expect(reset).toBeHidden()
+  await expect(customized(page)).toBeHidden()
 
   await page.getByRole("combobox", { name: "Rows per page" }).click()
   await page.getByRole("option", { name: "20" }).click()
   await expect(range(page, orders.length, 20)).toBeVisible()
   await expect(table(page).locator("tbody tr")).toHaveCount(20)
-  await expect(reset).toBeVisible()
+  await expect(customized(page)).toBeVisible()
 
-  await reset.click()
+  await pickCustomize(tableMenu(page), "Reset to default")
   await expect(range(page, orders.length)).toBeVisible()
-  await expect(reset).toBeHidden()
+  await expect(customized(page)).toBeHidden()
   expect(errors).toEqual([])
 })
 
@@ -277,8 +290,7 @@ test("resets the user's changes to the table, and keeps them reset", async ({
   errors,
 }) => {
   await load(page)
-  const reset = page.getByRole("button", { name: "Reset", exact: true })
-  await expect(reset).toBeHidden()
+  await expect(customized(page)).toBeHidden()
 
   await pick(page, "Sort", "Largest first")
   await page.getByRole("button", { name: "Columns" }).click()
@@ -289,12 +301,12 @@ test("resets the user's changes to the table, and keeps them reset", async ({
   await page.getByRole("menuitemcheckbox", { name: "Overdue" }).click()
   await page.getByRole("searchbox", { name: "Customer" }).fill("bharat")
   await expect(header(page, "Notes")).toBeHidden()
-  await expect(reset).toBeVisible()
+  await expect(customized(page)).toBeVisible()
 
-  await reset.click()
+  await pickCustomize(tableMenu(page), "Reset to default")
 
-  await expect(reset).toBeHidden()
-  await expect(page.getByRole("searchbox", { name: "Customer" })).toBeFocused()
+  await expect(customized(page)).toBeHidden()
+  await expect(tableMenu(page)).toBeFocused()
   await expect(range(page, orders.length)).toBeVisible()
   await expect(header(page, "Notes")).toBeVisible()
   await expect(header(page, "Value")).not.toHaveAttribute("aria-sort")
@@ -308,6 +320,6 @@ test("resets the user's changes to the table, and keeps them reset", async ({
   await expect(header(page, "Notes")).toBeVisible()
   await expect(header(page, "Value")).not.toHaveAttribute("aria-sort")
   await expect(table(page).getByText(/^Highlighted:/)).toHaveCount(0)
-  await expect(reset).toBeHidden()
+  await expect(customized(page)).toBeHidden()
   expect(errors).toEqual([])
 })

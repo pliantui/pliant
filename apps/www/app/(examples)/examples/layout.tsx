@@ -40,9 +40,9 @@ export default function ExamplesLayout({ children }: LayoutProps<"/examples">) {
       </PageNav>
       {/* With the ask panel docked beside it, the example drops the page
           gutters so its table keeps its full width. */}
-      <div className="container-wrapper flex flex-1 flex-col section-soft pb-6 group-has-[[data-slot=pliant-ask-panel]]/layout:px-0">
-        <div className="container flex flex-1 scroll-mt-20 flex-col group-has-[[data-slot=pliant-ask-panel]]/layout:px-0">
-          <div className="flex flex-col overflow-hidden rounded-lg border bg-background bg-clip-padding group-has-[[data-slot=pliant-ask-panel]]/layout:rounded-none group-has-[[data-slot=pliant-ask-panel]]/layout:border-x-0 md:flex-1 xl:rounded-xl">
+      <div className="container-wrapper flex flex-1 flex-col section-soft pb-6 group-has-[[data-slot=pliant-ask-panel]]/body:px-0">
+        <div className="container flex flex-1 scroll-mt-20 flex-col group-has-[[data-slot=pliant-ask-panel]]/body:px-0">
+          <div className="flex flex-col overflow-hidden rounded-lg border bg-background bg-clip-padding group-has-[[data-slot=pliant-ask-panel]]/body:rounded-none group-has-[[data-slot=pliant-ask-panel]]/body:border-x-0 md:flex-1 xl:rounded-xl">
             {children}
           </div>
         </div>

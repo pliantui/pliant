@@ -55,7 +55,7 @@ export default defineConfig(
     },
   },
   {
-    files: ["app/**/{page,layout,route,not-found}.{ts,tsx}"],
+    files: ["app/**/{page,layout,route,not-found}.{ts,tsx}", "app/manifest.ts"],
     rules: {
       "no-restricted-exports": "off",
     },

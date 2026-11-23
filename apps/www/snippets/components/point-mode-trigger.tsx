@@ -1,24 +1,32 @@
 // #region trigger
 "use client"
 
-import { MousePointerClickIcon } from "lucide-react"
+import { useRef, type ReactNode } from "react"
 
-import { PliantPointMode } from "@/components/pliant/pliant-point-mode"
-import { Button } from "@/components/ui/button"
+import { PliantCustomizeContextMenu } from "@/components/pliant/pliant-customize-menu"
+import {
+  PliantPointMode,
+  type PliantPointModeHandle,
+} from "@/components/pliant/pliant-point-mode"
 
 import { askTargets } from "../ai/ask-targets"
 
-export function PointButton({ onPick }: { onPick: (id: string) => void }) {
+export function KeyMetricsSurface({ children }: { children: ReactNode }) {
+  const pointMode = useRef<PliantPointModeHandle>(null)
+
   return (
-    <PliantPointMode
-      targets={askTargets}
-      onPick={onPick}
-      trigger={
-        <Button size="icon" variant="ghost" aria-label="Point">
-          <MousePointerClickIcon />
-        </Button>
-      }
-    />
+    <>
+      {/* Adjust by hand in the region's right-click menu selects it, so
+          its cards show their handles. */}
+      <PliantCustomizeContextMenu
+        onAdjust={() => {
+          pointMode.current?.start("key-metrics")
+        }}
+      >
+        <div>{children}</div>
+      </PliantCustomizeContextMenu>
+      <PliantPointMode ref={pointMode} targets={askTargets} />
+    </>
   )
 }
 // #endregion trigger

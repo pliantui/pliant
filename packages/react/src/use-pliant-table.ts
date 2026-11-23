@@ -204,7 +204,7 @@ function baseOf(options: object): Partial<CompiledTableState> {
 }
 
 /**
- * Makes a TanStack Table v9 table editable by Pliant: wraps the options
+ * Makes a TanStack Table v9 table customizable by Pliant: wraps the options
  * passed to `useTable`, as
  * `useTable(usePliantTable({ features, data, columns }, { id: "orders-table" }))`.
  *

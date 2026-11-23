@@ -98,10 +98,12 @@ jobs:
     timeout-minutes: 15
     env:
       # Cloudflare Workers allow 64 MiB uncompressed, the only limit on the
-      # worker bundle. The budget sits far below it, so growth gets noticed.
+      # worker bundle. Pages are served as static assets, so the bundle
+      # mostly holds the server-rendering copies of the interactive demos.
+      # 20 MiB leaves room for them while still flagging accidental growth.
       # Prefer serving pages and files as static assets over growing it.
       # The dry run and the smoke test need no Cloudflare account.
-      WORKER_BUDGET_KIB: "16384"
+      WORKER_BUDGET_KIB: "20480"
       WRANGLER_SEND_METRICS: "false"
     defaults:
       run:

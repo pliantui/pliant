@@ -12,31 +12,31 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { PliantRoot, type StorageAdapter } from "@pliantui/react"
 
-import { PliantAskPanel, type PliantAskTarget } from "./pliant-ask-panel"
-import { PliantPointMode } from "./pliant-point-mode"
+import {
+  PliantPointMode,
+  type PliantPointActions,
+  type PliantPointFlags,
+  type PliantPointModeHandle,
+  type PliantPointTarget,
+} from "./pliant-point-mode"
 import { PliantRegion } from "./pliant-region"
 
-function target(id: string, label: string): PliantAskTarget {
-  return {
-    id,
-    label,
+const targets: PliantPointTarget[] = [
+  {
+    id: "key-metrics",
+    label: "Key metrics",
     context: {
-      manifest: {
-        kind: "region",
-        version: 1,
-        description: label,
-        capabilities: {},
+      manifest: { capabilities: { slots: true, hideable: true } },
+      collection: {
+        name: "slots",
+        items: [
+          { id: "revenue", label: "Revenue" },
+          { id: "orders", label: "Orders" },
+        ],
       },
     },
-  }
-}
-
-const targets = [
-  target("orders-table", "Orders table"),
-  target("key-metrics", "Key metrics"),
-  target("totals", "Totals"),
-  target("hidden", "Hidden"),
-  target("missing", "Missing"),
+  },
+  { id: "orders-table", label: "Orders table" },
 ]
 
 const storage: StorageAdapter = {
@@ -58,30 +58,43 @@ function rectOf(element: Element) {
 }
 
 function Page({
-  onPick = () => undefined,
-  children,
+  actions,
+  flags,
+  handle,
 }: {
-  onPick?: (id: string) => void
-  children?: React.ReactNode
+  actions?: (target: string) => PliantPointActions | undefined
+  flags?: PliantPointFlags
+  handle?: React.RefObject<PliantPointModeHandle | null>
 }) {
+  const own = React.useRef<PliantPointModeHandle>(null)
+  const ref = handle ?? own
   return (
     <>
-      <PliantPointMode targets={targets} onPick={onPick} />
+      {/* Stands in for a Customize menu's Adjust by hand. */}
+      <button
+        type="button"
+        onClick={() => {
+          ref.current?.start()
+        }}
+      >
+        Adjust by hand
+      </button>
+      <PliantPointMode
+        ref={ref}
+        targets={targets}
+        actions={actions}
+        flags={flags}
+      />
       <input aria-label="Search" />
-      <textarea aria-label="Notes" />
-      <input type="checkbox" aria-label="Done" />
       <PliantRegion
         id="key-metrics"
         data-top="100"
-        slots={{ revenue: <p data-top="100">Revenue</p> }}
+        slots={{
+          revenue: <p data-top="100">Revenue</p>,
+          orders: <p data-top="150">Orders</p>,
+        }}
       />
-      <div data-pliant-id="orders-table" data-top="200" />
-      <div data-pliant-id="totals" style={{ display: "contents" }}>
-        <p data-top="300" />
-        <p data-top="400" />
-      </div>
-      <div data-pliant-id="hidden" />
-      {children}
+      <div data-pliant-id="orders-table" data-top="300" />
     </>
   )
 }
@@ -98,10 +111,6 @@ async function wait(ms = 20) {
   await act(() => new Promise((resolve) => setTimeout(resolve, ms)))
 }
 
-function toggle() {
-  return screen.getByRole("button", { name: "Point" })
-}
-
 function layer() {
   return (
     screen.queryByRole("dialog", { name: "Point mode" }) ??
@@ -109,23 +118,41 @@ function layer() {
   )
 }
 
-function boxes() {
+function inLayer() {
   const current = layer()
-  return current ? within(current).queryAllByRole("button") : []
+  if (!current) throw new Error("Point mode is off")
+  return within(current)
 }
 
-function announcement() {
-  return screen.getByRole("status").textContent
+function outline(name: string) {
+  return inLayer().getByRole("button", { name })
 }
 
-async function enterWithToggle() {
-  fireEvent.click(toggle())
+function status() {
+  return inLayer().getByRole("status").textContent
+}
+
+function order() {
+  return [
+    ...document.querySelectorAll('[data-pliant-id="key-metrics"] > *'),
+  ].map((element) => element.getAttribute("data-pliant-id"))
+}
+
+function isHidden(element: Element) {
+  for (let node: Element | null = element; node; node = node.parentElement) {
+    if (getComputedStyle(node).display === "none") return true
+  }
+  return false
+}
+
+async function start() {
+  fireEvent.click(screen.getByRole("button", { name: "Adjust by hand" }))
   await wait()
 }
 
-async function holdAlt() {
-  fireEvent.keyDown(document.body, { key: "Alt", altKey: true })
-  await wait(300)
+async function select(name: string) {
+  fireEvent.click(outline(name))
+  await wait()
 }
 
 beforeEach(() => {
@@ -140,154 +167,214 @@ afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
   document.body.replaceChildren()
-  document.body.removeAttribute("style")
+  localStorage.clear()
 })
 
 describe("PliantPointMode", () => {
-  it("outlines each target on the page with its label", async () => {
-    renderPage()
-    expect(toggle().getAttribute("aria-pressed")).toBe("false")
-    expect(layer()).toBeNull()
+  it("has no button of its own", async () => {
+    render(
+      <PliantRoot surface="/dashboard" storage={storage}>
+        <PliantPointMode targets={targets} />
+      </PliantRoot>
+    )
+    await wait()
 
-    await enterWithToggle()
-
-    expect(toggle().getAttribute("aria-pressed")).toBe("true")
-    expect(toggle().getAttribute("data-state")).toBe("on")
-    expect(boxes().map((box) => box.textContent)).toEqual([
-      "Key metrics",
-      "Orders table",
-      "Totals",
-    ])
-    expect(announcement()).toBe("")
+    expect(screen.queryByRole("button")).toBeNull()
   })
 
-  it("makes the rest of the page inert while on from the toggle", async () => {
+  it("outlines each target and the slots of a region", async () => {
     renderPage()
-    await enterWithToggle()
+    await wait()
+
+    await start()
+
+    expect(
+      inLayer()
+        .getAllByRole("button")
+        .map((button) => button.textContent)
+    ).toEqual(["Key metrics", "Revenue", "Orders", "Orders table"])
+  })
+
+  it("makes the rest of the page inert while on, until Escape", async () => {
+    renderPage()
+    await start()
     const dialog = screen.getByRole("dialog", { name: "Point mode" })
 
-    expect(dialog.getAttribute("aria-modal")).toBe("true")
     expect(
       document.getElementById(dialog.getAttribute("aria-describedby") ?? "")
         ?.textContent
-    ).toContain("Escape to leave")
-    const others = [...document.body.children].filter(
-      (element) => element !== dialog
-    )
-    expect(others.length).toBeGreaterThan(0)
-    expect(others.every((element) => element.hasAttribute("inert"))).toBe(true)
+    ).toContain("Delete hides it")
+    expect(
+      [...document.body.children]
+        .filter((element) => element !== dialog)
+        .every((element) => element.hasAttribute("inert"))
+    ).toBe(true)
 
     fireEvent.keyDown(document.activeElement ?? document.body, {
       key: "Escape",
     })
     await wait()
 
+    expect(layer()).toBeNull()
     expect(document.querySelector("[inert]")).toBeNull()
   })
 
-  it("starts from the ask panel's prompt", async () => {
-    render(
-      <PliantRoot surface="/dashboard" storage={storage}>
-        <Toolbar />
-      </PliantRoot>
+  it("selects a part, announces it and shows its handles and bar", async () => {
+    renderPage()
+    await start()
+
+    await select("Revenue")
+
+    expect(outline("Revenue").getAttribute("aria-pressed")).toBe("true")
+    expect(document.activeElement).toBe(outline("Revenue"))
+    expect(status()).toBe("Revenue selected.")
+    expect(outline("Move Revenue")).toBeTruthy()
+    expect(outline("Hide Revenue")).toBeTruthy()
+    // Not a grid, so there's nothing to resize.
+    expect(inLayer().queryByRole("button", { name: "Resize Revenue" })).toBe(
+      null
     )
-    await wait()
-    fireEvent.click(screen.getByRole("button", { name: "Ask" }))
-    await wait()
-    expect(document.activeElement).toBe(
-      screen.getByRole("textbox", { name: "Ask" })
-    )
-
-    await holdAlt()
-
-    expect(layer()).not.toBeNull()
-  })
-
-  it("opens the ask panel on the picked target with focus in the prompt", async () => {
-    render(
-      <PliantRoot surface="/dashboard" storage={storage}>
-        <Toolbar />
-      </PliantRoot>
-    )
-    await wait()
-
-    fireEvent.keyDown(document.body, { key: ".", ctrlKey: true })
-    await wait()
-    fireEvent.click(screen.getByRole("button", { name: "Orders table" }))
-    await wait()
-
-    const panel = screen.getByRole("complementary", { name: "Ask" })
     expect(
-      within(panel).getByRole("combobox", { name: "Change" }).textContent
-    ).toBe("Orders table")
-    expect(document.activeElement).toBe(
-      within(panel).getByRole("textbox", { name: "Ask" })
-    )
+      inLayer().getByRole("toolbar", { name: "Change Key metrics" })
+    ).toBeTruthy()
   })
 
-  it("returns to the toggle when pointing from it at the panel's own target", async () => {
-    render(
-      <PliantRoot surface="/dashboard" storage={storage}>
-        <Toolbar />
-      </PliantRoot>
-    )
-    await wait()
-    fireEvent.click(screen.getByRole("button", { name: "Ask" }))
-    await wait()
-    toggle().focus()
+  it.each([
+    ["required", { required: true }, ["Move Revenue"]],
+    ["locked", { locked: true }, []],
+  ])("shows no handle that a %s flag forbids", async (_, flag, handles) => {
+    renderPage({ flags: { "key-metrics/slots/revenue": flag } })
+    await start()
 
-    fireEvent.click(toggle())
-    await wait()
-    fireEvent.click(screen.getByRole("button", { name: "Key metrics" }))
-    await wait()
+    await select("Revenue")
 
-    expect(document.activeElement).toBe(toggle())
+    expect(
+      inLayer()
+        .queryAllByRole("button", { name: /^(Move|Resize|Hide) / })
+        .map((button) => button.getAttribute("aria-label"))
+    ).toEqual(handles)
   })
 
-  it("returns to the prompt when pointing from it at the panel's own target", async () => {
-    render(
-      <PliantRoot surface="/dashboard" storage={storage}>
-        <Toolbar />
-      </PliantRoot>
+  it("shows no handles on a target that isn't a slot", async () => {
+    renderPage()
+    await start()
+
+    await select("Key metrics")
+
+    expect(
+      inLayer().queryAllByRole("button", { name: /^(Move|Resize|Hide) / })
+    ).toEqual([])
+  })
+
+  it("moves the selected part with the arrow keys", async () => {
+    renderPage()
+    await start()
+    await select("Revenue")
+
+    fireEvent.keyDown(outline("Revenue"), { key: "ArrowRight" })
+    await wait()
+
+    expect(order()).toEqual(["orders", "revenue"])
+    expect(status()).toBe("Moved Revenue to position 2 of 2.")
+    expect(document.activeElement).toBe(outline("Revenue"))
+
+    fireEvent.keyDown(outline("Revenue"), { key: "ArrowUp" })
+    await wait()
+
+    expect(order()).toEqual(["revenue", "orders"])
+  })
+
+  it("leaves the arrow keys to moving between outlines without the move handle", async () => {
+    renderPage({ flags: { "key-metrics/slots/revenue": { locked: true } } })
+    await start()
+    await select("Revenue")
+
+    fireEvent.keyDown(outline("Revenue"), { key: "ArrowRight" })
+    await wait()
+
+    expect(order()).toEqual(["revenue", "orders"])
+  })
+
+  it("hides the selected part with Delete and selects its region", async () => {
+    renderPage()
+    await start()
+    await select("Orders")
+
+    fireEvent.keyDown(outline("Orders"), { key: "Delete" })
+    await wait()
+
+    expect(status()).toBe("Hid Orders. Reset brings it back.")
+    expect(isHidden(screen.getByText("Orders", { selector: "p" }))).toBe(true)
+    expect(outline("Key metrics").getAttribute("aria-pressed")).toBe("true")
+  })
+
+  it("doesn't hide a required part with Delete", async () => {
+    renderPage({ flags: { "key-metrics/slots/orders": { required: true } } })
+    await start()
+    await select("Orders")
+
+    fireEvent.keyDown(outline("Orders"), { key: "Delete" })
+    await wait()
+
+    expect(isHidden(screen.getByText("Orders", { selector: "p" }))).toBe(false)
+  })
+
+  it("runs the bar's actions for the part's region", async () => {
+    const onAsk = vi.fn()
+    const onReset = vi.fn()
+    const actions = vi.fn((): PliantPointActions => ({
+      onAsk,
+      onReset,
+      unavailable: <span>, unavailable</span>,
+    }))
+    renderPage({ actions })
+    await start()
+    await select("Revenue")
+    const bar = inLayer().getByRole("toolbar", { name: "Change Key metrics" })
+
+    expect(actions).toHaveBeenCalledWith("key-metrics")
+    const adjust = within(bar).getByRole("button", { name: /^Adjust/ })
+    expect(adjust.textContent).toBe("Adjust, unavailable")
+    expect(adjust.hasAttribute("disabled")).toBe(true)
+
+    fireEvent.click(
+      within(bar).getByRole("button", { name: "Reset Key metrics" })
     )
     await wait()
-    fireEvent.click(screen.getByRole("button", { name: "Ask" }))
-    await wait()
-    const prompt = screen.getByRole("textbox", { name: "Ask" })
-    expect(document.activeElement).toBe(prompt)
+    expect(onReset).toHaveBeenCalledOnce()
+    expect(status()).toBe("Reset Key metrics.")
 
-    await holdAlt()
-    const box = screen.getByRole("button", { name: "Key metrics" })
-    box.focus()
-    fireEvent.click(box)
+    fireEvent.click(within(bar).getByRole("button", { name: "Ask" }))
+    await wait()
+    expect(layer()).toBeNull()
+    expect(onAsk).toHaveBeenCalledOnce()
+  })
+
+  it("starts with a target selected from its ref", async () => {
+    const handle = React.createRef<PliantPointModeHandle>()
+    renderPage({ handle })
     await wait()
 
-    expect(document.activeElement).toBe(prompt)
+    act(() => {
+      handle.current?.start("orders-table")
+    })
+    await wait()
+
+    expect(screen.getByRole("dialog", { name: "Point mode" })).toBeTruthy()
+    expect(outline("Orders table").getAttribute("aria-pressed")).toBe("true")
+    expect(document.activeElement).toBe(outline("Orders table"))
+  })
+
+  it("stays on after Alt is released once a part is selected", async () => {
+    renderPage()
+    fireEvent.keyDown(document.body, { key: "Alt", altKey: true })
+    await wait(300)
+
+    await select("Revenue")
+    fireEvent.keyUp(document.body, { key: "Alt" })
+    await wait()
+
+    expect(screen.getByRole("dialog", { name: "Point mode" })).toBeTruthy()
+    expect(outline("Revenue").getAttribute("aria-pressed")).toBe("true")
   })
 })
-
-function Toolbar() {
-  const [open, setOpen] = React.useState(false)
-  const [target, setTarget] = React.useState("key-metrics")
-  return (
-    <>
-      <PliantPointMode
-        targets={targets}
-        onPick={(id) => {
-          setTarget(id)
-          setOpen(true)
-        }}
-      />
-      <PliantAskPanel
-        endpoint="/api/pliant"
-        targets={targets}
-        target={target}
-        onTargetChange={setTarget}
-        open={open}
-        onOpenChange={setOpen}
-      />
-      <div data-pliant-id="key-metrics" data-top="100" />
-      <div data-pliant-id="orders-table" data-top="200" />
-    </>
-  )
-}

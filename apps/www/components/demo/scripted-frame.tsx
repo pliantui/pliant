@@ -1,15 +1,30 @@
 "use client"
 
+import * as React from "react"
 import { cn } from "cn"
 
-import { ResetControl } from "@/components/demo/reset-control"
+import {
+  CustomizeControl,
+  CustomizeSurface,
+} from "@/components/demo/customize-control"
+import { DemoAsk, useDemoAsk } from "@/components/demo/demo-ask-panel"
 import { ScriptedAsks } from "@/components/demo/scripted-asks"
 import type { ScriptedAsksState } from "@/components/demo/use-scripted-asks"
 
-// Frames a preview of a component that isn't built yet: a Customized badge
-// and Reset, and the scripted asks. The page's note says the component isn't
-// built.
-export function ScriptedFrame({
+type ScriptedFrameProps = React.ComponentProps<typeof ScriptedFrameBody>
+
+// Frames a preview of a component that isn't built yet: its Customize menu,
+// the scripted asks and the chat its Ask opens. The page's note says the
+// component isn't built.
+export function ScriptedFrame(props: ScriptedFrameProps) {
+  return (
+    <DemoAsk surface={`/preview/${props.label}`}>
+      <ScriptedFrameBody {...props} />
+    </DemoAsk>
+  )
+}
+
+function ScriptedFrameBody({
   label,
   asks,
   scripted,
@@ -23,6 +38,15 @@ export function ScriptedFrame({
   className?: string | undefined
   children: React.ReactNode
 }) {
+  const chat = useDemoAsk()
+  const options = {
+    customized: scripted.applied.length > 0,
+    onAsk: () => {
+      chat?.ask(label)
+    },
+    onReset: scripted.reset,
+  }
+
   return (
     <div
       // Found by the unfinished work check, which keeps unfinished work out of
@@ -31,13 +55,11 @@ export function ScriptedFrame({
       className={cn("flex w-full max-w-3xl min-w-0 flex-col gap-4", className)}
     >
       <div className="flex items-center justify-end gap-2">
-        <ResetControl
-          customized={scripted.applied.length > 0}
-          label={label}
-          onReset={scripted.reset}
-        />
+        <CustomizeControl label={label} {...options} />
       </div>
-      {children}
+      <CustomizeSurface {...options}>
+        <div className="flex min-w-0 flex-col gap-4">{children}</div>
+      </CustomizeSurface>
       <div className="flex flex-col gap-3 border-t pt-4">
         <ScriptedAsks label={label} asks={asks} scripted={scripted} />
       </div>

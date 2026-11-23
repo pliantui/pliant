@@ -20,6 +20,8 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -31,11 +33,14 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
+import { CustomizeIcon } from "./customize-icon"
+
 declare module "@pliantui/react" {
   interface PliantMessages {
     navMore: string
     navItemOptions: (title: string) => string
     navStartPage: string
+    navCustomize: string
   }
 }
 
@@ -43,6 +48,7 @@ const navMessages = {
   navMore: "More",
   navItemOptions: (title) => `${title} options`,
   navStartPage: "Start page",
+  navCustomize: "Customize",
 } satisfies Partial<PliantMessages>
 
 /** A link in the nav, as shadcn's sidebar blocks describe one. */
@@ -81,16 +87,22 @@ function NavItemOptions({
         side={isMobile ? "bottom" : "right"}
         align={isMobile ? "end" : "start"}
       >
-        <DropdownMenuCheckboxItem
-          checked={landing}
-          disabled={landing}
-          onCheckedChange={() => {
-            nav.setLanding(id)
-          }}
-        >
-          <HouseIcon className="text-muted-foreground" />
-          {messages.navStartPage}
-        </DropdownMenuCheckboxItem>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex items-center gap-2 text-xs font-normal text-muted-foreground">
+            <CustomizeIcon className="size-3.5" />
+            {messages.navCustomize}
+          </DropdownMenuLabel>
+          <DropdownMenuCheckboxItem
+            checked={landing}
+            disabled={landing}
+            onCheckedChange={() => {
+              nav.setLanding(id)
+            }}
+          >
+            <HouseIcon className="text-muted-foreground" />
+            {messages.navStartPage}
+          </DropdownMenuCheckboxItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -132,9 +144,10 @@ function MoreTrigger({
  * link, such as `next/link`'s `Link`, which `SidebarMenuButton`'s `asChild`
  * passes its props and classes to.
  *
- * Each item's options menu sets it as the user's start page. Read the
- * start page with `usePliantNav(id, items).landing` where your app's start
- * route renders, and redirect to that item's `url`.
+ * Each item's options menu has a Customize group that sets it as the
+ * user's start page. Read the start page with
+ * `usePliantNav(id, items).landing` where your app's start route renders,
+ * and redirect to that item's `url`.
  */
 function PliantNav({
   id,

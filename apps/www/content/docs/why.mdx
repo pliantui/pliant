@@ -9,7 +9,7 @@ Most apps give every user the same page. The finance team that only cares about 
 
 We call an interface pliant when its users can rearrange it for themselves without code and without being able to break it. On the orders page, that means a user can sort the table, hide the notes column or move the overdue card first, and a team lead can set those as the team's starting point. Your version of the page is still there, and a reset brings it back.
 
-The main difference from a settings screen is that you don't design an option for each preference. A table offers its own controls, and anything else you make editable can be changed by asking in plain words. Changes from an organization, a team and one person stack, so a team can set a default that each member still adjusts. Every change is checked against a fixed list of allowed changes before it applies, and one that fails the check is skipped.
+The main difference from a settings screen is that you don't design an option for each preference. A table offers its own controls, and anything else you make customizable can be changed by asking in plain words. Changes from an organization, a team and one person stack, so a team can set a default that each member still adjusts. Every change is checked against a fixed list of allowed changes before it applies, and one that fails the check is skipped.
 
 ## Earlier work
 
@@ -25,7 +25,7 @@ None of this is a new idea. Pliant borrows from a long line of work on software 
 
 Pliant takes a narrow slice of that tradition. It doesn't make your app programmable, and your users don't learn a new tool. It works inside apps built with React, shadcn/ui and TanStack Table, and it only changes how a page is presented.
 
-You decide which parts are editable, and your components, data and permissions stay as they are. [Guardrails](/docs/concepts/guardrails) lists what users can never change. If you add the ask panel, the AI works under the same limits: it proposes a change, the user sees a preview, and nothing is saved unless they keep it.
+You decide which parts are customizable, and your components, data and permissions stay as they are. [Guardrails](/docs/concepts/guardrails) lists what users can never change. If you add the ask panel, the AI works under the same limits: it proposes a change, the user sees a preview, and nothing is saved unless they keep it.
 
 ## Learn more
 

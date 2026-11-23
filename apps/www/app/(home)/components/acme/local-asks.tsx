@@ -4,6 +4,7 @@ import * as React from "react"
 
 import { usePliantStore, usePliantSurface, usePreview } from "@pliantui/react"
 
+import { useDemoAskSuggestions } from "@/components/demo/demo-ask-panel"
 import { ScriptedAnswerLabel } from "@/components/demo/scripted-answer-label"
 import { Button } from "@/components/ui/button"
 import { UnfinishedDot } from "@/components/unfinished-dot"
@@ -14,7 +15,8 @@ import { useShowcaseActivity } from "./showcase-activity"
 // Scripted asks for a part of the showcase whose component isn't in Pliant
 // yet, so the part draws each answer itself. They preview, lock in and
 // discard like the other asks. Each answer's overlay is still the real one,
-// for the Changes tab, and an ask the data can't answer changes nothing.
+// for the Changes tab, and an ask the data can't answer changes nothing. The
+// chat offers them too: it shows the answer, and the part draws it.
 export function LocalAsks({
   target,
   label,
@@ -43,6 +45,39 @@ export function LocalAsks({
     onShow(shown)
   }, [onShow, shown])
 
+  // Previews the answer to `prompt`, and returns what it says and whether
+  // it changed the part.
+  function ask(prompt: string) {
+    const answer = replayAnswer({ surface, target, prompt })
+    if (answer.status !== "ok") {
+      setAsked(null)
+      const reason =
+        answer.status === "clarify" ? answer.question : answer.reason
+      setMessage(reason)
+      return { message: reason, previewed: false }
+    }
+    if (preview) store.discard()
+    activity.previewLocal(target, answer.overlay)
+    setAsked(prompt)
+    const explain = answer.explain.join(" ")
+    setMessage(explain)
+    return { message: explain, previewed: true }
+  }
+
+  useDemoAskSuggestions({
+    target,
+    label,
+    prompts,
+    play: (prompt) => {
+      if (shown === prompt) return `${label} already shows this change.`
+      if (pending) activity.discard()
+      const { message, previewed } = ask(prompt)
+      return previewed
+        ? `${message} Lock in or discard it under ${label}.`
+        : message
+    },
+  })
+
   return (
     <div
       className="flex flex-col gap-2"
@@ -70,21 +105,7 @@ export function LocalAsks({
                 setMessage("")
                 return
               }
-              const answer = replayAnswer(
-                { surface, target, prompt },
-                { scripted: true }
-              )
-              if (answer.status !== "ok") {
-                setAsked(null)
-                setMessage(
-                  answer.status === "clarify" ? answer.question : answer.reason
-                )
-                return
-              }
-              if (preview) store.discard()
-              activity.previewLocal(target, answer.overlay)
-              setAsked(prompt)
-              setMessage(answer.explain.join(" "))
+              ask(prompt)
             }}
           >
             {prompt}

@@ -1,21 +1,36 @@
 "use client"
 
+import { useDemoAskSuggestions } from "@/components/demo/demo-ask-panel"
 import type { ScriptedAsksState } from "@/components/demo/use-scripted-asks"
 import { Button } from "@/components/ui/button"
 import { UnfinishedDot } from "@/components/unfinished-dot"
 
 // The scripted asks for one part of a preview, as toggles, with a status
-// line that says which answer is playing.
+// line that says which answer is playing. The chat around the preview
+// offers them too, and plays them the same way.
 export function ScriptedAsks({
+  target,
   label,
   asks,
   scripted,
 }: {
+  // The part the chat asks about. Defaults to the part's name.
+  target?: string | undefined
   // The part's name, as the asks' group label reads it.
   label: string
   asks: readonly string[]
   scripted: ScriptedAsksState
 }) {
+  useDemoAskSuggestions({
+    target: target ?? label,
+    label,
+    prompts: asks,
+    play: (prompt) => {
+      if (!scripted.has(prompt)) scripted.ask(prompt)
+      return `Playing the scripted answer to "${prompt}" on ${label}.`
+    },
+  })
+
   return (
     <div className="flex flex-col gap-2">
       <div

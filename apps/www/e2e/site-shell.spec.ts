@@ -507,11 +507,7 @@ test.describe("focus rings", () => {
     await page.goto("/")
     await page.keyboard.press("Tab")
     await page.keyboard.press("Tab")
-    await expect(
-      page.getByRole("navigation", { name: "Main" }).getByRole("link", {
-        name: "Home",
-      })
-    ).toBeFocused()
+    await expect(header.getByRole("link", { name: "pliant" })).toBeFocused()
     expect(await ring(page)).toBe(true)
   })
 })

@@ -1,4 +1,8 @@
-# Pliant
+<p align="center">
+  <img src="apps/www/public/pliant-logo.svg" alt="" width="72" height="72" />
+</p>
+
+<h1 align="center">Pliant</h1>
 
 Let the users of your shadcn app reshape it to fit their work. Pliant installs on top of your existing shadcn components and turns natural-language requests into validated JSON overlays. No generated code, always your design system.
 

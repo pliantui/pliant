@@ -11,7 +11,7 @@ import {
   type StorageAdapter,
 } from "@pliantui/react"
 
-import { CustomizedReset } from "./customized-reset"
+import { DemoCustomizeMenu } from "./demo-customize"
 
 const surface = "/demo"
 
@@ -55,15 +55,22 @@ async function renderReset() {
   render(
     <PliantRoot surface={surface} storage={storage}>
       <Nodes onStore={keepStore} />
-      <CustomizedReset targets={["orders-table"]} label="the orders table" />
+      <DemoCustomizeMenu targets={["orders-table"]} label="the orders table" />
     </PliantRoot>
   )
   await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
   expect(store).toBeDefined()
 }
 
+// Opens the Customize menu and finds its Reset to default item.
 function reset() {
-  return screen.getByRole("button", { name: "Reset the orders table" })
+  const trigger = screen.getByRole("button", {
+    name: "Customize the orders table",
+  })
+  if (trigger.getAttribute("aria-expanded") !== "true") {
+    fireEvent.keyDown(trigger, { key: "Enter" })
+  }
+  return screen.getByRole("menuitem", { name: "Reset to default" })
 }
 
 afterEach(() => {
@@ -71,7 +78,7 @@ afterEach(() => {
   store = undefined
 })
 
-describe("CustomizedReset", () => {
+describe("DemoCustomizeMenu", () => {
   it("shows nothing to reset before the user changes anything", async () => {
     await renderReset()
 

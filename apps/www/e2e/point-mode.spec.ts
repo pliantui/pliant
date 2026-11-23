@@ -1,11 +1,23 @@
 import type { Locator, Page } from "@playwright/test"
 
-import { expect, test } from "./fixtures"
+import { expect, pickCustomize, test } from "./fixtures"
 
 const surface = "/examples/orders"
 
 function region(page: Page) {
   return page.locator('[data-pliant-id="key-metrics"]')
+}
+
+function pageMenu(page: Page) {
+  return page.getByRole("button", { name: "Customize the orders page" })
+}
+
+async function startPointing(page: Page) {
+  await pickCustomize(pageMenu(page), "Adjust by hand")
+}
+
+function bar(page: Page, name = "Key metrics") {
+  return layer(page).getByRole("toolbar", { name: `Change ${name}` })
 }
 
 function layer(page: Page) {
@@ -80,14 +92,29 @@ async function expectOutlinesClear(page: Page) {
       (await outline.getAttribute("aria-label")) ?? (await outline.innerText())
     const id = await outline.getAttribute("data-pliant-point-target")
     const outlineBox = await outline.boundingBox()
+    // A slot's wrapper has no box of its own, so its children's count.
     const targetBox = await page
       .locator(`[data-pliant-id="${String(id)}"]`)
-      .boundingBox()
+      .evaluate((element) => {
+        const boxes = (
+          getComputedStyle(element).display === "contents"
+            ? [...element.children]
+            : [element]
+        ).map((child) => child.getBoundingClientRect())
+        const x = Math.min(...boxes.map((box) => box.left))
+        const y = Math.min(...boxes.map((box) => box.top))
+        return {
+          x,
+          y,
+          width: Math.max(...boxes.map((box) => box.right)) - x,
+          height: Math.max(...boxes.map((box) => box.bottom)) - y,
+        }
+      })
     const labelBox = await outline
       .getByText(name, { exact: true })
       .boundingBox()
-    expect(outlineBox && targetBox && labelBox, name).toBeTruthy()
-    if (!outlineBox || !targetBox || !labelBox) return
+    expect(outlineBox && labelBox, name).toBeTruthy()
+    if (!outlineBox || !labelBox) return
     const box = rectOf(outlineBox)
     const target = rectOf(targetBox)
     const roomTo = {
@@ -158,7 +185,7 @@ async function expectAskingAboutKeyMetrics(page: Page) {
   return panel
 }
 
-test("holds Alt, clicks the key metrics and asks a suggestion", async ({
+test("holds Alt, selects the key metrics and asks a suggestion from the bar", async ({
   page,
   errors,
 }) => {
@@ -171,6 +198,8 @@ test("holds Alt, clicks the key metrics and asks a suggestion", async ({
   await keyMetricsBox(page).click()
   await page.keyboard.up("Alt")
 
+  await expect(keyMetricsBox(page)).toHaveAttribute("aria-pressed", "true")
+  await bar(page).getByRole("button", { name: "Ask" }).click()
   await expect(layer(page)).toBeHidden()
   const panel = await expectAskingAboutKeyMetrics(page)
   await panel
@@ -179,7 +208,7 @@ test("holds Alt, clicks the key metrics and asks a suggestion", async ({
     .click()
   await page.keyboard.press("Enter")
 
-  await expect(panel.getByRole("status")).toContainText(
+  await expect(panel.getByRole("log", { name: "Conversation" })).toContainText(
     "Moved the Overdue card to the first position."
   )
   await expect(
@@ -200,17 +229,30 @@ test("goes away when Alt is released", async ({ page, errors }) => {
   expect(errors).toEqual([])
 })
 
-test("picks with the keyboard alone", async ({ page, errors }) => {
+test("selects with the keyboard alone and asks from the bar", async ({
+  page,
+  errors,
+}) => {
   await load(page)
 
-  await page.keyboard.press("ControlOrMeta+Period")
+  await pageMenu(page).focus()
+  await page.keyboard.press("Enter")
+  await page.keyboard.press("ArrowDown")
+  await expect(
+    page.getByRole("menuitem", { name: "Adjust by hand" })
+  ).toBeFocused()
+  await page.keyboard.press("Enter")
   await expect(keyMetricsBox(page)).toBeFocused()
   await page.keyboard.press("ArrowDown")
   await expect(
-    layer(page).getByRole("button", { name: "All orders" })
+    layer(page).getByRole("button", { name: "Revenue", exact: true })
   ).toBeFocused()
-  await page.keyboard.press("ArrowDown")
+  await page.keyboard.press("ArrowUp")
   await expect(keyMetricsBox(page)).toBeFocused()
+  await page.keyboard.press("Enter")
+  await expect(keyMetricsBox(page)).toHaveAttribute("aria-pressed", "true")
+  await page.keyboard.press("Tab")
+  await expect(bar(page).getByRole("button", { name: "Ask" })).toBeFocused()
   await page.keyboard.press("Enter")
 
   await expect(layer(page)).toBeHidden()
@@ -218,22 +260,18 @@ test("picks with the keyboard alone", async ({ page, errors }) => {
   expect(errors).toEqual([])
 })
 
-test("leaves on Escape and returns focus to the toggle", async ({
+test("leaves on Escape and returns focus to where it was", async ({
   page,
   errors,
 }) => {
   await load(page)
-  const toggle = page.getByRole("button", { name: "Point" })
 
-  await toggle.focus()
-  await page.keyboard.press("Enter")
-  await expect(toggle).toHaveAttribute("aria-pressed", "true")
+  await startPointing(page)
   await expect(keyMetricsBox(page)).toBeFocused()
   await page.keyboard.press("Escape")
 
   await expect(layer(page)).toBeHidden()
-  await expect(toggle).toHaveAttribute("aria-pressed", "false")
-  await expect(toggle).toBeFocused()
+  await expect(pageMenu(page)).toBeFocused()
   expect(errors).toEqual([])
 })
 
@@ -242,13 +280,14 @@ test("points again from the prompt at the target it already shows", async ({
   errors,
 }) => {
   await load(page)
-  await page.getByRole("button", { name: "Ask" }).click()
+  await pickCustomize(pageMenu(page), "Ask for a change…")
   const textbox = page.getByRole("textbox", { name: "Ask" })
   await expect(textbox).toBeFocused()
 
   await page.keyboard.down("Alt")
   await keyMetricsBox(page).click()
   await page.keyboard.up("Alt")
+  await bar(page).getByRole("button", { name: "Ask" }).click()
 
   await expect(layer(page)).toBeHidden()
   await expect(textbox).toBeFocused()
@@ -277,14 +316,12 @@ test("waits for the ask panel's target picker to close", async ({
   errors,
 }) => {
   await load(page)
-  await page.getByRole("button", { name: "Ask" }).click()
+  await pickCustomize(pageMenu(page), "Ask for a change…")
   const picker = page.getByRole("combobox", { name: "Change" })
   const listbox = page.getByRole("listbox")
 
   await picker.click()
   await expect(listbox).toBeVisible()
-  await page.keyboard.press("ControlOrMeta+Period")
-  await expect(layer(page)).toBeHidden()
   await page.keyboard.down("Alt")
   await page.waitForTimeout(500)
   await expect(layer(page)).toBeHidden()
@@ -293,11 +330,6 @@ test("waits for the ask panel's target picker to close", async ({
 
   await page.keyboard.press("Escape")
   await expect(listbox).toBeHidden()
-  await expect(picker).toBeFocused()
-  await page.keyboard.press("ControlOrMeta+Period")
-  await expect(keyMetricsBox(page)).toBeFocused()
-  await page.keyboard.press("Escape")
-  await expect(layer(page)).toBeHidden()
   await expect(picker).toBeFocused()
   await page.keyboard.down("Alt")
   await expect(keyMetricsBox(page)).toBeVisible()
@@ -318,8 +350,6 @@ test("waits for a native modal dialog to close", async ({ page, errors }) => {
   const dialog = page.getByRole("dialog", { name: "Settings" })
   await expect(dialog.getByRole("button", { name: "Done" })).toBeFocused()
 
-  await page.keyboard.press("ControlOrMeta+Period")
-  await expect(layer(page)).toBeHidden()
   await page.keyboard.down("Alt")
   await page.waitForTimeout(500)
   await expect(layer(page)).toBeHidden()
@@ -331,8 +361,6 @@ test("waits for a native modal dialog to close", async ({ page, errors }) => {
   await expect(keyMetricsBox(page)).toBeVisible()
   await page.keyboard.up("Alt")
   await expect(layer(page)).toBeHidden()
-  await page.keyboard.press("ControlOrMeta+Period")
-  await expect(keyMetricsBox(page)).toBeFocused()
   expect(errors).toEqual([])
 })
 
@@ -341,7 +369,7 @@ test("keeps its outlines clickable under a modal layer", async ({
   errors,
 }) => {
   await load(page)
-  await page.getByRole("button", { name: "Point" }).click()
+  await startPointing(page)
   await expect(keyMetricsBox(page)).toBeFocused()
   await page.evaluate(() => {
     document.body.style.pointerEvents = "none"
@@ -349,8 +377,7 @@ test("keeps its outlines clickable under a modal layer", async ({
 
   await keyMetricsBox(page).click()
 
-  await expect(layer(page)).toBeHidden()
-  await expectAskingAboutKeyMetrics(page)
+  await expect(keyMetricsBox(page)).toHaveAttribute("aria-pressed", "true")
   expect(errors).toEqual([])
 })
 
@@ -481,19 +508,25 @@ async function buttons(page: Page) {
   )
 }
 
-test("is a modal dialog when started from the toggle", async ({
+test("is a modal dialog when started from Adjust by hand", async ({
   page,
   errors,
 }) => {
   await load(page)
-  const toggle = page.getByRole("button", { name: "Point" })
 
-  await toggle.click()
+  await startPointing(page)
   await expect(keyMetricsBox(page)).toBeFocused()
   await expect(
     page.getByRole("dialog", { name: "Point mode" })
   ).toHaveAttribute("aria-modal", "true")
-  expect(await buttons(page)).toEqual(["Key metrics", "All orders"])
+  expect(await buttons(page)).toEqual([
+    "Key metrics",
+    "Revenue",
+    "Orders",
+    "Average order value",
+    "Overdue",
+    "All orders",
+  ])
   expect(
     (await accessibilityTree(page)).filter((node) => node.role === "dialog")
   ).toEqual([
@@ -501,15 +534,16 @@ test("is a modal dialog when started from the toggle", async ({
       role: "dialog",
       name: "Point mode",
       description:
-        "Pick a part to change. Use Tab or the arrow keys to move, Enter to pick, Escape to leave.",
+        "Select a part to change. Use Tab or the arrow keys to move between parts, Enter to select, Escape to leave. With a part selected, the arrow keys move it, Shift with the arrow keys resizes it, and Delete hides it.",
     },
   ])
 
   await page.keyboard.press("Escape")
   await expect(layer(page)).toBeHidden()
-  await expect(toggle).toBeFocused()
-  await expect(toggle).toHaveAttribute("aria-pressed", "false")
-  expect(await buttons(page)).toEqual(expect.arrayContaining(["Point", "Ask"]))
+  await expect(pageMenu(page)).toBeFocused()
+  expect(await buttons(page)).toEqual(
+    expect.arrayContaining(["Customize the orders page"])
+  )
   expect(errors).toEqual([])
 })
 
@@ -526,7 +560,7 @@ test("announces the mode while Alt is held", async ({ page, errors }) => {
   await page.keyboard.down("Alt")
   await expect(keyMetricsBox(page)).toBeVisible()
   expect(await buttons(page)).toEqual(
-    expect.arrayContaining(["Point", "Ask", "Key metrics"])
+    expect.arrayContaining(["Customize the orders page", "Key metrics"])
   )
   await expect.poll(announced).toBe(true)
   await page.keyboard.up("Alt")
@@ -541,7 +575,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme })
     await load(page)
 
-    await page.getByRole("button", { name: "Point" }).click()
+    await startPointing(page)
     await expect(keyMetricsBox(page)).toBeVisible()
 
     await expectOutlinesClear(page)
@@ -560,7 +594,7 @@ test("moves a label out of the way of the outline above it", async ({
   const ordersLabel = orders.getByText("All orders", { exact: true })
 
   // The key metrics sit just above all orders, where its label would go.
-  await page.getByRole("button", { name: "Point" }).click()
+  await startPointing(page)
   await expect(orders).toBeVisible()
   expect(await isAbove(ordersLabel, orders)).toBe(false)
   await expectOutlinesClear(page)
@@ -572,7 +606,7 @@ test("moves a label out of the way of the outline above it", async ({
     .evaluate((section) => {
       section.style.transform = "translateY(-80px)"
     })
-  await page.keyboard.press("ControlOrMeta+Period")
+  await startPointing(page)
   await expect(orders).toBeVisible()
   expect(await isAbove(ordersLabel, orders)).toBe(true)
   await expectOutlinesClear(page)
@@ -582,13 +616,13 @@ test("moves a label out of the way of the outline above it", async ({
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 640 }, hasTouch: true })
 
-  test("points by touch and follows the page as it scrolls", async ({
+  test("selects by touch and follows the page as it scrolls", async ({
     page,
     errors,
   }) => {
     await load(page)
 
-    await page.getByRole("button", { name: "Point" }).tap()
+    await startPointing(page)
     await expect(keyMetricsBox(page)).toBeVisible()
     const before = await keyMetricsBox(page).boundingBox()
 
@@ -600,7 +634,11 @@ test.describe("on a phone", () => {
       .toBe((before?.y ?? 0) - 120)
     await expectOutlinesClear(page)
 
-    await keyMetricsBox(page).tap()
+    // Its middle is a card's outline on a phone, so it's tapped by its
+    // label.
+    await keyMetricsBox(page).getByText("Key metrics", { exact: true }).tap()
+    await expect(keyMetricsBox(page)).toHaveAttribute("aria-pressed", "true")
+    await bar(page).getByRole("button", { name: "Ask" }).tap()
 
     await expect(layer(page)).toBeHidden()
     await expect(

@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright"
 import type { Page } from "@playwright/test"
 
-import { expect, test } from "./fixtures"
+import { expect, pickCustomize, test } from "./fixtures"
 
 const surface = "/examples/orders"
 
@@ -52,9 +52,13 @@ async function loadOrders(page: Page) {
   await expect(page.getByRole("table", { name: "All orders" })).toBeVisible()
 }
 
+function pageMenu(page: Page) {
+  return page.getByRole("button", { name: "Customize the orders page" })
+}
+
 async function openPanel(page: Page) {
   await loadOrders(page)
-  await page.getByRole("button", { name: "Ask" }).click()
+  await pickCustomize(pageMenu(page), "Ask for a change…")
   const panel = page.getByRole("complementary", { name: "Ask" })
   await expect(panel.getByRole("textbox", { name: "Ask" })).toBeFocused()
   return panel
@@ -65,7 +69,7 @@ async function askForPreview(page: Page) {
   const textbox = panel.getByRole("textbox", { name: "Ask" })
   await textbox.fill("put the overdue card first")
   await textbox.press("Enter")
-  await expect(panel.getByRole("status")).toContainText(
+  await expect(panel.getByRole("log", { name: "Conversation" })).toContainText(
     "Moved the Overdue card to the first position."
   )
   await expect(panel.getByRole("button", { name: "Lock in" })).toBeVisible()
@@ -205,7 +209,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       }) => {
         await page.goto(path)
         await expect(
-          page.getByRole("button", { name: /^Reset / }).first()
+          page.getByRole("button", { name: /^Customize / }).first()
         ).toBeVisible()
         expect(await violations(page, colorScheme)).toEqual([])
       })
@@ -316,8 +320,27 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(await violations(page, colorScheme, '[role="menu"]')).toEqual([])
       await page.keyboard.press("Escape")
       await expect(
-        page.getByRole("button", { name: "Reset", exact: true })
+        page
+          .locator('[data-slot="pliant-data-table-toolbar"]')
+          .getByText("Customized", { exact: true })
       ).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
+
+    test("the Customize menus have no accessibility violations", async ({
+      page,
+    }) => {
+      await loadOrders(page)
+      await pageMenu(page).click()
+      await expect(page.getByRole("menu")).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+      await page.keyboard.press("Escape")
+      await expect(page.getByRole("menu")).toBeHidden()
+
+      await page
+        .getByRole("group", { name: "Overdue" })
+        .click({ button: "right" })
+      await expect(page.getByRole("menu")).toBeVisible()
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
@@ -356,22 +379,35 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
-    test("point mode has no accessibility violations", async ({ page }) => {
+    test("point mode with a part selected has no accessibility violations", async ({
+      page,
+    }) => {
       await loadOrders(page)
-      await page.getByRole("button", { name: "Point" }).click()
+      await pickCustomize(pageMenu(page), "Adjust by hand")
+      const layer = page.getByRole("dialog", { name: "Point mode" })
+      await layer.getByRole("button", { name: "Overdue" }).click()
       await expect(
-        page.getByRole("dialog", { name: "Point mode" })
+        layer.getByRole("toolbar", { name: "Change Key metrics" })
       ).toBeVisible()
       await expect(
-        page
-          .locator('[data-slot="pliant-point-mode"]')
-          .getByRole("button", { name: "Key metrics" })
-      ).toBeFocused()
+        layer.getByRole("button", { name: "Move Overdue" })
+      ).toBeVisible()
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
     test.describe("on a small screen", () => {
       test.use({ viewport: { width: 390, height: 844 } })
+
+      test("the Customize menu has no accessibility violations", async ({
+        page,
+      }) => {
+        await loadOrders(page)
+        await pageMenu(page).click()
+        await expect(
+          page.getByRole("menuitem", { name: "Reset to default" })
+        ).toBeInViewport()
+        expect(await violations(page, colorScheme)).toEqual([])
+      })
 
       test("a docs page has no accessibility violations", async ({ page }) => {
         await page.goto("/docs/concepts/layers")
@@ -388,11 +424,28 @@ for (const colorScheme of ["light", "dark"] as const) {
         expect(await violations(page, colorScheme)).toEqual([])
       })
 
+      test("point mode with a part selected has no accessibility violations", async ({
+        page,
+      }) => {
+        await loadOrders(page)
+        await pickCustomize(pageMenu(page), "Adjust by hand")
+        const layer = page.getByRole("dialog", { name: "Point mode" })
+        // Below the fold on a phone, and the layer doesn't scroll.
+        await layer.getByRole("button", { name: "Overdue" }).focus()
+        await page.keyboard.press("Enter")
+        await expect(
+          layer.getByRole("toolbar", { name: "Change Key metrics" })
+        ).toBeVisible()
+        expect(await violations(page, colorScheme)).toEqual([])
+      })
+
       test("the docked ask panel has no accessibility violations", async ({
         page,
       }) => {
         const panel = await askForPreview(page)
-        await expect(panel.getByRole("status")).toBeInViewport({ ratio: 1 })
+        await expect(
+          panel.getByRole("log", { name: "Conversation" })
+        ).toBeInViewport({ ratio: 1 })
         expect(await violations(page, colorScheme)).toEqual([])
       })
     })

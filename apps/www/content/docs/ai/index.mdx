@@ -1,9 +1,9 @@
 ---
 title: How asking works
-description: Set up the ask route, the ask panel and point mode, and follow an ask from the user's words to a saved change.
+description: Set up the ask route, the ask panel and point mode, and follow an ask from the Customize menu to a saved change.
 ---
 
-With the ask panel, a user points at part of the page and types what they want, such as "add a column for days since each order was placed" or "highlight overdue orders over ₹1L". The change shows on the page as a preview, and it's saved only when they choose **Lock in**. AI is optional: everything it can do, users can also do by hand with the controls on the page.
+With the ask panel, a user opens the [Customize menu](/docs/concepts/customize-menu) on part of the page, chooses **Ask for a change…** and types what they want, such as "add a column for days since each order was placed" or "highlight overdue orders over ₹1L". The change shows on the page as a preview, and it's saved only when they choose **Lock in**. AI is optional: everything it can do, users can also do by hand with the controls on the page.
 
 <Callout
   variant="warning"
@@ -66,12 +66,14 @@ Render them inside `PliantRoot`, such as in the page header:
 
 ## What the user sees
 
-1. They turn on point mode in one of three ways: hold <Kbd>Alt</Kbd> (<Kbd>Option</Kbd> on a Mac), press <Kbd>Ctrl</Kbd> <Kbd>.</Kbd> (<Kbd>⌘</Kbd> <Kbd>.</Kbd> on a Mac), or click the point mode button. The parts they can ask about light up, and they click one. They can also open the panel and pick a part from its list.
+1. They open the Customize menu on a part of the page, from its header or by right-clicking it, and choose **Ask for a change…**. <Kbd>⌘</Kbd> <Kbd>.</Kbd> (<Kbd>Ctrl</Kbd> <Kbd>.</Kbd> on Windows and Linux) does the same for the part that has focus.
 2. They type an ask, or pick a suggestion, and press <Kbd>Enter</Kbd>. <Kbd>Shift</Kbd> <Kbd>Enter</Kbd> adds a new line.
-3. The change appears on the page as a preview, with a short sentence describing it.
-4. **Lock in** saves it. **Discard** drops it. Until then, nothing is saved.
+3. The answer arrives in the chat with its steps, such as "Chose an operation: Add column", and the change shows on the page as a preview.
+4. **Lock in**, under the answer, saves it. **Discard** drops it. Until then, nothing is saved.
 
 If the ask is unclear, the panel asks a short question back. If it's about changing data, such as "delete these orders", it explains that it can only change how the page looks.
+
+A user can keep several chats and switch between them from the top of the panel. Chats aren't saved: they clear when the user leaves the page. [Ask Panel](/docs/components/ask-panel) covers the chat in detail.
 
 ## What happens on your server
 
@@ -111,18 +113,24 @@ The route never changes your data, and the model never sees your rows. See [What
 | `defaultOpen`    | `false`             | Whether the panel starts open, when you don't control it             |
 | `onOpenChange`   | None                | Called when the panel opens or closes                                |
 | `placeholder`    | "Describe a change" | The prompt's placeholder                                             |
-| `trigger`        | An **Ask** button   | The element that opens the panel                                     |
+| `answerLabel`    | None                | Puts a heading over an answer, given its ask's `target` and `prompt` |
 | `fetch`          | The global `fetch`  | Sends each ask in place of the global `fetch`                        |
 
 `fetch` has the type of the global `fetch`. The panel calls it with `endpoint` and a `POST` request whose JSON body is the ask, then reads the answer from the response. Pass your own to add headers, to stub answers in tests, or to answer asks without a network request, as [Recordings and replay](/docs/ai/recordings#replaying-in-the-browser) shows.
 
 ## Making room for the panel
 
-From the `sm` breakpoint up, the panel docks to the right edge; on small screens it's a sheet at the bottom. Give your page room while it's open:
+The panel renders in `document.body`, so no container on your page clips it. From the `sm` breakpoint up, it's a sidebar along the window's right edge, full height and 24rem wide; on phones it's a sheet at the bottom. It sits outside your layout, so mark `<body>` as a group and give your page room while the panel is open:
 
-```tsx
-<main className="max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh] sm:has-[[data-slot=pliant-ask-panel]]:pr-96">
+```tsx title="app/layout.tsx"
+<body className="group/body">
+  <main className="max-sm:group-has-[[data-slot=pliant-ask-panel]]/body:pb-[60dvh] sm:group-has-[[data-slot=pliant-ask-panel]]/body:pr-96">
+    {children}
+  </main>
+</body>
 ```
+
+A plain `has-[…]` on a wrapper doesn't match, because the panel isn't inside it.
 
 ## Related
 

@@ -1,0 +1,88 @@
+---
+title: Customize Icon
+description: The icon that marks the Customize menu, drawn in the lucide style so it sits next to your other icons.
+---
+
+<ComponentPreview name="customize-icon-demo" />
+
+`customize-icon` is the icon on every **Customize** button and menu label: a square split on its diagonal, with the top piece smaller and nudged away. Lucide has no icon that means "reshape this for me" without also meaning settings or editing, so Pliant ships its own, drawn on lucide's 24-pixel grid with the same stroke and round caps.
+
+## Installation
+
+<CodeTabs>
+
+<TabsList>
+  <TabsTrigger value="cli">Command</TabsTrigger>
+  <TabsTrigger value="manual">Manual</TabsTrigger>
+</TabsList>
+<TabsContent value="cli">
+
+```bash
+npx shadcn@latest add @pliant/customize-icon
+```
+
+</TabsContent>
+<TabsContent value="manual">
+
+<Steps className="mb-0 pt-2">
+
+<ComponentManualInstall name="customize-icon" />
+
+</Steps>
+
+</TabsContent>
+</CodeTabs>
+
+The [Customize Menu](/docs/components/customize-menu) installs it for you.
+
+## Usage
+
+Use it like a lucide icon. Inside a shadcn `Button`, it picks up the button's icon size and text color.
+
+```tsx
+<Button variant="outline" size="sm">
+  <CustomizeIcon />
+  Customize
+</Button>
+```
+
+## What users can ask
+
+Nothing; the icon is a marker. It shows users where the [Customize menu](/docs/concepts/customize-menu) is, and their asks start from there.
+
+## Rules and guardrails
+
+- Use it only for the Customize menu, so it keeps one meaning across your app.
+- Don't swap in a pencil or a gear. A pencil means changing the record's data, and a gear means your app's settings.
+- Next to text, the icon is decorative. When it stands alone in an icon button, give the button an `aria-label` such as "Customize".
+
+## Examples
+
+### Icon-only button
+
+```tsx
+<Button variant="ghost" size="icon" aria-label="Customize orders table">
+  <CustomizeIcon />
+</Button>
+```
+
+### Filled, for emphasis
+
+```tsx
+<CustomizeIcon variant="filled" />
+```
+
+## Options
+
+| Prop          | Type                    | Description                                                                  |
+| ------------- | ----------------------- | ---------------------------------------------------------------------------- |
+| `size`        | `number \| string`      | Width and height. Defaults to 24.                                            |
+| `strokeWidth` | `number \| string`      | The stroke width of the outline. Defaults to 2.                              |
+| `variant`     | `"outline" \| "filled"` | Drawn as an outline, or filled with the text color. Defaults to `"outline"`. |
+
+It also takes the props of an `svg`, such as `className`.
+
+## Accessibility
+
+- The icon renders with `aria-hidden="true"`, so screen readers read the button's text or label, not the drawing.
+- It draws with `currentColor`, so it follows your text color and keeps the contrast you've set in both themes.

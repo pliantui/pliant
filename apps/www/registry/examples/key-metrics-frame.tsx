@@ -4,6 +4,7 @@ import { DemoFrame } from "@/components/demo/demo-frame"
 import { useScriptedAsks } from "@/components/demo/use-scripted-asks"
 import { UnfinishedDot } from "@/components/unfinished-dot"
 import { keyMetricsAsks, refundRateAsk } from "@/lib/demo/asks"
+import type { PliantAskTarget } from "@/registry/pliant/pliant-ask-panel"
 
 const percent = new Intl.NumberFormat("en-IN", {
   style: "percent",
@@ -15,11 +16,13 @@ const percent = new Intl.NumberFormat("en-IN", {
 // draws it, marked as unfinished.
 export function KeyMetricsFrame({
   refundRate,
-  toolbar,
+  askTargets,
+  pointMode = false,
   children,
 }: {
   refundRate?: { quarter: string; rate: number } | undefined
-  toolbar?: React.ReactNode
+  askTargets?: readonly PliantAskTarget[] | undefined
+  pointMode?: boolean
   children: React.ReactNode
 }) {
   const scripted = useScriptedAsks()
@@ -29,7 +32,8 @@ export function KeyMetricsFrame({
       target="key-metrics"
       label="key metrics"
       asks={keyMetricsAsks}
-      toolbar={toolbar}
+      askTargets={askTargets}
+      pointMode={pointMode}
       mocked={
         refundRate && {
           label: "the metric cards",

@@ -32,7 +32,10 @@ import { PliantDataTablePagination } from "./pliant-data-table-pagination"
 import { PliantDataTableToolbar } from "./pliant-data-table-toolbar"
 import { PliantForm } from "./pliant-form"
 import { PliantNav, PliantSidebarProvider } from "./pliant-nav"
-import { PliantPointMode } from "./pliant-point-mode"
+import {
+  PliantPointMode,
+  type PliantPointModeHandle,
+} from "./pliant-point-mode"
 import { PliantRegion } from "./pliant-region"
 
 // Every entry, so a new one must be added here, and every text marked: what
@@ -44,8 +47,6 @@ const messages: PliantMessages = {
   askLockInFailed: () => "⟦askLockInFailed⟧",
   pointModeOn: "⟦pointModeOn⟧",
   pointModeOff: "⟦pointModeOff⟧",
-  askOpen: "⟦askOpen⟧",
-  askPreviewActive: "⟦askPreviewActive⟧",
   askTitle: "⟦askTitle⟧",
   askDescription: "⟦askDescription⟧",
   askClose: "⟦askClose⟧",
@@ -60,14 +61,47 @@ const messages: PliantMessages = {
   askDiscarded: "⟦askDiscarded⟧",
   askLockedIn: "⟦askLockedIn⟧",
   askKeptInSession: (count) => `⟦askKeptInSession ${String(count)}⟧`,
-  askCurrentPreview: "⟦askCurrentPreview⟧",
+  askChats: "⟦askChats⟧",
+  askCurrentChat: "⟦askCurrentChat⟧",
+  askNewChat: "⟦askNewChat⟧",
+  askNoChats: "⟦askNoChats⟧",
+  askDeleteChat: "⟦askDeleteChat⟧",
+  askConfirmDelete: "⟦askConfirmDelete⟧",
+  askNotSaved: "⟦askNotSaved⟧",
+  askConversation: "⟦askConversation⟧",
+  askEmptyTitle: "⟦askEmptyTitle⟧",
+  askScrollDown: "⟦askScrollDown⟧",
+  askSteps: "⟦askSteps⟧",
+  askStepChoseOp: (label) => `⟦askStepChoseOp ${label}⟧`,
+  askStepChecked: (target) => `⟦askStepChecked ${target}⟧`,
+  askOpLabel: (op) => `⟦askOpLabel ${op}⟧`,
+  askPreview: "⟦askPreview⟧",
+  askPreviewing: "⟦askPreviewing⟧",
+  askNotPreviewed: "⟦askNotPreviewed⟧",
+  askOtherPreview: "⟦askOtherPreview⟧",
+  askGoToChat: "⟦askGoToChat⟧",
   askLockIn: "⟦askLockIn⟧",
   askDiscard: "⟦askDiscard⟧",
   askSuggestions: "⟦askSuggestions⟧",
   askUnreadableAnswer: (status) => `⟦askUnreadableAnswer ${String(status)}⟧`,
-  pointModeOpen: "⟦pointModeOpen⟧",
   pointModeLabel: "⟦pointModeLabel⟧",
   pointModeHelp: "⟦pointModeHelp⟧",
+  pointModeSelected: (label) => `⟦pointModeSelected ${label}⟧`,
+  pointModeMove: (label) => `⟦pointModeMove ${label}⟧`,
+  pointModeResize: (label) => `⟦pointModeResize ${label}⟧`,
+  pointModeHide: (label) => `⟦pointModeHide ${label}⟧`,
+  pointModeMoved: (label, position, count) =>
+    `⟦pointModeMoved ${label} ${String(position)} ${String(count)}⟧`,
+  pointModeResized: (label, columns) =>
+    `⟦pointModeResized ${label} ${String(columns)}⟧`,
+  pointModeHidden: (label) => `⟦pointModeHidden ${label}⟧`,
+  pointModeReset: (label) => `⟦pointModeReset ${label}⟧`,
+  pointModeFailed: (label) => `⟦pointModeFailed ${label}⟧`,
+  pointModeBar: (label) => `⟦pointModeBar ${label}⟧`,
+  pointModeAsk: "⟦pointModeAsk⟧",
+  pointModeAdjust: "⟦pointModeAdjust⟧",
+  pointModeResetAction: "⟦pointModeResetAction⟧",
+  pointModeResetOwner: (label) => `⟦pointModeResetOwner ${label}⟧`,
   formMoreFields: "⟦formMoreFields⟧",
   navMore: "⟦navMore⟧",
   navItemOptions: (title) => `⟦navItemOptions ${title}⟧`,
@@ -90,7 +124,14 @@ const messages: PliantMessages = {
     `⟦dataTableFilterPlaceholder ${label}⟧`,
   dataTableSort: "⟦dataTableSort⟧",
   dataTablePresets: "⟦dataTablePresets⟧",
-  dataTableReset: "⟦dataTableReset⟧",
+  customizeOpen: "⟦customizeOpen⟧",
+  customizeCustomized: "⟦customizeCustomized⟧",
+  customizeAsk: "⟦customizeAsk⟧",
+  customizeAdjust: "⟦customizeAdjust⟧",
+  customizeHistory: "⟦customizeHistory⟧",
+  customizeReset: "⟦customizeReset⟧",
+  customizePreviewing: "⟦customizePreviewing⟧",
+  navCustomize: "⟦navCustomize⟧",
   dataTableHighlighted: (names) => `⟦dataTableHighlighted ${names.join(" ")}⟧`,
   dataTableHighlightEmphasis: "⟦dataTableHighlightEmphasis⟧",
   dataTableHighlightSuccess: "⟦dataTableHighlightSuccess⟧",
@@ -167,9 +208,42 @@ function renderPage(layers: StorageAdapter = storage) {
           orders: <p>«Orders»</p>,
         }}
       />
-      <PliantPointMode targets={targets} onPick={() => undefined} />
-      <PliantAskPanel endpoint="/api/pliant" targets={targets} />
+      <Openers />
     </PliantRoot>
+  )
+}
+
+// The app's own controls that open point mode and the ask panel, as a
+// Customize menu's items do.
+function Openers() {
+  const pointMode = React.useRef<PliantPointModeHandle>(null)
+  const [open, setOpen] = React.useState(false)
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          pointMode.current?.start()
+        }}
+      >
+        «Point»
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true)
+        }}
+      >
+        «Ask»
+      </button>
+      <PliantPointMode ref={pointMode} targets={targets} />
+      <PliantAskPanel
+        endpoint="/api/pliant"
+        targets={targets}
+        open={open}
+        onOpenChange={setOpen}
+      />
+    </>
   )
 }
 
@@ -296,8 +370,8 @@ async function settle(ms = 0) {
 }
 
 async function open() {
-  fireEvent.click(screen.getByRole("button", { name: /^⟦askOpen⟧/ }))
-  await settle()
+  fireEvent.click(screen.getByRole("button", { name: "«Ask»" }))
+  await screen.findByRole("textbox", { name: "⟦askPromptLabel⟧" })
 }
 
 async function ask() {
@@ -307,9 +381,9 @@ async function ask() {
   await settle()
 }
 
-function askStatus() {
+function chatLog() {
   const panel = screen.getByRole("complementary", { name: "⟦askTitle⟧" })
-  return within(panel).getByRole("status").textContent
+  return within(panel).getByRole("log").textContent
 }
 
 function apply(...ops: Op[]) {
@@ -342,7 +416,7 @@ describe("the registry components with every message given", () => {
 
     fetchMock.mockReturnValueOnce(new Promise(() => undefined))
     await ask()
-    expect(askStatus()).toBe("⟦askAsking⟧")
+    expect(chatLog()).toContain("⟦askAsking⟧")
     expect(unmarkedText()).toEqual([])
 
     fireEvent.click(screen.getByRole("button", { name: "⟦askCancel⟧" }))
@@ -392,7 +466,7 @@ describe("the registry components with every message given", () => {
     respond()
     await ask()
 
-    expect(askStatus()).toBe(status)
+    expect(chatLog()).toContain(status)
     expect(unmarkedText()).toEqual([])
   })
 
@@ -402,7 +476,7 @@ describe("the registry components with every message given", () => {
 
     await ask()
 
-    expect(askStatus()).toBe("⟦askNotReady⟧")
+    expect(chatLog()).toContain("⟦askNotReady⟧")
     expect(unmarkedText()).toEqual([])
   })
 
@@ -419,24 +493,22 @@ describe("the registry components with every message given", () => {
 
     fetchMock.mockResolvedValueOnce(Response.json(answer))
     await ask()
-    expect(screen.getByText("⟦askCurrentPreview⟧")).toBeTruthy()
+    expect(chatLog()).toContain("⟦askStepChoseOp ⟦askOpLabel move⟧⟧")
+    expect(chatLog()).toContain("⟦askPreviewing⟧")
     expect(unmarkedText()).toEqual([])
 
     fireEvent.click(screen.getByRole("button", { name: "⟦askClose⟧" }))
-    expect(
-      screen.getByRole("button", { name: "⟦askOpen⟧ ⟦askPreviewActive⟧" })
-    ).toBeTruthy()
     expect(unmarkedText()).toEqual([])
 
     await open()
     fireEvent.click(screen.getByRole("button", { name: "⟦askLockIn⟧" }))
-    expect(askStatus()).toBe("⟦askLockedIn⟧⟦askKeptInSession 1⟧")
+    expect(chatLog()).toContain("⟦askLockedIn⟧⟦askKeptInSession 1⟧")
     expect(unmarkedText()).toEqual([])
 
     fetchMock.mockResolvedValueOnce(Response.json(answer))
     await ask()
     fireEvent.click(screen.getByRole("button", { name: "⟦askDiscard⟧" }))
-    expect(askStatus()).toBe("⟦askDiscarded⟧")
+    expect(chatLog()).toContain("⟦askDiscarded⟧")
     expect(unmarkedText()).toEqual([])
   })
 
@@ -451,7 +523,7 @@ describe("the registry components with every message given", () => {
     expect(screen.getByText("⟦pointModeOff⟧")).toBeTruthy()
     expect(unmarkedText()).toEqual([])
 
-    fireEvent.click(screen.getByRole("button", { name: "⟦pointModeOpen⟧" }))
+    fireEvent.click(screen.getByRole("button", { name: "«Point»" }))
     await settle(20)
     expect(
       screen.getByRole("dialog", { name: "⟦pointModeLabel⟧" })
@@ -546,6 +618,7 @@ describe("the registry components with every message given", () => {
     expect(
       screen.getByRole("menuitemcheckbox", { name: "⟦navStartPage⟧" })
     ).toBeTruthy()
+    expect(screen.getByText("⟦navCustomize⟧")).toBeTruthy()
     expect(unmarkedText()).toEqual([])
   })
 
@@ -626,10 +699,22 @@ describe("the registry components with every message given", () => {
         .getAttribute("placeholder")
     ).toBe("⟦dataTableFilterPlaceholder «Order»⟧")
     expect(screen.getByText("⟦dataTableRowsPerPage⟧")).toBeTruthy()
+    expect(screen.getByText("⟦customizeCustomized⟧")).toBeTruthy()
+    fireEvent.keyDown(screen.getByRole("button", { name: "⟦customizeOpen⟧" }), {
+      key: "Enter",
+    })
+    await settle(20)
     expect(
-      screen.getByRole("button", { name: "⟦dataTableReset⟧" })
-    ).toBeTruthy()
+      screen.getAllByRole("menuitem").map((item) => item.textContent)
+    ).toEqual([
+      "⟦customizeAsk⟧",
+      "⟦customizeAdjust⟧",
+      "⟦customizeHistory⟧",
+      "⟦customizeReset⟧",
+    ])
     expect(unmarkedText()).toEqual([])
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" })
+    await settle(20)
 
     fireEvent.keyDown(screen.getByRole("button", { name: "«Amounts»" }), {
       key: "Enter",

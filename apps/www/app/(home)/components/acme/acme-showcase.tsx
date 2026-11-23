@@ -4,10 +4,18 @@ import * as React from "react"
 
 import { usePliantStatus, usePliantStore } from "@pliantui/react"
 
-import { ResetControl } from "@/components/demo/reset-control"
+import {
+  actionsOf,
+  CustomizeControl,
+  CustomizeSurface,
+} from "@/components/demo/customize-control"
+import { DemoAsk, useDemoAsk } from "@/components/demo/demo-ask-panel"
 import { useCustomized } from "@/components/demo/use-customized"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { PliantPointMode } from "@/registry/pliant/pliant-point-mode"
+import {
+  PliantPointMode,
+  type PliantPointModeHandle,
+} from "@/registry/pliant/pliant-point-mode"
 
 import { AcmeDashboard } from "./acme-dashboard"
 import { ChangesTab } from "./changes-tab"
@@ -24,36 +32,63 @@ const targets = [
   { id: "acme-sections", label: "Sections table" },
 ]
 
-// Moves focus to the suggested asks of the part the user pointed at.
-function focusAsks(id: string) {
-  // After point mode closes, which puts focus back on its button.
-  requestAnimationFrame(() => {
-    const asks = document.querySelector(`[data-asks-for="${id}"]`)
-    asks?.scrollIntoView({ block: "center", behavior: "smooth" })
-    asks?.querySelector("button")?.focus({ preventScroll: true })
-  })
+// The part of the dashboard that has focus, or else the first one.
+function focusedPart() {
+  const part = document.activeElement?.closest("[data-pliant-id]")
+  const id = part?.getAttribute("data-pliant-id")
+  return targets.find((target) => target.id === id)?.id ?? targetIds[0] ?? ""
 }
 
 const targetIds = targets.map((target) => target.id)
 
-function Toolbar({ onReset }: { onReset: () => void }) {
+// The dashboard's Customize menu, in its header, and the same items in its
+// right-click menu. Ask opens the chat on the part that has focus. Adjust
+// by hand, or holding Alt, selects a part, and the selection's Ask opens
+// the chat on it.
+function ShowcasePreview({ onReset }: { onReset: () => void }) {
+  const chat = useDemoAsk()
+  const pointMode = React.useRef<PliantPointModeHandle>(null)
   const store = usePliantStore()
   const { status } = usePliantStatus()
   const { local, clear } = useShowcaseActivity()
   const customized = useCustomized(targetIds)
+  const options = {
+    customized: customized || local.size > 0,
+    ready: status === "ready",
+    onAsk: () => {
+      chat?.ask(focusedPart())
+    },
+    onAdjust: () => {
+      pointMode.current?.start()
+    },
+    onReset: () => {
+      for (const target of targetIds) store.resetNode(target)
+      clear()
+      onReset()
+    },
+  }
+
   return (
     <>
-      <ResetControl
-        customized={customized || local.size > 0}
-        ready={status === "ready"}
-        label="the dashboard"
-        onReset={() => {
-          for (const target of targetIds) store.resetNode(target)
-          clear()
-          onReset()
-        }}
+      <CustomizeSurface {...options}>
+        <div>
+          <AcmeDashboard
+            toolbar={
+              <CustomizeControl label="the dashboard" commands {...options} />
+            }
+          />
+        </div>
+      </CustomizeSurface>
+      <PliantPointMode
+        ref={pointMode}
+        targets={targets}
+        actions={(id) => ({
+          ...actionsOf({ ...options, onAdjust: undefined }),
+          onAsk: () => {
+            chat?.ask(id)
+          },
+        })}
       />
-      <PliantPointMode targets={targets} onPick={focusAsks} />
     </>
   )
 }
@@ -65,47 +100,55 @@ export function AcmeShowcase({ queries }: { queries: ShowcaseQueries }) {
 
   return (
     <ShowcaseActivityProvider>
-      <Tabs defaultValue="preview" className="gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <TabsList>
-            <TabsTrigger value="preview">Preview</TabsTrigger>
-            <TabsTrigger value="data">Data</TabsTrigger>
-            <TabsTrigger value="changes">Changes</TabsTrigger>
-          </TabsList>
-          <div className="flex flex-col gap-0.5">
-            <p className="text-sm text-muted-foreground">
-              Try a suggestion under any part, or press Point and pick one.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Suggestions play hand-written answers. No model is called.
-            </p>
+      <DemoAsk targets={targets}>
+        <Tabs defaultValue="preview" className="gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <TabsList>
+              <TabsTrigger value="preview">Preview</TabsTrigger>
+              <TabsTrigger value="data">Data</TabsTrigger>
+              <TabsTrigger value="changes">Changes</TabsTrigger>
+            </TabsList>
+            <div className="flex flex-col gap-0.5">
+              <p className="text-sm text-muted-foreground">
+                Try a suggestion under any part, or open Customize and ask for a
+                change in the chat.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Suggestions play hand-written answers. No model is called.
+              </p>
+            </div>
           </div>
-        </div>
-        <TabsContent
-          value="preview"
-          forceMount
-          // The preview stays mounted while the other tabs show, so it
-          // keeps its changes.
-          className="overflow-hidden rounded-xl border bg-sidebar data-[state=inactive]:hidden"
-        >
-          <AcmeDashboard
-            key={generation}
-            toolbar={
-              <Toolbar
-                onReset={() => {
-                  setGeneration((current) => current + 1)
-                }}
-              />
-            }
-          />
-        </TabsContent>
-        <TabsContent value="data" className="rounded-xl border">
-          <DataTab queries={queries} />
-        </TabsContent>
-        <TabsContent value="changes" className="rounded-xl border">
-          <ChangesTab />
-        </TabsContent>
-      </Tabs>
+          <TabsContent
+            value="preview"
+            forceMount
+            // The preview stays mounted while the other tabs show, so it
+            // keeps its changes.
+            className="overflow-hidden rounded-xl border bg-sidebar data-[state=inactive]:hidden"
+          >
+            <ShowcasePreview
+              key={generation}
+              onReset={() => {
+                setGeneration((current) => current + 1)
+                // The menu's button remounts with the dashboard, so focus
+                // goes to the new one.
+                requestAnimationFrame(() => {
+                  document
+                    .querySelector<HTMLElement>(
+                      '[aria-label="Customize the dashboard"]'
+                    )
+                    ?.focus()
+                })
+              }}
+            />
+          </TabsContent>
+          <TabsContent value="data" className="rounded-xl border">
+            <DataTab queries={queries} />
+          </TabsContent>
+          <TabsContent value="changes" className="rounded-xl border">
+            <ChangesTab />
+          </TabsContent>
+        </Tabs>
+      </DemoAsk>
     </ShowcaseActivityProvider>
   )
 }

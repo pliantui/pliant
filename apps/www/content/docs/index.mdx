@@ -11,16 +11,7 @@ Here's a row of three metric cards whose arrangement Pliant saves for each user:
   snippets/intro/page.tsx#page
 </include>
 
-The page looks the same as it did before you added Pliant. The difference is that a user can now drag the **Overdue** card to the front, hide **Revenue** from the card's menu, or switch the row to a two-column grid, and see it that way the next time they open the page. `PliantRoot` loads and saves those changes for the page, and `PliantRegion` renders the cards the way the user arranged them. Try it in the [orders example](/examples/orders).
-
-<Callout
-  variant="warning"
-  title="Not fully implemented yet"
-  data-unfinished="not-implemented"
->
-  Dragging, hiding and the layout menu on cards aren't in Pliant yet. Today,
-  users make these changes through the ask panel.
-</Callout>
+The page looks the same as it did before you added Pliant. The difference is that a user can now drag the **Overdue** card to the front, hide **Revenue** with **Adjust by hand** in its **Customize** menu, or switch the row to a two-column grid, and see it that way the next time they open the page. `PliantRoot` loads and saves those changes for the page, and `PliantRegion` renders the cards the way the user arranged them. Try it in the [orders example](/examples/orders).
 
 <Callout title="Versioning">
   Pliant is at version 0.x, so its APIs can change in any release. The
@@ -29,7 +20,7 @@ The page looks the same as it did before you added Pliant. The difference is tha
 
 ## Asking for a change
 
-With the optional [ask panel](/docs/ai), users don't hunt for a setting. They turn on point mode, click the part of the page they mean, and type what they want. The change shows right there as a preview, and nothing is saved until they choose **Lock in**.
+With the optional [ask panel](/docs/ai), users don't hunt for a setting. They right-click the part of the page they mean, or use its **Customize** button, choose **Ask for a change…** and type what they want. Every Pliant action lives in that one [Customize menu](/docs/concepts/customize-menu), so Pliant adds no buttons of its own to your page. The change shows right there as a preview, and nothing is saved until they choose **Lock in**.
 
 The asks worth having are the ones you'd never build a control for, because each user wants something different. One person adds a column with each order's share of total value. Another turns overdue orders red, groups the table by region with a total for each, or adds a chart of value by region under the metric cards. A support agent makes the ticket form start at their usual priority. [What users can do](/docs/what-users-can-do) lists every change.
 
@@ -68,8 +59,8 @@ Required form fields always stay. Hiding a column doesn't protect it, because th
     <span className="font-medium">Installation</span>
     <span className="text-sm">Add Pliant to your app</span>
   </LinkedCard>
-  <LinkedCard href="/docs/first-editable-table">
-    <span className="font-medium">Your first editable table</span>
+  <LinkedCard href="/docs/first-customizable-table">
+    <span className="font-medium">Your first customizable table</span>
     <span className="text-sm">A 10-minute tutorial</span>
   </LinkedCard>
   <LinkedCard href="/docs/how-it-works">

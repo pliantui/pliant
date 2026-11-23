@@ -1,6 +1,6 @@
 import type { Locator, Page } from "@playwright/test"
 
-import { expect, test } from "./fixtures"
+import { expect, pickCustomize, test } from "./fixtures"
 
 function block(page: Page, name: string | RegExp) {
   return page.getByRole("region", { name })
@@ -37,7 +37,9 @@ test("lists every block in the nav and shows each one", async ({
   ] as const) {
     await expect(nav.getByRole("link", { name: label })).toBeVisible()
     const section = block(page, description)
-    await expect(section.getByRole("button", { name: /^Reset / })).toBeVisible()
+    await expect(
+      section.getByRole("button", { name: /^Customize / })
+    ).toBeVisible()
     await expect(
       section.getByRole("group", { name: /^Ask about / }).first()
     ).toBeVisible()
@@ -142,8 +144,8 @@ test("reshapes the dashboard with recorded and scripted asks, and resets it", as
     section.getByText("By month, Jan–Oct 2026, split by status")
   ).toBeVisible()
 
-  const reset = section.getByRole("button", { name: "Reset the dashboard" })
-  await reset.click()
+  const reset = section.getByRole("button", { name: "Customize the dashboard" })
+  await pickCustomize(reset, "Reset to default")
   await expect(section.getByText("Customized", { exact: true })).toBeHidden()
   await expect(reset).toBeFocused()
   await expect(stack).toHaveAttribute("aria-pressed", "false")
@@ -174,8 +176,8 @@ test("lays the pipeline out in two columns with Pliant, and resets it", async ({
   await expect.poll(() => columnCount(columns)).toBe(2)
   await expect(section.getByText("Customized", { exact: true })).toBeVisible()
 
-  const reset = section.getByRole("button", { name: "Reset the pipeline" })
-  await reset.click()
+  const reset = section.getByRole("button", { name: "Customize the pipeline" })
+  await pickCustomize(reset, "Reset to default")
   await expect.poll(() => columnCount(columns)).toBe(before)
   await expect(reset).toBeFocused()
 })
@@ -225,7 +227,10 @@ test("stacks the workspace panels and previews the team default", async ({
     .click()
   await expect(section.getByText("Team default")).toBeVisible()
 
-  await section.getByRole("button", { name: "Reset the workspace" }).click()
+  await pickCustomize(
+    section.getByRole("button", { name: "Customize the workspace" }),
+    "Reset to default"
+  )
   await expect(section.getByText("Team default")).toBeHidden()
   await expect(section.getByText("Saved by the team.")).toBeVisible()
 })

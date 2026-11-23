@@ -2,7 +2,7 @@ import type { Locator, Page } from "@playwright/test"
 
 import { orders } from "../lib/demo/data"
 import { getQuarterRefundRate } from "../lib/demo/stats"
-import { expect, test } from "./fixtures"
+import { expect, pickCustomize, test } from "./fixtures"
 
 const pages = [
   ["pliant-root", "PliantRoot"],
@@ -11,6 +11,8 @@ const pages = [
   ["data-table", "Data Table"],
   ["form", "Form"],
   ["nav", "Nav"],
+  ["customize-menu", "Customize Menu"],
+  ["customize-icon", "Customize Icon"],
   ["ask-panel", "Ask Panel"],
   ["point-mode", "Point Mode"],
 ] as const
@@ -60,6 +62,7 @@ test("lists every component by group and links to its page", async ({
     "Navigation",
     "Actions",
     "Overlays",
+    "Customize",
     "AI",
     "Status and history",
     "Preferences",
@@ -94,7 +97,7 @@ for (const [slug, title] of [...pages, ...mockups]) {
       "true"
     )
     await expect(
-      preview(page).getByRole("button", { name: /^Reset / })
+      preview(page).getByRole("button", { name: /^Customize / })
     ).toBeVisible()
     let previous = 0
     for (const section of sections) {
@@ -148,10 +151,12 @@ for (const [slug, title] of mockups) {
     await expect(
       preview(page).getByText("Customized", { exact: true })
     ).toBeVisible()
-    const reset = preview(page).getByRole("button", { name: /^Reset / })
-    await reset.click()
-    await expect(reset).toHaveAttribute("aria-disabled", "true")
-    await expect(reset).toBeFocused()
+    const menu = preview(page).getByRole("button", { name: /^Customize / })
+    await pickCustomize(menu, "Reset to default")
+    await expect(menu).toBeFocused()
+    await expect(
+      preview(page).getByText("Customized", { exact: true })
+    ).toBeHidden()
     for (const ask of await asks.all()) {
       await expect(ask).toHaveAttribute("aria-pressed", "false")
     }
@@ -177,9 +182,10 @@ test("plays a scripted ask in the chart preview, and resets it", async ({
     preview(page).getByText("Customized", { exact: true })
   ).toBeVisible()
 
-  await preview(page)
-    .getByRole("button", { name: "Reset revenue chart" })
-    .click()
+  await pickCustomize(
+    preview(page).getByRole("button", { name: "Customize revenue chart" }),
+    "Reset to default"
+  )
   await expect(pending).toBeVisible()
   expect(errors).toEqual([])
 })
@@ -212,7 +218,10 @@ test("plays a recorded ask in the region preview, and resets it", async ({
     preview(page).getByText("Customized", { exact: true })
   ).toBeVisible()
 
-  await preview(page).getByRole("button", { name: "Reset key metrics" }).click()
+  await pickCustomize(
+    preview(page).getByRole("button", { name: "Customize key metrics" }),
+    "Reset to default"
+  )
   await expect.poll(() => columnCount(region)).toBe(before)
   expect(errors).toEqual([])
 })
