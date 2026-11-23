@@ -20,5 +20,6 @@ describe("isPliantItemUrl", () => {
       isPliantItemUrl("https://pliantui.dev/r/pliant-data-table.json")
     ).toBe(true)
     expect(isPliantItemUrl("dropdown-menu")).toBe(false)
+    expect(isPliantItemUrl("https://acme.dev/r/stat-card.json")).toBe(false)
   })
 })

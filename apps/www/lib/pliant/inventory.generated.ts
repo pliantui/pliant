@@ -5,204 +5,125 @@ export const inventory = {
   "/": {
     baseIds: {
       ids: [
-        "average-order-value",
-        "key-metrics",
-        "low-stock",
-        "new-tickets",
-        "notification-settings",
-        "order-alerts",
-        "order-confirmations",
-        "orders",
-        "orders-table",
-        "orders-table/columns/createdAt",
-        "orders-table/columns/customer",
-        "orders-table/columns/id",
-        "orders-table/columns/notes",
-        "orders-table/columns/region",
-        "orders-table/columns/status",
-        "orders-table/columns/value",
-        "overdue",
-        "product-news",
-        "refund-requests",
+        "acme-metrics",
+        "acme-nav",
+        "acme-nav/items/analytics",
+        "acme-nav/items/dashboard",
+        "acme-nav/items/lifecycle",
+        "acme-nav/items/projects",
+        "acme-nav/items/team",
+        "acme-sections",
+        "acme-sections/columns/actions",
+        "acme-sections/columns/header",
+        "acme-sections/columns/limit",
+        "acme-sections/columns/reviewer",
+        "acme-sections/columns/select",
+        "acme-sections/columns/status",
+        "acme-sections/columns/target",
+        "acme-sections/columns/type",
+        "active-accounts",
+        "growth-rate",
+        "new-customers",
         "revenue",
-        "ticket-form",
-        "ticket-form/fields/cc",
-        "ticket-form/fields/description",
-        "ticket-form/fields/orderId",
-        "ticket-form/fields/priority",
-        "ticket-form/fields/subject",
-        "weekly-report",
-        "workspace-nav",
-        "workspace-nav/items/customers",
-        "workspace-nav/items/inbox",
-        "workspace-nav/items/reports",
-        "workspace-nav/items/settings",
-        "workspace-nav/items/tickets",
       ],
       source: "mounted",
     },
     baseParents: {
-      "average-order-value": "key-metrics",
-      "key-metrics": null,
-      "low-stock": "notification-settings",
-      "new-tickets": "notification-settings",
-      "notification-settings": null,
-      "order-alerts": "notification-settings",
-      "order-confirmations": "notification-settings",
-      orders: "key-metrics",
-      "orders-table": null,
-      overdue: "key-metrics",
-      "product-news": "notification-settings",
-      "refund-requests": "notification-settings",
-      revenue: "key-metrics",
-      "ticket-form": null,
-      "weekly-report": "notification-settings",
-      "workspace-nav": null,
+      "acme-metrics": "acme-nav",
+      "acme-sections": "acme-nav",
+      "active-accounts": "acme-metrics",
+      "growth-rate": "acme-metrics",
+      "new-customers": "acme-metrics",
+      revenue: "acme-metrics",
     },
     baseOrder: {
-      "key-metrics": ["revenue", "orders", "average-order-value", "overdue"],
-      "notification-settings": [
-        "order-confirmations",
-        "order-alerts",
-        "weekly-report",
-        "new-tickets",
-        "refund-requests",
-        "low-stock",
-        "product-news",
+      "acme-metrics": [
+        "revenue",
+        "new-customers",
+        "active-accounts",
+        "growth-rate",
       ],
     },
     ids: {
-      "average-order-value": {
-        kind: "pliant:slot",
-        hash: "a220a621c23f938c",
-      },
-      "key-metrics": {
+      "acme-metrics": {
         kind: "pliant:region",
         hash: "a530aef6e984296f",
       },
-      "low-stock": {
-        kind: "pliant:slot",
-        hash: "a220a621c23f938c",
+      "acme-nav": {
+        kind: "pliant:nav",
+        hash: "3c4bd372f62c58fb",
       },
-      "new-tickets": {
-        kind: "pliant:slot",
-        hash: "a220a621c23f938c",
+      "acme-nav/items/analytics": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
       },
-      "notification-settings": {
-        kind: "pliant:region",
-        hash: "a530aef6e984296f",
+      "acme-nav/items/dashboard": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
       },
-      "order-alerts": {
-        kind: "pliant:slot",
-        hash: "a220a621c23f938c",
+      "acme-nav/items/lifecycle": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
       },
-      "order-confirmations": {
-        kind: "pliant:slot",
-        hash: "a220a621c23f938c",
+      "acme-nav/items/projects": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
       },
-      orders: {
-        kind: "pliant:slot",
-        hash: "a220a621c23f938c",
+      "acme-nav/items/team": {
+        kind: "pliant:nav-item",
+        hash: "2d3b3f5bd4ef7166",
       },
-      "orders-table": {
+      "acme-sections": {
         kind: "pliant:table",
         hash: "f873f0295ae458a8",
       },
-      "orders-table/columns/createdAt": {
+      "acme-sections/columns/actions": {
         kind: "pliant:column",
         hash: "ee1eb3e11724472b",
       },
-      "orders-table/columns/customer": {
+      "acme-sections/columns/header": {
         kind: "pliant:column",
         hash: "ee1eb3e11724472b",
       },
-      "orders-table/columns/id": {
+      "acme-sections/columns/limit": {
         kind: "pliant:column",
         hash: "ee1eb3e11724472b",
       },
-      "orders-table/columns/notes": {
+      "acme-sections/columns/reviewer": {
         kind: "pliant:column",
         hash: "ee1eb3e11724472b",
       },
-      "orders-table/columns/region": {
+      "acme-sections/columns/select": {
         kind: "pliant:column",
         hash: "ee1eb3e11724472b",
       },
-      "orders-table/columns/status": {
+      "acme-sections/columns/status": {
         kind: "pliant:column",
         hash: "ee1eb3e11724472b",
       },
-      "orders-table/columns/value": {
+      "acme-sections/columns/target": {
         kind: "pliant:column",
         hash: "ee1eb3e11724472b",
       },
-      overdue: {
+      "acme-sections/columns/type": {
+        kind: "pliant:column",
+        hash: "ee1eb3e11724472b",
+      },
+      "active-accounts": {
         kind: "pliant:slot",
         hash: "a220a621c23f938c",
       },
-      "product-news": {
+      "growth-rate": {
         kind: "pliant:slot",
         hash: "a220a621c23f938c",
       },
-      "refund-requests": {
+      "new-customers": {
         kind: "pliant:slot",
         hash: "a220a621c23f938c",
       },
       revenue: {
         kind: "pliant:slot",
         hash: "a220a621c23f938c",
-      },
-      "ticket-form": {
-        kind: "pliant:form",
-        hash: "699e992c0abd1832",
-      },
-      "ticket-form/fields/cc": {
-        kind: "pliant:field",
-        hash: "7d402f36c14e4108",
-      },
-      "ticket-form/fields/description": {
-        kind: "pliant:field",
-        hash: "7d402f36c14e4108",
-      },
-      "ticket-form/fields/orderId": {
-        kind: "pliant:field",
-        hash: "7d402f36c14e4108",
-      },
-      "ticket-form/fields/priority": {
-        kind: "pliant:field",
-        hash: "7d402f36c14e4108",
-      },
-      "ticket-form/fields/subject": {
-        kind: "pliant:field",
-        hash: "7d402f36c14e4108",
-      },
-      "weekly-report": {
-        kind: "pliant:slot",
-        hash: "a220a621c23f938c",
-      },
-      "workspace-nav": {
-        kind: "pliant:nav",
-        hash: "3c4bd372f62c58fb",
-      },
-      "workspace-nav/items/customers": {
-        kind: "pliant:nav-item",
-        hash: "2d3b3f5bd4ef7166",
-      },
-      "workspace-nav/items/inbox": {
-        kind: "pliant:nav-item",
-        hash: "2d3b3f5bd4ef7166",
-      },
-      "workspace-nav/items/reports": {
-        kind: "pliant:nav-item",
-        hash: "2d3b3f5bd4ef7166",
-      },
-      "workspace-nav/items/settings": {
-        kind: "pliant:nav-item",
-        hash: "2d3b3f5bd4ef7166",
-      },
-      "workspace-nav/items/tickets": {
-        kind: "pliant:nav-item",
-        hash: "2d3b3f5bd4ef7166",
       },
     },
   },

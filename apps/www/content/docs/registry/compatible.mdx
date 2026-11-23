@@ -18,10 +18,18 @@ A Pliant-compatible registry is a shadcn registry whose items carry a manifest, 
 
 ## Install a compatible component
 
-Install it like any shadcn component, by URL or through a namespace in `components.json`:
+Add the registry's namespace to `components.json`, then install its components like any shadcn component:
+
+```json title="components.json"
+{
+  "registries": {
+    "@acme": "https://acme.dev/r/{name}.json"
+  }
+}
+```
 
 ```bash
-npx shadcn@latest add https://acme.dev/r/stat-card.json
+npx shadcn@latest add @acme/stat-card
 ```
 
 The item's manifest, in its `meta.pliant` field, is added to your project's manifests next to the ones `pliantui manifest` generates. `pliantui doctor` reports a manifest that doesn't match the installed component, such as one that lists a variant the source no longer has.
@@ -35,7 +43,7 @@ The item's manifest, in its `meta.pliant` field, is added to your project's mani
 Check an item before you install it:
 
 ```bash
-npx pliantui verify https://acme.dev/r/stat-card.json
+npx pliantui verify @acme/stat-card
 ```
 
 `verify` checks that the manifest is valid and matches the component's props, renders every value the manifest declares in light and dark mode, applies random valid changes to check that no guardrail breaks, and checks that keyboard and screen reader order follow the visible order after a move.

@@ -1,77 +1,18 @@
-import { DemoAskToolbar } from "@/components/demo/demo-ask-toolbar"
-import { ReplayNote } from "@/components/demo/replay-note"
-import { monthlyRevenue, orders, team } from "@/lib/demo/data"
-import { company } from "@/lib/demo/schema"
-import { getOrderStats } from "@/lib/demo/stats"
-import { WorkspaceSidebar } from "@/registry/blocks/app-sidebar/workspace-sidebar"
-import { OrdersList } from "@/registry/blocks/orders-list/orders-list"
+import { getSectionsQueries } from "@/lib/acme/sections-query"
 
-import { homeTargets } from "../home-targets"
-import { RevenueChartCard } from "./revenue-chart-card"
-import { SettingsCard } from "./settings-card"
-import { ShowcaseCard } from "./showcase-card"
-import { StatsCard } from "./stats-card"
-import { TicketCard } from "./ticket-card"
+import { AcmeShowcase } from "./acme/acme-showcase"
 
-const recentOrders = orders
-  .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))
-  .slice(0, 30)
-
-// Live parts of an app for Saffron Supply Co., the company every demo on the
-// site uses. Each one reshapes in place. Render it inside the home page's
+// A live dashboard for a fictional company, Acme Inc., built like shadcn's
+// dashboard-01 block with Pliant in it. Render it inside the home page's
 // `PliantRoot`.
 export function Showcase() {
   return (
-    <section aria-labelledby="showcase-heading" className="container-wrapper">
-      <div className="container flex flex-col gap-4 rounded-2xl bg-muted p-4 sm:gap-6 sm:p-6 dark:bg-muted/40">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-col gap-1 text-sm">
-            <div>
-              <h2 id="showcase-heading" className="inline font-medium">
-                Try it
-              </h2>
-              . Pick a suggestion on a card, or press Point and pick a part of{" "}
-              {company.name}&apos;s app.
-            </div>
-            <ReplayNote className="text-foreground" />
-          </div>
-          <DemoAskToolbar targets={homeTargets} />
-        </div>
-        <div className="grid min-w-0 items-stretch gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
-          <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
-            <StatsCard stats={getOrderStats(orders)} />
-            <TicketCard className="flex-1" />
-          </div>
-          <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
-            <RevenueChartCard data={monthlyRevenue} />
-            <ShowcaseCard
-              title="Recent orders"
-              description="The latest orders across every region."
-              target="orders-table"
-              asks={[
-                "sort by value, highest first",
-                "only show overdue orders",
-                "put customer before order",
-              ]}
-              className="flex-1"
-            >
-              <OrdersList data={recentOrders} />
-            </ShowcaseCard>
-          </div>
-          <div className="flex min-w-0 flex-col gap-4 sm:gap-6 md:col-span-2 md:grid md:grid-cols-2 xl:col-span-1 xl:flex">
-            <ShowcaseCard
-              title="Support desk"
-              description="The support team's navigation."
-              target="workspace-nav"
-              asks={["pin customers to the top", "hide reports"]}
-            >
-              <WorkspaceSidebar
-                user={team.find((member) => member.team === "Support")}
-              />
-            </ShowcaseCard>
-            <SettingsCard className="flex-1" />
-          </div>
-        </div>
+    <section aria-labelledby="live-demo" className="container-wrapper">
+      <div className="container pb-12">
+        <h2 id="live-demo" className="sr-only">
+          Live demo
+        </h2>
+        <AcmeShowcase queries={getSectionsQueries()} />
       </div>
     </section>
   )

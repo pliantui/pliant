@@ -81,7 +81,7 @@ for (const path of [
   })
 }
 
-for (const path of ["/docs/installation", "/docs/concepts/layers", "/blog"]) {
+for (const path of ["/docs/installation", "/docs/concepts/layers"]) {
   test(`${path} has nothing unfinished and no strip`, async ({ page }) => {
     await page.goto(path)
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible()

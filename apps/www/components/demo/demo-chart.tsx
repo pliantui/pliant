@@ -22,39 +22,63 @@ function shadeOf(index: number) {
   return shades[index % shades.length] ?? "var(--foreground)"
 }
 
-const width = 320
-const height = 140
-
-// A small bar or line chart for the demos, with a table for screen readers.
+// A small bar, line or area chart for the demos, with a table for screen
+// readers. A `percent` chart stacks each row's values as shares of its total.
 export function DemoChart({
   rows,
   series,
   kind,
   stacked = false,
+  percent = false,
+  width = 320,
+  height = 140,
   caption,
   formatValue,
   className,
 }: {
   rows: readonly DemoChartRow[]
   series: readonly DemoChartSeries[]
-  kind: "bar" | "line"
+  kind: "bar" | "line" | "area"
   stacked?: boolean
+  percent?: boolean
+  // The drawing's proportions, for a chart wider than the default.
+  width?: number
+  height?: number
   // Names the chart for screen readers.
   caption: string
   formatValue: (value: number) => string
   className?: string
 }) {
-  const value = (row: DemoChartRow, key: string) => row.values[key] ?? 0
-  const stackedBars = stacked && kind === "bar"
-  const max = Math.max(
-    1,
-    ...rows.map((row) =>
-      stackedBars
-        ? series.reduce((sum, { key }) => sum + value(row, key), 0)
-        : Math.max(...series.map(({ key }) => value(row, key)))
+  const total = (row: DemoChartRow) =>
+    series.reduce((sum, { key }) => sum + (row.values[key] ?? 0), 0)
+  const value = (row: DemoChartRow, key: string) => {
+    const amount = row.values[key] ?? 0
+    return percent ? amount / Math.max(total(row), 1) : amount
+  }
+  const stackedBars = (stacked || percent) && kind === "bar"
+  const stackedAreas = (stacked || percent) && kind === "area"
+  const max = percent
+    ? 1
+    : Math.max(
+        1,
+        ...rows.map((row) =>
+          stackedBars || stackedAreas
+            ? total(row)
+            : Math.max(...series.map(({ key }) => value(row, key)))
+        )
+      )
+  const step = width / Math.max(rows.length, 1)
+  const x = (index: number) => index * step + step / 2
+  // The top of each series' band, stacked on the ones before it.
+  const bands = series.map(({ key }, layer) =>
+    rows.map((row) =>
+      stackedAreas
+        ? series
+            .slice(0, layer + 1)
+            .reduce((sum, entry) => sum + value(row, entry.key), 0)
+        : value(row, key)
     )
   )
-  const step = width / Math.max(rows.length, 1)
   const groupWidth = step * 0.6
   const y = (amount: number) => height - (amount / max) * height
   // Every label when they fit, otherwise every few.
@@ -121,27 +145,57 @@ export function DemoChart({
                 </g>
               )
             })
-          : series.map(({ key }, layer) => (
-              <polyline
-                key={key}
-                fill="none"
-                stroke={shadeOf(layer)}
-                strokeWidth={2}
-                strokeLinejoin="round"
-                strokeLinecap="round"
-                points={rows
-                  .map(
-                    (row, index) =>
-                      `${String(index * step + step / 2)},${String(y(value(row, key)))}`
-                  )
-                  .join(" ")}
-              />
-            ))}
+          : kind === "area"
+            ? series.map(({ key }, layer) => {
+                const top = bands[layer] ?? []
+                const bottom = stackedAreas
+                  ? (bands[layer - 1] ?? rows.map(() => 0))
+                  : rows.map(() => 0)
+                const points = [
+                  ...top.map(
+                    (amount, index) =>
+                      `${String(x(index))},${String(y(amount))}`
+                  ),
+                  ...bottom
+                    .map(
+                      (amount, index) =>
+                        `${String(x(index))},${String(y(amount))}`
+                    )
+                    .reverse(),
+                ]
+                return (
+                  <polygon
+                    key={key}
+                    points={points.join(" ")}
+                    fill={shadeOf(layer)}
+                    fillOpacity={0.4}
+                    stroke={shadeOf(layer)}
+                    strokeWidth={1.5}
+                    strokeLinejoin="round"
+                  />
+                )
+              })
+            : series.map(({ key }, layer) => (
+                <polyline
+                  key={key}
+                  fill="none"
+                  stroke={shadeOf(layer)}
+                  strokeWidth={2}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  points={rows
+                    .map(
+                      (row, index) =>
+                        `${String(x(index))},${String(y(value(row, key)))}`
+                    )
+                    .join(" ")}
+                />
+              ))}
         {rows.map((row, index) =>
           index % labelEvery === 0 ? (
             <text
               key={row.label}
-              x={index * step + step / 2}
+              x={x(index)}
               y={height + 15}
               textAnchor="middle"
               className="fill-muted-foreground text-[10px]"
@@ -182,7 +236,7 @@ export function DemoChart({
             <tr key={row.label}>
               <th scope="row">{row.label}</th>
               {series.map(({ key }) => (
-                <td key={key}>{formatValue(value(row, key))}</td>
+                <td key={key}>{formatValue(row.values[key] ?? 0)}</td>
               ))}
             </tr>
           ))}

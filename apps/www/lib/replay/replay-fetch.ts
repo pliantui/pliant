@@ -1,5 +1,5 @@
 import { recordedAnswers as recorded } from "./recorded-answers.generated"
-import { scriptedAnswers } from "./scripted-answers"
+import { scriptedAnswers, scriptedDeclines } from "./scripted-answers"
 
 // Answers asks in the browser from the answers recorded for the demo, so
 // asking needs no server and calls no model. Pass `replayFetch` to
@@ -52,7 +52,7 @@ function isAsk(value: unknown): value is Ask {
 }
 
 export function isScriptedAsk(target: string, prompt: string) {
-  return scriptedAnswers.some(
+  return [...scriptedAnswers, ...scriptedDeclines].some(
     (answer) => answer.target === target && same(answer.prompt, prompt)
   )
 }
@@ -113,6 +113,12 @@ export function replayAnswer(
         (entry) => entry.target === target && same(entry.prompt, prompt)
       )
     : undefined
+  const decline = scripted
+    ? scriptedDeclines.find(
+        (entry) => entry.target === target && same(entry.prompt, prompt)
+      )
+    : undefined
+  if (decline) return { status: "unavailable", reason: decline.reason }
   if (script) {
     return overlay(
       script.ops,
