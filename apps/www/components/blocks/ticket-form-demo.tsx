@@ -1,6 +1,7 @@
 "use client"
 
 import { DemoFrame } from "@/components/demo/demo-frame"
+import { ticketFormAsks } from "@/lib/demo/asks"
 import { TicketForm } from "@/registry/blocks/ticket-form/ticket-form"
 
 export function TicketFormDemo() {
@@ -8,7 +9,7 @@ export function TicketFormDemo() {
     <DemoFrame
       target="ticket-form"
       label="the ticket form"
-      asks={["put priority first", "hide the CC field"]}
+      asks={ticketFormAsks}
       className="mx-auto max-w-xl"
     >
       <TicketForm />

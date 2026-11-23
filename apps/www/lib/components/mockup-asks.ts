@@ -20,7 +20,6 @@ export const mockupAsks = {
     overdue: "show overdue value instead",
   },
   list: {
-    largest: "largest orders first",
     overdueSouth: "only overdue orders in the south",
     group: "group by customer",
     compact: "make the list compact",
@@ -28,13 +27,10 @@ export const mockupAsks = {
   "tabs-and-panels": {
     openInvoices: "open on invoices",
     notesFirst: "put notes first",
-    hideActivity: "hide the activity tab",
   },
   actions: {
     exportToToolbar: "put export on the toolbar",
-    invoiceToMenu: "move send gst invoice to the menu",
     bindExport: "bind shift e to export",
-    hideDuplicate: "hide duplicate",
   },
   dialog: {
     sheet: "open this as a side sheet",
@@ -44,7 +40,7 @@ export const mockupAsks = {
   },
   suggestions: {
     overdue: "only overdue orders",
-    largest: "largest orders first",
+    highlight: "highlight overdue orders over ₹1L",
   },
   "customized-indicator": {
     list: "what have i changed here",

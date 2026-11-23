@@ -17,7 +17,7 @@ export function CrmPipelineDemo({ deals }: { deals: Deal[] }) {
     <DemoFrame
       target="crm-pipeline"
       label="the pipeline"
-      asks={["hide the won column", "put proposal first"]}
+      asks={["show the stages in two columns"]}
       mocked={{
         label: "the cards",
         asks: Object.values(viewAsks),

@@ -19,9 +19,6 @@ export function ListMockup({ orders }: { orders: Order[] }) {
       (row) => row.status === "overdue" && row.region === "South"
     )
   }
-  if (scripted.has(asks.largest)) {
-    rows = rows.toSorted((a, b) => b.value - a.value)
-  }
   const grouped = scripted.has(asks.group)
   const compact = scripted.has(asks.compact)
   const groups = grouped

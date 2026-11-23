@@ -2,6 +2,7 @@
 
 import { DemoFrame } from "@/components/demo/demo-frame"
 import { useScriptedAsks } from "@/components/demo/use-scripted-asks"
+import { keyMetricsAsks } from "@/lib/demo/asks"
 import type { MonthlyRevenue } from "@/lib/demo/schema"
 import type { OrderStats } from "@/lib/demo/stats"
 import { AnalyticsDashboard } from "@/registry/blocks/analytics-dashboard/analytics-dashboard"
@@ -25,7 +26,7 @@ export function AnalyticsDashboardDemo({
     <DemoFrame
       target="key-metrics"
       label="the dashboard"
-      asks={["put the overdue card first", "hide the average order value card"]}
+      asks={keyMetricsAsks}
       mocked={{
         label: "the chart",
         asks: Object.values(chartAsks),

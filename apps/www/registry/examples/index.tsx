@@ -5,18 +5,19 @@ import { PliantPrePaint } from "@pliantui/react/pre-paint"
 import { askTargets } from "@/app/(examples)/examples/orders/ask-targets"
 import { DemoAskToolbar } from "@/components/demo/demo-ask-toolbar"
 import { DemoFrame } from "@/components/demo/demo-frame"
+import {
+  ordersTableAsks,
+  ticketFormAsks,
+  workspaceNavAsks,
+} from "@/lib/demo/asks"
 import { orders, team } from "@/lib/demo/data"
+import { getQuarterRefundRate } from "@/lib/demo/stats"
 import { WorkspaceSidebar } from "@/registry/blocks/app-sidebar/workspace-sidebar"
 import { TicketForm } from "@/registry/blocks/ticket-form/ticket-form"
 import { AskPanelDemo } from "@/registry/examples/ask-panel-demo"
 import { KeyMetrics } from "@/registry/examples/key-metrics"
+import { KeyMetricsFrame } from "@/registry/examples/key-metrics-frame"
 import { OrdersTableDemo } from "@/registry/examples/orders-table-demo"
-
-const keyMetricsAsks = [
-  "put the overdue card first",
-  "hide the average order value card",
-  "show the cards in a two-column grid",
-]
 
 function KeyMetricsDemo({
   surface,
@@ -30,14 +31,12 @@ function KeyMetricsDemo({
   return (
     <PliantRoot surface={surface} storage={localAdapter}>
       {prePaint && <PliantPrePaint surface={surface} />}
-      <DemoFrame
-        target="key-metrics"
-        label="key metrics"
-        asks={keyMetricsAsks}
+      <KeyMetricsFrame
+        refundRate={getQuarterRefundRate(orders)}
         toolbar={toolbar}
       >
         <KeyMetrics />
-      </DemoFrame>
+      </KeyMetricsFrame>
     </PliantRoot>
   )
 }
@@ -68,12 +67,7 @@ export const examples = {
         <DemoFrame
           target="orders-table"
           label="orders table"
-          asks={[
-            "sort by value, highest first",
-            "only show overdue orders",
-            "hide the notes column",
-            "put customer before order",
-          ]}
+          asks={ordersTableAsks}
         >
           <OrdersTableDemo data={orders.slice(0, 48)} />
         </DemoFrame>
@@ -87,7 +81,7 @@ export const examples = {
         <DemoFrame
           target="ticket-form"
           label="ticket form"
-          asks={["put priority first", "hide the CC field"]}
+          asks={ticketFormAsks}
         >
           <div className="mx-auto w-full max-w-md">
             <TicketForm />
@@ -103,7 +97,7 @@ export const examples = {
         <DemoFrame
           target="workspace-nav"
           label="support desk sidebar"
-          asks={["pin customers to the top", "hide reports"]}
+          asks={workspaceNavAsks}
         >
           <div className="mx-auto w-full max-w-64">
             <WorkspaceSidebar

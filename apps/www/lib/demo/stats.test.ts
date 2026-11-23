@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { Order } from "./schema"
-import { getOrderStats } from "./stats"
+import { getOrderStats, getQuarterRefundRate } from "./stats"
 
 function order(status: Order["status"], value: number): Order {
   return {
@@ -46,5 +46,25 @@ describe("getOrderStats", () => {
       averageOrderValue: 0,
       overdue: 0,
     })
+  })
+})
+
+describe("getQuarterRefundRate", () => {
+  it("divides the latest quarter's refunded orders by its orders", () => {
+    const at = (status: Order["status"], createdAt: string): Order => ({
+      ...order(status, 100),
+      id: `ORD-${createdAt}`,
+      createdAt,
+    })
+
+    expect(
+      getQuarterRefundRate([
+        at("refunded", "2026-06-30T00:00:00.000Z"),
+        at("refunded", "2026-07-02T00:00:00.000Z"),
+        at("paid", "2026-08-10T00:00:00.000Z"),
+        at("paid", "2026-09-30T00:00:00.000Z"),
+        at("pending", "2026-09-01T00:00:00.000Z"),
+      ])
+    ).toEqual({ quarter: "Q3 2026", rate: 0.25 })
   })
 })

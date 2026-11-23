@@ -1,4 +1,11 @@
 import { Playground } from "@/components/playground/playground"
+import {
+  keyMetricsAsks,
+  notificationSettingsAsks,
+  ordersTableAsks,
+  ticketFormAsks,
+  workspaceNavAsks,
+} from "@/lib/demo/asks"
 import { orders, team } from "@/lib/demo/data"
 import { getOrderStats } from "@/lib/demo/stats"
 import { KeyMetrics } from "@/registry/blocks/analytics-dashboard/key-metrics"
@@ -23,26 +30,17 @@ export default function PlaygroundPage() {
         {
           id: "orders",
           label: "Orders table",
-          description: "The latest orders, with recorded answers.",
+          description: "The latest orders.",
           target: "orders-table",
-          asks: [
-            "sort by value, highest first",
-            "only show overdue orders",
-            "hide the notes column",
-            "pin the order column",
-          ],
+          asks: ordersTableAsks,
           node: <OrdersList data={recent} />,
         },
         {
           id: "key-metrics",
           label: "Key metrics",
-          description: "Four figures, with recorded answers.",
+          description: "Four figures, with a recorded answer.",
           target: "key-metrics",
-          asks: [
-            "put the overdue card first",
-            "hide the average order value card",
-            "show the cards in a two-column grid",
-          ],
+          asks: keyMetricsAsks,
           node: <KeyMetrics stats={getOrderStats(orders)} />,
         },
         {
@@ -50,7 +48,7 @@ export default function PlaygroundPage() {
           label: "Ticket form",
           description: "A support form, with scripted answers.",
           target: "ticket-form",
-          asks: ["put priority first", "hide the CC field"],
+          asks: ticketFormAsks,
           node: <TicketForm />,
         },
         {
@@ -58,7 +56,7 @@ export default function PlaygroundPage() {
           label: "Notification settings",
           description: "Email settings, with scripted answers.",
           target: "notification-settings",
-          asks: ["put order alerts first", "hide product news"],
+          asks: notificationSettingsAsks,
           node: <SettingsPage user={user} teamDefaults={false} />,
         },
         {
@@ -66,7 +64,7 @@ export default function PlaygroundPage() {
           label: "Sidebar",
           description: "A support desk's links, with scripted answers.",
           target: "workspace-nav",
-          asks: ["pin customers to the top", "hide reports"],
+          asks: workspaceNavAsks,
           node: (
             <WorkspaceSidebar
               user={team.find((member) => member.team === "Support")}

@@ -152,7 +152,10 @@ export function TeamWorkspaceShell({
                 <AskChips
                   target="app-sidebar"
                   label="the sidebar"
-                  prompts={["hide customers", "put settings first"]}
+                  prompts={[
+                    "open Tickets when I log in",
+                    "move Reports and Settings under More",
+                  ]}
                 />
               </div>
             )}

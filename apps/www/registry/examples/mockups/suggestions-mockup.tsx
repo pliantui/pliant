@@ -14,8 +14,7 @@ export function SuggestionsMockup({ orders }: { orders: Order[] }) {
   let rows = orders
   if (scripted.has(asks.overdue))
     rows = rows.filter((row) => row.status === "overdue")
-  if (scripted.has(asks.largest))
-    rows = rows.toSorted((a, b) => b.value - a.value)
+  const highlight = scripted.has(asks.highlight)
 
   return (
     <ScriptedFrame
@@ -38,16 +37,29 @@ export function SuggestionsMockup({ orders }: { orders: Order[] }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className="border-b last:border-0">
-                <td className="py-2 font-medium">{row.id}</td>
-                <td className="py-2">{row.customer}</td>
-                <td className="py-2 capitalize">{row.status}</td>
-                <td className="py-2 text-right tabular-nums">
-                  {formatCurrency(row.value)}
-                </td>
-              </tr>
-            ))}
+            {rows.map((row) => {
+              const highlighted =
+                highlight && row.status === "overdue" && row.value > 100000
+              return (
+                <tr
+                  key={row.id}
+                  data-highlighted={highlighted}
+                  className="border-b last:border-0 data-[highlighted=true]:bg-destructive/10"
+                >
+                  <td className="py-2 font-medium">
+                    {highlighted && (
+                      <span className="sr-only">Highlighted: </span>
+                    )}
+                    {row.id}
+                  </td>
+                  <td className="py-2">{row.customer}</td>
+                  <td className="py-2 capitalize">{row.status}</td>
+                  <td className="py-2 text-right tabular-nums">
+                    {formatCurrency(row.value)}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

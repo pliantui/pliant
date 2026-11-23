@@ -2,6 +2,7 @@
 
 import { DemoFrame } from "@/components/demo/demo-frame"
 import { useScriptedAsks } from "@/components/demo/use-scripted-asks"
+import { notificationSettingsAsks } from "@/lib/demo/asks"
 import type { TeamMember } from "@/lib/demo/schema"
 import { SettingsPage } from "@/registry/blocks/settings-page/settings-page"
 
@@ -14,7 +15,7 @@ export function SettingsPageDemo({ user }: { user: TeamMember }) {
     <DemoFrame
       target="notification-settings"
       label="the settings"
-      asks={["put order alerts first", "hide product news"]}
+      asks={notificationSettingsAsks}
       mocked={{
         label: "the defaults",
         asks: [teamDefaultsAsk],
