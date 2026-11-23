@@ -11,19 +11,15 @@ const asks = mockupAsks.actions
 export function ActionsMockup() {
   const scripted = useScriptedAsks()
   const exportOnToolbar = scripted.has(asks.exportToToolbar)
-  const invoiceInMenu = scripted.has(asks.invoiceToMenu)
   const shortcut = scripted.has(asks.bindExport)
-  const duplicate = !scripted.has(asks.hideDuplicate)
   const toolbar = [
-    !invoiceInMenu && "Send GST invoice",
-    duplicate && "Duplicate",
+    "Send GST invoice",
+    "Duplicate",
     exportOnToolbar && "Export",
   ].filter((action): action is string => typeof action === "string")
-  const menu = [
-    invoiceInMenu && "Send GST invoice",
-    !exportOnToolbar && "Export",
-    "Archive",
-  ].filter((action): action is string => typeof action === "string")
+  const menu = [!exportOnToolbar && "Export", "Archive"].filter(
+    (action): action is string => typeof action === "string"
+  )
 
   return (
     <ScriptedFrame

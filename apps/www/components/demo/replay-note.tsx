@@ -1,9 +1,16 @@
 import { cn } from "cn"
 import { InfoIcon } from "lucide-react"
 
-import { replayNote } from "@/lib/replay/replay-fetch"
+import { replayNote, replayNoteWithScripted } from "@/lib/replay/replay-fetch"
 
-export function ReplayNote({ className }: { className?: string }) {
+export function ReplayNote({
+  scripted = false,
+  className,
+}: {
+  // Whether some of the demo's asks play hand-written answers instead.
+  scripted?: boolean
+  className?: string
+}) {
   return (
     <p
       className={cn(
@@ -12,7 +19,7 @@ export function ReplayNote({ className }: { className?: string }) {
       )}
     >
       <InfoIcon aria-hidden="true" className="size-3.5 shrink-0" />
-      {replayNote}
+      {scripted ? replayNoteWithScripted : replayNote}
     </p>
   )
 }

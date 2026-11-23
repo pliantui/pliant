@@ -1,5 +1,7 @@
-import type { Page } from "@playwright/test"
+import type { Locator, Page } from "@playwright/test"
 
+import { orders } from "../lib/demo/data"
+import { getQuarterRefundRate } from "../lib/demo/stats"
 import { expect, test } from "./fixtures"
 
 const pages = [
@@ -182,27 +184,56 @@ test("plays a scripted ask in the chart preview, and resets it", async ({
   expect(errors).toEqual([])
 })
 
+async function columnCount(region: Locator) {
+  return region.evaluate(
+    (element) => getComputedStyle(element).gridTemplateColumns.split(" ").length
+  )
+}
+
 test("plays a recorded ask in the region preview, and resets it", async ({
   page,
   errors,
 }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto("/docs/components/region")
   const region = preview(page).locator('[data-pliant-id="key-metrics"]')
   await expect(region).not.toHaveAttribute("data-pliant-pending")
-  const cards = region.getByRole("group")
+  const before = await columnCount(region)
 
   await preview(page)
-    .getByRole("button", { name: "put the overdue card first" })
+    .getByRole("button", { name: "show the cards in a two-column grid" })
     .click()
-  await expect(cards.first()).toHaveAccessibleName("Overdue")
+  await expect(
+    preview(page).getByText("Arranged the metric cards in a two-column grid.")
+  ).toBeVisible()
+  await expect.poll(() => columnCount(region)).toBe(2)
   await preview(page).getByRole("button", { name: "Lock in" }).click()
   await expect(
     preview(page).getByText("Customized", { exact: true })
   ).toBeVisible()
 
   await preview(page).getByRole("button", { name: "Reset key metrics" }).click()
-  await expect(cards.first()).toHaveAccessibleName("Revenue")
+  await expect.poll(() => columnCount(region)).toBe(before)
   expect(errors).toEqual([])
+})
+
+test("draws the refund rate card the scripted ask adds", async ({ page }) => {
+  await page.goto("/docs/components/region")
+  const quarter = getQuarterRefundRate(orders)
+  const card = preview(page).getByRole("group", {
+    name: `Refund rate, ${quarter.quarter}`,
+  })
+  await expect(card).toHaveCount(0)
+
+  await preview(page)
+    .getByRole("button", { name: /^add a card for this quarter's refund rate/ })
+    .click()
+  await expect(card).toContainText(
+    new Intl.NumberFormat("en-IN", {
+      style: "percent",
+      maximumFractionDigits: 1,
+    }).format(quarter.rate)
+  )
 })
 
 test("shows the example's source in the Code tab", async ({ page, errors }) => {

@@ -1,6 +1,7 @@
 "use client"
 
 import { DemoFrame } from "@/components/demo/demo-frame"
+import { workspaceNavAsks } from "@/lib/demo/asks"
 import type { Order, TeamMember } from "@/lib/demo/schema"
 import { AppSidebar } from "@/registry/blocks/app-sidebar/app-sidebar"
 
@@ -15,7 +16,7 @@ export function AppSidebarDemo({
     <DemoFrame
       target="workspace-nav"
       label="the sidebar"
-      asks={["pin customers to the top", "hide reports"]}
+      asks={workspaceNavAsks}
       className="max-w-none"
     >
       <AppSidebar user={user} followUps={followUps} />

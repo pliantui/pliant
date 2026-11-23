@@ -93,7 +93,7 @@ function RevenuePerCustomerCard() {
       </CardHeader>
       <CardFooter className="flex-col items-start gap-1.5 text-sm">
         <div className="line-clamp-1 flex gap-2 font-medium">
-          {perCustomer.change >= 0 ? "Up" : "Down"} on{" "}
+          {perCustomer.change >= 0 ? "Up" : "Down"} from{" "}
           {perCustomer.previousMonth}
           <Trend aria-hidden="true" className="size-4" />
         </div>
@@ -129,17 +129,17 @@ export function SectionCards() {
         </div>
       )}
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start">
-        <SurfaceAsks
-          target="acme-metrics"
-          label="the metric cards"
-          prompts={["show the cards in two columns"]}
-        />
         <LocalAsks
           target="acme-metrics"
           label="the metric cards"
-          more
           prompts={[revenuePerCustomerAsk, "add a card for profit margin"]}
           onShow={setShown}
+        />
+        <SurfaceAsks
+          target="acme-metrics"
+          label="the metric cards"
+          more
+          prompts={["show the cards in two columns"]}
         />
       </div>
     </section>

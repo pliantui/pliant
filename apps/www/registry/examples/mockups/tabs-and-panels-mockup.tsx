@@ -34,9 +34,6 @@ export function TabsAndPanelsMockup() {
   if (scripted.has(asks.notesFirst)) {
     order = ["notes", ...order.filter((id) => id !== "notes")]
   }
-  if (scripted.has(asks.hideActivity)) {
-    order = order.filter((id) => id !== "activity")
-  }
   const opening = scripted.has(asks.openInvoices) ? "invoices" : "overview"
 
   return (

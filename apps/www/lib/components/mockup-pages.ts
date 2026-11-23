@@ -372,10 +372,6 @@ export const messages = {
     },
     asks: [
       {
-        prompt: mockupAsks.list.largest,
-        result: "The list sorts by order value, highest first.",
-      },
-      {
         prompt: mockupAsks.list.overdueSouth,
         result: "The list shows overdue orders from the South region only.",
       },
@@ -497,11 +493,6 @@ export const messages = {
         prompt: mockupAsks["tabs-and-panels"].notesFirst,
         result: "The Notes tab moves to the start of the tab list.",
       },
-      {
-        prompt: mockupAsks["tabs-and-panels"].hideActivity,
-        result:
-          "The Activity tab is hidden, and can be shown again from the tab menu.",
-      },
     ],
     rules: [
       "Users can hide a tab, but never the last visible one, and never one flagged `critical`.",
@@ -586,22 +577,13 @@ export const messages = {
     },
     asks: [
       {
-        prompt: mockupAsks.actions.exportToToolbar,
-        result: "Export moves out of the overflow menu and onto the toolbar.",
-      },
-      {
-        prompt: mockupAsks.actions.invoiceToMenu,
-        result: "Send GST invoice moves into the overflow menu.",
-      },
-      {
         prompt: mockupAsks.actions.bindExport,
         result:
           "Pressing ⌘⇧E (Ctrl+Shift+E on Windows and Linux) runs Export, and the shortcut shows next to it in the menu.",
       },
       {
-        prompt: mockupAsks.actions.hideDuplicate,
-        result:
-          "Duplicate is hidden for this user, and can be shown again from the menu.",
+        prompt: mockupAsks.actions.exportToToolbar,
+        result: "Export moves out of the overflow menu and onto the toolbar.",
       },
     ],
     rules: [
@@ -853,9 +835,9 @@ export const messages = {
           "Picking the chip fills in the ask panel; the table filters to overdue orders as a preview.",
       },
       {
-        prompt: mockupAsks.suggestions.largest,
+        prompt: mockupAsks.suggestions.highlight,
         result:
-          "The table previews a sort by value, highest first, until the user locks it in.",
+          "The overdue orders worth more than ₹1,00,000 are highlighted until the user locks it in.",
       },
     ],
     rules: [

@@ -20,7 +20,7 @@ export function TeamWorkspaceDemo({
     <DemoFrame
       target="team-workspace"
       label="the workspace"
-      asks={["put activity first", "hide shared views"]}
+      asks={["show the panels in one column"]}
       mocked={{
         label: "publishing",
         asks: [publishAsk],

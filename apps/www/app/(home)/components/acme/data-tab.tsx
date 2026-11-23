@@ -86,8 +86,7 @@ function LatestAsk({ queries }: { queries: ShowcaseQueries }) {
             Computed in the browser: no new request
           </h4>
           <p className="text-sm text-muted-foreground">
-            The dashboard loads all its rows, so Pliant applied the operations
-            below to the rows the page already has.
+            Pliant applied the operations below in the browser.
           </p>
         </div>
       ) : (

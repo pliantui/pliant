@@ -16,6 +16,8 @@ export interface ShowcaseChange {
 interface ShowcaseActivity {
   // The change being previewed, else the latest kept one.
   latest: ShowcaseChange | null
+  // The change being previewed, if any.
+  previewing: ShowcaseChange | null
   // Previews a change a part draws itself.
   previewLocal: (target: string, overlay: ShowcaseChange["overlay"]) => void
   // Keeps the change being previewed.
@@ -73,6 +75,7 @@ export function ShowcaseActivityProvider({
     )
     return {
       latest: previewing ?? kept.at(-1) ?? null,
+      previewing,
       previewLocal: (target, overlay) => {
         setPreviewing({ overlay, state: "previewing", local: target })
       },

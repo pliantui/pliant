@@ -59,24 +59,25 @@ Build the table with TanStack Table's `useTable` and the options `usePliantTable
 
 The table already sorts, hides and reorders columns from its own controls. Asks are for the changes you wouldn't build ahead of time, because each user wants something different. A user points at the table and asks:
 
-| Ask                                                 | What changes                                                                    |
-| --------------------------------------------------- | ------------------------------------------------------------------------------- |
-| add a column with each order's share of total value | A **Share of value** column, calculated from Value and shown as a percent.      |
-| highlight overdue orders in red                     | Rows whose status is overdue get the danger tone.                               |
-| group by region and total the value                 | Rows group by region, with each region's total value and a total for the table. |
-| show value by region as a bar chart                 | The table shows its data as a bar chart, with regions along the x axis.         |
-| save overdue orders in the south as a preset        | An **Overdue in the south** preset joins the toolbar's presets menu.            |
+| Ask                                                  | What changes                                                                             |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| add a column for days since each order was placed    | A **Days since order** column, counted from each order's created date to today.          |
+| highlight overdue orders over ₹1L                    | Overdue rows worth more than ₹1,00,000 get the danger tone.                              |
+| show each order's share of total value               | A **Share of value** column, calculated from Value and shown as a percent.               |
+| group by region with average order value and std dev | Rows group by region, with each region's average order value and its standard deviation. |
+| add a running total of order value                   | A **Running total** column that adds up Value in the table's order.                      |
+| make the customer column 240 pixels wide             | The Customer column becomes 240 pixels wide.                                             |
 
-Each change previews in place until the user locks it in or discards it. The preview above replays recorded asks, such as "only show overdue orders".
+Each change previews in place until the user locks it in or discards it. The preview above offers these asks. Only the last one replays a recorded answer; the others, marked scripted, play hand-written answers.
 
 <Callout
   variant="warning"
   title="Not fully implemented yet"
   data-unfinished="not-implemented"
 >
-  [The ask panel](/docs/ai) can't make these changes yet, and the chart view
-  isn't in Pliant yet. Grouping, totals, calculated columns and highlights work
-  from controls you add, as in the [orders example](/examples/orders).
+  [The ask panel](/docs/ai) can't make the first five changes yet. Calculated
+  columns, highlights and grouping work from controls you add, as in the [orders
+  example](/examples/orders).
 </Callout>
 
 ## Rules and guardrails

@@ -250,7 +250,7 @@ test("says no to profit margin and changes nothing", async ({
   await expect(cards.getByText("Total Revenue")).toBeVisible()
   const before = await cards.textContent()
 
-  await moreAsks(page, "the metric cards")
+  await asks(page, "the metric cards")
     .getByRole("button", { name: /^add a card for profit margin/ })
     .click()
   await expect(
@@ -288,7 +288,7 @@ test("previews, keeps and discards the asks the demo draws", async ({
   )
   await openTab(page, "Preview")
 
-  const cardAsk = moreAsks(page, "the metric cards").getByRole("button", {
+  const cardAsk = asks(page, "the metric cards").getByRole("button", {
     name: /^add a card for revenue per new customer/,
   })
   await cardAsk.click()
@@ -311,6 +311,53 @@ test("previews, keeps and discards the asks the demo draws", async ({
 
   await app(page).getByRole("button", { name: "Reset the dashboard" }).click()
   await expect(app(page).getByText(/^Revenue per New Customer/)).toBeHidden()
+  expect(errors).toEqual([])
+})
+
+test("previews one change at a time across drawn and ordinary asks", async ({
+  page,
+  errors,
+}) => {
+  await load(page)
+  const card = app(page).getByText(/^Revenue per New Customer/)
+  const cardAsk = asks(page, "the metric cards").getByRole("button", {
+    name: /^add a card for revenue per new customer/,
+  })
+  const columnsAsk = moreAsks(page, "the metric cards").getByRole("button", {
+    name: /^show the cards in two columns/,
+  })
+  const columnsAnswer = app(page).getByText(
+    "Laid the metric cards out in two columns."
+  )
+  const lockInButtons = app(page).getByRole("button", { name: "Lock in" })
+
+  await cardAsk.click()
+  await expect(card).toBeVisible()
+  await expect(lockInButtons).toHaveCount(1)
+
+  // An ordinary ask ends the drawn preview, and its buttons go with it.
+  await columnsAsk.click()
+  await expect(columnsAnswer).toBeVisible()
+  await expect(card).toBeHidden()
+  await expect(cardAsk).toHaveAttribute("aria-pressed", "false")
+  await expect(lockInButtons).toHaveCount(1)
+
+  // A drawn ask ends the ordinary preview.
+  await cardAsk.click()
+  await expect(card).toBeVisible()
+  await expect(columnsAnswer).toBeHidden()
+  await expect(lockInButtons).toHaveCount(1)
+  await openTab(page, "Changes")
+  await expect(page.getByLabel("Overlay")).toContainText(
+    '"op": "configureStat"'
+  )
+  await expect(page.getByLabel("Overlay")).not.toContainText(
+    '"op": "setLayout"'
+  )
+  await openTab(page, "Preview")
+  await lockIn(page)
+  await expect(card).toBeVisible()
+  await expect(lockInButtons).toHaveCount(0)
   expect(errors).toEqual([])
 })
 

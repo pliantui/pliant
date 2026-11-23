@@ -10,6 +10,7 @@ import {
   type Overlay,
 } from "@pliantui/react"
 
+import { ScriptedAnswerLabel } from "@/components/demo/scripted-answer-label"
 import { Button } from "@/components/ui/button"
 import { UnfinishedDot } from "@/components/unfinished-dot"
 import { isScriptedAsk, replayAnswer } from "@/lib/replay/replay-fetch"
@@ -22,6 +23,7 @@ export function AskChips({
   target,
   label,
   prompts,
+  more = false,
   lockInAtOnce = false,
   onLockIn,
   onDiscard,
@@ -31,6 +33,8 @@ export function AskChips({
   // The node's name, as the asks' group label reads it.
   label: string
   prompts: readonly string[]
+  // Whether these asks follow the part's other asks.
+  more?: boolean
   // Keeps each answer at once instead of previewing it to lock in or
   // discard.
   lockInAtOnce?: boolean
@@ -46,11 +50,11 @@ export function AskChips({
   const [asked, setAsked] = React.useState<{
     id: string | null
     message: string
+    scripted?: boolean
   } | null>(null)
   const previewing = asked?.id != null && preview?.id === asked.id
   const scripted = prompts.some((prompt) => isScriptedAsk(target, prompt))
-  const message =
-    asked && (previewing || asked.id === null) ? asked.message : ""
+  const shown = asked && (previewing || asked.id === null) ? asked : null
 
   // Keeps the previewed answer. Returns the message to show.
   function lockIn(explain: string) {
@@ -81,7 +85,7 @@ export function AskChips({
       <div
         ref={groupRef}
         role="group"
-        aria-label={`Ask about ${label}`}
+        aria-label={`${more ? "More asks" : "Ask"} about ${label}`}
         className="flex flex-wrap gap-1.5"
       >
         {prompts.map((prompt) => {
@@ -105,6 +109,7 @@ export function AskChips({
                       answer.status === "clarify"
                         ? answer.question
                         : answer.reason,
+                    scripted: isScripted,
                   })
                   return
                 }
@@ -116,8 +121,16 @@ export function AskChips({
                 }
                 setAsked(
                   lockInAtOnce
-                    ? { id: null, message: lockIn(explain) }
-                    : { id: answer.overlay.id, message: explain }
+                    ? {
+                        id: null,
+                        message: lockIn(explain),
+                        scripted: isScripted,
+                      }
+                    : {
+                        id: answer.overlay.id,
+                        message: explain,
+                        scripted: isScripted,
+                      }
                 )
               }}
             >
@@ -133,7 +146,8 @@ export function AskChips({
         // Out of the layout while empty, so it adds no gap under the asks.
         className="text-xs text-muted-foreground empty:sr-only"
       >
-        {message}
+        {shown?.message && shown.scripted && <ScriptedAnswerLabel />}
+        {shown?.message}
       </p>
       {previewing && (
         <div className="flex gap-2">

@@ -8,6 +8,9 @@ import { scriptedAnswers, scriptedDeclines } from "./scripted-answers"
 export const replayNote =
   "This demo replays recorded answers; no AI model is called."
 
+export const replayNoteWithScripted =
+  "This demo replays recorded answers, and hand-written answers for the asks marked scripted; no AI model is called."
+
 const unrecordedReason =
   "This demo only answers its recorded asks. Try one of the suggestions."
 
