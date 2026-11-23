@@ -54,14 +54,14 @@ Users get into point mode in one of these ways:
 
 A selected card shows these controls:
 
-| Control       | What it does                                                                                    |
-| ------------- | ----------------------------------------------------------------------------------------------- |
-| Drag handle   | Moves the card among the other cards in its region.                                             |
-| Resize handle | Changes how many columns the card spans, at the screen width the user is on. Grid regions only. |
-| Hide          | Hides the card. **Reset** brings it back.                                                       |
-| **Ask**       | Ends point mode and runs the target's `onAsk`, such as opening the ask panel on it.             |
-| **Adjust**    | Ends point mode and runs `onAdjust`, such as moving focus to a table's own controls.            |
-| **Reset**     | Runs `onReset`. For a card, it resets the card's region.                                        |
+| Control       | What it does                                                                                                                  |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Drag handle   | Moves the card among the other cards in its region.                                                                           |
+| Resize handle | Changes how many columns the card spans, at the screen width the user is on. Grid regions only.                               |
+| Hide          | Hides the card. **Reset** brings it back.                                                                                     |
+| **Ask**       | Ends point mode and runs the target's `onAsk`, such as opening the ask panel on it.                                           |
+| **Adjust**    | Ends point mode and runs `onAdjust`, such as moving focus to a table's own controls.                                          |
+| **Reset**     | Runs `onReset`. For a card, it resets the card's region. It's labelled with the region's name, such as \"Reset Key metrics\". |
 
 Moves, resizes and hides apply straight away and are saved for the user, like any other change they make by hand; there's no preview to lock in. From the bar, the ask is about the selected part alone:
 
@@ -84,16 +84,16 @@ The preview above offers both asks under the cards; the refund rate card, marked
 
 - Only the targets you pass, and their slots, are outlined. Everything else on the page stays out of reach.
 - A handle shows only when the region's manifest allows it: `slots` to move, `layout` to resize and `hideable` to hide. Resizing also needs a grid of more than one column.
-- `flags` can take handles away from a slot. `required` removes **Hide**, and `locked` removes every handle.
-- Top-level parts, such as a whole region, get the bar but no handles.
+- `flags` can take handles away from a slot. They come from your app, not from the region's manifest: `required` removes **Hide**, and `locked` removes every handle.
+- Top-level parts, such as a whole region, get the bar but no handles. A part with no handles at all, such as a data table, skips point mode: **Adjust by hand** goes straight to its own controls.
 - Every change is checked against the region's manifest before it applies, like a change from the ask panel.
 - Outlines and labels stay below a sticky header when the page sets `scroll-padding-top` to the header's height, and labels avoid covering the page's text.
 
 ## Examples
 
-### Your own toggle
+### Select a region from its right-click menu
 
-`trigger` adds a button that turns point mode on and off, for pages without a Customize menu.
+**Adjust by hand** in a region's right-click menu calls `start` with the region's id, so point mode opens with the region selected and its cards outlined, ready to move, resize or hide.
 
 <include cwd lang="tsx">
   snippets/components/point-mode-trigger.tsx#trigger
@@ -118,18 +118,17 @@ The preview above offers both asks under the cards; the refund rate card, marked
 | `targets` | `PliantAskTarget[]`                                        | The nodes users can select, usually the ask panel's targets.                                                            |
 | `actions` | `(target: string) => PliantPointActions \| undefined`      | What the bar runs for a target: `onAsk`, `onAdjust`, `onReset`, `canReset` and `unavailable`. A card uses its region's. |
 | `flags`   | `Record<string, { required?: boolean; locked?: boolean }>` | What each slot's flags forbid, by its address, such as `key-metrics/slots/revenue`.                                     |
-| `trigger` | `ReactElement`                                             | An element that turns point mode on and off. Defaults to none.                                                          |
 | `ref`     | `Ref<PliantPointModeHandle>`                               | Gives you `start(target?)`, which turns point mode on, with `target` selected when it's given.                          |
 
 The hook underneath, `usePointMode` from `@pliantui/react/point-mode`, returns `start()` and `exit()` for building your own.
 
 ### Messages
 
-The `pointMode*` message keys name the controls and announce each change, such as `pointModeBar` ("Change {part}"), `pointModeMoved` and `pointModeHidden` ("Hid {part}. Reset brings it back."). [Messages](/docs/components/messages) shows how to translate them.
+The `pointMode*` message keys name the controls and announce each change, such as `pointModeBar` (`Change {part}`), `pointModeMoved` and `pointModeHidden` (`Hid {part}. Reset brings it back.`). [Messages](/docs/components/messages) shows how to translate them.
 
 ## Accessibility
 
-- Started from a Customize menu or the trigger, or once a part is selected, point mode is a modal dialog: the rest of the page is inert, and focus goes back where it was when it ends, unless an action moves it.
+- Started from a Customize menu, or once a part is selected, point mode is a modal dialog: the rest of the page is inert, and focus goes back where it was when it ends, unless an action moves it.
 - <Kbd>Tab</Kbd> and the arrow keys move between outlines, and <Kbd>Enter</Kbd>
   selects. With a card selected, the arrow keys move it, <Kbd>Shift</Kbd> with
   the arrow keys resizes it, and <Kbd>Delete</Kbd> or <Kbd>Backspace</Kbd> hides
