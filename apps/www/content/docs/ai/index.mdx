@@ -66,16 +66,6 @@ Render them inside `PliantRoot`, such as in the page header:
 
 ## What the user sees
 
-<Callout
-  variant="warning"
-  title="Not fully implemented yet"
-  data-unfinished="not-implemented"
->
-  The Customize menu isn't in Pliant yet. Today, users open the panel from its
-  **Ask** button, and start point mode from the **Point** button, <Kbd>Alt</Kbd>
-  or <Kbd>⌘</Kbd> <Kbd>.</Kbd>.
-</Callout>
-
 1. They open the Customize menu on a part of the page, from its header or by right-clicking it, and choose **Ask for a change…**. <Kbd>⌘</Kbd> <Kbd>.</Kbd> (<Kbd>Ctrl</Kbd> <Kbd>.</Kbd> on Windows and Linux) does the same for the part that has focus.
 2. They type an ask, or pick a suggestion, and press <Kbd>Enter</Kbd>. <Kbd>Shift</Kbd> <Kbd>Enter</Kbd> adds a new line.
 3. The answer arrives in the chat with its steps, such as "Chose an operation: Add column", and the change shows on the page as a preview.
@@ -83,7 +73,7 @@ Render them inside `PliantRoot`, such as in the page header:
 
 If the ask is unclear, the panel asks a short question back. If it's about changing data, such as "delete these orders", it explains that it can only change how the page looks.
 
-Chats are saved in the user's browser only, and the menu at the top of the panel switches between them. Pass `chatScope` to keep each user's chats apart on a shared browser. [Ask Panel](/docs/components/ask-panel) covers the chat in detail.
+A user can keep several chats and switch between them from the top of the panel. Chats aren't saved: they clear when the user leaves the page. [Ask Panel](/docs/components/ask-panel) covers the chat in detail.
 
 ## What happens on your server
 
@@ -123,9 +113,8 @@ The route never changes your data, and the model never sees your rows. See [What
 | `defaultOpen`    | `false`             | Whether the panel starts open, when you don't control it             |
 | `onOpenChange`   | None                | Called when the panel opens or closes                                |
 | `placeholder`    | "Describe a change" | The prompt's placeholder                                             |
-| `trigger`        | An **Ask** button   | The element that opens the panel                                     |
+| `trigger`        | None                | An element that opens the panel, besides the Customize menu          |
 | `fetch`          | The global `fetch`  | Sends each ask in place of the global `fetch`                        |
-| `chatScope`      | None                | Keeps chats apart on a shared browser, such as by the user's id      |
 
 `fetch` has the type of the global `fetch`. The panel calls it with `endpoint` and a `POST` request whose JSON body is the ask, then reads the answer from the response. Pass your own to add headers, to stub answers in tests, or to answer asks without a network request, as [Recordings and replay](/docs/ai/recordings#replaying-in-the-browser) shows.
 

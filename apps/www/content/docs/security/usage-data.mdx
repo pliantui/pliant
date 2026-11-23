@@ -20,20 +20,18 @@ Your model provider handles asks under its own data policy, so check whether it 
 
 ## What's stored about a user
 
-| Where                                                      | What                                                                                                                                                                                                                                                                                                            |
-| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `localStorage`, with `localAdapter`                        | The user's personal overlays, one key per overlay: `pliant:<surface>:<id>`                                                                                                                                                                                                                                      |
-| `sessionStorage`                                           | The session layer of each surface, under `pliant:session:<surface>`, for that tab only. It holds table filters (unless you save them with `persistFilters`), the page number and any unsaved preview                                                                                                            |
-| `localStorage`, with the ask panel                         | The user's chats, up to 20 per surface, under `pliant:ask-chats:<surface>`, or `pliant:ask-chats:<scope>:<surface>` with `chatScope`. Each holds the ask text, the answer's sentences, the names of the operations it chose and whether it was locked in or discarded. Never rows, and never the overlay itself |
-| Your database, with server storage                         | Personal, team and organization overlays, and every stored version with the signed-in user's id as `by`                                                                                                                                                                                                         |
-| Files on disk, with `recordingMiddleware` in `record` mode | Every ask sent to the model, with its answer. Meant for development and tests                                                                                                                                                                                                                                   |
+| Where                                                      | What                                                                                                                                                                                                 |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `localStorage`, with `localAdapter`                        | The user's personal overlays, one key per overlay: `pliant:<surface>:<id>`                                                                                                                           |
+| `sessionStorage`                                           | The session layer of each surface, under `pliant:session:<surface>`, for that tab only. It holds table filters (unless you save them with `persistFilters`), the page number and any unsaved preview |
+| Your database, with server storage                         | Personal, team and organization overlays, and every stored version with the signed-in user's id as `by`                                                                                              |
+| Files on disk, with `recordingMiddleware` in `record` mode | Every ask sent to the model, with its answer. Meant for development and tests                                                                                                                        |
 
 An overlay holds operations, the surface and layer, who made it (`createdBy`, which the client sets, so the store's `by` is the trusted author) and when. It never holds row values. Filter values a user typed, such as a customer's name in a search, are part of the operations that store that filter.
 
 ## Erasing a user's data
 
 - In the browser, remove the keys that start with `pliant:` from `localStorage` and `sessionStorage`. Closing the tab also clears its `sessionStorage`.
-- To erase only the ask chats, remove the keys that start with `pliant:ask-chats:`. Users can delete a chat themselves from the panel's chat menu, with **Delete this chat**.
 - On your server, delete the user's personal overlays from your store, and their entries in its history.
 - Removing an overlay leaves a tombstone that still holds the removed overlay, so a late retry can't bring it back. To erase the content at once, delete the tombstone too, and accept that a save retried from before the removal could store it again.
 
