@@ -3,7 +3,7 @@ title: Introduction
 description: What Pliant is, what it adds to a shadcn app, and where to start reading.
 ---
 
-Pliant lets the people who use your shadcn app reshape its pages for themselves. A user points at part of a page, such as the orders table, and asks for what they need: a column with each order's share of the total, or the overdue card first. The page changes in place, and once they keep the change it's saved for them. Your code doesn't change, and a colleague on the same page still sees their own version.
+Pliant lets the people who use your shadcn app reshape its pages for themselves. A user points at part of a page, such as the orders table, and asks for what they need, such as only the overdue orders, or the overdue card first. The page changes in place, and once they keep the change it's saved for them. Your code doesn't change, and a colleague on the same page still sees their own version.
 
 Here's a row of three metric cards whose arrangement Pliant saves for each user:
 
@@ -38,21 +38,20 @@ The asks worth having are the ones you'd never build a control for, because each
   title="Not fully implemented yet"
   data-unfinished="not-implemented"
 >
-  Today the ask panel offers the model only sorting, filtering, hiding, showing,
-  moving, pinning, column widths and layouts. Calculated columns, highlights,
-  grouping and form defaults work when they come from controls you add or from
-  team defaults, and charts aren't in Pliant yet.
+  [The ask panel](/docs/ai) can't make these changes yet, and charts aren't in
+  Pliant yet. Calculated columns, highlights, grouping and form defaults work
+  from controls you add or from team defaults.
 </Callout>
 
 ## Built on your shadcn components
 
-Pliant doesn't bring a second design system. Its components, such as `pliant-region` and `pliant-data-table`, are copied into your project with the shadcn CLI, so their source is yours to read and edit like any shadcn component. They render your own `components/ui` button, table and menu, which means a reshaped page still looks like the rest of your app.
+Pliant's components, such as `pliant-region` and `pliant-data-table`, are copied into your project with the shadcn CLI, so their source is yours to read and edit like any shadcn component. They render your own `components/ui` button, table and menu, which means a reshaped page still looks like the rest of your app.
 
-Without Pliant, each of these features gets built and stored separately: a sort that's remembered per user, a column picker, a layout reset. With Pliant, they're all changes saved for the user in the same way.
+Per-user preferences usually arrive one feature at a time, each with its own storage, starting with a remembered sort. With Pliant, every one of them is a change saved for the user in the same way.
 
 ## How changes stay safe
 
-The AI never writes code and never sees your rows. When a user asks, the model gets a description of the part they pointed at, such as its columns, their labels and what may change. It answers with a list of [operations](/docs/concepts/operations) from a fixed catalog, such as "add a calculated column" or "move this card first". Pliant checks every operation against the catalog and the component's rules on your server, and again in the browser, before anything shows. Changes users make by hand go through the same catalog and the same checks. [What the AI sees and never sees](/docs/ai/what-the-ai-sees) has the details.
+The AI never writes code and never sees your rows. When a user asks, the model gets a description of the part they pointed at, such as its columns, their labels and what may change. It answers with a list of [operations](/docs/concepts/operations) from a fixed catalog, such as "filter to overdue" or "move this card first". Pliant checks every operation against the catalog and the component's rules on your server, and again in the browser, before anything shows. Changes users make by hand use the same catalog, and the browser checks each operation before it applies. [What the AI sees and never sees](/docs/ai/what-the-ai-sees) has the details.
 
 AI is optional, and Pliant sends no analytics of its own.
 
