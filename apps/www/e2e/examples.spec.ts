@@ -52,13 +52,16 @@ test.describe("the team workspace", () => {
       (await inbox.boundingBox())?.y ?? 0
     )
 
-    await page.getByRole("button", { name: /^hide customers/ }).click()
+    const reports = sidebar(page).getByRole("link", { name: "Reports" })
+    await page
+      .getByRole("button", { name: /^move Reports and Settings under More/ })
+      .click()
     await page.getByRole("button", { name: "Lock in" }).click()
-    await expect(customers).toBeHidden()
+    await expect(reports).toBeHidden()
     await expect(page.getByText("Customized", { exact: true })).toBeVisible()
 
     await viewAs(page, "Your team")
-    await expect(customers).toBeVisible()
+    await expect(reports).toBeVisible()
     await expect(page.getByText("Customized", { exact: true })).toBeHidden()
     expect((await tickets.boundingBox())?.y ?? 0).toBeLessThan(
       (await inbox.boundingBox())?.y ?? 0
@@ -70,10 +73,10 @@ test.describe("the team workspace", () => {
     ).toBeVisible()
 
     await viewAs(page, "You")
-    await expect(customers).toBeHidden()
+    await expect(reports).toBeHidden()
     const reset = page.getByRole("button", { name: "Reset the sidebar" })
     await reset.click()
-    await expect(customers).toBeVisible()
+    await expect(reports).toBeVisible()
     await expect(reset).toBeFocused()
     expect((await tickets.boundingBox())?.y ?? 0).toBeLessThan(
       (await inbox.boundingBox())?.y ?? 0
@@ -95,24 +98,28 @@ test("reshapes the CRM pipeline and resets it", async ({ page }) => {
   await expect(reset).toBeFocused()
 })
 
-test("moves a notification setting on the settings page and resets it", async ({
+test("folds notification settings under More on the settings page and resets it", async ({
   page,
 }) => {
   await page.goto("/examples/settings")
   const region = page.locator('[data-pliant-id="notification-settings"]')
   await expect(region).not.toHaveAttribute("data-pliant-pending")
-  const first = region.getByRole("checkbox").first()
-  await expect(first).toHaveAccessibleName(/^Order confirmations/)
+  const news = region.getByRole("checkbox", { name: /^Product news/ })
+  await expect(news).toBeVisible()
 
-  await page.getByRole("button", { name: /^put order alerts first/ }).click()
+  await page
+    .getByRole("button", { name: /^fold product news and the weekly report/ })
+    .click()
   await page.getByRole("button", { name: "Lock in" }).click()
-  await expect(first).toHaveAccessibleName(/^Order alerts/)
+  await expect(news).toBeHidden()
+  await region.getByRole("button", { name: /More/ }).click()
+  await expect(news).toBeVisible()
   await expect(page.getByText("Customized", { exact: true })).toBeVisible()
 
   const reset = page.getByRole("button", { name: "Reset the settings" })
   await reset.click()
-  await expect(first).toHaveAccessibleName(/^Order confirmations/)
   await expect(reset).toBeFocused()
+  await expect(region.getByRole("button", { name: /More/ })).toHaveCount(0)
 })
 
 test("shows the analytics dashboard with its recent orders", async ({
@@ -124,11 +131,11 @@ test("shows the analytics dashboard with its recent orders", async ({
   ).not.toHaveAttribute("data-pliant-pending")
 
   await page
-    .getByRole("button", { name: "hide the average order value card" })
+    .getByRole("button", { name: "show the cards in a two-column grid" })
     .click()
   await expect(
-    page.getByRole("group", { name: "Average order value" })
-  ).toHaveCount(0)
+    page.getByText("Arranged the metric cards in a two-column grid.")
+  ).toBeVisible()
   await expect(
     page.getByRole("heading", { name: "Latest orders" })
   ).toBeVisible()

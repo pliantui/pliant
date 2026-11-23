@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test"
+import type { Locator, Page } from "@playwright/test"
 
 import { expect, test } from "./fixtures"
 
@@ -13,13 +13,10 @@ async function load(page: Page) {
   ).not.toHaveAttribute("data-pliant-pending")
 }
 
-async function metricOrder(page: Page) {
-  return page
-    .locator('[data-pliant-id="key-metrics"]')
-    .getByRole("group")
-    .evaluateAll((groups) =>
-      groups.map((group) => group.textContent.split(/[₹\d]/)[0])
-    )
+async function columnCount(region: Locator) {
+  return region.evaluate(
+    (element) => getComputedStyle(element).gridTemplateColumns.split(" ").length
+  )
 }
 
 test("lists every block in the nav and shows each one", async ({
@@ -121,18 +118,16 @@ test("reshapes the dashboard with recorded and scripted asks, and resets it", as
 }) => {
   await load(page)
   const section = block(page, /^A dashboard with key metrics/)
-  const before = await metricOrder(page)
+  const metrics = section.locator('[data-pliant-id="key-metrics"]')
+  const before = await columnCount(metrics)
 
   await section
-    .getByRole("button", { name: "put the overdue card first" })
+    .getByRole("button", { name: "show the cards in a two-column grid" })
     .click()
   await expect(
-    section.getByText("Moved the Overdue card to the first position.")
+    section.getByText("Arranged the metric cards in a two-column grid.")
   ).toBeVisible()
-  expect(await metricOrder(page)).toEqual([
-    "Overdue",
-    ...before.filter((name) => name !== "Overdue"),
-  ])
+  await expect.poll(() => columnCount(metrics)).toBe(2)
   await section.getByRole("button", { name: "Lock in" }).click()
   await expect(section.getByText("Customized", { exact: true })).toBeVisible()
 
@@ -151,31 +146,33 @@ test("reshapes the dashboard with recorded and scripted asks, and resets it", as
   await expect(
     section.getByText("By month, Jan–Oct 2026", { exact: true })
   ).toBeVisible()
-  expect(await metricOrder(page)).toEqual(before)
+  await expect.poll(() => columnCount(metrics)).toBe(before)
 })
 
-test("hides and reorders pipeline columns with Pliant, and resets them", async ({
+test("lays the pipeline out in two columns with Pliant, and resets it", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
   await load(page)
   const section = block(page, /^A sales pipeline board/)
   const columns = section.locator('[data-pliant-id="crm-pipeline"]')
   await expect(columns).not.toHaveAttribute("data-pliant-pending")
+  const before = await columnCount(columns)
+  expect(before).toBeGreaterThan(2)
 
-  await section.getByRole("button", { name: /^hide the won column/ }).click()
-  await expect(section.getByText("Hid the Won column.")).toBeVisible()
+  await section
+    .getByRole("button", { name: /^show the stages in two columns/ })
+    .click()
+  await expect(
+    section.getByText("Laid the stages out in two columns.")
+  ).toBeVisible()
   await section.getByRole("button", { name: "Lock in" }).click()
-  await expect(section.getByRole("region", { name: "Won" })).toBeHidden()
+  await expect.poll(() => columnCount(columns)).toBe(2)
   await expect(section.getByText("Customized", { exact: true })).toBeVisible()
-
-  await section.getByRole("button", { name: /^put proposal first/ }).click()
-  await section.getByRole("button", { name: "Lock in" }).click()
-  await expect(columns.getByRole("heading").first()).toHaveText(/^Proposal/)
 
   const reset = section.getByRole("button", { name: "Reset the pipeline" })
   await reset.click()
-  await expect(section.getByRole("region", { name: "Won" })).toBeVisible()
-  await expect(columns.getByRole("heading").first()).toHaveText(/^Lead/)
+  await expect.poll(() => columnCount(columns)).toBe(before)
   await expect(reset).toBeFocused()
 })
 
@@ -195,15 +192,28 @@ test("shows stage totals, and a second press takes them back", async ({
   await expect(lead).not.toContainText("₹")
 })
 
-test("hides a workspace panel and previews the team default", async ({
+test("stacks the workspace panels and previews the team default", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
   await load(page)
   const section = block(page, /^A team page/)
+  const panels = section
+    .locator('[data-pliant-id="team-workspace"]')
+    .locator('[data-slot="card"]')
+  const lefts = () =>
+    panels.evaluateAll((cards) =>
+      cards.map((card) => Math.round(card.getBoundingClientRect().left))
+    )
+  expect(new Set(await lefts()).size).toBeGreaterThan(1)
 
-  await section.getByRole("button", { name: /^hide shared views/ }).click()
-  await expect(section.getByText("Hid the Shared views panel.")).toBeVisible()
-  await expect(section.getByText("Saved by the team.")).toBeHidden()
+  await section
+    .getByRole("button", { name: /^show the panels in one column/ })
+    .click()
+  await expect(
+    section.getByText("Stacked the panels in one column.")
+  ).toBeVisible()
+  await expect.poll(async () => new Set(await lefts()).size).toBe(1)
   await section.getByRole("button", { name: "Lock in" }).click()
 
   await section

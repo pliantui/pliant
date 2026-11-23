@@ -89,7 +89,7 @@ export const scriptedAnswers: ScriptedAnswer[] = [
           args: [
             { field: "createdAt" },
             { fn: "today", args: [] },
-            { value: "day" },
+            { value: "days" },
           ],
         },
         format: { type: "number", decimals: 0 },

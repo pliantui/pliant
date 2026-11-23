@@ -16,35 +16,28 @@ test("asks for a change, compares it with the start, and resets it", async ({
   await expect(json).toContainText("No changes yet")
 
   await step(page, "Ask for a change")
-    .getByRole("button", { name: "hide the notes column" })
+    .getByRole("button", {
+      name: /^add a column for days since each order was placed/,
+    })
     .click()
   await expect(
-    step(page, "Ask for a change").getByText(
-      "Hid the Notes column from the orders table."
-    )
+    step(page, "Ask for a change").getByText("Added a Days since order column.")
   ).toBeVisible()
   await expect(compare.getByText("Customized", { exact: true })).toBeVisible()
-  await expect(
-    compare.getByRole("columnheader", { name: /^Notes/ })
-  ).toHaveCount(0)
-  await expect(json).toContainText('"op": "hide"')
-  await expect(json).toContainText('"target": "orders-table/columns/notes"')
+  const days = compare.getByRole("columnheader", { name: /^Days since order/ })
+  await expect(days).toBeVisible()
+  await expect(json).toContainText('"op": "addDerived"')
+  await expect(json).toContainText('"fn": "dateDiff"')
 
   await compare.getByRole("radio", { name: "Before" }).click()
-  await expect(
-    compare.getByRole("columnheader", { name: /^Notes/ })
-  ).toBeVisible()
+  await expect(days).toHaveCount(0)
   await compare.getByRole("radio", { name: "After" }).click()
-  await expect(
-    compare.getByRole("columnheader", { name: /^Notes/ })
-  ).toHaveCount(0)
+  await expect(days).toBeVisible()
 
   const reset = compare.getByRole("button", { name: "Reset orders table" })
   await reset.click()
   await expect(reset).toBeFocused()
-  await expect(
-    compare.getByRole("columnheader", { name: /^Notes/ })
-  ).toBeVisible()
+  await expect(days).toHaveCount(0)
   await expect(json).toContainText("No changes yet")
   expect(errors).toEqual([])
 })
@@ -59,13 +52,20 @@ test("shows each example's asks, scripted where there's no recording", async ({
 
   const asks = page.getByRole("group", { name: "Ask about ticket form" })
   await expect(
-    asks.getByRole("button", { name: /^put priority first.*Scripted$/ })
+    asks.getByRole("button", {
+      name: /^default priority to High for me.*Scripted$/,
+    })
   ).toBeVisible()
-  await asks.getByRole("button", { name: /^hide the CC field/ }).click()
-  await expect(page.getByRole("textbox", { name: "CC" })).toHaveCount(0)
+  await asks
+    .getByRole("button", { name: /^fold the order number and CC/ })
+    .click()
+  await expect(page.getByRole("textbox", { name: "CC" })).toBeHidden()
+  await expect(
+    page.getByRole("button", { name: "More fields", exact: true })
+  ).toBeVisible()
   await expect(
     page.getByRole("region", { name: "Overlay JSON" })
-  ).toContainText('"target": "ticket-form/fields/cc"')
+  ).toContainText('"op": "collapse"')
 })
 
 test("answers only the suggested asks when asked in your own words", async ({
@@ -82,14 +82,23 @@ test("answers only the suggested asks when asked in your own words", async ({
     })
   ).toBeVisible()
 
-  await box.fill("sort by value, highest first")
+  await box.fill("highlight overdue orders over ₹1L")
   await page.getByRole("button", { name: "Ask", exact: true }).click()
   await expect(
-    step(page, "Ask for a change").getByText("Sorted by value, highest first.")
+    step(page, "Ask for a change").getByText(
+      "Highlighted the overdue orders worth more than ₹1,00,000."
+    )
   ).toBeVisible()
   await expect(
     page.getByRole("region", { name: "Overlay JSON" })
-  ).toContainText('"field": "value"')
+  ).toContainText('"op": "addHighlight"')
+  // Of the latest 12 orders, only these are overdue and over ₹1,00,000.
+  const highlighted = step(page, "Compare before and after")
+    .getByRole("row")
+    .filter({ hasText: "Highlighted" })
+  await expect(highlighted).toHaveCount(2)
+  await expect(highlighted.filter({ hasText: "ORD-1194" })).toHaveCount(1)
+  await expect(highlighted.filter({ hasText: "ORD-1129" })).toHaveCount(1)
 })
 
 test("suggests one of the picked example's asks in the text box", async ({
@@ -99,13 +108,13 @@ test("suggests one of the picked example's asks in the text box", async ({
   const box = page.getByRole("textbox", { name: "Or ask in your own words" })
   await expect(box).toHaveAttribute(
     "placeholder",
-    "sort by value, highest first"
+    "add a column for days since each order was placed"
   )
 
   await step(page, "Pick an example")
     .getByRole("radio", { name: /^Sidebar/ })
     .click()
-  await expect(box).toHaveAttribute("placeholder", "pin customers to the top")
+  await expect(box).toHaveAttribute("placeholder", "open Tickets when I log in")
 })
 
 test("fits a phone screen", async ({ page }) => {

@@ -187,11 +187,15 @@ for (const colorScheme of ["light", "dark"] as const) {
       page,
     }) => {
       await page.goto("/playground")
-      await page.getByRole("button", { name: "hide the notes column" }).click()
+      await page
+        .getByRole("button", {
+          name: /^show each order's share of total value/,
+        })
+        .click()
       await page.getByRole("radio", { name: "Before" }).click()
       await expect(
         page.getByRole("region", { name: "Overlay JSON" })
-      ).toContainText('"op": "hide"')
+      ).toContainText('"op": "addDerived"')
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
