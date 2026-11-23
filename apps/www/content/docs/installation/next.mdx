@@ -28,7 +28,7 @@ You need a Next.js 16 app that uses the App Router, React 19.2 or later, and [sh
   </TabsList>
   <TabsContent value="cli">
 
-Run `init` in your project. It installs `@pliantui/react` with your package manager and adds the `pliant-region` component, asking before each step.
+Run `init` in your project. It installs `@pliantui/react` with your package manager, adds the `@pliant` registry to `components.json` and adds the `pliant-region` component, asking before each step.
 
 ```bash
 npx pliantui init
@@ -45,10 +45,22 @@ npx pliantui init
 npm install @pliantui/react zod
 ```
 
+<Step>Add the Pliant registry</Step>
+
+Add `@pliant` to the `registries` in `components.json`, so the shadcn CLI can find Pliant's components by name:
+
+```json title="components.json"
+{
+  "registries": {
+    "@pliant": "https://pliantui.dev/r/{name}.json"
+  }
+}
+```
+
 <Step>Add the region component</Step>
 
 ```bash
-npx shadcn@latest add https://pliantui.dev/r/pliant-region.json
+npx shadcn@latest add @pliant/pliant-region
 ```
 
 </Steps>
@@ -100,7 +112,7 @@ The page looks exactly as before. Users can now drag the cards into a new order,
 Add the data table components:
 
 ```bash
-npx shadcn@latest add https://pliantui.dev/r/pliant-data-table.json
+npx shadcn@latest add @pliant/pliant-data-table
 ```
 
 Then pass your TanStack Table options through `usePliantTable`, with an id for the table:

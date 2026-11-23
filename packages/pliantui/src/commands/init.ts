@@ -11,6 +11,12 @@ import {
   installCommand,
   runnerCommand,
 } from "../init/package-manager"
+import {
+  namespace,
+  readPliantRegistry,
+  registryTemplate,
+  writePliantRegistry,
+} from "../init/pliant-registry"
 import { parseRegistryUrl } from "../init/registry-url"
 import { getConfig } from "../utils/get-config"
 import { handleError } from "../utils/handle-error"
@@ -41,10 +47,15 @@ const initOptionsSchema = z.object({
 
 class InitCancelledError extends Error {}
 
-interface Step {
-  command: string
-  args: string[]
-}
+type Step =
+  | { label: string; kind: "registry"; template: string }
+  | {
+      label: string
+      kind: "command"
+      command: string
+      args: string[]
+      needsRegistry: boolean
+    }
 
 export const init = new Command()
   .name("init")
@@ -66,7 +77,7 @@ export const init = new Command()
         ...opts,
         cwd: path.resolve(String(opts["cwd"])),
       })
-      await setUp(options)
+      await setUp(options, init.getOptionValueSource("registry") === "cli")
     } catch (error) {
       if (error instanceof InitCancelledError) {
         logger.break()
@@ -77,7 +88,10 @@ export const init = new Command()
     }
   })
 
-async function setUp(options: z.infer<typeof initOptionsSchema>) {
+async function setUp(
+  options: z.infer<typeof initOptionsSchema>,
+  registryGiven: boolean
+) {
   const { cwd } = options
   if (!existsSync(cwd)) {
     throw new Error(`The path ${highlighter.info(cwd)} does not exist.`)
@@ -122,7 +136,15 @@ async function setUp(options: z.infer<typeof initOptionsSchema>) {
       )
   )
 
-  if (!missingPackage && missingItems.length === 0) {
+  // An @pliant entry already in components.json is the user's choice, so it's
+  // only replaced when --registry asks for another URL.
+  const template = registryTemplate(options.registry)
+  const currentTemplate = await readPliantRegistry(cwd)
+  const changeRegistry =
+    currentTemplate === undefined ||
+    (registryGiven && currentTemplate !== template)
+
+  if (!missingPackage && missingItems.length === 0 && !changeRegistry) {
     logger.success("✔ Pliant is already set up in this project.")
     logger.break()
     logger.log(`Docs: ${highlighter.info(docsUrl)}`)
@@ -135,34 +157,60 @@ async function setUp(options: z.infer<typeof initOptionsSchema>) {
     )
   }
 
-  const steps: { label: string; step: Step }[] = []
+  const steps: Step[] = []
   if (missingPackage) {
     steps.push({
       label: `Add ${reactPackage}`,
-      step: installCommand(packageManager, reactPackage),
+      kind: "command",
+      ...installCommand(packageManager, reactPackage),
+      needsRegistry: false,
+    })
+  }
+  if (changeRegistry) {
+    steps.push({
+      label: `Add the ${namespace} registry to components.json`,
+      kind: "registry",
+      template,
     })
   }
   if (missingItems.length > 0) {
     steps.push({
       label: `Add ${missingItems.join(", ")}`,
-      step: runnerCommand(packageManager, [
+      kind: "command",
+      ...runnerCommand(packageManager, [
         "shadcn@latest",
         "add",
-        ...missingItems.map((item) => `${options.registry}/${item}.json`),
+        ...missingItems.map((item) => `${namespace}/${item}`),
         ...(options.yes ? ["--yes"] : []),
       ]),
+      needsRegistry: true,
     })
   }
 
+  const registryEntry = `"${namespace}": "${template}"`
   let skipped = 0
-  for (const { label, step } of steps) {
-    const printable = formatCommand(step.command, step.args)
+  let registryMissing = currentTemplate === undefined
+  for (const step of steps) {
+    const printable =
+      step.kind === "command"
+        ? formatCommand(step.command, step.args)
+        : registryEntry
+    if (step.kind === "command" && step.needsRegistry && registryMissing) {
+      skipped++
+      logger.info(
+        `Skipped, because shadcn needs the ${namespace} registry to find the components. Add ${registryEntry} to registries in components.json, then run: ${printable}`
+      )
+      continue
+    }
     if (!options.yes) {
       const answers = await prompts(
         {
           type: "confirm",
           name: "run",
-          message: `${label} with ${highlighter.info(printable)}?`,
+          message:
+            step.kind === "command"
+              ? `${step.label} with ${highlighter.info(printable)}?`
+              : `${step.label} as ${highlighter.info(printable)}?`,
           initial: true,
         },
         {
@@ -174,18 +222,27 @@ async function setUp(options: z.infer<typeof initOptionsSchema>) {
       const run: unknown = answers.run
       if (run !== true) {
         skipped++
-        logger.info(`Skipped. To do it yourself, run: ${printable}`)
+        logger.info(
+          step.kind === "command"
+            ? `Skipped. To do it yourself, run: ${printable}`
+            : `Skipped. To do it yourself, add ${printable} to registries in components.json.`
+        )
         continue
       }
     }
     try {
-      await runCommand(step.command, step.args, cwd)
+      if (step.kind === "command") {
+        await runCommand(step.command, step.args, cwd)
+      } else {
+        await writePliantRegistry(cwd, step.template)
+        registryMissing = false
+      }
     } catch (error) {
       throw new Error(
-        `${label} failed. Fix the problem and run ${highlighter.info("pliantui init")} again.\n${error instanceof Error ? error.message : String(error)}`
+        `${step.label} failed. Fix the problem and run ${highlighter.info("pliantui init")} again.\n${error instanceof Error ? error.message : String(error)}`
       )
     }
-    logger.success(`✔ ${label}.`)
+    logger.success(`✔ ${step.label}.`)
   }
 
   logger.break()

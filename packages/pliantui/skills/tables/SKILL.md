@@ -17,8 +17,20 @@ The table works on client-side data: you pass all the rows and the table sorts, 
 
 ## 1. Install the components
 
+The components install through the `@pliant` registry. If `components.json` has no `@pliant` entry under `registries`, add it there yourself:
+
+```json
+{
+  "registries": {
+    "@pliant": "https://pliantui.dev/r/{name}.json"
+  }
+}
+```
+
+Keep the file's other fields and any other registries as they are.
+
 ```bash
-npx shadcn@latest add https://pliantui.dev/r/pliant-data-table.json --yes
+npx shadcn@latest add @pliant/pliant-data-table --yes
 ```
 
 This adds `pliant-data-table`, a sortable header, a columns menu, pagination and the table features to the `pliant` folder inside the project's `components` alias, and installs `@pliantui/react` and `@tanstack/react-table`.
@@ -26,7 +38,7 @@ This adds `pliant-data-table`, a sortable header, a columns menu, pagination and
 For filters, sort options, presets and a Reset button above the table, also add the toolbar (section 4):
 
 ```bash
-npx shadcn@latest add https://pliantui.dev/r/pliant-data-table-toolbar.json --yes
+npx shadcn@latest add @pliant/pliant-data-table-toolbar --yes
 ```
 
 ## 2. Give every column an id and a label
