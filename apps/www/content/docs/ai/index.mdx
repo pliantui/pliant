@@ -113,17 +113,24 @@ The route never changes your data, and the model never sees your rows. See [What
 | `defaultOpen`    | `false`             | Whether the panel starts open, when you don't control it             |
 | `onOpenChange`   | None                | Called when the panel opens or closes                                |
 | `placeholder`    | "Describe a change" | The prompt's placeholder                                             |
+| `answerLabel`    | None                | Puts a heading over an answer, given its ask's `target` and `prompt` |
 | `fetch`          | The global `fetch`  | Sends each ask in place of the global `fetch`                        |
 
 `fetch` has the type of the global `fetch`. The panel calls it with `endpoint` and a `POST` request whose JSON body is the ask, then reads the answer from the response. Pass your own to add headers, to stub answers in tests, or to answer asks without a network request, as [Recordings and replay](/docs/ai/recordings#replaying-in-the-browser) shows.
 
 ## Making room for the panel
 
-From the `sm` breakpoint up, the panel docks to the right edge; on small screens it's a sheet at the bottom. Give your page room while it's open:
+The panel renders in `document.body`, so no container on your page clips it. From the `sm` breakpoint up, it's a sidebar along the window's right edge, full height and 24rem wide; on phones it's a sheet at the bottom. It sits outside your layout, so mark `<body>` as a group and give your page room while the panel is open:
 
-```tsx
-<main className="max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh] sm:has-[[data-slot=pliant-ask-panel]]:pr-96">
+```tsx title="app/layout.tsx"
+<body className="group/body">
+  <main className="max-sm:group-has-[[data-slot=pliant-ask-panel]]/body:pb-[60dvh] sm:group-has-[[data-slot=pliant-ask-panel]]/body:pr-96">
+    {children}
+  </main>
+</body>
 ```
+
+A plain `has-[…]` on a wrapper doesn't match, because the panel isn't inside it.
 
 ## Related
 

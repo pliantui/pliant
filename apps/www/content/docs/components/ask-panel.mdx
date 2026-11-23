@@ -61,7 +61,7 @@ Users ask for what they'd otherwise file a feature request for, about the part o
 | add a card for this quarter's refund rate | A **Refund rate** card shows the share of this quarter's orders refunded. |
 | show the cards in a two-column grid       | The cards sit in two columns.                                             |
 
-The preview above offers both asks under the cards; the refund rate card, marked scripted, plays a hand-written answer. It replays recorded answers without calling a model, so an ask that isn't recorded gets a reply that lists the suggestions.
+The preview above offers both asks under the cards, and **Ask for a change…** in its Customize menu opens the chat with the same asks as chips. The refund rate card, marked scripted, plays a hand-written answer; the others replay recorded answers without calling a model. The demo answers only its suggested asks, and says so if you type anything else.
 
 ### The chat
 
@@ -120,19 +120,20 @@ export const AskPanel = dynamic(
 
 ## Options
 
-| Prop                                    | Type                       | Description                                                           |
-| --------------------------------------- | -------------------------- | --------------------------------------------------------------------- |
-| `endpoint`                              | `string`                   | The URL of the route that answers asks with `createPliantHandler`.    |
-| `targets`                               | `PliantAskTarget[]`        | The nodes users can ask about, in picker order.                       |
-| `target` / `defaultTarget`              | `string`                   | The picked target, controlled or uncontrolled. Defaults to the first. |
-| `onTargetChange`                        | `(target: string) => void` | Called when the user picks a target.                                  |
-| `open` / `defaultOpen` / `onOpenChange` |                            | The panel's open state.                                               |
-| `placeholder`                           | `string`                   | The prompt's placeholder.                                             |
-| `fetch`                                 | `typeof fetch`             | Sends each ask in place of the global `fetch`, as for tests.          |
+| Prop                                    | Type                                                     | Description                                                                                 |
+| --------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `endpoint`                              | `string`                                                 | The URL of the route that answers asks with `createPliantHandler`.                          |
+| `targets`                               | `PliantAskTarget[]`                                      | The nodes users can ask about, in picker order.                                             |
+| `target` / `defaultTarget`              | `string`                                                 | The picked target, controlled or uncontrolled. Defaults to the first.                       |
+| `onTargetChange`                        | `(target: string) => void`                               | Called when the user picks a target.                                                        |
+| `open` / `defaultOpen` / `onOpenChange` |                                                          | The panel's open state.                                                                     |
+| `placeholder`                           | `string`                                                 | The prompt's placeholder.                                                                   |
+| `answerLabel`                           | `(ask: { target: string; prompt: string }) => ReactNode` | Puts a heading over an answer, given its ask, such as to mark answers a model didn't write. |
+| `fetch`                                 | `typeof fetch`                                           | Sends each ask in place of the global `fetch`, as for tests.                                |
 
 ## Accessibility
 
-- The panel is a labelled complementary landmark, and focus moves to the prompt when it opens.
+- The panel is a labelled complementary landmark. Focus moves to the prompt when it opens, and when it mounts already open.
 - The conversation is a polite live region, so screen readers announce each new answer as it arrives. Switching chats doesn't announce the old messages again.
 - The chat menu is a Radix menu, with full keyboard support. <Kbd>Enter</Kbd> sends an ask and <Kbd>Shift</Kbd> <Kbd>Enter</Kbd> adds a new line.
-- On phones it docks to the bottom of the screen, and the page stays scrollable above it.
+- It renders in `document.body`, as a full-height sidebar 24rem wide along the window's right edge, and as a sheet at the bottom on phones. It isn't modal, so the page stays usable beside it. [Making room for the panel](/docs/ai#making-room-for-the-panel) shows how to keep it from covering your content.
