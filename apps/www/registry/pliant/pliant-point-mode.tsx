@@ -1,35 +1,77 @@
 "use client"
 
 import * as React from "react"
-import { SquareDashedMousePointerIcon } from "lucide-react"
+import {
+  EyeOffIcon,
+  GripVerticalIcon,
+  MoveHorizontalIcon,
+  RotateCcwIcon,
+  SlidersHorizontalIcon,
+  SparklesIcon,
+} from "lucide-react"
 import { Slot } from "radix-ui"
 import { createPortal } from "react-dom"
 
-import { usePliantMessages, type PliantMessages } from "@pliantui/react"
+import type { Op } from "@pliantui/contract"
+import {
+  usePliantMessages,
+  usePliantStore,
+  type PliantMessages,
+} from "@pliantui/react"
 import { usePointMode, type PointModeBox } from "@pliantui/react/point-mode"
 
 import { Button } from "@/components/ui/button"
 
+import {
+  handlesOf,
+  moveOp,
+  partsOf,
+  spanOp,
+  type PliantPointFlags,
+  type PliantPointTarget,
+  type PointPart,
+} from "./pliant-point-mode-selection"
+
 declare module "@pliantui/react" {
   interface PliantMessages {
-    pointModeOpen: string
     pointModeLabel: string
     pointModeHelp: string
+    pointModeSelected: (label: string) => string
+    pointModeMove: (label: string) => string
+    pointModeResize: (label: string) => string
+    pointModeHide: (label: string) => string
+    pointModeMoved: (label: string, position: number, count: number) => string
+    pointModeResized: (label: string, columns: number) => string
+    pointModeHidden: (label: string) => string
+    pointModeReset: (label: string) => string
+    pointModeFailed: (label: string) => string
+    pointModeBar: (label: string) => string
+    pointModeAsk: string
+    pointModeAdjust: string
+    pointModeResetAction: string
   }
 }
 
 const pointModeMessages = {
-  pointModeOpen: "Point",
   pointModeLabel: "Point mode",
   pointModeHelp:
-    "Pick a part to change. Use Tab or the arrow keys to move, Enter to pick, Escape to leave.",
+    "Select a part to change. Use Tab or the arrow keys to move between parts, Enter to select, Escape to leave. With a part selected, the arrow keys move it, Shift with the arrow keys resizes it, and Delete hides it.",
+  pointModeSelected: (label) => `${label} selected.`,
+  pointModeMove: (label) => `Move ${label}`,
+  pointModeResize: (label) => `Resize ${label}`,
+  pointModeHide: (label) => `Hide ${label}`,
+  pointModeMoved: (label, position, count) =>
+    `Moved ${label} to position ${String(position)} of ${String(count)}.`,
+  pointModeResized: (label, columns) =>
+    `${label} spans ${String(columns)} ${columns === 1 ? "column" : "columns"}.`,
+  pointModeHidden: (label) => `Hid ${label}. Reset brings it back.`,
+  pointModeReset: (label) => `Reset ${label}.`,
+  pointModeFailed: (label) => `Couldn't change ${label}.`,
+  pointModeBar: (label) => `Change ${label}`,
+  pointModeAsk: "Ask",
+  pointModeAdjust: "Adjust",
+  pointModeResetAction: "Reset",
 } satisfies Partial<PliantMessages>
-
-/** A node users can point at: its id and the label shown on its outline. */
-interface PliantPointTarget {
-  id: string
-  label: string
-}
 
 // The outline sits this far outside its target, so it never runs along the
 // target's own border, and a label sits this far from any outline.
@@ -419,59 +461,165 @@ function layoutOutlines(
 }
 
 /**
- * Point mode: users point at the part of the page they want to change
- * instead of picking it from a list. Hold Alt (Option on a Mac), press ⌘. or
- * Ctrl+., or press the toggle, and the targets on the page are outlined with
- * their labels; clicking one, or moving to it with Tab or the arrow keys and
- * pressing Enter, calls `onPick` with its id. Release Alt, press Escape or
- * click anywhere else to leave without picking. Its behaviour comes from
- * `usePointMode`.
+ * What the selection bar runs for a target, usually the same handlers as the
+ * target's Customize menu. An action without a handler is disabled, and
+ * shows `unavailable` after its name.
+ */
+interface PliantPointActions {
+  onAsk?: (() => void) | undefined
+  onAdjust?: (() => void) | undefined
+  onReset?: (() => void) | undefined
+  canReset?: boolean | undefined
+  unavailable?: React.ReactNode
+}
+
+/** Starts point mode from elsewhere, such as a Customize menu. */
+interface PliantPointModeHandle {
+  /** Turns point mode on, with `target` selected when it's given. */
+  start: (target?: string) => void
+}
+
+interface Drag {
+  kind: "move" | "resize"
+  x: number
+  y: number
+  dx: number
+  dy: number
+}
+
+function elementOf(id: string) {
+  return document.querySelector(`[data-pliant-id="${CSS.escape(id)}"]`)
+}
+
+// The columns of the grid a region lays its slots out in, and the gap
+// between them, or one column when it isn't a grid.
+function gridOf(region: string) {
+  const element = elementOf(region)
+  if (!element) return { columns: 1, gap: 0, width: 0 }
+  const style = getComputedStyle(element)
+  return style.display === "grid"
+    ? {
+        columns: style.gridTemplateColumns.split(" ").filter(Boolean).length,
+        gap: Number.parseFloat(style.columnGap) || 0,
+        width: element.getBoundingClientRect().width,
+      }
+    : { columns: 1, gap: 0, width: 0 }
+}
+
+// How many columns a slot spans: its wrapper has no box, so it's read from
+// the slot's first element.
+function spanOf(id: string, columns: number) {
+  const end = elementOf(id)?.firstElementChild
+  const value = end ? getComputedStyle(end).gridColumnEnd : "auto"
+  const match = /^span (\d+)$/.exec(value)
+  if (value === "-1") return columns
+  return match ? Number(match[1]) : 1
+}
+
+// Scrolls a selected part into view, as one picked from a Customize menu
+// below the fold, so its handles and bar are on screen.
+function reveal(id: string) {
+  const element = elementOf(id)
+  const nodes =
+    element && getComputedStyle(element).display === "contents"
+      ? element.firstElementChild
+      : element
+  nodes?.scrollIntoView({ block: "nearest" })
+}
+
+function siblingsOf(part: PointPart, shown: ReadonlySet<string>) {
+  const region = elementOf(part.parent)
+  return region
+    ? [...region.querySelectorAll(":scope > [data-pliant-id]")].flatMap(
+        (element) => {
+          const id = element.getAttribute("data-pliant-id")
+          return id !== null && shown.has(id) ? [id] : []
+        }
+      )
+    : []
+}
+
+/**
+ * Point mode, a selection mode: users select the part of the page they want
+ * to change instead of picking it from a list. Hold Alt (Option on a Mac),
+ * call `start` on its `ref`, as a Customize menu's Adjust by hand does, or
+ * press the `trigger`, and the targets on the page are outlined with their
+ * labels, along with the slots of each target that has a `slots`
+ * collection. Clicking or tapping an outline, or moving to it with Tab or
+ * the arrow keys and pressing Enter, selects it.
+ *
+ * A selected slot shows handles to drag it among its siblings (`move`),
+ * resize it across a grid's columns (`span`) and hide it (`hide`), each
+ * saved for the user at once, as a change made by hand. A handle shows only
+ * when its region's manifest allows it (`slots`, `layout` and `hideable`)
+ * and the slot's `flags` don't forbid it: `required` hides the hide handle,
+ * and `locked` hides them all. With a slot selected, the arrow keys move
+ * it, Shift with the arrow keys resizes it, and Delete or Backspace hides
+ * it. Each change is announced. A bar under the selection runs `actions`
+ * for the selected target, or the slot's target: Ask, Adjust and Reset.
+ * Ask and Adjust end point mode first, so their handlers can move focus.
+ *
+ * Release Alt without selecting, press Escape or click outside the outlines
+ * to leave. Started from `start` or the trigger, or once something is
+ * selected, point mode is a modal dialog: the rest of the page is `inert`
+ * until it ends, and focus then goes back to where it was unless an action
+ * moves it. Its behaviour comes from `usePointMode`.
  *
  * A target is found on the page by its `data-pliant-id`, so it must be a
- * Pliant node, like a `PliantRegion`. Point mode ignores Alt and the
- * shortcut while focus is in a text field other than the ask panel's prompt
- * or in a listbox or menu, and while a modal dialog is open or the body has
- * `pointer-events: none`, as Radix sets for its modal layers. Safari keeps
- * ⌘. for Stop, and some Linux desktops move the window on Alt+click, so the
- * toggle is the way in that always works, and the only one on touch screens.
- *
- * Outlines and labels stay below a sticky header when the page sets the
- * root's `scroll-padding-top` to the header's height in pixels, as it would
- * for anchor links. Labels avoid covering the page's text and borders where
- * they can.
- *
- * Started from the toggle or the shortcut, point mode is a modal dialog:
- * the rest of the page, an open ask panel included, is `inert` until it
- * ends, so clicking it leaves point mode. Focus goes back to where it was
- * unless `onPick` moves it, as the ask panel does to its prompt when its
- * target changes.
+ * Pliant node, like a `PliantRegion`. Point mode ignores Alt while focus is
+ * in a text field other than the ask panel's prompt or in a listbox or
+ * menu, and while a modal dialog is open or the body has `pointer-events:
+ * none`, as Radix sets for its modal layers. Outlines and labels stay below
+ * a sticky header when the page sets the root's `scroll-padding-top` to the
+ * header's height in pixels, and labels avoid covering the page's text and
+ * borders where they can.
  */
 function PliantPointMode({
   targets,
-  onPick,
+  actions,
+  flags = {},
   trigger,
+  ref,
 }: {
   /** The nodes users can point at, usually the ask panel's targets. */
   targets: readonly PliantPointTarget[]
-  /** Called with the id of the target the user picked. */
-  onPick: (id: string) => void
-  /**
-   * The element that toggles point mode. Defaults to a `pointModeOpen`
-   * button. Pass `null` for no toggle, leaving Alt and the shortcut.
-   */
-  trigger?: React.ReactElement | null
+  /** What the selection bar runs for a target, by its id. */
+  actions?: ((target: string) => PliantPointActions | undefined) | undefined
+  /** What each slot's flags forbid, by its address. */
+  flags?: PliantPointFlags | undefined
+  /** An element that turns point mode on and off. By default there's none. */
+  trigger?: React.ReactElement | undefined
+  ref?: React.Ref<PliantPointModeHandle> | undefined
 }) {
   const messages = usePliantMessages(pointModeMessages)
-  const { mode, boxes, announcement, pick, getTriggerProps, getLayerProps } =
-    usePointMode({
-      targets,
-      onPick,
-      labelWidth,
-    })
+  const store = usePliantStore()
+  const parts = React.useMemo(() => partsOf(targets), [targets])
+  const outlined = React.useMemo(
+    () => [
+      ...targets.map(({ id, label }) => ({ id, label })),
+      ...parts.map(({ id, label }) => ({ id, label })),
+    ],
+    [targets, parts]
+  )
+  const {
+    mode,
+    boxes,
+    announcement,
+    start,
+    exit,
+    getTriggerProps,
+    getLayerProps,
+  } = usePointMode({ targets: outlined, labelWidth })
+  const [selected, setSelected] = React.useState<string | null>(null)
+  const [status, setStatus] = React.useState("")
+  const [drag, setDrag] = React.useState<Drag | null>(null)
+  // Focus to restore once the outlines are laid out again, as after a move
+  // reorders them.
+  const focusAfter = React.useRef<string | null>(null)
+  // An action to run once point mode has ended and the page isn't inert.
+  const afterExit = React.useRef<(() => void) | null>(null)
   const id = React.useId()
   const { width, height } = useViewportSize()
-  // Read once when point mode starts or the window resizes, rather than on
-  // every scroll. Each label's spot is remembered for as long as that lasts.
   const page = React.useMemo(
     () =>
       mode === null
@@ -484,8 +632,6 @@ function PliantPointMode({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [mode, width, height]
   )
-  // Each label's spot in the last layout of this session, so the next one
-  // can keep it. It's written after each render, never during one.
   const previous = React.useRef<{
     page: typeof page
     labels: ReadonlyMap<string, PlacedLabel>
@@ -512,23 +658,355 @@ function PliantPointMode({
     }
   }, [page, layout])
 
+  const current = mode === null ? null : selected
+  const part = parts.find((item) => item.id === current)
+  const owner = part?.parent ?? current
+  const ownerLabel =
+    targets.find((target) => target.id === owner)?.label ?? owner ?? ""
+  const label =
+    part?.label ?? targets.find((target) => target.id === current)?.label ?? ""
+  // Read again whenever the boxes move, as after a resize.
+  const grid = part && boxes.length > 0 ? gridOf(part.parent) : null
+  const handles = handlesOf(part, targets, flags, grid?.columns ?? 1)
+  const bar = owner === null ? undefined : actions?.(owner)
+
+  React.useImperativeHandle(ref, () => ({
+    start: (target?: string) => {
+      setSelected(target ?? null)
+      setStatus("")
+      if (target) reveal(target)
+      focusAfter.current = target ? `outline:${target}` : null
+      start()
+    },
+  }))
+
+  React.useEffect(() => {
+    if (mode !== null) return
+    const run = afterExit.current
+    afterExit.current = null
+    run?.()
+  }, [mode])
+
+  React.useEffect(() => {
+    const key = focusAfter.current
+    if (key === null) return
+    const element = document.querySelector<HTMLElement>(
+      `[data-pliant-point-focus="${CSS.escape(key)}"]`
+    )
+    if (!element) return
+    focusAfter.current = null
+    if (document.activeElement !== element) element.focus()
+  }, [layout, current])
+
+  function select(target: string) {
+    if (mode === "hold") start()
+    reveal(target)
+    setSelected(target)
+    focusAfter.current = `outline:${target}`
+    const name =
+      parts.find((item) => item.id === target)?.label ??
+      targets.find((item) => item.id === target)?.label ??
+      target
+    setStatus(messages.pointModeSelected(name))
+  }
+
+  function apply(op: Op | undefined, done: string, focus: string) {
+    if (!op || !part) return
+    const result = store.applyOps("personal", [op])
+    focusAfter.current = focus
+    setStatus(result.success ? done : messages.pointModeFailed(part.label))
+    return result.success
+  }
+
+  const shown = new Set(boxes.map((box) => box.id))
+
+  function move(to: (index: number) => number, focus: string) {
+    if (!part || !handles.move) return
+    const order = siblingsOf(part, shown)
+    const index = to(order.indexOf(part.id))
+    const position = Math.max(0, Math.min(order.length - 1, index))
+    apply(
+      moveOp(part.address, order, part.id, index),
+      messages.pointModeMoved(part.label, position + 1, order.length),
+      focus
+    )
+  }
+
+  function resize(columns: number, focus: string) {
+    if (!part || !handles.span || !grid) return
+    const next = Math.max(1, Math.min(grid.columns, columns))
+    if (next === spanOf(part.id, grid.columns)) return
+    apply(
+      spanOp(part.address, next, window.innerWidth),
+      messages.pointModeResized(part.label, next),
+      focus
+    )
+  }
+
+  function hide() {
+    if (!part || !handles.hide) return
+    if (
+      apply(
+        { op: "hide", target: part.address },
+        messages.pointModeHidden(part.label),
+        `outline:${part.parent}`
+      )
+    ) {
+      setSelected(part.parent)
+    }
+  }
+
+  function onKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+    if (
+      !part ||
+      !(event.target instanceof Element) ||
+      event.target.closest("[data-pliant-point-selection]") === null
+    ) {
+      return
+    }
+    const focus =
+      event.target.getAttribute("data-pliant-point-focus") ??
+      `outline:${part.id}`
+    const step =
+      event.key === "ArrowLeft" || event.key === "ArrowUp"
+        ? -1
+        : event.key === "ArrowRight" || event.key === "ArrowDown"
+          ? 1
+          : 0
+    if (step !== 0 && event.shiftKey && handles.span && grid) {
+      resize(spanOf(part.id, grid.columns) + step, focus)
+    } else if (step !== 0 && !event.shiftKey && handles.move) {
+      move((index) => index + step, focus)
+    } else if (
+      (event.key === "Delete" || event.key === "Backspace") &&
+      handles.hide
+    ) {
+      hide()
+    } else {
+      return
+    }
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  function startDrag(
+    kind: Drag["kind"],
+    event: React.PointerEvent<HTMLButtonElement>
+  ) {
+    event.currentTarget.setPointerCapture(event.pointerId)
+    setDrag({ kind, x: event.clientX, y: event.clientY, dx: 0, dy: 0 })
+  }
+
+  function moveDrag(event: React.PointerEvent<HTMLButtonElement>) {
+    setDrag(
+      (value) =>
+        value && {
+          ...value,
+          dx: event.clientX - value.x,
+          dy: event.clientY - value.y,
+        }
+    )
+  }
+
+  function endDrag(event: React.PointerEvent<HTMLButtonElement>) {
+    const done = drag
+    setDrag(null)
+    if (!done || !part) return
+    const focus = event.currentTarget.getAttribute("data-pliant-point-focus")
+    if (done.kind === "move") {
+      // Dropped on the shown sibling whose middle is nearest the pointer.
+      const order = siblingsOf(part, shown)
+      let nearest = -1
+      let distance = Number.POSITIVE_INFINITY
+      for (const [index, sibling] of order.entries()) {
+        const box = boxes.find((item) => item.id === sibling)
+        if (!box) continue
+        const next = Math.hypot(
+          box.left + box.width / 2 - event.clientX,
+          box.top + box.height / 2 - event.clientY
+        )
+        if (next < distance) {
+          distance = next
+          nearest = index
+        }
+      }
+      move(() => nearest, focus ?? `outline:${part.id}`)
+    } else if (grid) {
+      const box = boxes.find((item) => item.id === part.id)
+      if (!box) return
+      const column = (grid.width - grid.gap * (grid.columns - 1)) / grid.columns
+      resize(
+        Math.round((box.width + done.dx + grid.gap) / (column + grid.gap)),
+        focus ?? `outline:${part.id}`
+      )
+    }
+  }
+
+  function runAfterExit(run: (() => void) | undefined) {
+    if (!run) return
+    afterExit.current = run
+    exit()
+  }
+
+  const selectedOutline = layout.find(({ box }) => box.id === current)
+
+  // The selection's handles and bar, right after its outline, so Tab
+  // reaches them from it.
+  const selection = (
+    <>
+      {selectedOutline && part && drag && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute rounded-xl border-2 border-dashed border-primary bg-primary/10"
+          style={{
+            top:
+              selectedOutline.outline.top +
+              (drag.kind === "move" ? drag.dy : 0),
+            left:
+              selectedOutline.outline.left +
+              (drag.kind === "move" ? drag.dx : 0),
+            width: Math.max(
+              24,
+              selectedOutline.outline.right -
+                selectedOutline.outline.left +
+                (drag.kind === "resize" ? drag.dx : 0)
+            ),
+            height:
+              selectedOutline.outline.bottom - selectedOutline.outline.top,
+          }}
+        />
+      )}
+      {selectedOutline && part && (
+        <div data-pliant-point-selection="">
+          {handles.move && (
+            <button
+              type="button"
+              aria-label={messages.pointModeMove(label)}
+              data-pliant-point-focus="move"
+              className={handleClassName}
+              style={{
+                top: selectedOutline.outline.top - 12,
+                left:
+                  (selectedOutline.outline.left +
+                    selectedOutline.outline.right) /
+                    2 -
+                  12,
+              }}
+              onPointerDown={(event) => {
+                startDrag("move", event)
+              }}
+              onPointerMove={moveDrag}
+              onPointerUp={endDrag}
+              onPointerCancel={() => {
+                setDrag(null)
+              }}
+            >
+              <GripVerticalIcon className="rotate-90" />
+            </button>
+          )}
+          {handles.span && (
+            <button
+              type="button"
+              aria-label={messages.pointModeResize(label)}
+              data-pliant-point-focus="resize"
+              className={cnHandle("cursor-ew-resize")}
+              style={{
+                top:
+                  (selectedOutline.outline.top +
+                    selectedOutline.outline.bottom) /
+                    2 -
+                  12,
+                left: selectedOutline.outline.right - 12,
+              }}
+              onPointerDown={(event) => {
+                startDrag("resize", event)
+              }}
+              onPointerMove={moveDrag}
+              onPointerUp={endDrag}
+              onPointerCancel={() => {
+                setDrag(null)
+              }}
+            >
+              <MoveHorizontalIcon />
+            </button>
+          )}
+          {handles.hide && (
+            <button
+              type="button"
+              aria-label={messages.pointModeHide(label)}
+              data-pliant-point-focus="hide"
+              className={cnHandle("cursor-pointer")}
+              style={{
+                top: selectedOutline.outline.top - 12,
+                left: selectedOutline.outline.right - 12,
+              }}
+              onClick={hide}
+            >
+              <EyeOffIcon />
+            </button>
+          )}
+        </div>
+      )}
+      {selectedOutline && owner !== null && (
+        <div
+          role="toolbar"
+          aria-label={messages.pointModeBar(ownerLabel)}
+          className="absolute flex cursor-default items-center gap-1 rounded-lg border bg-popover p-1 text-popover-foreground shadow-md"
+          style={barPosition(selectedOutline.outline, {
+            top: page?.top ?? 0,
+            width,
+            height,
+          })}
+        >
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={!bar?.onAsk}
+            onClick={() => {
+              runAfterExit(bar?.onAsk)
+            }}
+          >
+            <SparklesIcon />
+            {messages.pointModeAsk}
+            {!bar?.onAsk && bar?.unavailable}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={!bar?.onAdjust}
+            onClick={() => {
+              runAfterExit(bar?.onAdjust)
+            }}
+          >
+            <SlidersHorizontalIcon />
+            {messages.pointModeAdjust}
+            {!bar?.onAdjust && bar?.unavailable}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={!bar?.onReset || bar.canReset === false}
+            onClick={() => {
+              bar?.onReset?.()
+              focusAfter.current = `outline:${current ?? ""}`
+              setStatus(messages.pointModeReset(ownerLabel))
+            }}
+          >
+            <RotateCcwIcon />
+            {messages.pointModeResetAction}
+            {!bar?.onReset && bar?.unavailable}
+          </Button>
+        </div>
+      )}
+    </>
+  )
+
   return (
     <>
-      {trigger !== null && (
-        <Slot.Root {...getTriggerProps()}>
-          {trigger ?? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
-            >
-              <SquareDashedMousePointerIcon />
-              {messages.pointModeOpen}
-            </Button>
-          )}
-        </Slot.Root>
-      )}
+      {trigger && <Slot.Root {...getTriggerProps()}>{trigger}</Slot.Root>}
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}
       </span>
@@ -536,6 +1014,8 @@ function PliantPointMode({
         createPortal(
           <div
             {...getLayerProps()}
+            // Before point mode's own keys, which would move focus instead.
+            onKeyDownCapture={onKeyDown}
             aria-label={messages.pointModeLabel}
             aria-describedby={mode === "toggle" ? `${id}-help` : undefined}
             className="pointer-events-auto fixed inset-0 z-40 cursor-crosshair"
@@ -545,35 +1025,45 @@ function PliantPointMode({
                 {messages.pointModeHelp}
               </p>
             )}
+            <p role="status" aria-live="polite" className="sr-only">
+              {status}
+            </p>
             {/* Outlines stay below a sticky header, so they never draw
                 over it. */}
             <div
               className="absolute inset-0"
               style={{ clipPath: `inset(${String(page?.top ?? 0)}px 0 0 0)` }}
             >
-              {layout.map(({ box, outline, label }) => (
-                <button
-                  key={box.id}
-                  type="button"
-                  data-pliant-point-target={box.id}
-                  className="absolute cursor-pointer rounded-xl bg-primary/5 shadow-lg ring-2 shadow-primary/25 ring-primary/60 outline-none hover:bg-primary/10 hover:shadow-primary/40 hover:ring-primary focus-visible:bg-primary/10 focus-visible:ring-4 focus-visible:shadow-primary/40 focus-visible:ring-primary motion-safe:animate-in motion-safe:transition-[background-color,box-shadow] motion-safe:fade-in-0"
-                  style={{
-                    top: outline.top,
-                    left: outline.left,
-                    width: outline.right - outline.left,
-                    height: outline.bottom - outline.top,
-                  }}
-                  onClick={() => {
-                    pick(box.id)
-                  }}
-                >
-                  <span
-                    className="absolute h-5 max-w-48 truncate rounded-md bg-primary px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-primary-foreground shadow-sm"
-                    style={label}
+              {layout.map(({ box, outline, label: placement }) => (
+                <React.Fragment key={box.id}>
+                  <button
+                    type="button"
+                    aria-pressed={box.id === current}
+                    data-pliant-point-target={box.id}
+                    data-pliant-point-focus={`outline:${box.id}`}
+                    data-pliant-point-selection={
+                      box.id === current ? "" : undefined
+                    }
+                    className="absolute cursor-pointer rounded-xl bg-primary/5 shadow-lg ring-2 shadow-primary/25 ring-primary/60 outline-none hover:bg-primary/10 hover:shadow-primary/40 hover:ring-primary focus-visible:bg-primary/10 focus-visible:ring-4 focus-visible:shadow-primary/40 focus-visible:ring-primary aria-pressed:bg-primary/10 aria-pressed:ring-primary motion-safe:animate-in motion-safe:transition-[background-color,box-shadow] motion-safe:fade-in-0"
+                    style={{
+                      top: outline.top,
+                      left: outline.left,
+                      width: outline.right - outline.left,
+                      height: outline.bottom - outline.top,
+                    }}
+                    onClick={() => {
+                      select(box.id)
+                    }}
                   >
-                    {box.label}
-                  </span>
-                </button>
+                    <span
+                      className="absolute h-5 max-w-48 truncate rounded-md bg-primary px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-primary-foreground shadow-sm"
+                      style={placement}
+                    >
+                      {box.label}
+                    </span>
+                  </button>
+                  {box.id === current && selection}
+                </React.Fragment>
               ))}
             </div>
           </div>,
@@ -583,4 +1073,44 @@ function PliantPointMode({
   )
 }
 
-export { PliantPointMode, type PliantPointTarget }
+const handleClassName =
+  "absolute flex size-6 cursor-grab touch-none items-center justify-center rounded-full border bg-background text-foreground shadow-sm outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 active:cursor-grabbing [&_svg]:size-3.5"
+
+function cnHandle(cursor: string) {
+  return `${handleClassName.replace("cursor-grab ", "").replace(" active:cursor-grabbing", "")} ${cursor}`
+}
+
+// Under the selection, or above it, or else inside its bottom edge on
+// screen, as for a part taller than the screen, never under a sticky header.
+function barPosition(
+  outline: Rect,
+  viewport: { top: number; width: number; height: number }
+) {
+  const barHeight = 40
+  const below = outline.bottom + ring + gap
+  const above = outline.top - ring - gap - barHeight
+  const top =
+    below + barHeight <= viewport.height
+      ? below
+      : above >= viewport.top
+        ? above
+        : Math.max(
+            viewport.top + gap,
+            Math.min(outline.bottom, viewport.height) - gap - barHeight
+          )
+  return {
+    top: Math.max(
+      viewport.top + gap,
+      Math.min(top, viewport.height - gap - barHeight)
+    ),
+    left: Math.max(ring, Math.min(outline.left, viewport.width - 280)),
+  }
+}
+
+export {
+  PliantPointMode,
+  type PliantPointActions,
+  type PliantPointFlags,
+  type PliantPointModeHandle,
+  type PliantPointTarget,
+}

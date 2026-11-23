@@ -37,8 +37,15 @@ function PointMode({
   layer?: Parameters<ReturnType<typeof usePointMode>["getLayerProps"]>[0]
   onTriggerClick?: (event: MouseEvent<HTMLButtonElement>) => void
 }) {
-  const { mode, boxes, announcement, pick, getTriggerProps, getLayerProps } =
-    usePointMode({ targets, onPick, labelWidth })
+  const {
+    mode,
+    boxes,
+    announcement,
+    pick,
+    start,
+    getTriggerProps,
+    getLayerProps,
+  } = usePointMode({ targets, onPick, labelWidth })
   const content = (
     <div {...getLayerProps(layer)} aria-label="Point mode">
       {boxes.map((box) => (
@@ -72,6 +79,9 @@ function PointMode({
     <>
       <button type="button" {...getTriggerProps({ onClick: onTriggerClick })}>
         Point
+      </button>
+      <button type="button" onClick={start}>
+        Start
       </button>
       <span role="status">{announcement}</span>
       {mode !== null &&
@@ -148,18 +158,6 @@ async function enterWithToggle() {
 async function holdAlt() {
   fireEvent.keyDown(document.body, { key: "Alt", altKey: true })
   await wait(300)
-}
-
-async function pressShortcut() {
-  const shortcut = new KeyboardEvent("keydown", {
-    key: ".",
-    ctrlKey: true,
-    bubbles: true,
-    cancelable: true,
-  })
-  fireEvent(document.activeElement ?? document.body, shortcut)
-  await wait()
-  return shortcut
 }
 
 async function releaseAlt() {
@@ -285,22 +283,45 @@ describe("usePointMode", () => {
   })
 
   it.each([{ metaKey: true }, { ctrlKey: true }])(
-    "toggles with %o and the period key",
+    "leaves %o and the period key to the page",
     async (modifier) => {
       renderPage()
-
-      fireEvent.keyDown(document.body, { key: ".", ...modifier })
-      await wait()
-      expect(layer()).not.toBeNull()
-      expect(document.activeElement).toBe(boxes()[0])
-
-      fireEvent.keyDown(document.activeElement ?? document.body, {
+      const shortcut = new KeyboardEvent("keydown", {
         key: ".",
         ...modifier,
+        bubbles: true,
+        cancelable: true,
       })
+
+      fireEvent(document.body, shortcut)
+      await wait()
+
       expect(layer()).toBeNull()
+      expect(shortcut.defaultPrevented).toBe(false)
     }
   )
+
+  it("starts from start as a dialog and focuses the first target", async () => {
+    renderPage()
+
+    fireEvent.click(screen.getByRole("button", { name: "Start" }))
+    await wait()
+
+    expect(screen.getByRole("dialog", { name: "Point mode" })).not.toBeNull()
+    expect(document.activeElement).toBe(boxes()[0])
+  })
+
+  it("stays on after Alt is released when started during a hold", async () => {
+    renderPage()
+    await holdAlt()
+    expect(screen.getByRole("group", { name: "Point mode" })).not.toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: "Start" }))
+    await wait()
+    await releaseAlt()
+
+    expect(screen.getByRole("dialog", { name: "Point mode" })).not.toBeNull()
+  })
 
   it("lights up while Alt is held", async () => {
     renderPage()
@@ -381,60 +402,41 @@ describe("usePointMode", () => {
     expect(layer()).toBeNull()
   })
 
-  it.each(["Search", "Notes"])(
-    "ignores Alt and the shortcut in the %s field",
-    async (name) => {
-      renderPage()
-      screen.getByRole("textbox", { name }).focus()
+  it.each(["Search", "Notes"])("ignores Alt in the %s field", async (name) => {
+    renderPage()
+    screen.getByRole("textbox", { name }).focus()
 
-      await holdAlt()
-      expect(layer()).toBeNull()
+    await holdAlt()
 
-      const shortcut = new KeyboardEvent("keydown", {
-        key: ".",
-        ctrlKey: true,
-        bubbles: true,
-        cancelable: true,
-      })
-      fireEvent(document.activeElement ?? document.body, shortcut)
-      await wait()
-      expect(layer()).toBeNull()
-      expect(shortcut.defaultPrevented).toBe(false)
-    }
-  )
+    expect(layer()).toBeNull()
+  })
 
   it.each([
     ["a listbox", "div", { role: "listbox" }],
     ["a menu", "div", { role: "menu" }],
     ["a modal dialog", "div", { role: "dialog", "aria-modal": "true" }],
     ["an open dialog", "dialog", { open: "" }],
-  ])(
-    "ignores Alt and the shortcut while focus is in %s",
-    async (_, tag, attributes) => {
-      const other = document.createElement(tag)
-      for (const [name, value] of Object.entries(attributes)) {
-        other.setAttribute(name, value)
-      }
-      const item = document.createElement("button")
-      other.append(item)
-      document.body.append(other)
-      renderPage()
-      item.focus()
-
-      await holdAlt()
-      expect(layer()).toBeNull()
-      await releaseAlt()
-      const shortcut = await pressShortcut()
-      expect(layer()).toBeNull()
-      expect(shortcut.defaultPrevented).toBe(false)
-
-      other.remove()
-      await pressShortcut()
-      expect(layer()).not.toBeNull()
+  ])("ignores Alt while focus is in %s", async (_, tag, attributes) => {
+    const other = document.createElement(tag)
+    for (const [name, value] of Object.entries(attributes)) {
+      other.setAttribute(name, value)
     }
-  )
+    const item = document.createElement("button")
+    other.append(item)
+    document.body.append(other)
+    renderPage()
+    item.focus()
 
-  it("ignores Alt and the shortcut while a modal dialog is open elsewhere", async () => {
+    await holdAlt()
+    expect(layer()).toBeNull()
+    await releaseAlt()
+
+    other.remove()
+    await holdAlt()
+    expect(layer()).not.toBeNull()
+  })
+
+  it("ignores Alt while a modal dialog is open elsewhere", async () => {
     const modal = document.createElement("div")
     modal.setAttribute("role", "dialog")
     modal.setAttribute("aria-modal", "true")
@@ -444,16 +446,13 @@ describe("usePointMode", () => {
     await holdAlt()
     expect(layer()).toBeNull()
     await releaseAlt()
-    const shortcut = await pressShortcut()
-    expect(layer()).toBeNull()
-    expect(shortcut.defaultPrevented).toBe(false)
 
     modal.remove()
-    await pressShortcut()
+    await holdAlt()
     expect(layer()).not.toBeNull()
   })
 
-  it("ignores Alt and the shortcut while a native modal dialog is open", async () => {
+  it("ignores Alt while a native modal dialog is open", async () => {
     const dialog = document.createElement("dialog")
     document.body.append(dialog)
     dialog.showModal()
@@ -466,11 +465,9 @@ describe("usePointMode", () => {
     await holdAlt()
     expect(layer()).toBeNull()
     await releaseAlt()
-    await pressShortcut()
-    expect(layer()).toBeNull()
 
     dialog.remove()
-    await pressShortcut()
+    await holdAlt()
     expect(layer()).not.toBeNull()
   })
 
@@ -492,16 +489,13 @@ describe("usePointMode", () => {
     expect(release.defaultPrevented).toBe(false)
   })
 
-  it("ignores Alt and the shortcut while a modal layer turns off pointer events", async () => {
+  it("ignores Alt while a modal layer turns off pointer events", async () => {
     renderPage()
     document.body.style.pointerEvents = "none"
 
     await holdAlt()
     expect(layer()).toBeNull()
     await releaseAlt()
-    const shortcut = await pressShortcut()
-    expect(layer()).toBeNull()
-    expect(shortcut.defaultPrevented).toBe(false)
 
     document.body.style.pointerEvents = ""
     await holdAlt()
@@ -613,26 +607,6 @@ describe("usePointMode", () => {
     expect(document.activeElement).toBe(toggle())
   })
 
-  it("toggles with the Period key on layouts where it needs Shift", async () => {
-    renderPage()
-
-    fireEvent.keyDown(document.body, {
-      key: ":",
-      code: "Period",
-      ctrlKey: true,
-    })
-    await wait()
-    expect(layer()).not.toBeNull()
-
-    fireEvent.keyDown(document.activeElement ?? document.body, {
-      key: ".",
-      code: "Semicolon",
-      metaKey: true,
-      shiftKey: true,
-    })
-    expect(layer()).toBeNull()
-  })
-
   it("outlines text inside a display: contents target", async () => {
     vi.spyOn(Range.prototype, "getBoundingClientRect").mockReturnValue(
       new DOMRect(16, 500, 80, 20)
@@ -734,28 +708,6 @@ describe("usePointMode", () => {
     await wait()
     expect(late.hasAttribute("inert")).toBe(false)
     late.remove()
-  })
-
-  it("lets one of two instances take the shortcut", async () => {
-    render(
-      <>
-        <PointMode targets={targets} onPick={() => undefined} />
-        <PointMode targets={targets} onPick={() => undefined} />
-        <div data-pliant-id="orders-table" data-top="200" />
-      </>
-    )
-
-    fireEvent.keyDown(document.body, { key: ".", ctrlKey: true })
-    await wait()
-
-    const layers = document.querySelectorAll('[data-slot="pliant-point-mode"]')
-    expect(layers).toHaveLength(1)
-    expect(layers[0]?.hasAttribute("inert")).toBe(false)
-    expect(
-      screen
-        .getAllByRole("button", { name: "Point" })
-        .map((button) => button.getAttribute("aria-pressed"))
-    ).toEqual(["true", "false"])
   })
 
   it("doesn't start from Alt in one instance while another is on", async () => {

@@ -19,7 +19,6 @@ import {
 import {
   anotherLayerIsOpen,
   blocksPointMode,
-  isShortcut,
   makeOthersInert,
 } from "./point-mode-layers"
 import { usePliantMessages } from "./use-pliant-messages"
@@ -46,8 +45,8 @@ const navigationKeys: Readonly<Record<string, (index: number) => number>> = {
 export interface UsePointModeOptions {
   /** The nodes users can point at, with the labels shown on their outlines. */
   readonly targets: readonly { readonly id: string; readonly label: string }[]
-  /** Called with the id of the target the user picked. */
-  readonly onPick: (id: string) => void
+  /** Called with the id of the target the user picked with `pick`. */
+  readonly onPick?: ((id: string) => void) | undefined
   /**
    * The widest a box's label gets, in pixels, to keep it on screen: match
    * the label's maximum width. Defaults to 192, a `max-w-48`.
@@ -57,31 +56,33 @@ export interface UsePointModeOptions {
 
 /**
  * The state and behaviour of point mode, where users point at the part of the
- * page they want to change: holding Alt (Option on a Mac), pressing ⌘. or
- * Ctrl+., or pressing the element given `getTriggerProps()` turns it on, and
- * `boxes` then holds where each target shows on the page, found by its
+ * page they want to change: holding Alt (Option on a Mac), calling `start`,
+ * or pressing the element given `getTriggerProps()` turns it on, and `boxes`
+ * then holds where each target shows on the page, found by its
  * `data-pliant-id`. Render a `button` per box inside the element given
- * `getLayerProps()`, calling `pick` with its id. Releasing Alt, Escape, or a
- * click on the layer outside the boxes leaves without picking. Pass your own
- * handlers and ref to the getters rather than after the spread: a handler
- * runs first, and point mode skips its own when it calls
+ * `getLayerProps()`, calling `pick` with its id to leave with it, or keep
+ * point mode on and act on the box yourself. Releasing Alt, Escape, `exit`,
+ * or a click on the layer outside the boxes leaves without picking. Pass your
+ * own handlers and ref to the getters rather than after the spread: a
+ * handler runs first, and point mode skips its own when it calls
  * `event.preventDefault()`.
  *
- * Alt and the shortcut are ignored while focus is in a text field other than
- * the ask panel's prompt (`data-slot="pliant-ask-panel"`), in a listbox or a
- * menu, and while a modal dialog is open or the body has
- * `pointer-events: none`, as Radix sets for its modal layers; Alt is also
- * ignored with another key, so the app's and the browser's shortcuts keep
- * working. The trigger always works.
+ * Alt is ignored while focus is in a text field other than the ask panel's
+ * prompt (`data-slot="pliant-ask-panel"`), in a listbox or a menu, and while
+ * a modal dialog is open or the body has `pointer-events: none`, as Radix
+ * sets for its modal layers; it is also ignored with another key, so the
+ * app's and the browser's shortcuts keep working. The trigger and `start`
+ * always work.
  *
- * Turned on from the trigger or the shortcut, the layer is a modal dialog:
- * the rest of the page (all but the layer and its ancestors) is `inert`
- * until point mode ends, focus moves to the
- * first box, Tab, the arrow keys, Home and End move between the boxes, and
- * focus goes back to where it was unless `onPick` moves it. While Alt is
- * held, nothing is made inert and focus stays put; `announcement` says the
- * mode changed, for a polite live region outside the layer. `mode` is
- * `"hold"`, `"toggle"`, or `null` while point mode is off.
+ * Turned on from the trigger or `start`, the layer is a modal dialog: the
+ * rest of the page (all but the layer and its ancestors) is `inert` until
+ * point mode ends, focus moves to the first box, Tab, the arrow keys, Home
+ * and End move between the buttons in the layer, and focus goes back to
+ * where it was unless `onPick` moves it. `start` while Alt is held keeps
+ * point mode on once Alt is released. While Alt is held, nothing is made
+ * inert and focus stays put; `announcement` says the mode changed, for a
+ * polite live region outside the layer. `mode` is `"hold"`, `"toggle"`, or
+ * `null` while point mode is off.
  *
  * @experimental
  */
@@ -102,12 +103,15 @@ export function usePointMode({
   const active = mode !== null
 
   function enter(next: "hold" | "toggle") {
-    returnFocus.current =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null
-    focusOnShow.current = next === "toggle"
-    setBoxes([])
+    // From a hold, focus goes back to where it was before Alt.
+    if (mode === null) {
+      returnFocus.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null
+      setBoxes([])
+    }
+    focusOnShow.current = next === "toggle" && mode === null
     setMode(next)
     // The page holding the live region is inert in toggle mode, where the
     // dialog and the focus moving in and out of it say the same.
@@ -122,7 +126,7 @@ export function usePointMode({
   function pick(id: string) {
     setMode(null)
     setAnnouncement("")
-    onPick(id)
+    onPick?.(id)
   }
 
   function cancelHold() {
@@ -132,23 +136,6 @@ export function usePointMode({
 
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
     if (event.isComposing) {
-      return
-    }
-    if (isShortcut(event)) {
-      cancelHold()
-      if (
-        event.defaultPrevented ||
-        blocksPointMode(document.activeElement) ||
-        (mode === null && anotherLayerIsOpen())
-      ) {
-        return
-      }
-      event.preventDefault()
-      if (mode === null) {
-        enter("toggle")
-      } else {
-        exit()
-      }
       return
     }
     if (event.key === "Alt") {
@@ -279,6 +266,12 @@ export function usePointMode({
     }
   }
 
+  function start() {
+    if (mode !== "toggle") {
+      enter("toggle")
+    }
+  }
+
   function leaveOnBackdrop(event: ReactMouseEvent<HTMLElement>) {
     if (event.target === event.currentTarget) {
       exit()
@@ -309,12 +302,13 @@ export function usePointMode({
     boxes,
     announcement,
     pick,
+    start,
+    exit,
     getTriggerProps: <TElement extends HTMLElement = HTMLElement>(props?: {
       readonly onClick?:
         ((event: ReactMouseEvent<TElement>) => void) | undefined
     }) => ({
       "aria-pressed": active,
-      "aria-keyshortcuts": "Meta+Period Control+Period",
       "data-state": active ? ("on" as const) : ("off" as const),
       onClick: composeHandler<ReactMouseEvent<TElement>>(
         props?.onClick,

@@ -379,19 +379,19 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
-    test("point mode has no accessibility violations", async ({ page }) => {
+    test("point mode with a part selected has no accessibility violations", async ({
+      page,
+    }) => {
       await loadOrders(page)
-      // Outside the page's parts, ⌘. points at one instead of asking.
-      await pageMenu(page).focus()
-      await page.keyboard.press("ControlOrMeta+Period")
+      await pickCustomize(pageMenu(page), "Adjust by hand")
+      const layer = page.getByRole("dialog", { name: "Point mode" })
+      await layer.getByRole("button", { name: "Overdue" }).click()
       await expect(
-        page.getByRole("dialog", { name: "Point mode" })
+        layer.getByRole("toolbar", { name: "Change Key metrics" })
       ).toBeVisible()
       await expect(
-        page
-          .locator('[data-slot="pliant-point-mode"]')
-          .getByRole("button", { name: "Key metrics" })
-      ).toBeFocused()
+        layer.getByRole("button", { name: "Move Overdue" })
+      ).toBeVisible()
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
@@ -421,6 +421,21 @@ for (const colorScheme of ["light", "dark"] as const) {
         await page.goto("/docs")
         await page.getByRole("button", { name: "Menu" }).click()
         await expect(page.getByRole("dialog", { name: "Menu" })).toBeVisible()
+        expect(await violations(page, colorScheme)).toEqual([])
+      })
+
+      test("point mode with a part selected has no accessibility violations", async ({
+        page,
+      }) => {
+        await loadOrders(page)
+        await pickCustomize(pageMenu(page), "Adjust by hand")
+        const layer = page.getByRole("dialog", { name: "Point mode" })
+        // Below the fold on a phone, and the layer doesn't scroll.
+        await layer.getByRole("button", { name: "Overdue" }).focus()
+        await page.keyboard.press("Enter")
+        await expect(
+          layer.getByRole("toolbar", { name: "Change Key metrics" })
+        ).toBeVisible()
         expect(await violations(page, colorScheme)).toEqual([])
       })
 

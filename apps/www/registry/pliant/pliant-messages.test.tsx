@@ -81,9 +81,23 @@ const messages: PliantMessages = {
   askDiscard: "⟦askDiscard⟧",
   askSuggestions: "⟦askSuggestions⟧",
   askUnreadableAnswer: (status) => `⟦askUnreadableAnswer ${String(status)}⟧`,
-  pointModeOpen: "⟦pointModeOpen⟧",
   pointModeLabel: "⟦pointModeLabel⟧",
   pointModeHelp: "⟦pointModeHelp⟧",
+  pointModeSelected: (label) => `⟦pointModeSelected ${label}⟧`,
+  pointModeMove: (label) => `⟦pointModeMove ${label}⟧`,
+  pointModeResize: (label) => `⟦pointModeResize ${label}⟧`,
+  pointModeHide: (label) => `⟦pointModeHide ${label}⟧`,
+  pointModeMoved: (label, position, count) =>
+    `⟦pointModeMoved ${label} ${String(position)} ${String(count)}⟧`,
+  pointModeResized: (label, columns) =>
+    `⟦pointModeResized ${label} ${String(columns)}⟧`,
+  pointModeHidden: (label) => `⟦pointModeHidden ${label}⟧`,
+  pointModeReset: (label) => `⟦pointModeReset ${label}⟧`,
+  pointModeFailed: (label) => `⟦pointModeFailed ${label}⟧`,
+  pointModeBar: (label) => `⟦pointModeBar ${label}⟧`,
+  pointModeAsk: "⟦pointModeAsk⟧",
+  pointModeAdjust: "⟦pointModeAdjust⟧",
+  pointModeResetAction: "⟦pointModeResetAction⟧",
   formMoreFields: "⟦formMoreFields⟧",
   navMore: "⟦navMore⟧",
   navItemOptions: (title) => `⟦navItemOptions ${title}⟧`,
@@ -190,7 +204,10 @@ function renderPage(layers: StorageAdapter = storage) {
           orders: <p>«Orders»</p>,
         }}
       />
-      <PliantPointMode targets={targets} onPick={() => undefined} />
+      <PliantPointMode
+        targets={targets}
+        trigger={<button type="button">«Point»</button>}
+      />
       <PliantAskPanel
         endpoint="/api/pliant"
         targets={targets}
@@ -479,7 +496,7 @@ describe("the registry components with every message given", () => {
     expect(screen.getByText("⟦pointModeOff⟧")).toBeTruthy()
     expect(unmarkedText()).toEqual([])
 
-    fireEvent.click(screen.getByRole("button", { name: "⟦pointModeOpen⟧" }))
+    fireEvent.click(screen.getByRole("button", { name: "«Point»" }))
     await settle(20)
     expect(
       screen.getByRole("dialog", { name: "⟦pointModeLabel⟧" })

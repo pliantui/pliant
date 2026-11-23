@@ -61,15 +61,6 @@ export function anotherLayerIsOpen() {
   )
 }
 
-// `code` finds the key on layouts where "." needs Shift.
-export function isShortcut(event: KeyboardEvent) {
-  return (
-    (event.metaKey || event.ctrlKey) &&
-    !event.altKey &&
-    (event.key === "." || (event.code === "Period" && !event.shiftKey))
-  )
-}
-
 function isPointModeLayer(element: Element) {
   return element.matches('[data-slot="pliant-point-mode"]')
 }

@@ -20,7 +20,7 @@ interface CustomizeControlOptions {
 
 // The demos have no history view yet, so History, and any item a demo has
 // nothing for, shows the unfinished dot.
-function actionsOf({
+export function actionsOf({
   customized,
   ready = true,
   onAsk,
@@ -41,6 +41,7 @@ export function CustomizeControl({
   label,
   ref,
   commands = false,
+  previewing = false,
   ...options
 }: CustomizeControlOptions & {
   // What the menu customizes, for screen readers, such as "the orders table".
@@ -48,6 +49,9 @@ export function CustomizeControl({
   ref?: React.Ref<HTMLButtonElement> | undefined
   // Whether it's the page's menu, which the site's command menu offers too.
   commands?: boolean | undefined
+  // Whether a preview shows that the ask panel doesn't, as while it's
+  // closed.
+  previewing?: boolean | undefined
 }) {
   useRegisterCustomizeCommands(commands ? actionsOf(options) : undefined)
 
@@ -56,6 +60,7 @@ export function CustomizeControl({
       ref={ref}
       aria-label={`Customize ${label}`}
       customized={options.customized}
+      previewing={previewing}
       {...actionsOf(options)}
     />
   )

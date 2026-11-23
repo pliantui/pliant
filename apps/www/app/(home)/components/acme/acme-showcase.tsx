@@ -5,12 +5,16 @@ import * as React from "react"
 import { usePliantStatus, usePliantStore } from "@pliantui/react"
 
 import {
+  actionsOf,
   CustomizeControl,
   CustomizeSurface,
 } from "@/components/demo/customize-control"
 import { useCustomized } from "@/components/demo/use-customized"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { PliantPointMode } from "@/registry/pliant/pliant-point-mode"
+import {
+  PliantPointMode,
+  type PliantPointModeHandle,
+} from "@/registry/pliant/pliant-point-mode"
 
 import { AcmeDashboard } from "./acme-dashboard"
 import { ChangesTab } from "./changes-tab"
@@ -48,8 +52,10 @@ const targetIds = targets.map((target) => target.id)
 
 // The dashboard's Customize menu, in its header, and the same items in its
 // right-click menu. There's no ask panel here, so Ask moves focus to the
-// suggested asks of the part that has focus. Holding Alt points at a part.
+// suggested asks of the part that has focus. Adjust by hand, or holding
+// Alt, selects a part, and the selection's Ask moves to its asks.
 function ShowcasePreview({ onReset }: { onReset: () => void }) {
+  const pointMode = React.useRef<PliantPointModeHandle>(null)
   const store = usePliantStore()
   const { status } = usePliantStatus()
   const { local, clear } = useShowcaseActivity()
@@ -60,6 +66,9 @@ function ShowcasePreview({ onReset }: { onReset: () => void }) {
     onAsk: () => {
       focusAsks(focusedPart())
     },
+    onAdjust: () => {
+      pointMode.current?.start()
+    },
     onReset: () => {
       for (const target of targetIds) store.resetNode(target)
       clear()
@@ -68,15 +77,27 @@ function ShowcasePreview({ onReset }: { onReset: () => void }) {
   }
 
   return (
-    <CustomizeSurface {...options}>
-      <div>
-        <AcmeDashboard
-          toolbar={
-            <CustomizeControl label="the dashboard" commands {...options} />
-          }
-        />
-      </div>
-    </CustomizeSurface>
+    <>
+      <CustomizeSurface {...options}>
+        <div>
+          <AcmeDashboard
+            toolbar={
+              <CustomizeControl label="the dashboard" commands {...options} />
+            }
+          />
+        </div>
+      </CustomizeSurface>
+      <PliantPointMode
+        ref={pointMode}
+        targets={targets}
+        actions={(id) => ({
+          ...actionsOf({ ...options, onAdjust: undefined }),
+          onAsk: () => {
+            focusAsks(id)
+          },
+        })}
+      />
+    </>
   )
 }
 
@@ -125,11 +146,6 @@ export function AcmeShowcase({ queries }: { queries: ShowcaseQueries }) {
                   ?.focus()
               })
             }}
-          />
-          <PliantPointMode
-            targets={targets}
-            onPick={focusAsks}
-            trigger={null}
           />
         </TabsContent>
         <TabsContent value="data" className="rounded-xl border">

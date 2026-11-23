@@ -1,6 +1,6 @@
 "use client"
 
-import { usePliantStatus, usePliantStore } from "@pliantui/react"
+import { usePliantStatus, usePliantStore, usePreview } from "@pliantui/react"
 
 import {
   CustomizeControl,
@@ -21,7 +21,7 @@ interface DemoCustomizeOptions {
 }
 
 // Whether the user changed part of a demo, and the Reset that puts it back.
-function useDemoCustomize({
+export function useDemoCustomize({
   targets,
   scripted,
   onAsk,
@@ -50,19 +50,24 @@ export function DemoCustomizeMenu({
   label,
   ref,
   commands,
+  askOpen = false,
   ...options
 }: DemoCustomizeOptions & {
+  // Whether the ask panel is open, showing any preview itself.
+  askOpen?: boolean | undefined
   // What the menu customizes, for screen readers, such as "the orders table".
   label: string
   ref?: React.Ref<HTMLButtonElement> | undefined
   // Whether it's the page's menu, which the site's command menu offers too.
   commands?: boolean | undefined
 }) {
+  const previewing = usePreview() !== null && !askOpen
   return (
     <CustomizeControl
       ref={ref}
       label={label}
       commands={commands}
+      previewing={previewing}
       {...useDemoCustomize(options)}
     />
   )

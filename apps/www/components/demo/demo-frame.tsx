@@ -3,22 +3,27 @@
 import * as React from "react"
 import { cn } from "cn"
 
+import { usePreview } from "@pliantui/react"
+
 import { AskChips } from "@/components/demo/ask-chips"
 import {
+  actionsOf,
+  CustomizeControl,
+  CustomizeSurface,
   focusFirstAsk,
   focusTableControls,
 } from "@/components/demo/customize-control"
 import { DemoAskPanel, useDemoAsk } from "@/components/demo/demo-ask-panel"
-import {
-  DemoCustomizeMenu,
-  DemoCustomizeSurface,
-} from "@/components/demo/demo-customize"
+import { useDemoCustomize } from "@/components/demo/demo-customize"
 import { ReplayNote } from "@/components/demo/replay-note"
 import { ScriptedAsks } from "@/components/demo/scripted-asks"
 import type { ScriptedAsksState } from "@/components/demo/use-scripted-asks"
 import { isScriptedAsk } from "@/lib/replay/replay-fetch"
 import type { PliantAskTarget } from "@/registry/pliant/pliant-ask-panel"
-import { PliantPointMode } from "@/registry/pliant/pliant-point-mode"
+import {
+  PliantPointMode,
+  type PliantPointModeHandle,
+} from "@/registry/pliant/pliant-point-mode"
 
 // Frames one live part of an app on a docs page with its Customize menu and
 // the asks that reshape it. Render it inside the demo's `PliantRoot`.
@@ -45,8 +50,8 @@ export function DemoFrame({
   // Whether the part has controls to adjust it by hand, such as a table's
   // toolbar or columns menu, which Adjust by hand moves focus to.
   adjustable?: boolean
-  // Whether holding Alt points at the ask panel's targets, to ask about the
-  // one picked.
+  // Whether the ask panel's targets can be selected in point mode, which
+  // Adjust by hand and holding Alt start.
   pointMode?: boolean
   // Controls shown beside Customize.
   toolbar?: React.ReactNode
@@ -66,9 +71,11 @@ export function DemoFrame({
   const scripted =
     mocked !== undefined || asks.some((ask) => isScriptedAsk(target, ask))
   const frame = React.useRef<HTMLDivElement>(null)
-  const customize = React.useRef<HTMLButtonElement>(null)
+  const customizeButton = React.useRef<HTMLButtonElement>(null)
   const panel = useDemoAsk(askTargets ?? [])
-  const options = {
+  const pointModeRef = React.useRef<PliantPointModeHandle>(null)
+  const selecting = askTargets !== undefined && pointMode
+  const customize = useDemoCustomize({
     targets: [target],
     scripted: mocked?.scripted,
     onAsk: () => {
@@ -80,7 +87,18 @@ export function DemoFrame({
           focusTableControls(frame.current)
         }
       : undefined,
-  }
+  })
+  // With point mode, Adjust by hand selects the part, and the selection's
+  // bar adjusts it.
+  const options = selecting
+    ? {
+        ...customize,
+        onAdjust: () => {
+          pointModeRef.current?.start(target)
+        },
+      }
+    : customize
+  const previewing = usePreview() !== null && !panel.open
 
   return (
     <div
@@ -91,12 +109,19 @@ export function DemoFrame({
     >
       <div className="flex items-center justify-end gap-2">
         {toolbar}
-        <DemoCustomizeMenu ref={customize} label={label} {...options} />
-        {askTargets && <DemoAskPanel ask={panel} returnFocus={customize} />}
+        <CustomizeControl
+          ref={customizeButton}
+          label={label}
+          previewing={previewing}
+          {...options}
+        />
+        {askTargets && (
+          <DemoAskPanel ask={panel} returnFocus={customizeButton} />
+        )}
       </div>
-      <DemoCustomizeSurface {...options}>
+      <CustomizeSurface {...options}>
         <div className="flex min-w-0 flex-col gap-4">{children}</div>
-      </DemoCustomizeSurface>
+      </CustomizeSurface>
       <div className="flex flex-col gap-3 border-t pt-4">
         {mocked && (
           <ScriptedAsks
@@ -108,11 +133,11 @@ export function DemoFrame({
         <AskChips target={target} label={label} prompts={asks} />
         {recorded && <ReplayNote scripted={scripted} />}
       </div>
-      {askTargets && pointMode && (
+      {selecting && (
         <PliantPointMode
+          ref={pointModeRef}
           targets={askTargets}
-          onPick={panel.ask}
-          trigger={null}
+          actions={(id) => (id === target ? actionsOf(customize) : undefined)}
         />
       )}
     </div>

@@ -410,7 +410,7 @@ test("moves Projects and Team under More", async ({ page, errors }) => {
   expect(errors).toEqual([])
 })
 
-test("point mode leads to the asks of the part picked", async ({
+test("point mode's Ask leads to the asks of the part selected", async ({
   page,
   errors,
 }) => {
@@ -422,6 +422,10 @@ test("point mode leads to the asks of the part picked", async ({
     .getByRole("button", { name: "Sections table" })
     .click()
   await page.keyboard.up("Alt")
+  await page
+    .getByRole("toolbar", { name: "Change Sections table" })
+    .getByRole("button", { name: "Ask" })
+    .click()
 
   await expect(
     asks(page, "the sections table").getByRole("button").first()
