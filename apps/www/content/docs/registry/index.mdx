@@ -1,23 +1,23 @@
 ---
 title: Installing from the Pliant registry
-description: Add Pliant's components to your project with the shadcn CLI, by URL or through the @pliant namespace.
+description: Add Pliant's components to your project with the shadcn CLI, through the @pliant namespace.
 ---
 
 Pliant's components are distributed as a [shadcn registry](https://ui.shadcn.com/docs/registry). The shadcn CLI copies each component's source into your project, with the shadcn components and packages it needs, so the code is yours to read and edit.
 
-## Install by URL
+## Install a component
 
-Pass the component's URL to `shadcn add`:
+In a Next.js App Router project, run [`pliantui init`](/docs/cli/init) once. Along with the package and the region component, it adds the `@pliant` registry to your `components.json`. Then install any component by name:
 
 ```bash
-npx shadcn@latest add https://pliantui.dev/r/pliant-data-table.json
+npx shadcn@latest add @pliant/pliant-data-table
 ```
 
-Every component is at `https://pliantui.dev/r/<name>.json`. [`pliantui init`](/docs/cli/init) uses the same URLs, and takes `--registry` to install from another one.
+You can name several at once, such as `npx shadcn@latest add @pliant/pliant-ask-panel @pliant/pliant-point-mode`.
 
-## Install with `@pliant`
+## Set up `@pliant` without init
 
-To install by name, add the registry to `components.json`:
+On other frameworks, or if you'd rather not run `init`, add the registry to `components.json` yourself:
 
 ```json title="components.json"
 {
@@ -27,20 +27,17 @@ To install by name, add the registry to `components.json`:
 }
 ```
 
-Then install any component as `@pliant/<name>`:
-
-```bash
-npx shadcn@latest add @pliant/pliant-region @pliant/pliant-data-table
-```
+The shadcn CLI also finds `@pliant` in its [registry directory](https://ui.shadcn.com/docs/directory), so `npx shadcn@latest add @pliant/<name>` works in a project without this entry. Add the entry when you want to point `@pliant` at another registry, such as a mirror; `pliantui init --registry <url>` writes it for you.
 
 <Callout
   variant="warning"
   title="Not fully implemented yet"
   data-unfinished="not-implemented"
 >
-  `@pliant` isn't listed in the shadcn registry index yet, so `shadcn add
-  @pliant/...` works only after you add the registry to `components.json` as
-  shown.
+  `@pliant` isn't listed in the shadcn registry directory yet, so `shadcn add
+  @pliant/<name>` works only after `pliantui init` or the `components.json`
+  entry above adds the registry. The `@pliantui/*` packages aren't on npm yet
+  either, so installing a component works only inside the Pliant repository.
 </Callout>
 
 ## The components
@@ -56,15 +53,6 @@ npx shadcn@latest add @pliant/pliant-region @pliant/pliant-data-table
 | `pliant-point-mode`         | A mode for pointing at the part of a page to change                                                          |
 
 The components import your own shadcn components, such as `button` and `table`, from `@/components/ui`, and the CLI adds any that are missing. They need the `@pliantui/react` package, which the CLI installs too.
-
-<Callout
-  variant="warning"
-  title="Not fully implemented yet"
-  data-unfinished="not-implemented"
->
-  The `@pliantui/*` packages aren't on npm yet, so installing a component works
-  only inside the Pliant repository.
-</Callout>
 
 ## Updating a component
 

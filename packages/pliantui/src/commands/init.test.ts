@@ -35,6 +35,7 @@ interface ProjectOptions {
   packageManager?: string
   componentsAlias?: string
   installed?: string[]
+  registries?: Record<string, unknown>
 }
 
 let root: string
@@ -82,6 +83,7 @@ async function createProject({
   packageManager,
   componentsAlias = "./*",
   installed = [],
+  registries,
 }: ProjectOptions = {}) {
   await write(
     "package.json",
@@ -107,6 +109,7 @@ async function createProject({
       "components.json",
       JSON.stringify({
         aliases: { components: "@/components", utils: "@/lib/utils" },
+        registries,
       })
     )
   }
@@ -137,6 +140,19 @@ function commands() {
     .mock.calls.map(([command, args]) => [command, ...args].join(" "))
 }
 
+async function componentsJson(): Promise<unknown> {
+  return JSON.parse(await readFile(path.join(cwd, "components.json"), "utf8"))
+}
+
+async function registries() {
+  const config = await componentsJson()
+  return typeof config === "object" && config !== null && "registries" in config
+    ? config.registries
+    : undefined
+}
+
+const pliantRegistry = { "@pliant": "https://pliantui.dev/r/{name}.json" }
+
 async function snapshot(directory: string): Promise<Record<string, string>> {
   const files: Record<string, string> = {}
   for (const entry of await readdir(directory, {
@@ -151,8 +167,7 @@ async function snapshot(directory: string): Promise<Record<string, string>> {
   return files
 }
 
-const addRegion =
-  "shadcn@latest add https://pliantui.dev/r/pliant-region.json --yes"
+const addRegion = "shadcn@latest add @pliant/pliant-region --yes"
 
 describe("pliantui init in a Next.js app with shadcn", () => {
   it.each([
@@ -253,14 +268,73 @@ describe("pliantui init in a Next.js app with shadcn", () => {
     expect(commands()).toHaveLength(2)
   })
 
+  it("adds the @pliant registry to components.json", async () => {
+    await createProject()
+
+    await run("--yes")
+
+    expect(await registries()).toEqual(pliantRegistry)
+    expect(printed()).toContain("Add the @pliant registry to components.json.")
+  })
+
+  it("keeps the rest of components.json", async () => {
+    await createProject({
+      registries: { "@acme": "https://acme.dev/r/{name}.json" },
+    })
+
+    await run("--yes")
+
+    expect(await componentsJson()).toEqual({
+      aliases: { components: "@/components", utils: "@/lib/utils" },
+      registries: {
+        "@acme": "https://acme.dev/r/{name}.json",
+        ...pliantRegistry,
+      },
+    })
+  })
+
   it("installs from the registry given with --registry", async () => {
     await createProject()
 
     await run("--yes", "--registry", "https://registry.example.com/r/")
 
-    expect(commands()[1]).toBe(
-      "pnpm dlx shadcn@latest add https://registry.example.com/r/pliant-region.json --yes"
-    )
+    expect(await registries()).toEqual({
+      "@pliant": "https://registry.example.com/r/{name}.json",
+    })
+    expect(commands()[1]).toBe(`pnpm dlx ${addRegion}`)
+  })
+
+  it("keeps an @pliant registry that is already in components.json", async () => {
+    const own = { "@pliant": "https://mirror.example.com/r/{name}.json" }
+    await createProject({ registries: own })
+
+    await run("--yes")
+
+    expect(await registries()).toEqual(own)
+    expect(commands()).toEqual([
+      "pnpm add @pliantui/react",
+      `pnpm dlx ${addRegion}`,
+    ])
+  })
+
+  it("replaces an @pliant registry when --registry names another", async () => {
+    await createProject({
+      registries: {
+        "@pliant": {
+          url: "https://mirror.example.com/r/{name}.json",
+          headers: { Authorization: "Bearer ${TOKEN}" },
+        },
+      },
+    })
+
+    await run("--yes", "--registry", "https://registry.example.com/r")
+
+    expect(await registries()).toEqual({
+      "@pliant": {
+        url: "https://registry.example.com/r/{name}.json",
+        headers: { Authorization: "Bearer ${TOKEN}" },
+      },
+    })
   })
 
   it.each([
@@ -293,9 +367,9 @@ describe("pliantui init in a Next.js app with shadcn", () => {
 
     await run("--yes", "--registry", "http://localhost:4000/my%20r")
 
-    expect(commands()[1]).toContain(
-      "http://localhost:4000/my%20r/pliant-region.json"
-    )
+    expect(await registries()).toEqual({
+      "@pliant": "http://localhost:4000/my%20r/{name}.json",
+    })
   })
 
   it("prints the next step and the docs link", async () => {
@@ -315,13 +389,19 @@ describe("pliantui init in a Next.js app with shadcn", () => {
     expect(text).toContain("https://pliantui.dev/docs")
   })
 
-  it("leaves your files alone", async () => {
+  it("changes no file but components.json", async () => {
     await createProject()
     const before = await snapshot(cwd)
 
     await run("--yes")
 
-    expect(await snapshot(cwd)).toEqual(before)
+    const after = await snapshot(cwd)
+    expect(Object.keys(after)).toEqual(Object.keys(before))
+    for (const file of Object.keys(before)) {
+      if (file !== "components.json") {
+        expect(after[file]).toBe(before[file])
+      }
+    }
   })
 
   it("stops with a message when a command fails", async () => {
@@ -341,6 +421,7 @@ describe("running init twice", () => {
     await createProject({
       dependencies: { next: "16.0.0", "@pliantui/react": "^0.1.0" },
       installed: ["components/pliant/pliant-region.tsx"],
+      registries: pliantRegistry,
     })
 
     expect(await run("--yes")).toBe(0)
@@ -355,6 +436,7 @@ describe("running init twice", () => {
       appDirectory: "src/app",
       componentsAlias: "./src/*",
       installed: ["src/components/pliant/pliant-region.tsx"],
+      registries: pliantRegistry,
     })
 
     await run("--yes")
@@ -365,6 +447,7 @@ describe("running init twice", () => {
   it("only adds the dependency when the components are there", async () => {
     await createProject({
       installed: ["components/pliant/pliant-region.tsx"],
+      registries: pliantRegistry,
     })
 
     await run("--yes")
@@ -382,9 +465,22 @@ describe("running init twice", () => {
     expect(commands()).toEqual([`pnpm dlx ${addRegion}`])
   })
 
+  it("only adds the registry when everything else is there", async () => {
+    await createProject({
+      dependencies: { next: "16.0.0", "@pliantui/react": "^0.1.0" },
+      installed: ["components/pliant/pliant-region.tsx"],
+    })
+
+    await run("--yes")
+
+    expect(commands()).toEqual([])
+    expect(await registries()).toEqual(pliantRegistry)
+  })
+
   it("counts a dependency in devDependencies", async () => {
     await createProject({
       installed: ["components/pliant/pliant-region.tsx"],
+      registries: pliantRegistry,
     })
     await write(
       "package.json",
@@ -402,27 +498,45 @@ describe("running init twice", () => {
 describe("pliantui init prompts", () => {
   it("asks before each command and runs the ones you accept", async () => {
     await createProject()
-    prompts.inject([true, true])
+    prompts.inject([true, true, true])
 
     expect(await run()).toBe(0)
 
     expect(commands()).toEqual([
       "pnpm add @pliantui/react",
-      "pnpm dlx shadcn@latest add https://pliantui.dev/r/pliant-region.json",
+      "pnpm dlx shadcn@latest add @pliant/pliant-region",
     ])
+    expect(await registries()).toEqual(pliantRegistry)
   })
 
   it("prints the exact command for each one you decline", async () => {
     await createProject()
-    prompts.inject([false, true])
+    prompts.inject([false, true, true])
 
     await run()
 
     expect(commands()).toEqual([
-      "pnpm dlx shadcn@latest add https://pliantui.dev/r/pliant-region.json",
+      "pnpm dlx shadcn@latest add @pliant/pliant-region",
     ])
     expect(printed()).toContain(
       "Skipped. To do it yourself, run: pnpm add @pliantui/react"
+    )
+    expect(printed()).not.toContain("Pliant is ready.")
+  })
+
+  it("doesn't add components without the registry they come from", async () => {
+    await createProject()
+    prompts.inject([true, false])
+
+    await run()
+
+    expect(commands()).toEqual(["pnpm add @pliantui/react"])
+    expect(await registries()).toBeUndefined()
+    expect(printed()).toContain(
+      'Skipped. To do it yourself, add "@pliant": "https://pliantui.dev/r/{name}.json" to registries in components.json.'
+    )
+    expect(printed()).toContain(
+      "then run: pnpm dlx shadcn@latest add @pliant/pliant-region"
     )
     expect(printed()).not.toContain("Pliant is ready.")
   })
@@ -451,6 +565,7 @@ describe("pliantui init prompts", () => {
     await createProject({
       dependencies: { next: "16.0.0", "@pliantui/react": "^0.1.0" },
       installed: ["components/pliant/pliant-region.jsx"],
+      registries: pliantRegistry,
     })
     setTerminal(false)
 

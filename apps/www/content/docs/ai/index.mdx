@@ -50,8 +50,10 @@ Each **target** is a part of the page users can ask about: its id, a label, what
 <Step>Add the panel and point mode</Step>
 
 ```bash
-npx shadcn@latest add https://pliantui.dev/r/pliant-ask-panel.json https://pliantui.dev/r/pliant-point-mode.json
+npx shadcn@latest add @pliant/pliant-ask-panel @pliant/pliant-point-mode
 ```
+
+The `@pliant` name comes from your `components.json`, where [`pliantui init`](/docs/cli/init) adds it. Without `init`, see [Set up `@pliant` without init](/docs/registry#set-up-pliant-without-init).
 
 Render them inside `PliantRoot`, such as in the page header:
 

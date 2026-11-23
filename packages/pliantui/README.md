@@ -6,7 +6,11 @@ A CLI for adding Pliant to your shadcn app.
 npx pliantui init
 ```
 
-Adds `@pliantui/react` and the `pliant-region` component to a Next.js App Router project that already uses shadcn/ui. It asks before each step and prints the next step when it finishes.
+Adds `@pliantui/react`, the `@pliant` registry and the `pliant-region` component to a Next.js App Router project that already uses shadcn/ui. It asks before each step and prints the next step when it finishes. Then add any other component by name:
+
+```bash
+npx shadcn@latest add @pliant/pliant-data-table
+```
 
 ```bash
 npx pliantui manifest
@@ -32,6 +36,6 @@ npx pliantui skills add
 
 Copies Pliant's skills for coding agents into your project, to `.claude/skills` if you have a `.claude` folder and `.agents/skills` if not. Ask your agent to set up Pliant and it follows the `setup` skill.
 
-See the [CLI docs](https://github.com/pliantui/pliant/blob/main/apps/www/content/docs/cli.mdx).
+See the [CLI docs](https://github.com/pliantui/pliant/blob/main/apps/www/content/docs/cli/index.mdx).
 
 Pliant is in early development. See https://github.com/pliantui/pliant.
