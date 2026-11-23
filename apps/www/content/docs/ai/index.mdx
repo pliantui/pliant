@@ -113,7 +113,6 @@ The route never changes your data, and the model never sees your rows. See [What
 | `defaultOpen`    | `false`             | Whether the panel starts open, when you don't control it             |
 | `onOpenChange`   | None                | Called when the panel opens or closes                                |
 | `placeholder`    | "Describe a change" | The prompt's placeholder                                             |
-| `trigger`        | None                | An element that opens the panel, besides the Customize menu          |
 | `fetch`          | The global `fetch`  | Sends each ask in place of the global `fetch`                        |
 
 `fetch` has the type of the global `fetch`. The panel calls it with `endpoint` and a `POST` request whose JSON body is the ask, then reads the answer from the response. Pass your own to add headers, to stub answers in tests, or to answer asks without a network request, as [Recordings and replay](/docs/ai/recordings#replaying-in-the-browser) shows.

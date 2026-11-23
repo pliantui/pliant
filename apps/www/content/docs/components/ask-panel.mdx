@@ -120,16 +120,15 @@ export const AskPanel = dynamic(
 
 ## Options
 
-| Prop                                    | Type                       | Description                                                                     |
-| --------------------------------------- | -------------------------- | ------------------------------------------------------------------------------- |
-| `endpoint`                              | `string`                   | The URL of the route that answers asks with `createPliantHandler`.              |
-| `targets`                               | `PliantAskTarget[]`        | The nodes users can ask about, in picker order.                                 |
-| `target` / `defaultTarget`              | `string`                   | The picked target, controlled or uncontrolled. Defaults to the first.           |
-| `onTargetChange`                        | `(target: string) => void` | Called when the user picks a target.                                            |
-| `open` / `defaultOpen` / `onOpenChange` |                            | The panel's open state.                                                         |
-| `placeholder`                           | `string`                   | The prompt's placeholder.                                                       |
-| `trigger`                               | `ReactElement \| null`     | An element that opens the panel. Defaults to none; the Customize menu opens it. |
-| `fetch`                                 | `typeof fetch`             | Sends each ask in place of the global `fetch`, as for tests.                    |
+| Prop                                    | Type                       | Description                                                           |
+| --------------------------------------- | -------------------------- | --------------------------------------------------------------------- |
+| `endpoint`                              | `string`                   | The URL of the route that answers asks with `createPliantHandler`.    |
+| `targets`                               | `PliantAskTarget[]`        | The nodes users can ask about, in picker order.                       |
+| `target` / `defaultTarget`              | `string`                   | The picked target, controlled or uncontrolled. Defaults to the first. |
+| `onTargetChange`                        | `(target: string) => void` | Called when the user picks a target.                                  |
+| `open` / `defaultOpen` / `onOpenChange` |                            | The panel's open state.                                               |
+| `placeholder`                           | `string`                   | The prompt's placeholder.                                             |
+| `fetch`                                 | `typeof fetch`             | Sends each ask in place of the global `fetch`, as for tests.          |
 
 ## Accessibility
 

@@ -69,7 +69,7 @@ The menu doesn't take asks itself. **Ask for a change…** runs your `onAsk`, wh
 
 ### In your right-click menu
 
-`PliantCustomizeContextMenu` wraps one element, such as a region, and adds the Customize group to its right-click menu, or its long-press menu on a touch screen. Fields, links and selected text keep the browser's own menu.
+`PliantCustomizeContextMenu` wraps one element, such as a region, and adds the Customize group to its right-click menu, or its long-press menu on a touch screen. Right-clicking a field, a link, editable content or selected text still opens the browser's own menu, so copying and spellcheck keep working.
 
 ```tsx
 <PliantCustomizeContextMenu onAsk={() => setOpen(true)}>
