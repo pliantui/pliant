@@ -599,7 +599,7 @@ function PliantAskChat({
                   return (
                     <Message key={message.id} from="user">
                       <MessageContent>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs font-medium text-secondary-foreground">
                           {message.target}
                         </span>
                         <p className="break-words whitespace-pre-wrap">
