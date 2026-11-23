@@ -10,6 +10,7 @@ import {
 } from "@/components/page-header"
 import { PageNav } from "@/components/page-nav"
 import { Button } from "@/components/ui/button"
+import { UnfinishedStrip } from "@/components/unfinished-strip"
 
 const title = "Charts"
 const description =
@@ -30,6 +31,7 @@ const sections = [
 export default function ChartsLayout({ children }: LayoutProps<"/charts">) {
   return (
     <>
+      <UnfinishedStrip />
       <PageHeader>
         <PageHeaderHeading>{title}</PageHeaderHeading>
         <PageHeaderDescription>{description}</PageHeaderDescription>

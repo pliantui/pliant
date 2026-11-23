@@ -28,10 +28,22 @@ You need a TanStack Start app with React 19.2 or later, and [shadcn/ui](https://
 npm install @pliantui/react zod
 ```
 
+<Step>Add the Pliant registry</Step>
+
+Add `@pliant` to the `registries` in `components.json`, so the shadcn CLI can find Pliant's components by name:
+
+```json title="components.json"
+{
+  "registries": {
+    "@pliant": "https://pliantui.dev/r/{name}.json"
+  }
+}
+```
+
 <Step>Add the region component</Step>
 
 ```bash
-npx shadcn@latest add https://pliantui.dev/r/pliant-region.json
+npx shadcn@latest add @pliant/pliant-region
 ```
 
 </Steps>

@@ -33,7 +33,7 @@ test("the docs sidebar marks a page for something that isn't built with a dot", 
   })
   await expect(chart.getByTitle("Not fully implemented yet")).toBeVisible()
   await expect(
-    sidebar.getByRole("link", { name: "Region", exact: true })
+    sidebar.getByRole("link", { name: "Overlays and layers", exact: true })
   ).toBeVisible()
 })
 

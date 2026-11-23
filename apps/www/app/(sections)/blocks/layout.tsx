@@ -10,6 +10,7 @@ import {
 } from "@/components/page-header"
 import { PageNav } from "@/components/page-nav"
 import { Button } from "@/components/ui/button"
+import { UnfinishedStrip } from "@/components/unfinished-strip"
 import { blocks } from "@/lib/blocks/blocks"
 
 const title = "Blocks"
@@ -25,6 +26,7 @@ export const metadata: Metadata = {
 export default function BlocksLayout({ children }: LayoutProps<"/blocks">) {
   return (
     <>
+      <UnfinishedStrip />
       <PageHeader>
         <PageHeaderHeading>{title}</PageHeaderHeading>
         <PageHeaderDescription>{description}</PageHeaderDescription>

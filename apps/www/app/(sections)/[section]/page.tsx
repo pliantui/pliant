@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 
 import { ComingSoon } from "@/components/coming-soon"
 import { PageHeader, PageHeaderHeading } from "@/components/page-header"
+import { UnfinishedStrip } from "@/components/unfinished-strip"
 import { sections, type Section } from "@/lib/sections"
 
 type SectionName = keyof typeof sections
@@ -37,6 +38,7 @@ export default async function SectionPage(props: PageProps<"/[section]">) {
 
   return (
     <PageHeader>
+      <UnfinishedStrip />
       <PageHeaderHeading>{title}</PageHeaderHeading>
       <ComingSoon>{description}</ComingSoon>
     </PageHeader>

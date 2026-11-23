@@ -257,7 +257,10 @@ test("lists the components in the sidebar after the first steps, and steps throu
 }) => {
   await page.goto("/docs/components/region")
   const sidebar = page.getByRole("navigation", { name: "Docs" })
-  const links = await sidebar.getByRole("link").allTextContents()
+  // Without the hidden text of the dot that marks unbuilt pages.
+  const links = (await sidebar.getByRole("link").allTextContents()).map(
+    (text) => text.replace(/, Not fully implemented yet$/, "")
+  )
   const start = links.indexOf("Components")
   expect(links.slice(start, start + 4)).toEqual([
     "Components",

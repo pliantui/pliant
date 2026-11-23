@@ -7,7 +7,9 @@ import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react"
 import { DocsCopyPage } from "@/components/docs-copy-page"
 import { DocsTableOfContents } from "@/components/docs-toc"
 import { Button } from "@/components/ui/button"
+import { UnfinishedStrip } from "@/components/unfinished-strip"
 import { source } from "@/lib/source"
+import { isUnfinishedDoc } from "@/lib/unfinished-docs"
 import { mdxComponents } from "@/mdx-components"
 
 export const revalidate = false
@@ -47,6 +49,7 @@ export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
       data-slot="docs"
       className="flex scroll-mt-24 items-stretch pb-8 text-[1.05rem] sm:text-[15px] xl:w-full"
     >
+      {isUnfinishedDoc(raw) && <UnfinishedStrip />}
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="h-(--top-spacing) shrink-0" />
         <div className="mx-auto flex w-full max-w-160 min-w-0 flex-1 flex-col gap-6 px-4 py-6 text-foreground md:px-0 lg:py-8 dark:text-foreground">

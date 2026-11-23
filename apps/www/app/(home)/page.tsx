@@ -12,6 +12,7 @@ import {
   PageHeaderHeading,
 } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
+import { UnfinishedStrip } from "@/components/unfinished-strip"
 import { inventory } from "@/lib/pliant/inventory.generated"
 import { site } from "@/lib/site"
 
@@ -37,6 +38,7 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <div className="flex flex-1 flex-col">
+      <UnfinishedStrip />
       <PageHeader className="md:**:[.container]:pb-8 lg:**:[.container]:pb-12">
         <Announcement />
         <PageHeaderHeading className="max-w-4xl">
