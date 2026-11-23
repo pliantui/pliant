@@ -41,19 +41,28 @@ Give the region an `id` and its content as `slots`. The key order is the order u
 
 ## What users can ask
 
-Users can point at a region and ask in their own words. Each change previews in place until they lock it in or discard it. These asks have recorded answers, so the preview above plays them:
+Users point at a region and ask in their own words. Each change previews in place until they lock it in or discard it.
 
-| Ask                                 | What changes                                  |
-| ----------------------------------- | --------------------------------------------- |
-| put the overdue card first          | The Overdue card moves to the front.          |
-| hide the average order value card   | That card is hidden. Reset brings it back.    |
-| show the cards in a two-column grid | The region lays its cards out in two columns. |
+| Ask                                                      | What changes                                                         |
+| -------------------------------------------------------- | -------------------------------------------------------------------- |
+| add a bar chart of order value by region under the cards | A new chart over the page's orders data appears after the last card. |
+| add a card with the number of refunded orders            | A new stat card counts the orders whose status is refunded.          |
+| put the overdue card first                               | The Overdue card moves to the front.                                 |
 
-Users can also move, hide, resize and collapse slots by hand.
+The preview above replays recorded asks: "put the overdue card first", "hide the average order value card" and "show the cards in a two-column grid".
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  [The ask panel](/docs/ai) can't add cards or charts yet, and an added chart or
+  stat card shows a placeholder.
+</Callout>
 
 ## Rules and guardrails
 
-- Users change only the order, visibility, size and layout of slots. They can't add content you didn't write or change what a slot shows.
+- Users change the order, visibility, size and layout of slots, group slots into sections and fold them behind **More**. They can add views of data the page already shows, such as a chart or a stat card, but they can't add content you didn't write or change what a slot shows.
 - Every change is checked against the region's manifest, so an ask that would break it is turned down.
 - A change saves for that user only. Their team's defaults and your base order stay as they are, and Reset returns to them.
 - Slot ids are the names changes are saved under. Rename one with care: a saved change to the old id stops applying.
