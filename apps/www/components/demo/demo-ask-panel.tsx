@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { createPortal } from "react-dom"
 
 import { PliantRoot } from "@pliantui/react"
 
@@ -38,9 +37,6 @@ interface DemoAskScope {
   ask: (target?: string) => void
   open: boolean
   register: (entry: DemoAskSuggestions) => () => void
-  // Where the chat sits in the page, right after the Customize button that
-  // opens it, so Tab moves from the button into the chat.
-  anchor: (element: HTMLElement | null) => (() => void) | undefined
 }
 
 // The chat of the demo around a part, for the parts that ask about
@@ -191,7 +187,6 @@ function DemoAskChat({
     readonly { key: number; entry: DemoAskSuggestions }[]
   >([])
   const [open, setOpen] = React.useState(false)
-  const [anchor, setAnchor] = React.useState<HTMLElement | null>(null)
   const [target, setTarget] = React.useState<string>()
   const entries = React.useMemo(
     (): DemoAskSuggestions[] => [
@@ -223,13 +218,6 @@ function DemoAskChat({
             : null
         setOpen(true)
         window.dispatchEvent(new CustomEvent(openEvent, { detail: id }))
-      },
-      anchor: (element) => {
-        if (!element) return
-        setAnchor((current) => current ?? element)
-        return () => {
-          setAnchor((current) => (current === element ? null : current))
-        }
       },
       register: (entry) => {
         const key = next.current++
@@ -290,38 +278,35 @@ function DemoAskChat({
       <div ref={container} className="contents">
         {children}
       </div>
-      {portal(
-        anchor,
-        <LazyAskPanel
-          // Every ask is answered in the browser, so no request leaves the
-          // page.
-          endpoint="/replay"
-          fetch={send}
-          targets={askTargets}
-          target={target}
-          onTargetChange={setTarget}
-          answerLabel={(ask) =>
-            isScriptedAsk(ask.target, ask.prompt) ||
-            played(ask.target, ask.prompt) ? (
-              <ScriptedAnswerLabel />
-            ) : null
-          }
-          open={open && askTargets.length > 0}
-          onOpenChange={(next) => {
-            setOpen(next)
-            if (next) return
-            // After the panel unmounts, focus has nowhere left to be.
-            requestAnimationFrame(() => {
-              if (document.activeElement !== document.body) return
-              const back = returnTo.current
-              const fallback = container.current?.querySelector<HTMLElement>(
-                '[data-slot="pliant-customize-menu"] button'
-              )
-              ;(back?.isConnected ? back : fallback)?.focus()
-            })
-          }}
-        />
-      )}
+      <LazyAskPanel
+        // Every ask is answered in the browser, so no request leaves the
+        // page.
+        endpoint="/replay"
+        fetch={send}
+        targets={askTargets}
+        target={target}
+        onTargetChange={setTarget}
+        answerLabel={(ask) =>
+          isScriptedAsk(ask.target, ask.prompt) ||
+          played(ask.target, ask.prompt) ? (
+            <ScriptedAnswerLabel />
+          ) : null
+        }
+        open={open && askTargets.length > 0}
+        onOpenChange={(next) => {
+          setOpen(next)
+          if (next) return
+          // After the panel unmounts, focus has nowhere left to be.
+          requestAnimationFrame(() => {
+            if (document.activeElement !== document.body) return
+            const back = returnTo.current
+            const fallback = container.current?.querySelector<HTMLElement>(
+              '[data-slot="pliant-customize-menu"] button'
+            )
+            ;(back?.isConnected ? back : fallback)?.focus()
+          })
+        }}
+      />
     </DemoAskContext>
   )
 }
@@ -349,15 +334,4 @@ export function useDemoAskSuggestions(entry: DemoAskSuggestions) {
         : undefined,
     })
   }, [register, target, label, prompts, hasPlay])
-}
-
-function portal(anchor: HTMLElement | null, element: React.ReactElement) {
-  return anchor ? createPortal(element, anchor) : element
-}
-
-// Marks where the chat of the demo around it sits: put it right after the
-// Customize button that opens the chat.
-export function DemoAskAnchor() {
-  const chat = useDemoAsk()
-  return <div ref={chat?.anchor} className="contents" />
 }

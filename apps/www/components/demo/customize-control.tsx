@@ -1,7 +1,6 @@
 "use client"
 
 import { useRegisterCustomizeCommands } from "@/components/demo/customize-commands"
-import { DemoAskAnchor } from "@/components/demo/demo-ask-panel"
 import { UnfinishedDot } from "@/components/unfinished-dot"
 import {
   PliantCustomizeContextMenu,
@@ -57,16 +56,13 @@ export function CustomizeControl({
   useRegisterCustomizeCommands(commands ? actionsOf(options) : undefined)
 
   return (
-    <>
-      <PliantCustomizeMenu
-        ref={ref}
-        aria-label={`Customize ${label}`}
-        customized={options.customized}
-        previewing={previewing}
-        {...actionsOf(options)}
-      />
-      <DemoAskAnchor />
-    </>
+    <PliantCustomizeMenu
+      ref={ref}
+      aria-label={`Customize ${label}`}
+      customized={options.customized}
+      previewing={previewing}
+      {...actionsOf(options)}
+    />
   )
 }
 

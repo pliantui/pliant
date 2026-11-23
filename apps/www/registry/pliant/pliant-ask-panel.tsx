@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { createPortal } from "react-dom"
 import * as z from "zod"
 
 import { usePliantMessages, type PliantMessages } from "@pliantui/react"
@@ -127,13 +128,14 @@ async function requestAnswer(
  * still includes it in the server bundle; to keep it out, load the panel
  * itself only in the browser, as with `next/dynamic` and `ssr: false`.
  *
- * The panel is a non-modal complementary region fixed to the right edge (to
- * the bottom on small screens), so the page and its preview stay usable
- * while it is open. It covers what is under it, so the app must make room:
- * the panel has `data-slot="pliant-ask-panel"` while it is open, so a
- * layout can add padding with, for example,
- * `sm:has-[[data-slot=pliant-ask-panel]]:pr-96` and
- * `max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh]`.
+ * The panel is a non-modal complementary region fixed to the right edge of
+ * the window (to the bottom on small screens), rendered in `document.body`,
+ * so the page and its preview stay usable while it is open. It covers what
+ * is under it, so the app must make room: the panel has
+ * `data-slot="pliant-ask-panel"` while it is open, so a layout can add
+ * padding with, for example, `group/body` on `<body>` and
+ * `sm:group-has-[[data-slot=pliant-ask-panel]]/body:pr-96` and
+ * `max-sm:group-has-[[data-slot=pliant-ask-panel]]/body:pb-[60dvh]`.
  *
  * The panel has no button of its own: something else opens it with `open`
  * and `onOpenChange`, such as `PliantCustomizeMenu`'s Ask item, which then
@@ -237,39 +239,49 @@ function PliantAskPanel({
     setFocusOnMount(true)
   }
 
-  return (
-    <>
-      {panel.open && (
-        <aside
-          {...panel.getPanelProps()}
-          aria-labelledby={`${id}-title`}
-          className="fixed inset-x-0 bottom-0 z-50 flex h-[60dvh] flex-col border-t bg-background shadow-lg motion-safe:animate-in motion-safe:slide-in-from-bottom sm:inset-y-0 sm:right-0 sm:left-auto sm:h-auto sm:w-full sm:max-w-sm sm:border-t-0 sm:border-l sm:motion-safe:slide-in-from-right"
-        >
-          <React.Suspense
-            fallback={
-              <div className="flex flex-col gap-3 p-4">
-                <h2 id={`${id}-title`} className="font-semibold">
-                  {messages.askTitle}
-                </h2>
-                <Skeleton className="h-8 w-full" />
-              </div>
-            }
-          >
-            <PliantAskChat
-              panel={panel}
-              targets={targets}
-              placeholder={placeholder}
-              titleId={`${id}-title`}
-              autoFocus={focusOnMount}
-              answers={answers}
-              store={chats}
-              answerLabel={answerLabel}
-            />
-          </React.Suspense>
-        </aside>
-      )}
-    </>
+  const client = React.useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false
   )
+  if (!panel.open || !client) return null
+
+  // In `document.body`, so no container of the page's clips it, positions
+  // it or makes room for it.
+  return createPortal(
+    <aside
+      {...panel.getPanelProps()}
+      aria-labelledby={`${id}-title`}
+      className="fixed inset-x-0 bottom-0 z-50 flex h-[60dvh] flex-col border-t bg-background shadow-lg motion-safe:animate-in motion-safe:slide-in-from-bottom sm:inset-y-0 sm:right-0 sm:left-auto sm:h-auto sm:w-full sm:max-w-sm sm:border-t-0 sm:border-l sm:motion-safe:slide-in-from-right"
+    >
+      <React.Suspense
+        fallback={
+          <div className="flex flex-col gap-3 p-4">
+            <h2 id={`${id}-title`} className="font-semibold">
+              {messages.askTitle}
+            </h2>
+            <Skeleton className="h-8 w-full" />
+          </div>
+        }
+      >
+        <PliantAskChat
+          panel={panel}
+          targets={targets}
+          placeholder={placeholder}
+          titleId={`${id}-title`}
+          autoFocus={focusOnMount}
+          answers={answers}
+          store={chats}
+          answerLabel={answerLabel}
+        />
+      </React.Suspense>
+    </aside>,
+    document.body
+  )
+}
+
+function subscribeToNothing() {
+  return () => undefined
 }
 
 export {

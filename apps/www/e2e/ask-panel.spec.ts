@@ -218,11 +218,6 @@ test("doesn't trap focus or take Escape from the page", async ({
   await page.keyboard.press("Escape")
   await expect(panel).toBeVisible()
 
-  await trigger.focus()
-  await page.keyboard.press("Tab")
-  await expect(
-    panel.getByRole("button", { name: /^Current chat:/ })
-  ).toBeFocused()
   // With an empty prompt, Send is disabled, so the prompt is the panel's
   // last stop.
   await panel.getByRole("textbox", { name: "Ask" }).focus()

@@ -126,3 +126,40 @@ test("an ask that matches no suggestion gets an honest reply", async ({
   )
   expect(errors).toEqual([])
 })
+
+for (const width of [1440, 1585]) {
+  test.describe(`at ${String(width)}px wide`, () => {
+    test.use({ viewport: { width, height: 900 } })
+
+    test("the chat is a sidebar at the window's right edge", async ({
+      page,
+      errors,
+    }) => {
+      await page.goto("/")
+      await pickCustomize(
+        page.getByRole("button", { name: "Customize the dashboard" }),
+        "Ask for a change…"
+      )
+      await expect(prompt(page)).toBeFocused()
+
+      const box = await chat(page).boundingBox()
+      expect(box?.x).toBeGreaterThan(width / 2)
+      expect(Math.round((box?.x ?? 0) + (box?.width ?? 0))).toBe(width)
+      expect(box?.y).toBe(0)
+      expect(Math.round(box?.height ?? 0)).toBe(900)
+      // The page makes room for it, so it covers none of the dashboard.
+      const dashboard = await page
+        .getByRole("button", { name: "Customize the dashboard" })
+        .boundingBox()
+      expect((dashboard?.x ?? width) + (dashboard?.width ?? 0)).toBeLessThan(
+        box?.x ?? 0
+      )
+      await expect(
+        chat(page)
+          .getByRole("group", { name: "Suggestions" })
+          .getByRole("button", { name: "open Analytics when I log in" })
+      ).toBeVisible()
+      expect(errors).toEqual([])
+    })
+  })
+}
