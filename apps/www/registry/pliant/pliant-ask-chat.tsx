@@ -51,6 +51,9 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -64,6 +67,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 import {
   usePliantAskChats,
+  type PliantAskChatEntry,
   type PliantAskChatMessage,
 } from "./pliant-ask-chats"
 import type { PliantAskAnswer, PliantAskTarget } from "./pliant-ask-panel"
@@ -79,6 +83,8 @@ declare module "@pliantui/react" {
     askNewChat: string
     askNoChats: string
     askDeleteChat: string
+    askConfirmDelete: string
+    askSavedLocally: string
     askConversation: string
     askEmptyTitle: string
     askScrollDown: string
@@ -99,6 +105,8 @@ declare module "@pliantui/react" {
     askPreview: string
     askPreviewing: string
     askNotPreviewed: string
+    askOtherPreview: string
+    askGoToChat: string
     askDiscarded: string
     askLockedIn: string
     askKeptInSession: (count: number) => string
@@ -118,6 +126,8 @@ const askChatMessages = {
   askNewChat: "New chat",
   askNoChats: "No saved chats",
   askDeleteChat: "Delete this chat",
+  askConfirmDelete: "Delete",
+  askSavedLocally: "Chats are saved in this browser only.",
   askConversation: "Conversation",
   askEmptyTitle: "Ask for a change",
   askScrollDown: "Scroll to the latest message",
@@ -137,6 +147,8 @@ const askChatMessages = {
   askPreview: "Preview",
   askPreviewing: "Showing on the page. Nothing is saved until you lock it in.",
   askNotPreviewed: "No longer previewed.",
+  askOtherPreview: "A preview from another ask is showing on the page.",
+  askGoToChat: "Go to chat",
   askDiscarded: "Discarded.",
   askLockedIn: "Locked in.",
   askKeptInSession: (count) =>
@@ -169,6 +181,25 @@ interface PendingAsk {
 interface PendingDecision {
   chatId: string
   messageId: string
+}
+
+// Where the change being previewed came from, if a chat holds it.
+function findPreviewOwner(
+  chats: readonly PliantAskChatEntry[],
+  overlayId: string
+) {
+  for (const chat of chats) {
+    const message = chat.messages.find(
+      (entry) =>
+        entry.kind === "change" &&
+        entry.overlay === overlayId &&
+        entry.outcome === undefined
+    )
+    if (message) {
+      return { chatId: chat.id, messageId: message.id }
+    }
+  }
+  return undefined
 }
 
 function ChangeMessage({
@@ -286,6 +317,7 @@ function PliantAskChat({
   titleId,
   autoFocus,
   answers,
+  chatScope,
 }: {
   panel: PliantAskPanelState
   targets: readonly PliantAskTarget[]
@@ -295,10 +327,12 @@ function PliantAskChat({
   autoFocus: boolean
   /** Where the panel reports each answer before it previews it. */
   answers: Set<(answer: PliantAskAnswer) => void>
+  /** Keeps the chats of each scope apart, as for each signed-in user. */
+  chatScope: string | undefined
 }) {
   const messages = usePliantMessages(askChatMessages)
   const surface = usePliantSurface()
-  const { chats, store } = usePliantAskChats(surface)
+  const { chats, store } = usePliantAskChats(surface, chatScope)
   const preview = usePreview()
   const [promptElement, setPromptElement] =
     React.useState<HTMLTextAreaElement | null>(null)
@@ -310,6 +344,12 @@ function PliantAskChat({
   const chat = chats.chats.find(({ id }) => id === chats.active)
   const chatMessages = chat?.messages ?? []
   const suggestions = panel.target?.suggestions ?? []
+  const previewOwner = preview
+    ? findPreviewOwner(chats.chats, preview.id)
+    : undefined
+  // A preview no message of the open chat shows, as from another chat or
+  // from outside the panel, keeps its controls in a bar of its own.
+  const otherPreview = preview !== null && previewOwner?.chatId !== chat?.id
 
   React.useEffect(() => {
     if (autoFocus) {
@@ -397,11 +437,18 @@ function PliantAskChat({
     panel.setPrompt("")
   }
 
-  function decide(messageId: string, action: () => void) {
-    if (chat) {
-      decision.current = { chatId: chat.id, messageId }
-      action()
+  // A preview no chat holds reports a failure to the open chat.
+  function decide(owner: PendingDecision | undefined, action: () => void) {
+    decision.current =
+      owner ?? (chat ? { chatId: chat.id, messageId: "" } : null)
+    action()
+  }
+
+  function deleteChat(chatId: string) {
+    if (previewOwner?.chatId === chatId) {
+      panel.discard()
     }
+    store.deleteChat(chatId)
   }
 
   return (
@@ -417,6 +464,7 @@ function PliantAskChat({
               variant="ghost"
               size="sm"
               className="max-w-44 min-w-0"
+              disabled={asking}
             >
               <span className="sr-only">{messages.askCurrentChat} </span>
               <span className="truncate">
@@ -448,15 +496,21 @@ function PliantAskChat({
             {chat && (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  disabled={asking}
-                  onSelect={() => {
-                    store.deleteChat(chat.id)
-                  }}
-                >
-                  {messages.askDeleteChat}
-                </DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    {messages.askDeleteChat}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => {
+                        deleteChat(chat.id)
+                      }}
+                    >
+                      {messages.askConfirmDelete}
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
               </>
             )}
           </DropdownMenuContent>
@@ -515,17 +569,29 @@ function PliantAskChat({
         </Select>
       </div>
       <Conversation
+        // A new log for each chat, so switching doesn't announce every
+        // message again.
+        key={chats.active ?? "new"}
         className="min-h-0"
         aria-label={messages.askConversation}
         aria-live="polite"
       >
         <ConversationContent className="gap-4">
           {chatMessages.length === 0 && !asking ? (
-            <ConversationEmptyState
-              icon={<SparklesIcon className="size-5" />}
-              title={messages.askEmptyTitle}
-              description={messages.askDescription}
-            />
+            <ConversationEmptyState>
+              <SparklesIcon className="size-5 text-muted-foreground" />
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium">
+                  {messages.askEmptyTitle}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {messages.askDescription}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {messages.askSavedLocally}
+                </p>
+              </div>
+            </ConversationEmptyState>
           ) : (
             chatMessages.map((message) => {
               switch (message.kind) {
@@ -550,10 +616,16 @@ function PliantAskChat({
                       live={preview?.id === message.overlay}
                       disabled={asking}
                       onLockIn={() => {
-                        decide(message.id, panel.lockIn)
+                        decide(
+                          chat && { chatId: chat.id, messageId: message.id },
+                          panel.lockIn
+                        )
                       }}
                       onDiscard={() => {
-                        decide(message.id, panel.discard)
+                        decide(
+                          chat && { chatId: chat.id, messageId: message.id },
+                          panel.discard
+                        )
                       }}
                     />
                   )
@@ -595,6 +667,52 @@ function PliantAskChat({
         </ConversationContent>
         <ConversationScrollButton aria-label={messages.askScrollDown} />
       </Conversation>
+      {otherPreview && (
+        <div
+          role="group"
+          aria-label={messages.askPreview}
+          className="mx-4 mb-3 flex flex-col gap-2 rounded-md border p-3 text-sm"
+        >
+          <p className="text-muted-foreground">{messages.askOtherPreview}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              disabled={asking}
+              onClick={() => {
+                decide(previewOwner, panel.lockIn)
+              }}
+            >
+              {messages.askLockIn}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={asking}
+              onClick={() => {
+                decide(previewOwner, panel.discard)
+              }}
+            >
+              {messages.askDiscard}
+            </Button>
+            {previewOwner && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={asking}
+                onClick={() => {
+                  store.switchChat(previewOwner.chatId)
+                  promptElement?.focus()
+                }}
+              >
+                {messages.askGoToChat}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
       {suggestions.length > 0 && chatMessages.length === 0 && (
         <div
           role="group"

@@ -1,5 +1,6 @@
 "use client"
 
+// Adapted from AI Elements (https://github.com/vercel/ai-elements), Copyright 2023 Vercel, Inc., Apache-2.0. See LICENSE-ai-elements.md.
 import type { ComponentProps } from "react"
 import { cn } from "cn"
 import { ChevronDownIcon, SearchIcon } from "lucide-react"

@@ -2,11 +2,9 @@
 
 import * as React from "react"
 
+import { LazyAskPanel } from "@/components/lazy-ask-panel"
 import { replayFetch } from "@/lib/replay/replay-fetch"
-import {
-  PliantAskPanel,
-  type PliantAskTarget,
-} from "@/registry/pliant/pliant-ask-panel"
+import type { PliantAskTarget } from "@/registry/pliant/pliant-ask-panel"
 import { PliantPointMode } from "@/registry/pliant/pliant-point-mode"
 
 // Point mode and the ask panel for a demo, answering from the recorded
@@ -28,7 +26,7 @@ export function DemoAskToolbar({
           setOpen(true)
         }}
       />
-      <PliantAskPanel
+      <LazyAskPanel
         // Every ask goes to `replayFetch`, so no request leaves the page.
         endpoint="/replay"
         fetch={replayFetch}

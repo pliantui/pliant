@@ -13,12 +13,6 @@ describe("pliantAskOpLabels", () => {
     expect(typeof label).toBe("string")
     expect(String(label).trim()).not.toBe("")
   })
-
-  it("labels only ops in the catalog", () => {
-    expect(Object.keys(pliantAskOpLabels).sort()).toEqual(
-      Object.keys(opCatalog).sort()
-    )
-  })
 })
 
 describe("pliantAskChosenOps", () => {

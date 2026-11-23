@@ -29,6 +29,7 @@ declare module "@pliantui/react" {
 
 const askPanelMessages = {
   askOpen: "Ask",
+  askTitle: "Ask",
   askPreviewActive: "(preview active)",
   askUnreadableAnswer: (status) =>
     `Couldn't read the answer (HTTP ${String(status)}).`,
@@ -130,9 +131,16 @@ async function requestAnswer(
  * sends the root's surface with each ask. Its behaviour comes from
  * `useAskPanel`.
  *
- * Each surface keeps its chats in the browser's `localStorage`, titled from
- * their first ask, and a menu switches between them. The chat loads when
- * the panel first opens, so it adds nothing to the page's first load.
+ * Each surface keeps its chats in the browser's `localStorage`, under keys
+ * that start with `pliant:ask-chats:`, titled from their first ask, and a
+ * menu switches between them. By default every user of the browser shares
+ * them; pass `chatScope`, such as the signed-in user's id, to keep each
+ * user's chats apart.
+ *
+ * The chat's code loads in the browser when the panel first opens, so it
+ * adds nothing to the page's first load there. A server-rendering bundler
+ * still includes it in the server bundle; to keep it out, load the panel
+ * itself only in the browser, as with `next/dynamic` and `ssr: false`.
  *
  * The panel is a non-modal complementary region fixed to the right edge (to
  * the bottom on small screens), so the page and its preview stay usable
@@ -159,6 +167,7 @@ function PliantAskPanel({
   open,
   defaultOpen,
   onOpenChange,
+  chatScope,
 }: {
   /** The URL of the route that answers asks with `createPliantHandler`. */
   endpoint: string
@@ -186,6 +195,11 @@ function PliantAskPanel({
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
+  /**
+   * Keeps chats apart by scope, such as the signed-in user's id, on a
+   * browser several users share. By default the chats are per surface only.
+   */
+  chatScope?: string | undefined
 }) {
   const messages = usePliantMessages(askPanelMessages)
   const [answers] = React.useState(
@@ -253,7 +267,9 @@ function PliantAskPanel({
           <React.Suspense
             fallback={
               <div className="flex flex-col gap-3 p-4">
-                <Skeleton className="h-6 w-1/3" />
+                <h2 id={`${id}-title`} className="font-semibold">
+                  {messages.askTitle}
+                </h2>
                 <Skeleton className="h-8 w-full" />
               </div>
             }
@@ -265,6 +281,7 @@ function PliantAskPanel({
               titleId={`${id}-title`}
               autoFocus={focusOnMount}
               answers={answers}
+              chatScope={chatScope}
             />
           </React.Suspense>
         </aside>

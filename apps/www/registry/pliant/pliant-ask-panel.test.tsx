@@ -188,6 +188,14 @@ function status() {
   return log().textContent
 }
 
+async function openChats() {
+  fireEvent.pointerDown(
+    screen.getByRole("button", { name: /^Current chat:/ }),
+    { button: 0, ctrlKey: false }
+  )
+  await settle()
+}
+
 function requestBody(call = 0) {
   const body = fetchMock.mock.calls[call]?.[1]?.body
   return typeof body === "string" ? (JSON.parse(body) as unknown) : undefined
@@ -352,6 +360,92 @@ describe("PliantAskPanel", () => {
 
     expect(status()).toContain("Which card?")
     expect(status()).not.toContain("Which table?")
+  })
+
+  it("marks an earlier preview as no longer previewed", async () => {
+    await renderPanel()
+    answer(okAnswer)
+    await ask()
+    answer({
+      status: "ok",
+      overlay: {
+        ...overlay(
+          [{ op: "hide", target: "key-metrics/slots/orders" }],
+          ["Hid the Orders card."]
+        ),
+        id: "01KAB0000000000000000000S2",
+      },
+    })
+    await ask("hide the orders card")
+
+    const previews = within(log()).getAllByRole("group", { name: "Preview" })
+    expect(previews).toHaveLength(2)
+    expect(previews[0]?.textContent).toContain("No longer previewed.")
+    expect(
+      within(log()).getAllByRole("button", { name: "Lock in" })
+    ).toHaveLength(1)
+  })
+
+  it("discards the preview when its chat is deleted", async () => {
+    await renderPanel()
+    answer(okAnswer)
+    await ask()
+    expect(order()).toEqual(["overdue", "revenue", "orders"])
+
+    await openChats()
+    fireEvent.keyDown(
+      screen.getByRole("menuitem", { name: "Delete this chat" }),
+      { key: "ArrowRight" }
+    )
+    await settle()
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }))
+    await settle()
+
+    expect(order()).toEqual(["revenue", "orders", "overdue"])
+    expect(status()).not.toContain("put the overdue card first")
+    expect(screen.queryByRole("button", { name: "Lock in" })).toBeNull()
+  })
+
+  it("keeps the controls of a preview from another chat", async () => {
+    await renderPanel()
+    answer(okAnswer)
+    await ask()
+
+    fireEvent.click(screen.getByRole("button", { name: "New chat" }))
+    const bar = screen.getByRole("group", { name: "Preview" })
+    expect(bar.textContent).toContain(
+      "A preview from another ask is showing on the page."
+    )
+
+    fireEvent.click(within(bar).getByRole("button", { name: "Go to chat" }))
+    expect(status()).toContain("Moved the Overdue card to the first position.")
+    expect(screen.getAllByRole("group", { name: "Preview" })).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole("button", { name: "New chat" }))
+    fireEvent.click(
+      within(screen.getByRole("group", { name: "Preview" })).getByRole(
+        "button",
+        { name: "Discard" }
+      )
+    )
+    expect(order()).toEqual(["revenue", "orders", "overdue"])
+    expect(screen.queryByRole("group", { name: "Preview" })).toBeNull()
+  })
+
+  it("doesn't switch chats while asking", async () => {
+    await renderPanel()
+    fetchMock.mockReturnValueOnce(new Promise(() => undefined))
+
+    await ask()
+
+    expect(
+      screen
+        .getByRole("button", { name: /^Current chat:/ })
+        .hasAttribute("disabled")
+    ).toBe(true)
+    expect(
+      screen.getByRole("button", { name: "New chat" }).hasAttribute("disabled")
+    ).toBe(true)
   })
 
   it("shows the open chat again when the panel mounts again", async () => {
