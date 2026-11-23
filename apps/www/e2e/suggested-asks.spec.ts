@@ -141,7 +141,7 @@ test("leads the key metrics preview with an ask that isn't a layout change", asy
 
 for (const [name, ask] of [
   [/^A dashboard with key metrics/, /^make the chart a line chart/],
-  [/^A sales pipeline board/, /^show the total for each stage/],
+  [/^A sales pipeline board/, /^flag deals with no activity in 14 days/],
   [/^A team page/, /^publish this layout for my team/],
 ] as const) {
   test(`leads the ${name.source.slice(1)} block with an ask that isn't a layout change`, async ({

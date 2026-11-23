@@ -4,6 +4,7 @@ import * as React from "react"
 
 import { usePliantStore, usePliantSurface, usePreview } from "@pliantui/react"
 
+import { ScriptedAnswerLabel } from "@/components/demo/scripted-answer-label"
 import { Button } from "@/components/ui/button"
 import { UnfinishedDot } from "@/components/unfinished-dot"
 import { replayAnswer } from "@/lib/replay/replay-fetch"
@@ -92,7 +93,12 @@ export function LocalAsks({
         ))}
       </div>
       <p role="status" className="text-xs text-muted-foreground empty:sr-only">
-        {pending || !asked ? message : ""}
+        {(pending !== null || asked === null) && message && (
+          <>
+            <ScriptedAnswerLabel />
+            {message}
+          </>
+        )}
       </p>
       {pending && (
         <div className="flex gap-2">

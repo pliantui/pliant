@@ -43,6 +43,8 @@ export interface Deal {
   stage: DealStage
   value: number
   owner: string
+  // The day of the deal's latest call, email or meeting, as YYYY-MM-DD.
+  lastActivityAt: string
 }
 
 export interface MonthlyRevenue {

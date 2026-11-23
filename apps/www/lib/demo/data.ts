@@ -152,6 +152,8 @@ const accountManagers = team.filter(
   (member) => member.role === "Account manager"
 )
 
+const lastDealActivity = Date.UTC(2026, 9, 31)
+
 // Open deals with the customers, for the sales pipeline.
 function generateDeals(seed: number): Deal[] {
   const random = mulberry32(seed)
@@ -165,6 +167,11 @@ function generateDeals(seed: number): Deal[] {
       stage,
       value: Math.round((50000 + random() * 950000) / 1000) * 1000,
       owner: owner.name,
+      lastActivityAt: new Date(
+        lastDealActivity - Math.floor(random() * 40) * dayInMs
+      )
+        .toISOString()
+        .slice(0, 10),
     }
   })
 }

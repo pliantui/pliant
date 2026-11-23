@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test"
 
+import { deals } from "../lib/demo/data"
 import { expect, test } from "./fixtures"
 
 test("lists the six example apps", async ({ page }) => {
@@ -85,16 +86,35 @@ test.describe("the team workspace", () => {
   })
 })
 
-test("reshapes the CRM pipeline and resets it", async ({ page }) => {
+test("flags the deals with no activity in 14 days and resets it", async ({
+  page,
+}) => {
   await page.goto("/examples/crm")
-  const ask = page.getByRole("button", { name: /^make the cards compact/ })
-  await expect(page.getByText("Kavya Reddy").first()).toBeVisible()
+  const ask = page.getByRole("button", {
+    name: /^flag deals with no activity in 14 days/,
+  })
+  // The demo's 14 days count back from its latest activity.
+  const latest = deals
+    .map((deal) => deal.lastActivityAt)
+    .reduce((last, day) => (day > last ? day : last))
+  const cutoff = new Date(Date.parse(latest) - 13 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10)
+  const stale = deals.filter((deal) => deal.lastActivityAt < cutoff)
+  expect(stale.length).toBeGreaterThan(0)
+  expect(stale.length).toBeLessThan(deals.length)
+  const flagged = page.getByRole("listitem").filter({
+    hasText: /No activity since /,
+  })
 
   await ask.click()
-  await expect(page.getByText("Kavya Reddy")).toHaveCount(0)
+  await expect(flagged).toHaveCount(stale.length)
+  for (const deal of stale) {
+    await expect(flagged.filter({ hasText: deal.customer })).toHaveCount(1)
+  }
   const reset = page.getByRole("button", { name: "Reset the pipeline" })
   await reset.click()
-  await expect(page.getByText("Kavya Reddy").first()).toBeVisible()
+  await expect(flagged).toHaveCount(0)
   await expect(reset).toBeFocused()
 })
 
