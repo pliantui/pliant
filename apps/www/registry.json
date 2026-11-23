@@ -96,8 +96,9 @@
       "name": "pliant-ask-panel",
       "type": "registry:component",
       "title": "Pliant Ask Panel",
-      "description": "A panel for asking AI to change how part of a page looks, with a preview that is only saved on Lock in.",
+      "description": "A chat for asking AI to change how part of a page looks, with the steps of each answer and a preview that is only saved on Lock in.",
       "dependencies": [
+        "@pliantui/contract",
         "@pliantui/react",
         "cn",
         "lucide-react",
@@ -107,16 +108,34 @@
       "registryDependencies": [
         "badge",
         "button",
-        "label",
+        "dropdown-menu",
         "select",
         "skeleton",
-        "textarea"
+        "https://registry.ai-sdk.dev/conversation.json",
+        "https://registry.ai-sdk.dev/message.json",
+        "https://registry.ai-sdk.dev/prompt-input.json",
+        "https://registry.ai-sdk.dev/task.json"
       ],
       "files": [
         {
           "path": "registry/pliant/pliant-ask-panel.tsx",
           "type": "registry:component",
           "target": "@components/pliant/pliant-ask-panel.tsx"
+        },
+        {
+          "path": "registry/pliant/pliant-ask-chat.tsx",
+          "type": "registry:component",
+          "target": "@components/pliant/pliant-ask-chat.tsx"
+        },
+        {
+          "path": "registry/pliant/pliant-ask-chats.ts",
+          "type": "registry:lib",
+          "target": "@components/pliant/pliant-ask-chats.ts"
+        },
+        {
+          "path": "registry/pliant/pliant-ask-steps.ts",
+          "type": "registry:lib",
+          "target": "@components/pliant/pliant-ask-steps.ts"
         }
       ]
     },

@@ -190,7 +190,7 @@ test("holds Alt, clicks the key metrics and asks a suggestion", async ({
     .click()
   await page.keyboard.press("Enter")
 
-  await expect(panel.getByRole("status")).toContainText(
+  await expect(panel.getByRole("log", { name: "Conversation" })).toContainText(
     "Moved the Overdue card to the first position."
   )
   await expect(

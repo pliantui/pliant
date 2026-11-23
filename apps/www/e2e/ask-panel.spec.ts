@@ -37,7 +37,9 @@ async function askAboutKeyMetrics(page: Page, prompt: string, answer: string) {
   const textbox = panel.getByRole("textbox", { name: "Ask" })
   await textbox.fill(prompt)
   await textbox.press("Enter")
-  await expect(panel.getByRole("status")).toContainText(answer)
+  await expect(panel.getByRole("log", { name: "Conversation" })).toContainText(
+    answer
+  )
   return panel
 }
 
@@ -56,7 +58,9 @@ test("previews an answer and keeps it after Lock in", async ({
   expect(await slotOrder(page)).toEqual(overdueFirst)
 
   await panel.getByRole("button", { name: "Lock in" }).click()
-  await expect(panel.getByRole("status")).toHaveText("Locked in.")
+  await expect(panel.getByRole("log", { name: "Conversation" })).toContainText(
+    "Locked in."
+  )
 
   await page.reload()
   await expect(region(page)).not.toHaveAttribute("data-pliant-pending")
@@ -73,7 +77,9 @@ test("drops the preview on Discard", async ({ page, errors }) => {
   expect(await slotOrder(page)).toEqual(overdueFirst)
 
   await panel.getByRole("button", { name: "Discard" }).click()
-  await expect(panel.getByRole("status")).toHaveText("Discarded.")
+  await expect(panel.getByRole("log", { name: "Conversation" })).toContainText(
+    "Discarded."
+  )
   expect(await slotOrder(page)).toEqual(base)
 
   await page.reload()
@@ -91,7 +97,7 @@ test("asks a suggestion", async ({ page, errors }) => {
   await expect(panel.getByRole("textbox", { name: "Ask" })).toBeFocused()
   await page.keyboard.press("Enter")
 
-  await expect(panel.getByRole("status")).toContainText(
+  await expect(panel.getByRole("log", { name: "Conversation" })).toContainText(
     "Hid the Average order value card"
   )
   expect(errors).toEqual([])
@@ -214,14 +220,13 @@ test("doesn't trap focus or take Escape from the page", async ({
 
   await trigger.focus()
   await page.keyboard.press("Tab")
-  await expect(panel.getByRole("button", { name: "Close" })).toBeFocused()
-  await panel
-    .getByRole("group", { name: "Suggestions" })
-    .getByRole("button")
-    .last()
-    .focus()
+  await expect(
+    panel.getByRole("button", { name: /^Current chat:/ })
+  ).toBeFocused()
+  // With an empty prompt, Send is disabled, so the prompt is the panel's
+  // last stop.
+  await panel.getByRole("textbox", { name: "Ask" }).focus()
   await page.keyboard.press("Tab")
-  await expect(panel.getByRole("button", { name: "Close" })).not.toBeFocused()
   expect(
     await page.evaluate(() =>
       document
@@ -247,7 +252,9 @@ test("docks to the bottom on small screens, keeping the cards in view", async ({
     "put the overdue card first",
     "Moved the Overdue card to the first position."
   )
-  await expect(asked.getByRole("status")).toBeInViewport({ ratio: 1 })
+  await expect(asked.getByRole("log", { name: "Conversation" })).toBeInViewport(
+    { ratio: 1 }
+  )
   await expect(asked.getByRole("button", { name: "Lock in" })).toBeInViewport()
 
   // The page makes room below the cards, so they can scroll clear of the

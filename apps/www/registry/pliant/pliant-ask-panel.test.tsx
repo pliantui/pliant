@@ -153,6 +153,9 @@ async function renderPanel(
 ) {
   const view = render(page(props, layers))
   await settle()
+  if (props.defaultOpen !== false) {
+    await screen.findByRole("textbox", { name: "Ask" })
+  }
   return view
 }
 
@@ -177,8 +180,20 @@ function order() {
   )
 }
 
+function log() {
+  return screen.getByRole("log", { name: "Conversation" })
+}
+
 function status() {
-  return screen.getByRole("status").textContent
+  return log().textContent
+}
+
+async function openChats() {
+  fireEvent.pointerDown(
+    screen.getByRole("button", { name: /^Current chat:/ }),
+    { button: 0, ctrlKey: false }
+  )
+  await settle()
 }
 
 function requestBody(call = 0) {
@@ -205,7 +220,7 @@ describe("PliantAskPanel", () => {
     expect(trigger.getAttribute("type")).toBe("button")
 
     fireEvent.click(trigger)
-    await settle()
+    await screen.findByRole("textbox", { name: "Ask" })
 
     expect(screen.getByRole("complementary", { name: "Ask" })).toBeTruthy()
     expect(screen.getByRole("combobox", { name: "Change" }).textContent).toBe(
@@ -258,8 +273,196 @@ describe("PliantAskPanel", () => {
       context: targets[0]?.context,
     })
     expect(order()).toEqual(["overdue", "revenue", "orders"])
+    expect(status()).toContain("put the overdue card first")
     expect(status()).toContain("Moved the Overdue card to the first position.")
-    expect(screen.getByRole("button", { name: "Lock in" })).toBeTruthy()
+    expect(prompt()).toHaveProperty("value", "")
+    const preview = within(log()).getByRole("group", { name: "Preview" })
+    expect(
+      within(preview).getByRole("button", { name: "Lock in" })
+    ).toBeTruthy()
+    expect(
+      within(preview).getByRole("button", { name: "Discard" })
+    ).toBeTruthy()
+  })
+
+  it("shows the steps the answer took", async () => {
+    await renderPanel()
+    answer(okAnswer)
+
+    await ask()
+
+    expect(
+      within(log())
+        .getAllByRole("listitem")
+        .map((item) => item.textContent)
+    ).toEqual([
+      "Chose an operation: Move",
+      "Checked the change against the rules for Key metrics",
+    ])
+  })
+
+  it("applies nothing until Lock in, and restores the page on Discard", async () => {
+    const save = vi.fn<StorageAdapter["save"]>((...args) =>
+      storage.save(...args)
+    )
+    await renderPanel({}, { ...storage, save })
+    answer(okAnswer)
+    await ask()
+    expect(save).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }))
+
+    expect(order()).toEqual(["revenue", "orders", "overdue"])
+    expect(save).not.toHaveBeenCalled()
+    expect(status()).toContain("Discarded.")
+    expect(screen.queryByRole("button", { name: "Lock in" })).toBeNull()
+
+    answer(okAnswer)
+    await ask()
+    fireEvent.click(screen.getByRole("button", { name: "Lock in" }))
+    await settle()
+
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(order()).toEqual(["overdue", "revenue", "orders"])
+    expect(status()).toContain("Locked in.")
+  })
+
+  it("is a polite log", async () => {
+    await renderPanel()
+
+    expect(log().getAttribute("aria-live")).toBe("polite")
+  })
+
+  it("starts a new chat and switches back to the last one", async () => {
+    await renderPanel()
+    answer({ status: "clarify", question: "Which card?" })
+    await ask("put the overdue card first")
+
+    fireEvent.click(screen.getByRole("button", { name: "New chat" }))
+
+    expect(status()).not.toContain("Which card?")
+    expect(document.activeElement).toBe(prompt())
+    answer({ status: "clarify", question: "Which table?" })
+    await ask("sort the orders")
+    const switcher = screen.getByRole("button", {
+      name: "Current chat: sort the orders",
+    })
+    fireEvent.pointerDown(switcher, { button: 0, ctrlKey: false })
+    await settle()
+    expect(
+      screen.getAllByRole("menuitemradio").map((item) => item.textContent)
+    ).toEqual(["sort the orders", "put the overdue card first"])
+
+    fireEvent.click(
+      screen.getByRole("menuitemradio", { name: "put the overdue card first" })
+    )
+    await settle()
+
+    expect(status()).toContain("Which card?")
+    expect(status()).not.toContain("Which table?")
+  })
+
+  it("marks an earlier preview as no longer previewed", async () => {
+    await renderPanel()
+    answer(okAnswer)
+    await ask()
+    answer({
+      status: "ok",
+      overlay: {
+        ...overlay(
+          [{ op: "hide", target: "key-metrics/slots/orders" }],
+          ["Hid the Orders card."]
+        ),
+        id: "01KAB0000000000000000000S2",
+      },
+    })
+    await ask("hide the orders card")
+
+    const previews = within(log()).getAllByRole("group", { name: "Preview" })
+    expect(previews).toHaveLength(2)
+    expect(previews[0]?.textContent).toContain("No longer previewed.")
+    expect(
+      within(log()).getAllByRole("button", { name: "Lock in" })
+    ).toHaveLength(1)
+  })
+
+  it("discards the preview when its chat is deleted", async () => {
+    await renderPanel()
+    answer(okAnswer)
+    await ask()
+    expect(order()).toEqual(["overdue", "revenue", "orders"])
+
+    await openChats()
+    fireEvent.keyDown(
+      screen.getByRole("menuitem", { name: "Delete this chat" }),
+      { key: "ArrowRight" }
+    )
+    await settle()
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }))
+    await settle()
+
+    expect(order()).toEqual(["revenue", "orders", "overdue"])
+    expect(status()).not.toContain("put the overdue card first")
+    expect(screen.queryByRole("button", { name: "Lock in" })).toBeNull()
+  })
+
+  it("keeps the controls of a preview from another chat", async () => {
+    await renderPanel()
+    answer(okAnswer)
+    await ask()
+
+    fireEvent.click(screen.getByRole("button", { name: "New chat" }))
+    const bar = screen.getByRole("group", { name: "Preview" })
+    expect(bar.textContent).toContain(
+      "A preview from another ask is showing on the page."
+    )
+
+    fireEvent.click(within(bar).getByRole("button", { name: "Go to chat" }))
+    expect(status()).toContain("Moved the Overdue card to the first position.")
+    expect(screen.getAllByRole("group", { name: "Preview" })).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole("button", { name: "New chat" }))
+    fireEvent.click(
+      within(screen.getByRole("group", { name: "Preview" })).getByRole(
+        "button",
+        { name: "Discard" }
+      )
+    )
+    expect(order()).toEqual(["revenue", "orders", "overdue"])
+    expect(screen.queryByRole("group", { name: "Preview" })).toBeNull()
+  })
+
+  it("doesn't switch chats while asking", async () => {
+    await renderPanel()
+    fetchMock.mockReturnValueOnce(new Promise(() => undefined))
+
+    await ask()
+
+    expect(
+      screen
+        .getByRole("button", { name: /^Current chat:/ })
+        .hasAttribute("disabled")
+    ).toBe(true)
+    expect(
+      screen.getByRole("button", { name: "New chat" }).hasAttribute("disabled")
+    ).toBe(true)
+  })
+
+  it("shows the open chat again when the panel mounts again", async () => {
+    const view = await renderPanel()
+    answer({ status: "clarify", question: "Which card?" })
+    await ask("put the overdue card first")
+    view.unmount()
+
+    await renderPanel()
+
+    expect(status()).toContain("put the overdue card first")
+    expect(status()).toContain("Which card?")
+    expect(
+      screen.getByRole("button", {
+        name: "Current chat: put the overdue card first",
+      })
+    ).toBeTruthy()
   })
 
   it("sends the ask with a custom fetch in place of the network", async () => {
@@ -290,7 +493,9 @@ describe("PliantAskPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Lock in" }))
 
-    expect(status()).toBe("Locked in.1 change stays for this session only.")
+    expect(status()).toContain(
+      "Locked in.1 change stays for this session only."
+    )
   })
 
   it.each([
@@ -314,7 +519,7 @@ describe("PliantAskPanel", () => {
 
     await ask()
 
-    expect(status()).toBe(message)
+    expect(status()).toContain(message)
   })
 
   it("shows a network error", async () => {
@@ -323,7 +528,9 @@ describe("PliantAskPanel", () => {
 
     await ask()
 
-    expect(status()).toBe("Couldn't reach the server. Check your connection.")
+    expect(status()).toContain(
+      "Couldn't reach the server. Check your connection."
+    )
   })
 
   it("shows the loading state and sends one ask at a time", async () => {
@@ -336,7 +543,7 @@ describe("PliantAskPanel", () => {
     await settle()
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(status()).toBe("Asking…")
+    expect(status()).toContain("Asking…")
     expect(
       screen.getByRole("button", { name: "Send" }).hasAttribute("disabled")
     ).toBe(true)
@@ -349,7 +556,7 @@ describe("PliantAskPanel", () => {
     expect(screen.queryByRole("complementary")).toBeNull()
 
     fireEvent.click(trigger)
-    await settle()
+    await screen.findByRole("textbox", { name: "Ask" })
 
     expect(trigger.getAttribute("aria-expanded")).toBe("true")
     expect(trigger.getAttribute("aria-controls")).toBe(
@@ -381,6 +588,7 @@ describe("PliantAskPanel", () => {
     await settle()
 
     expect(screen.getByRole("button", { name: "Lock in" })).toBeTruthy()
+    expect(status()).toContain("Moved the Overdue card to the first position.")
   })
 
   it("keeps the page outside it usable", async () => {
@@ -489,7 +697,7 @@ describe("PliantAskPanel", () => {
 
     await ask()
 
-    expect(status()).toBe("<img src=x onerror=alert(1)>")
+    expect(status()).toContain("<img src=x onerror=alert(1)>")
     expect(document.querySelector("img")).toBeNull()
   })
 })

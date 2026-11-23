@@ -2,11 +2,9 @@
 
 import * as React from "react"
 
+import { LazyAskPanel } from "@/components/lazy-ask-panel"
 import { replayFetch } from "@/lib/replay/replay-fetch"
-import {
-  PliantAskPanel,
-  type PliantAskTarget,
-} from "@/registry/pliant/pliant-ask-panel"
+import type { PliantAskTarget } from "@/registry/pliant/pliant-ask-panel"
 
 // The ask panel of a demo: what it asks about, and whether it's open. Ask in
 // a Customize menu opens it on that menu's part.
@@ -33,7 +31,7 @@ export function DemoAskPanel({
   returnFocus?: React.RefObject<HTMLElement | null> | undefined
 }) {
   return (
-    <PliantAskPanel
+    <LazyAskPanel
       // Every ask goes to `replayFetch`, so no request leaves the page.
       endpoint="/replay"
       fetch={replayFetch}

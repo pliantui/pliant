@@ -193,10 +193,8 @@ describe("PliantPointMode", () => {
     )
     await wait()
     fireEvent.click(screen.getByRole("button", { name: "Ask" }))
-    await wait()
-    expect(document.activeElement).toBe(
-      screen.getByRole("textbox", { name: "Ask" })
-    )
+    const prompt = await screen.findByRole("textbox", { name: "Ask" })
+    expect(document.activeElement).toBe(prompt)
 
     await holdAlt()
 

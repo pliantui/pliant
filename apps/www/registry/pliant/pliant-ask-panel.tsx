@@ -1,8 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { cn } from "cn"
-import { Loader2Icon, SparklesIcon, XIcon } from "lucide-react"
+import { SparklesIcon } from "lucide-react"
 import { Slot } from "radix-ui"
 import * as z from "zod"
 
@@ -13,18 +12,8 @@ import {
 } from "@pliantui/react"
 import { useAskPanel } from "@pliantui/react/ask"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Textarea } from "@/components/ui/textarea"
 
 declare module "@pliantui/react" {
   interface PliantMessages {
@@ -34,58 +23,23 @@ declare module "@pliantui/react" {
      * preview shows and the panel is closed. Defaults to "(preview active)".
      */
     askPreviewActive: string
-    askTitle: string
-    askDescription: string
-    askClose: string
-    askTargetLabel: string
-    askPromptLabel: string
-    askPromptPlaceholder: string
-    askPromptHint: string
-    askCancel: string
-    askSend: string
-    askAsking: string
-    askCancelled: string
-    askDiscarded: string
-    askLockedIn: string
-    askKeptInSession: (count: number) => string
-    askCurrentPreview: string
-    askLockIn: string
-    askDiscard: string
-    askSuggestions: string
     askUnreadableAnswer: (status: number) => string
   }
 }
 
 const askPanelMessages = {
   askOpen: "Ask",
-  askPreviewActive: "(preview active)",
   askTitle: "Ask",
-  askDescription:
-    "Describe how this page should look. You see a preview, and nothing is saved until you lock it in.",
-  askClose: "Close",
-  askTargetLabel: "Change",
-  askPromptLabel: "Ask",
-  askPromptPlaceholder: "Describe a change",
-  askPromptHint: "Enter to send, Shift+Enter for a new line.",
-  askCancel: "Cancel",
-  askSend: "Send",
-  askAsking: "Asking…",
-  askCancelled: "Cancelled.",
-  askDiscarded: "Discarded.",
-  askLockedIn: "Locked in.",
-  askKeptInSession: (count) =>
-    count === 1
-      ? "1 change stays for this session only."
-      : `${String(count)} changes stay for this session only.`,
-  askCurrentPreview: "Current preview",
-  askLockIn: "Lock in",
-  askDiscard: "Discard",
-  askSuggestions: "Suggestions",
+  askPreviewActive: "(preview active)",
   askUnreadableAnswer: (status) =>
     `Couldn't read the answer (HTTP ${String(status)}).`,
 } satisfies Partial<PliantMessages>
 
-const maxPromptLength = 500
+const PliantAskChat = React.lazy(() =>
+  import("./pliant-ask-chat").then((module) => ({
+    default: module.PliantAskChat,
+  }))
+)
 
 // Only the envelope is checked here: `preview` validates the overlay against
 // the layers and the mounted nodes, which is stricter than its schema.
@@ -96,7 +50,8 @@ const askResponseSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("error"), message: z.string().min(1) }),
 ])
 
-type Answer = z.infer<typeof askResponseSchema>
+/** An answer to an ask, as `createPliantHandler` sends it. */
+type PliantAskAnswer = z.infer<typeof askResponseSchema>
 
 type PliantAskCapability =
   | "label"
@@ -155,7 +110,7 @@ async function requestAnswer(
   body: unknown,
   signal: AbortSignal,
   unreadable: (status: number) => string
-): Promise<Answer> {
+): Promise<PliantAskAnswer> {
   const response = await send(endpoint, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -170,10 +125,22 @@ async function requestAnswer(
 }
 
 /**
- * A panel for asking AI to change how a node of the page looks. The answer
- * is previewed on the page, and nothing is saved until the user locks it in.
- * Use it inside a `PliantRoot`; it sends the root's surface with each ask.
- * Its behaviour comes from `useAskPanel`.
+ * A chat for asking AI to change how a node of the page looks. Each answer
+ * shows the steps it took and a preview, on the page and in the chat, that
+ * is only saved when the user locks it in. Use it inside a `PliantRoot`; it
+ * sends the root's surface with each ask. Its behaviour comes from
+ * `useAskPanel`.
+ *
+ * Each surface keeps its chats in the browser's `localStorage`, under keys
+ * that start with `pliant:ask-chats:`, titled from their first ask, and a
+ * menu switches between them. By default every user of the browser shares
+ * them; pass `chatScope`, such as the signed-in user's id, to keep each
+ * user's chats apart.
+ *
+ * The chat's code loads in the browser when the panel first opens, so it
+ * adds nothing to the page's first load there. A server-rendering bundler
+ * still includes it in the server bundle; to keep it out, load the panel
+ * itself only in the browser, as with `next/dynamic` and `ssr: false`.
  *
  * The panel is a non-modal complementary region fixed to the right edge (to
  * the bottom on small screens), so the page and its preview stay usable
@@ -181,9 +148,8 @@ async function requestAnswer(
  * the panel has `data-slot="pliant-ask-panel"` while it is open, so a
  * layout can add padding with, for example,
  * `sm:has-[[data-slot=pliant-ask-panel]]:pr-96` and
- * `max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh]`. On small screens,
- * the suggestions hide while a preview shows. Closing the panel keeps the
- * preview, which the trigger then marks with `data-preview`.
+ * `max-sm:has-[[data-slot=pliant-ask-panel]]:pb-[60dvh]`. Closing the panel
+ * keeps the preview, which the trigger then marks with `data-preview`.
  *
  * The target can be controlled with `target` and `onTargetChange`, so a
  * target picked elsewhere on the page, as with `PliantPointMode`, can be
@@ -201,6 +167,7 @@ function PliantAskPanel({
   open,
   defaultOpen,
   onOpenChange,
+  chatScope,
 }: {
   /** The URL of the route that answers asks with `createPliantHandler`. */
   endpoint: string
@@ -233,8 +200,16 @@ function PliantAskPanel({
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
+  /**
+   * Keeps chats apart by scope, such as the signed-in user's id, on a
+   * browser several users share. By default the chats are per surface only.
+   */
+  chatScope?: string | undefined
 }) {
   const messages = usePliantMessages(askPanelMessages)
+  const [answers] = React.useState(
+    () => new Set<(answer: PliantAskAnswer) => void>()
+  )
   const panel = useAskPanel({
     targets,
     target,
@@ -243,8 +218,8 @@ function PliantAskPanel({
     open,
     defaultOpen,
     onOpenChange,
-    send: (ask, signal) =>
-      requestAnswer(
+    send: async (ask, signal) => {
+      const answer = await requestAnswer(
         send,
         endpoint,
         {
@@ -255,15 +230,23 @@ function PliantAskPanel({
         },
         signal,
         messages.askUnreadableAnswer
-      ),
+      )
+      for (const listener of answers) {
+        listener(answer)
+      }
+      return answer
+    },
   })
   const id = React.useId()
   const preview = usePreview()
-  const { state } = panel
-  const asking = state.status === "asking"
   const previewing = preview !== null
-  const explain = asking ? [] : [...new Set(preview?.explain)]
-  const suggestions = panel.target?.suggestions ?? []
+  // The chat takes focus when it mounts, except on a panel that starts open.
+  const [focusOnMount, setFocusOnMount] = React.useState(false)
+  const [wasOpen, setWasOpen] = React.useState(panel.open)
+  if (wasOpen !== panel.open) {
+    setWasOpen(panel.open)
+    setFocusOnMount(true)
+  }
 
   return (
     <>
@@ -286,185 +269,37 @@ function PliantAskPanel({
         <aside
           {...panel.getPanelProps()}
           aria-labelledby={`${id}-title`}
-          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[60dvh] flex-col overflow-y-auto border-t bg-background shadow-lg motion-safe:animate-in motion-safe:slide-in-from-bottom sm:inset-y-0 sm:right-0 sm:left-auto sm:max-h-none sm:w-full sm:max-w-sm sm:border-t-0 sm:border-l sm:motion-safe:slide-in-from-right"
+          className="fixed inset-x-0 bottom-0 z-50 flex h-[60dvh] flex-col border-t bg-background shadow-lg motion-safe:animate-in motion-safe:slide-in-from-bottom sm:inset-y-0 sm:right-0 sm:left-auto sm:h-auto sm:w-full sm:max-w-sm sm:border-t-0 sm:border-l sm:motion-safe:slide-in-from-right"
         >
-          <div className="flex items-start justify-between gap-2 p-4 pb-0">
-            <div className="flex flex-col gap-1.5">
-              <h2 id={`${id}-title`} className="font-semibold">
-                {messages.askTitle}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {messages.askDescription}
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              aria-label={messages.askClose}
-              onClick={() => {
-                panel.setOpen(false)
-              }}
-            >
-              <XIcon />
-            </Button>
-          </div>
-          <form
-            className="flex flex-col gap-4 p-4"
-            onSubmit={(event) => {
-              event.preventDefault()
-              panel.ask()
-            }}
-          >
-            <div className="grid gap-2">
-              <Label htmlFor={`${id}-target`}>{messages.askTargetLabel}</Label>
-              <Select
-                value={panel.target?.id ?? ""}
-                onValueChange={panel.setTarget}
-                disabled={asking}
-              >
-                <SelectTrigger
-                  {...panel.getPickerProps()}
-                  id={`${id}-target`}
-                  className="w-full"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {targets.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor={`${id}-prompt`}>{messages.askPromptLabel}</Label>
-              <Textarea
-                {...panel.getPromptProps()}
-                id={`${id}-prompt`}
-                maxLength={maxPromptLength}
-                placeholder={placeholder ?? messages.askPromptPlaceholder}
-                aria-describedby={`${id}-hint`}
-              />
-              <p id={`${id}-hint`} className="text-xs text-muted-foreground">
-                {messages.askPromptHint}
-              </p>
-            </div>
-            <div className="flex justify-end gap-2">
-              {asking && (
-                <Button type="button" variant="outline" onClick={panel.cancel}>
-                  {messages.askCancel}
-                </Button>
-              )}
-              <Button
-                type="submit"
-                disabled={asking || panel.prompt.trim() === ""}
-              >
-                {asking && <Loader2Icon className="animate-spin" />}
-                {messages.askSend}
-              </Button>
-            </div>
-          </form>
-          {/* Sticky, so an answer shows without scrolling the docked panel. */}
-          <div
-            className={cn(
-              "sticky bottom-0 flex flex-col gap-3 bg-background px-4",
-              (state.status !== "idle" || previewing) && "border-y py-4"
-            )}
-          >
-            <div
-              role="status"
-              aria-live="polite"
-              className="flex flex-col gap-2 text-sm break-words"
-            >
-              {state.status === "asking" && (
-                <>
-                  <span className="sr-only">{messages.askAsking}</span>
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                </>
-              )}
-              {state.status === "clarify" && <p>{state.question}</p>}
-              {state.status === "unavailable" && (
-                <p className="text-muted-foreground">{state.reason}</p>
-              )}
-              {state.status === "failed" && (
-                <p className="text-destructive">{state.message}</p>
-              )}
-              {state.status === "cancelled" && <p>{messages.askCancelled}</p>}
-              {state.status === "discarded" && <p>{messages.askDiscarded}</p>}
-              {state.status === "locked" && (
-                <>
-                  <p>{messages.askLockedIn}</p>
-                  {state.keptInSession.length > 0 && (
-                    <p className="text-muted-foreground">
-                      {messages.askKeptInSession(state.keptInSession.length)}
-                    </p>
-                  )}
-                </>
-              )}
-              {explain.length > 0 && (
-                <div
-                  className={cn(
-                    "flex flex-col gap-2",
-                    state.status !== "idle" && "border-t pt-3"
-                  )}
-                >
-                  <Badge variant="secondary">
-                    {messages.askCurrentPreview}
-                  </Badge>
-                  <ul className="flex flex-col gap-1">
-                    {explain.map((sentence) => (
-                      <li key={sentence}>{sentence}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-            {previewing && !asking && (
-              <div className="flex gap-2">
-                <Button type="button" onClick={panel.lockIn}>
-                  {messages.askLockIn}
-                </Button>
-                <Button type="button" variant="outline" onClick={panel.discard}>
-                  {messages.askDiscard}
-                </Button>
+          <React.Suspense
+            fallback={
+              <div className="flex flex-col gap-3 p-4">
+                <h2 id={`${id}-title`} className="font-semibold">
+                  {messages.askTitle}
+                </h2>
+                <Skeleton className="h-8 w-full" />
               </div>
-            )}
-          </div>
-          {suggestions.length > 0 && (
-            <div
-              role="group"
-              aria-label={messages.askSuggestions}
-              className={cn(
-                "flex flex-wrap gap-2 p-4",
-                previewing && "max-sm:hidden"
-              )}
-            >
-              {suggestions.map((suggestion) => (
-                <Button
-                  key={suggestion}
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="h-auto py-1 text-left whitespace-normal"
-                  disabled={asking}
-                  onClick={() => {
-                    panel.setPrompt(suggestion)
-                  }}
-                >
-                  {suggestion}
-                </Button>
-              ))}
-            </div>
-          )}
+            }
+          >
+            <PliantAskChat
+              panel={panel}
+              targets={targets}
+              placeholder={placeholder}
+              titleId={`${id}-title`}
+              autoFocus={focusOnMount}
+              answers={answers}
+              chatScope={chatScope}
+            />
+          </React.Suspense>
         </aside>
       )}
     </>
   )
 }
 
-export { PliantAskPanel, type PliantAskContext, type PliantAskTarget }
+export {
+  PliantAskPanel,
+  type PliantAskAnswer,
+  type PliantAskContext,
+  type PliantAskTarget,
+}

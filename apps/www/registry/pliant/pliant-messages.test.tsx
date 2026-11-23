@@ -60,7 +60,25 @@ const messages: PliantMessages = {
   askDiscarded: "⟦askDiscarded⟧",
   askLockedIn: "⟦askLockedIn⟧",
   askKeptInSession: (count) => `⟦askKeptInSession ${String(count)}⟧`,
-  askCurrentPreview: "⟦askCurrentPreview⟧",
+  askChats: "⟦askChats⟧",
+  askCurrentChat: "⟦askCurrentChat⟧",
+  askNewChat: "⟦askNewChat⟧",
+  askNoChats: "⟦askNoChats⟧",
+  askDeleteChat: "⟦askDeleteChat⟧",
+  askConfirmDelete: "⟦askConfirmDelete⟧",
+  askSavedLocally: "⟦askSavedLocally⟧",
+  askConversation: "⟦askConversation⟧",
+  askEmptyTitle: "⟦askEmptyTitle⟧",
+  askScrollDown: "⟦askScrollDown⟧",
+  askSteps: "⟦askSteps⟧",
+  askStepChoseOp: (label) => `⟦askStepChoseOp ${label}⟧`,
+  askStepChecked: (target) => `⟦askStepChecked ${target}⟧`,
+  askOpLabel: (op) => `⟦askOpLabel ${op}⟧`,
+  askPreview: "⟦askPreview⟧",
+  askPreviewing: "⟦askPreviewing⟧",
+  askNotPreviewed: "⟦askNotPreviewed⟧",
+  askOtherPreview: "⟦askOtherPreview⟧",
+  askGoToChat: "⟦askGoToChat⟧",
   askLockIn: "⟦askLockIn⟧",
   askDiscard: "⟦askDiscard⟧",
   askSuggestions: "⟦askSuggestions⟧",
@@ -303,7 +321,7 @@ async function settle(ms = 0) {
 
 async function open() {
   fireEvent.click(screen.getByRole("button", { name: /^⟦askOpen⟧/ }))
-  await settle()
+  await screen.findByRole("textbox", { name: "⟦askPromptLabel⟧" })
 }
 
 async function ask() {
@@ -313,9 +331,9 @@ async function ask() {
   await settle()
 }
 
-function askStatus() {
+function chatLog() {
   const panel = screen.getByRole("complementary", { name: "⟦askTitle⟧" })
-  return within(panel).getByRole("status").textContent
+  return within(panel).getByRole("log").textContent
 }
 
 function apply(...ops: Op[]) {
@@ -348,7 +366,7 @@ describe("the registry components with every message given", () => {
 
     fetchMock.mockReturnValueOnce(new Promise(() => undefined))
     await ask()
-    expect(askStatus()).toBe("⟦askAsking⟧")
+    expect(chatLog()).toContain("⟦askAsking⟧")
     expect(unmarkedText()).toEqual([])
 
     fireEvent.click(screen.getByRole("button", { name: "⟦askCancel⟧" }))
@@ -398,7 +416,7 @@ describe("the registry components with every message given", () => {
     respond()
     await ask()
 
-    expect(askStatus()).toBe(status)
+    expect(chatLog()).toContain(status)
     expect(unmarkedText()).toEqual([])
   })
 
@@ -408,7 +426,7 @@ describe("the registry components with every message given", () => {
 
     await ask()
 
-    expect(askStatus()).toBe("⟦askNotReady⟧")
+    expect(chatLog()).toContain("⟦askNotReady⟧")
     expect(unmarkedText()).toEqual([])
   })
 
@@ -425,7 +443,8 @@ describe("the registry components with every message given", () => {
 
     fetchMock.mockResolvedValueOnce(Response.json(answer))
     await ask()
-    expect(screen.getByText("⟦askCurrentPreview⟧")).toBeTruthy()
+    expect(chatLog()).toContain("⟦askStepChoseOp ⟦askOpLabel move⟧⟧")
+    expect(chatLog()).toContain("⟦askPreviewing⟧")
     expect(unmarkedText()).toEqual([])
 
     fireEvent.click(screen.getByRole("button", { name: "⟦askClose⟧" }))
@@ -436,13 +455,13 @@ describe("the registry components with every message given", () => {
 
     await open()
     fireEvent.click(screen.getByRole("button", { name: "⟦askLockIn⟧" }))
-    expect(askStatus()).toBe("⟦askLockedIn⟧⟦askKeptInSession 1⟧")
+    expect(chatLog()).toContain("⟦askLockedIn⟧⟦askKeptInSession 1⟧")
     expect(unmarkedText()).toEqual([])
 
     fetchMock.mockResolvedValueOnce(Response.json(answer))
     await ask()
     fireEvent.click(screen.getByRole("button", { name: "⟦askDiscard⟧" }))
-    expect(askStatus()).toBe("⟦askDiscarded⟧")
+    expect(chatLog()).toContain("⟦askDiscarded⟧")
     expect(unmarkedText()).toEqual([])
   })
 
