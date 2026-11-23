@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { afterAll, describe, expect, it } from "vitest"
@@ -32,15 +32,37 @@ const shadcnFiles = {
   }),
 }
 
+const installedFiles = {
+  "package.json": JSON.stringify({
+    dependencies: { next: "16.0.0", "@pliantui/react": "^0.1.0" },
+  }),
+  "app/layout.tsx": "export default function Layout() { return null }\n",
+  "components/pliant/pliant-region.tsx": "export {}\n",
+}
+
 describe("pliantui init", () => {
+  it("adds the @pliant registry to components.json", async () => {
+    const cwd = await createProject({ ...shadcnFiles, ...installedFiles })
+
+    const { exitCode } = await runCli(cwd, ["init", "--yes"])
+
+    expect(exitCode).toBe(0)
+    const config: unknown = JSON.parse(
+      await readFile(path.join(cwd, "components.json"), "utf8")
+    )
+    expect(config).toMatchObject({
+      registries: { "@pliant": "https://pliantui.dev/r/{name}.json" },
+    })
+  })
+
   it("says so when the project is already set up", async () => {
     const cwd = await createProject({
       ...shadcnFiles,
-      "package.json": JSON.stringify({
-        dependencies: { next: "16.0.0", "@pliantui/react": "^0.1.0" },
+      "components.json": JSON.stringify({
+        aliases: { components: "@/components", utils: "@/lib/utils" },
+        registries: { "@pliant": "https://pliantui.dev/r/{name}.json" },
       }),
-      "app/layout.tsx": "export default function Layout() { return null }\n",
-      "components/pliant/pliant-region.tsx": "export {}\n",
+      ...installedFiles,
     })
 
     const { stdout, exitCode } = await runCli(cwd, ["init", "--yes"])

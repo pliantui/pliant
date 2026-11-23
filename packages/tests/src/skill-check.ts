@@ -194,6 +194,15 @@ function registryNameProblems(inline: string[], context: SkillContext) {
     .map((code) => `${code} is not a registry item.`)
 }
 
+function namespacedItemProblems(body: string, context: SkillContext) {
+  const names = new Set(
+    [...body.matchAll(/@pliant\/([a-z0-9-]+)/g)].map((match) => match[1] ?? "")
+  )
+  return [...names]
+    .filter((name) => !context.registryItems.has(name))
+    .map((name) => `@pliant/${name} is not a registry item.`)
+}
+
 function linkProblems(prose: string, skillDirectory: string | undefined) {
   if (!skillDirectory) {
     return []
@@ -223,6 +232,7 @@ export function checkSkill(
     ...importProblems(fences, context),
     ...identifierProblems(body, context),
     ...registryNameProblems(inline, context),
+    ...namespacedItemProblems(body, context),
     ...commandProblems(commandLines(fences, inline), context),
     ...urlProblems(text, context),
     ...linkProblems(prose, skillDirectory),
