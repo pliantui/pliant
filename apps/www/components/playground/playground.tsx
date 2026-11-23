@@ -12,6 +12,7 @@ import {
 import { AskChips } from "@/components/demo/ask-chips"
 import { CustomizedReset } from "@/components/demo/customized-reset"
 import { ReplayNote } from "@/components/demo/replay-note"
+import { ScriptedAnswerLabel } from "@/components/demo/scripted-answer-label"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -72,7 +73,7 @@ function FreeTextAsk({
 }) {
   const store = usePliantStore()
   const surface = usePliantSurface()
-  const [message, setMessage] = React.useState("")
+  const [status, setStatus] = React.useState({ message: "", scripted: false })
   const [draft, setDraft] = React.useState("")
 
   function ask(prompt: string) {
@@ -80,19 +81,26 @@ function FreeTextAsk({
       { surface, target: example.target, prompt },
       { scripted: true }
     )
+    const scripted = isScriptedAsk(example.target, prompt)
     if (answer.status !== "ok") {
-      setMessage(answer.status === "clarify" ? answer.question : answer.reason)
+      setStatus({
+        message: answer.status === "clarify" ? answer.question : answer.reason,
+        scripted,
+      })
       return
     }
     const previewed = store.preview(answer.overlay)
     const locked = previewed.success ? store.lockIn() : previewed
     if (!locked.success) {
       store.discard()
-      setMessage("This change can't be shown right now. Try another ask.")
+      setStatus({
+        message: "This change can't be shown right now. Try another ask.",
+        scripted: false,
+      })
       return
     }
     if (locked.overlay) onLockIn(locked.overlay)
-    setMessage(answer.explain.join(" "))
+    setStatus({ message: answer.explain.join(" "), scripted })
   }
 
   return (
@@ -119,7 +127,8 @@ function FreeTextAsk({
         </Button>
       </div>
       <p role="status" className="text-sm text-muted-foreground empty:sr-only">
-        {message}
+        {status.message && status.scripted && <ScriptedAnswerLabel />}
+        {status.message}
       </p>
     </form>
   )
@@ -191,7 +200,13 @@ export function Playground({
             <FreeTextAsk key={example.id} example={example} onLockIn={keep} />
             {example.asks.some(
               (prompt) => !isScriptedAsk(example.target, prompt)
-            ) && <ReplayNote />}
+            ) && (
+              <ReplayNote
+                scripted={example.asks.some((prompt) =>
+                  isScriptedAsk(example.target, prompt)
+                )}
+              />
+            )}
             <p className="text-xs text-muted-foreground">
               The playground isn&apos;t connected to a model, so asking in your
               own words answers only the suggested asks.

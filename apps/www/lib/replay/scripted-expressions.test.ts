@@ -1,35 +1,39 @@
 import { describe, expect, it } from "vitest"
 
+import type { Expression, Op } from "@pliantui/contract"
 import { checkExpression } from "@pliantui/core"
 
+import { sectionsDataset } from "@/lib/acme/data"
 import { ordersDataset } from "@/lib/demo/schema"
 
 import { scriptedAnswers } from "./scripted-answers"
 
-describe("scripted answers for the orders table", () => {
-  it("use expressions that check against the orders' fields", () => {
-    const ops = scriptedAnswers
-      .filter((answer) => answer.target === "orders-table")
-      .flatMap((answer) => answer.ops)
-    const expressions = ops.flatMap((op) =>
-      op.op === "addDerived" || op.op === "addAggregate"
-        ? [
-            {
-              expr: op.expr,
-              kind: op.op === "addDerived" ? "row" : "aggregate",
-            },
-          ]
-        : op.op === "addHighlight"
-          ? [{ expr: op.when, kind: "row" }]
-          : []
-    )
-    expect(expressions.length).toBeGreaterThan(0)
-    for (const { expr, kind } of expressions) {
-      const result = checkExpression(expr, {
-        fields: ordersDataset.fields,
-        kind: kind === "row" ? "row" : "aggregate",
-      })
-      expect(result.success, JSON.stringify(expr)).toBe(true)
+const tables = [
+  { target: "orders-table", fields: ordersDataset.fields },
+  { target: "acme-sections", fields: sectionsDataset.fields },
+]
+
+function expressionsOf(
+  op: Op
+): { expr: Expression; kind: "row" | "aggregate" }[] {
+  if (op.op === "addDerived") return [{ expr: op.expr, kind: "row" }]
+  if (op.op === "addAggregate") return [{ expr: op.expr, kind: "aggregate" }]
+  if (op.op === "addHighlight") return [{ expr: op.when, kind: "row" }]
+  return []
+}
+
+describe("scripted answers for data tables", () => {
+  it.each(tables)(
+    "use expressions that check against $target's fields",
+    ({ target, fields }) => {
+      const expressions = scriptedAnswers
+        .filter((answer) => answer.target === target)
+        .flatMap((answer) => answer.ops.flatMap(expressionsOf))
+      expect(expressions.length).toBeGreaterThan(0)
+      for (const { expr, kind } of expressions) {
+        const result = checkExpression(expr, { fields, kind })
+        expect(result.success, JSON.stringify(expr)).toBe(true)
+      }
     }
-  })
+  )
 })

@@ -577,13 +577,13 @@ export const messages = {
     },
     asks: [
       {
-        prompt: mockupAsks.actions.exportToToolbar,
-        result: "Export moves out of the overflow menu and onto the toolbar.",
-      },
-      {
         prompt: mockupAsks.actions.bindExport,
         result:
           "Pressing ⌘⇧E (Ctrl+Shift+E on Windows and Linux) runs Export, and the shortcut shows next to it in the menu.",
+      },
+      {
+        prompt: mockupAsks.actions.exportToToolbar,
+        result: "Export moves out of the overflow menu and onto the toolbar.",
       },
     ],
     rules: [

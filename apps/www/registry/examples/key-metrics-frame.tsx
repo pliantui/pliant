@@ -10,14 +10,15 @@ const percent = new Intl.NumberFormat("en-IN", {
   maximumFractionDigits: 1,
 })
 
-// The key metrics preview, with the card the refund rate ask adds. A stat
-// card isn't in Pliant yet, so the preview draws it, marked as unfinished.
+// The key metrics preview, with the card the refund rate ask adds when
+// `refundRate` is given. A stat card isn't in Pliant yet, so the preview
+// draws it, marked as unfinished.
 export function KeyMetricsFrame({
   refundRate,
   toolbar,
   children,
 }: {
-  refundRate: { quarter: string; rate: number }
+  refundRate?: { quarter: string; rate: number } | undefined
   toolbar?: React.ReactNode
   children: React.ReactNode
 }) {
@@ -29,14 +30,16 @@ export function KeyMetricsFrame({
       label="key metrics"
       asks={keyMetricsAsks}
       toolbar={toolbar}
-      mocked={{
-        label: "the metric cards",
-        asks: [refundRateAsk],
-        scripted,
-      }}
+      mocked={
+        refundRate && {
+          label: "the metric cards",
+          asks: [refundRateAsk],
+          scripted,
+        }
+      }
     >
       {children}
-      {scripted.has(refundRateAsk) && (
+      {refundRate && scripted.has(refundRateAsk) && (
         <div
           role="group"
           aria-label={`Refund rate, ${refundRate.quarter}`}

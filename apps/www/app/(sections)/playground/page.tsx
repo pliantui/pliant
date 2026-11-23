@@ -1,14 +1,11 @@
 import { Playground } from "@/components/playground/playground"
 import {
-  keyMetricsAsks,
   notificationSettingsAsks,
   ordersTableAsks,
   ticketFormAsks,
   workspaceNavAsks,
 } from "@/lib/demo/asks"
 import { orders, team } from "@/lib/demo/data"
-import { getOrderStats } from "@/lib/demo/stats"
-import { KeyMetrics } from "@/registry/blocks/analytics-dashboard/key-metrics"
 import { WorkspaceSidebar } from "@/registry/blocks/app-sidebar/workspace-sidebar"
 import { OrdersList } from "@/registry/blocks/orders-list/orders-list"
 import { SettingsPage } from "@/registry/blocks/settings-page/settings-page"
@@ -34,14 +31,6 @@ export default function PlaygroundPage() {
           target: "orders-table",
           asks: ordersTableAsks,
           node: <OrdersList data={recent} />,
-        },
-        {
-          id: "key-metrics",
-          label: "Key metrics",
-          description: "Four figures, with a recorded answer.",
-          target: "key-metrics",
-          asks: keyMetricsAsks,
-          node: <KeyMetrics stats={getOrderStats(orders)} />,
         },
         {
           id: "ticket-form",

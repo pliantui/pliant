@@ -122,3 +122,51 @@ test("defaults the ticket priority and folds rarely used fields", async ({
   await expect(cc).toBeVisible()
   expect(errors).toEqual([])
 })
+
+test("leads the key metrics preview with an ask that isn't a layout change", async ({
+  page,
+}) => {
+  await page.goto("/docs/components/region")
+  const asks = preview(page).getByRole("group", { name: /^Ask about / })
+
+  await expect(asks.first().getByRole("button").first()).toHaveAccessibleName(
+    /^add a card for this quarter's refund rate/
+  )
+  await expect(
+    preview(page).getByText(
+      "This demo replays recorded answers, and hand-written answers for the asks marked scripted; no AI model is called."
+    )
+  ).toBeVisible()
+})
+
+for (const [name, ask] of [
+  [/^A dashboard with key metrics/, /^make the chart a line chart/],
+  [/^A sales pipeline board/, /^show the total for each stage/],
+  [/^A team page/, /^publish this layout for my team/],
+] as const) {
+  test(`leads the ${name.source.slice(1)} block with an ask that isn't a layout change`, async ({
+    page,
+  }) => {
+    await page.goto("/blocks")
+    const asks = page
+      .getByRole("region", { name })
+      .getByRole("group", { name: /^Ask about / })
+
+    await expect(asks.first().getByRole("button").first()).toHaveAccessibleName(
+      ask
+    )
+  })
+}
+
+test("labels a scripted answer as scripted where it plays", async ({
+  page,
+}) => {
+  await page.goto("/docs/components/data-table")
+  await preview(page)
+    .getByRole("button", { name: /^highlight overdue orders over ₹1L/ })
+    .click()
+
+  await expect(
+    preview(page).getByRole("status").filter({ hasText: "Highlighted the" })
+  ).toContainText("Scripted answer")
+})

@@ -38,6 +38,8 @@ export function DemoFrame({
   children: React.ReactNode
 }) {
   const recorded = asks.some((ask) => !isScriptedAsk(target, ask))
+  const scripted =
+    mocked !== undefined || asks.some((ask) => isScriptedAsk(target, ask))
 
   return (
     <div
@@ -56,7 +58,6 @@ export function DemoFrame({
       </div>
       {children}
       <div className="flex flex-col gap-3 border-t pt-4">
-        <AskChips target={target} label={label} prompts={asks} />
         {mocked && (
           <ScriptedAsks
             label={mocked.label}
@@ -64,7 +65,8 @@ export function DemoFrame({
             scripted={mocked.scripted}
           />
         )}
-        {recorded && <ReplayNote />}
+        <AskChips target={target} label={label} prompts={asks} />
+        {recorded && <ReplayNote scripted={scripted} />}
       </div>
     </div>
   )

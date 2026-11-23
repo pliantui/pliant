@@ -43,21 +43,19 @@ Give the region an `id` and its content as `slots`. The key order is the order u
 
 Users point at a region and ask in their own words. Each change previews in place until they lock it in or discard it.
 
-| Ask                                                      | What changes                                                         |
-| -------------------------------------------------------- | -------------------------------------------------------------------- |
-| add a bar chart of order value by region under the cards | A new chart over the page's orders data appears after the last card. |
-| add a card with the number of refunded orders            | A new stat card counts the orders whose status is refunded.          |
-| put the overdue card first                               | The Overdue card moves to the front.                                 |
+| Ask                                       | What changes                                                              |
+| ----------------------------------------- | ------------------------------------------------------------------------- |
+| add a card for this quarter's refund rate | A **Refund rate** card shows the share of this quarter's orders refunded. |
+| show the cards in a two-column grid       | The cards sit in two columns.                                             |
 
-The preview above replays recorded asks: "put the overdue card first", "hide the average order value card" and "show the cards in a two-column grid".
+The preview above offers both asks. The grid replays a recorded answer; the refund rate card, marked scripted, plays a hand-written one.
 
 <Callout
   variant="warning"
   title="Not fully implemented yet"
   data-unfinished="not-implemented"
 >
-  [The ask panel](/docs/ai) can't add cards or charts yet, and an added chart or
-  stat card shows a placeholder.
+  [The ask panel](/docs/ai) can't add cards yet.
 </Callout>
 
 ## Rules and guardrails

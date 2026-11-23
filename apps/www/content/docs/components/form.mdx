@@ -45,21 +45,20 @@ See [forms](/docs/forms) for React Hook Form and TanStack Form.
 
 Users point at the form and ask for the way they fill it in:
 
-| Ask                                | What changes                                                         |
-| ---------------------------------- | -------------------------------------------------------------------- |
-| always set priority to high for me | Priority starts at High on every new ticket this user opens.         |
-| CC sam@example.com by default      | The CC field starts filled in. The address must pass its validation. |
-| put priority first                 | The Priority field moves to the top.                                 |
+| Ask                                           | What changes                                                               |
+| --------------------------------------------- | -------------------------------------------------------------------------- |
+| default priority to High for me               | Priority starts at High on every new ticket this user opens.               |
+| fold the order number and CC into More fields | Order number and CC move into a **More fields** section the user can open. |
 
-The preview above replays "put priority first" and "hide the CC field".
+The preview above offers both asks. They play hand-written answers, marked scripted.
 
 <Callout
   variant="warning"
   title="Not fully implemented yet"
   data-unfinished="not-implemented"
 >
-  [The ask panel](/docs/ai) can't set users' own defaults yet. Forms apply
-  defaults that come from team or organization defaults.
+  [The ask panel](/docs/ai) can't set users' own defaults or fold fields yet.
+  Forms apply defaults that come from team or organization defaults.
 </Callout>
 
 ## Rules and guardrails

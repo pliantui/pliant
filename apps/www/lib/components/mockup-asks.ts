@@ -29,8 +29,8 @@ export const mockupAsks = {
     notesFirst: "put notes first",
   },
   actions: {
-    exportToToolbar: "put export on the toolbar",
     bindExport: "bind shift e to export",
+    exportToToolbar: "put export on the toolbar",
   },
   dialog: {
     sheet: "open this as a side sheet",

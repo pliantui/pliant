@@ -32,7 +32,9 @@ function KeyMetricsDemo({
     <PliantRoot surface={surface} storage={localAdapter}>
       {prePaint && <PliantPrePaint surface={surface} />}
       <KeyMetricsFrame
-        refundRate={getQuarterRefundRate(orders)}
+        // The drawn refund rate card isn't a saved change, so pre-paint
+        // couldn't bring it back on reload.
+        refundRate={prePaint ? undefined : getQuarterRefundRate(orders)}
         toolbar={toolbar}
       >
         <KeyMetrics />

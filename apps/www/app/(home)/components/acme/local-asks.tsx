@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { usePliantSurface } from "@pliantui/react"
+import { usePliantStore, usePliantSurface, usePreview } from "@pliantui/react"
 
 import { Button } from "@/components/ui/button"
 import { UnfinishedDot } from "@/components/unfinished-dot"
@@ -18,39 +18,39 @@ export function LocalAsks({
   target,
   label,
   prompts,
-  more = false,
   onShow,
 }: {
   target: string
   // The part's name, as the asks' group label reads it.
   label: string
   prompts: readonly string[]
-  // Whether these asks sit beside the part's other asks.
-  more?: boolean
   // Called with the prompt whose answer the part should draw, if any.
   onShow: (prompt: string | null) => void
 }) {
+  const store = usePliantStore()
   const surface = usePliantSurface()
+  const preview = usePreview()
   const activity = useShowcaseActivity()
   const [kept, setKept] = React.useState<string | null>(null)
-  const [pending, setPending] = React.useState<string | null>(null)
+  const [asked, setAsked] = React.useState<string | null>(null)
   const [message, setMessage] = React.useState("")
+  // One change previews at a time, so another ask's preview ends this one.
+  const pending = activity.previewing?.local === target ? asked : null
+  const shown = pending ?? kept
 
-  function show(next: { kept: string | null; pending: string | null }) {
-    setKept(next.kept)
-    setPending(next.pending)
-    onShow(next.pending ?? next.kept)
-  }
+  React.useEffect(() => {
+    onShow(shown)
+  }, [onShow, shown])
 
   return (
     <div
       className="flex flex-col gap-2"
       data-unfinished="scripted"
-      data-asks-for={more ? undefined : target}
+      data-asks-for={target}
     >
       <div
         role="group"
-        aria-label={`${more ? "More asks" : "Ask"} about ${label}`}
+        aria-label={`Ask about ${label}`}
         className="flex flex-wrap gap-1.5"
       >
         {prompts.map((prompt) => (
@@ -59,13 +59,13 @@ export function LocalAsks({
             type="button"
             variant="outline"
             size="sm"
-            aria-pressed={(pending ?? kept) === prompt}
+            aria-pressed={shown === prompt}
             className="h-auto min-h-7 max-w-full rounded-full px-2.5 py-1 text-left text-xs font-normal whitespace-normal aria-pressed:border-primary aria-pressed:bg-accent"
             onClick={() => {
               if (pending) activity.discard()
               if (kept === prompt && !pending) {
                 activity.removeLocal(target)
-                show({ kept: null, pending: null })
+                setKept(null)
                 setMessage("")
                 return
               }
@@ -74,14 +74,15 @@ export function LocalAsks({
                 { scripted: true }
               )
               if (answer.status !== "ok") {
-                show({ kept, pending: null })
+                setAsked(null)
                 setMessage(
                   answer.status === "clarify" ? answer.question : answer.reason
                 )
                 return
               }
+              if (preview) store.discard()
               activity.previewLocal(target, answer.overlay)
-              show({ kept, pending: prompt })
+              setAsked(prompt)
               setMessage(answer.explain.join(" "))
             }}
           >
@@ -91,7 +92,7 @@ export function LocalAsks({
         ))}
       </div>
       <p role="status" className="text-xs text-muted-foreground empty:sr-only">
-        {message}
+        {pending || !asked ? message : ""}
       </p>
       {pending && (
         <div className="flex gap-2">
@@ -102,7 +103,8 @@ export function LocalAsks({
             onClick={() => {
               if (kept) activity.removeLocal(target)
               activity.keep()
-              show({ kept: pending, pending: null })
+              setKept(pending)
+              setAsked(null)
             }}
           >
             Lock in
@@ -114,7 +116,7 @@ export function LocalAsks({
             className="h-7"
             onClick={() => {
               activity.discard()
-              show({ kept, pending: null })
+              setAsked(null)
               setMessage("")
             }}
           >

@@ -45,23 +45,20 @@ Give the panel your ask route and the parts of the page users can ask about. Eac
 
 Users ask for what they'd otherwise file a feature request for, about the part of the page they picked:
 
-| Ask                                                 | What changes                                                           |
-| --------------------------------------------------- | ---------------------------------------------------------------------- |
-| add a column with each order's share of total value | The orders table gets a **Share of value** column, shown as a percent. |
-| highlight overdue orders in red                     | Overdue rows in the table get the danger tone.                         |
-| group by region and total the value                 | The table groups rows by region, with a total for each.                |
-| add a bar chart of order value by region            | A new chart over the orders data appears on the page.                  |
-| put the overdue card first                          | The Overdue card moves to the front.                                   |
+| Ask                                       | What changes                                                              |
+| ----------------------------------------- | ------------------------------------------------------------------------- |
+| add a card for this quarter's refund rate | A **Refund rate** card shows the share of this quarter's orders refunded. |
+| show the cards in a two-column grid       | The cards sit in two columns.                                             |
 
-Open the panel above and pick a suggestion, or type "put the overdue card first", "hide the average order value card" or "show the cards in a two-column grid". This page replays recorded answers; no AI model is called, and an ask that isn't recorded gets a reply that lists the suggestions.
+The asks under the cards in the preview above are these two; the refund rate card, marked scripted, plays a hand-written answer. Open the panel and pick a suggestion, or type "show the cards in a two-column grid", "put the overdue card first" or "hide the average order value card". The panel replays recorded answers; no AI model is called, and an ask that isn't recorded gets a reply that lists the suggestions.
 
 <Callout
   variant="warning"
   title="Not fully implemented yet"
   data-unfinished="not-implemented"
 >
-  The panel can't make the first four changes yet. [How asking works](/docs/ai)
-  lists what it can make today.
+  The panel can't add cards yet. [How asking works](/docs/ai) lists what it can
+  make today.
 </Callout>
 
 ## Rules and guardrails
