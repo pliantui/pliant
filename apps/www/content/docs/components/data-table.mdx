@@ -57,16 +57,29 @@ Build the table with TanStack Table's `useTable` and the options `usePliantTable
 
 ## What users can ask
 
-These asks have recorded answers, so the preview above plays them:
+The table already sorts, hides and reorders columns from its own controls. Asks are for the changes you wouldn't build ahead of time, because each user wants something different. A user points at the table and asks:
 
-| Ask                          | What changes                            |
-| ---------------------------- | --------------------------------------- |
-| sort by value, highest first | The table sorts by value, descending.   |
-| only show overdue orders     | A filter keeps only overdue orders.     |
-| hide the notes column        | The Notes column is hidden.             |
-| put customer before order    | The Customer column moves to the front. |
+| Ask                                                 | What changes                                                                    |
+| --------------------------------------------------- | ------------------------------------------------------------------------------- |
+| add a column with each order's share of total value | A **Share of value** column, calculated from Value and shown as a percent.      |
+| highlight overdue orders in red                     | Rows whose status is overdue get the danger tone.                               |
+| group by region and total the value                 | Rows group by region, with each region's total value and a total for the table. |
+| show value by region as a bar chart                 | The table shows its data as a bar chart, with regions along the x axis.         |
+| save overdue orders in the south as a preset        | An **Overdue in the south** preset joins the toolbar's presets menu.            |
 
-Users can also ask to group rows, add totals and highlight rows that match a rule. The [orders example](/examples/orders) adds menus for these beside the toolbar.
+Each change previews in place until the user locks it in or discards it. The preview above replays recorded asks, such as "only show overdue orders".
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The ask panel can't make these changes yet: today it offers the model only
+  sorting, filtering, hiding, showing, moving, pinning, column widths and
+  layouts. Grouping, totals, calculated columns and highlights work when they
+  come from controls you add, as in the [orders example](/examples/orders). The
+  chart view isn't in Pliant yet.
+</Callout>
 
 ## Rules and guardrails
 

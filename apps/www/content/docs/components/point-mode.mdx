@@ -41,12 +41,25 @@ Put it next to the [ask panel](/docs/components/ask-panel), with the same target
 
 ## What users can ask
 
-Press Point above, or hold <Kbd>Alt</Kbd>, and click the key metrics. The panel opens on them, with these recorded asks:
+Press Point above, or hold <Kbd>Alt</Kbd>, and click the part of the page to change. The panel opens on it, so the ask can be about that part alone:
 
-| Ask                               | What changes                         |
-| --------------------------------- | ------------------------------------ |
-| put the overdue card first        | The Overdue card moves to the front. |
-| hide the average order value card | That card is hidden.                 |
+| Point at         | Ask                                                 | What changes                                     |
+| ---------------- | --------------------------------------------------- | ------------------------------------------------ |
+| The orders table | add a column with each order's share of total value | A **Share of value** column, shown as a percent. |
+| The orders table | highlight overdue orders in red                     | Overdue rows get the danger tone.                |
+| The key metrics  | put the overdue card first                          | The Overdue card moves to the front.             |
+
+The preview above points at the key metrics and replays "put the overdue card first" and "hide the average order value card".
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The ask panel can't add calculated columns or highlights yet: today it offers
+  the model only sorting, filtering, hiding, showing, moving, pinning, column
+  widths and layouts.
+</Callout>
 
 ## Rules and guardrails
 

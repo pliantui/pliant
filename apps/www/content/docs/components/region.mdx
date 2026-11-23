@@ -41,15 +41,25 @@ Give the region an `id` and its content as `slots`. The key order is the order u
 
 ## What users can ask
 
-Users can point at a region and ask in their own words. Each change previews in place until they lock it in or discard it. These asks have recorded answers, so the preview above plays them:
+Users point at a region and ask in their own words. Each change previews in place until they lock it in or discard it.
 
-| Ask                                 | What changes                                  |
-| ----------------------------------- | --------------------------------------------- |
-| put the overdue card first          | The Overdue card moves to the front.          |
-| hide the average order value card   | That card is hidden. Reset brings it back.    |
-| show the cards in a two-column grid | The region lays its cards out in two columns. |
+| Ask                                                          | What changes                                                         |
+| ------------------------------------------------------------ | -------------------------------------------------------------------- |
+| add a bar chart of order value by region under the cards     | A new chart over the page's orders data appears after the last card. |
+| group revenue and average order value into their own section | The two cards move into a new section with its own layout.           |
+| fold the orders card behind More                             | The Orders card moves behind a **More** button.                      |
+| put the overdue card first                                   | The Overdue card moves to the front.                                 |
 
-Users can also move, hide, resize and collapse slots by hand.
+The preview above replays recorded asks: "put the overdue card first", "hide the average order value card" and "show the cards in a two-column grid".
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Adding a chart, grouping cards into a section and folding them behind **More**
+  aren't in Pliant yet. Today, users move, pin, hide and lay out cards.
+</Callout>
 
 ## Rules and guardrails
 

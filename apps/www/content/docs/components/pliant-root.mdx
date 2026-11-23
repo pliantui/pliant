@@ -25,13 +25,25 @@ Wrap each page, or each part of the app with its own saved layout, in a `PliantR
 
 ## What users can ask
 
-The root doesn't change anything itself: it carries the changes users make to the components inside it. The preview above plays recorded asks on a region:
+The root doesn't change anything itself: it carries the changes users make to every component inside it, whichever part of the page they ask about.
 
-| Ask                                 | What changes                               |
-| ----------------------------------- | ------------------------------------------ |
-| put the overdue card first          | The Overdue card moves to the front.       |
-| hide the average order value card   | That card is hidden. Reset brings it back. |
-| show the cards in a two-column grid | The cards lay out in two columns.          |
+| Ask                                                 | What changes                                       |
+| --------------------------------------------------- | -------------------------------------------------- |
+| add a column with each order's share of total value | The orders table gets a **Share of value** column. |
+| always set priority to high for me                  | The ticket form starts Priority at High.           |
+| put the overdue card first                          | The Overdue card moves to the front.               |
+
+The preview above replays recorded asks on a region: "put the overdue card first", "hide the average order value card" and "show the cards in a two-column grid".
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  Users can't ask for calculated columns or their own form defaults yet: today
+  the ask panel offers the model only sorting, filtering, hiding, showing,
+  moving, pinning, column widths and layouts.
+</Callout>
 
 ## Rules and guardrails
 
