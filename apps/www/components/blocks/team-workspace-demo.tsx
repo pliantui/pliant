@@ -25,7 +25,6 @@ export function TeamWorkspaceDemo({
         label: "publishing",
         asks: [publishAsk],
         scripted,
-        note: "Publishing for a team is shown by a scripted answer.",
       }}
       className="max-w-none"
     >

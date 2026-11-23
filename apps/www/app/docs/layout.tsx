@@ -1,8 +1,9 @@
 import { DocsSidebar } from "@/components/docs-sidebar"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { source } from "@/lib/source"
+import { getUnfinishedDocs } from "@/lib/unfinished-docs"
 
-export default function Layout({ children }: LayoutProps<"/docs">) {
+export default async function Layout({ children }: LayoutProps<"/docs">) {
   return (
     <div className="container-wrapper flex flex-1 flex-col px-2">
       <SidebarProvider
@@ -13,7 +14,10 @@ export default function Layout({ children }: LayoutProps<"/docs">) {
           } as React.CSSProperties
         }
       >
-        <DocsSidebar tree={source.getPageTree()} />
+        <DocsSidebar
+          tree={source.getPageTree()}
+          unfinished={await getUnfinishedDocs()}
+        />
         <div className="h-full w-full">{children}</div>
       </SidebarProvider>
     </div>

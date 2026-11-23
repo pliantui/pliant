@@ -5,15 +5,8 @@ import { usePathname } from "next/navigation"
 import { cn } from "cn"
 
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-
-const examples = [
-  { name: "Orders", href: "/examples/orders" },
-  { name: "Tickets", href: "/examples/tickets" },
-  { name: "CRM", href: "/examples/crm" },
-  { name: "Settings", href: "/examples/settings" },
-  { name: "Team workspace", href: "/examples/team-workspace" },
-  { name: "Analytics", href: "/examples/analytics" },
-]
+import { UnfinishedDot } from "@/components/unfinished-dot"
+import { examples } from "@/lib/examples"
 
 export function ExamplesNav({
   className,
@@ -40,6 +33,7 @@ export function ExamplesNav({
                 className="flex h-7 items-center justify-center gap-2 px-4 text-center text-base font-medium text-muted-foreground transition-colors hover:text-primary data-[active=true]:text-primary"
               >
                 {example.name}
+                {example.unfinished && <UnfinishedDot />}
               </Link>
             )
           })}

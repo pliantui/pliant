@@ -33,7 +33,10 @@ test("leads to the docs and the components", async ({ page }) => {
   const main = page.getByRole("main")
 
   await expect(
-    main.getByRole("heading", { level: 1, name: /pliant interfaces/ })
+    main.getByRole("heading", {
+      level: 1,
+      name: "Your app, shaped by the people who use it.",
+    })
   ).toBeVisible()
   await expect(main.getByRole("link", { name: "Get started" })).toHaveAttribute(
     "href",
@@ -43,8 +46,15 @@ test("leads to the docs and the components", async ({ page }) => {
     main.getByRole("link", { name: "View components" })
   ).toHaveAttribute("href", "/docs/components")
   await expect(
-    main.getByRole("link", { name: /point at part of a page and ask/i })
-  ).toHaveAttribute("href", "/docs/ai")
+    main.getByText(
+      "Point at any part of your shadcn app and ask for a change. Pliant reshapes it with your own components, within the rules you set."
+    )
+  ).toBeVisible()
+  await main.getByRole("link", { name: "Introducing Pliant" }).click()
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Introducing Pliant" })
+  ).toBeVisible()
+  await expect(page.getByText("The full post is on its way.")).toBeVisible()
 })
 
 test("says the demo replays recorded answers", async ({ page }) => {
@@ -140,7 +150,7 @@ test("plays the scripted chart asks under a banner, and resets", async ({
   const revenue = card(page, "Revenue")
 
   await expect(
-    revenue.getByRole("note").filter({ hasText: "Not fully implemented yet" })
+    revenue.getByTitle("Not fully implemented yet").first()
   ).toBeVisible()
   await chip(page, "Revenue", /stack by status/).click()
   await expect(revenue.getByRole("list")).toHaveText(/Paid.*Pending.*Overdue/)
@@ -168,17 +178,13 @@ test("answers the ask panel from the recordings", async ({ page, errors }) => {
   expect(errors).toEqual([])
 })
 
-test("switches the install command between package managers", async ({
-  page,
-}) => {
+test("drops the features and install sections", async ({ page }) => {
   await page.goto("/")
-  const install = page.getByRole("region", { name: "Add it to your app" })
 
-  await install.getByRole("tab", { name: "npm", exact: true }).click()
-
-  await expect(install.getByRole("tabpanel")).toContainText(
-    "npx shadcn@latest add"
-  )
+  await expect(
+    page.getByRole("heading", { name: "Add it to your app" })
+  ).toHaveCount(0)
+  await expect(page.getByText("Safe by design")).toHaveCount(0)
 })
 
 test.describe("on a phone", () => {

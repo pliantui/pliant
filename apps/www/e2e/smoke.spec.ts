@@ -7,7 +7,7 @@ test("renders the home page", async ({ page, errors }) => {
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Build pliant interfaces: apps your users can reshape.",
+      name: "Your app, shaped by the people who use it.",
     })
   ).toBeVisible()
   await expect(

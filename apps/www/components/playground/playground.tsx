@@ -12,7 +12,6 @@ import {
 import { AskChips } from "@/components/demo/ask-chips"
 import { CustomizedReset } from "@/components/demo/customized-reset"
 import { ReplayNote } from "@/components/demo/replay-note"
-import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -193,11 +192,10 @@ export function Playground({
             {example.asks.some(
               (prompt) => !isScriptedAsk(example.target, prompt)
             ) && <ReplayNote />}
-            <NotImplementedBanner variant="preview">
+            <p className="text-xs text-muted-foreground">
               The playground isn&apos;t connected to a model, so asking in your
-              own words answers only the suggested asks. Asks marked Scripted
-              play hand-written answers.
-            </NotImplementedBanner>
+              own words answers only the suggested asks.
+            </p>
           </Step>
         </div>
         <div className="flex min-w-0 flex-col gap-8">

@@ -7,12 +7,12 @@ test("lists the six example apps", async ({ page }) => {
   const nav = page.getByRole("navigation", { name: "Examples" })
 
   await expect(nav.getByRole("link")).toHaveText([
-    "Orders",
-    "Tickets",
-    "CRM",
-    "Settings",
-    "Team workspace",
-    "Analytics",
+    /^Orders/,
+    /^Tickets/,
+    /^CRM/,
+    /^Settings/,
+    /^Team workspace/,
+    /^Analytics/,
   ])
   await nav.getByRole("link", { name: "Analytics" }).click()
   await expect(page).toHaveURL("/examples/analytics")

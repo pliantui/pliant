@@ -3,8 +3,6 @@
 import * as React from "react"
 
 import { ResetControl } from "@/components/demo/reset-control"
-import { ScriptedBadge } from "@/components/demo/scripted-badge"
-import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -15,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { UnfinishedDot } from "@/components/unfinished-dot"
 import { formatCurrency } from "@/lib/demo/format"
 import type { MonthlyRevenue } from "@/lib/demo/schema"
 
@@ -183,7 +182,10 @@ export function RevenueChartCard({ data }: { data: MonthlyRevenue[] }) {
       className="min-w-0 gap-4"
     >
       <CardHeader>
-        <CardTitle id="revenue-title">Revenue</CardTitle>
+        <CardTitle id="revenue-title" className="flex items-center gap-1.5">
+          Revenue
+          <UnfinishedDot />
+        </CardTitle>
         <CardDescription>Order value by month, Jan–Oct 2026.</CardDescription>
         <CardAction>
           <ResetControl
@@ -255,14 +257,10 @@ export function RevenueChartCard({ data }: { data: MonthlyRevenue[] }) {
               }}
             >
               {prompt}
-              <ScriptedBadge />
+              <UnfinishedDot kind="scripted" />
             </Button>
           ))}
         </div>
-        <NotImplementedBanner variant="preview">
-          Charts that reshape when you ask aren&apos;t in Pliant yet, so this
-          card plays scripted changes.
-        </NotImplementedBanner>
       </CardFooter>
     </Card>
   )

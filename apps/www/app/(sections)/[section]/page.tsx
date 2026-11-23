@@ -3,33 +3,7 @@ import { notFound } from "next/navigation"
 
 import { ComingSoon } from "@/components/coming-soon"
 import { PageHeader, PageHeaderHeading } from "@/components/page-header"
-
-interface Section {
-  title: string
-  description: string
-}
-
-// Sections of the site that have no content of their own yet. Each gets a
-// page with its title and what the section is, so every nav link leads
-// somewhere.
-const sections = {
-  directory: {
-    title: "Directory",
-    description: "Registries whose components work with Pliant.",
-  },
-  templates: {
-    title: "Templates",
-    description: "Ready-made app templates built with Pliant.",
-  },
-  roadmap: {
-    title: "Roadmap",
-    description: "What Pliant can do today, and what it's working towards.",
-  },
-  changelog: {
-    title: "Changelog",
-    description: "What changed in each Pliant release.",
-  },
-} satisfies Record<string, Section>
+import { sections, type Section } from "@/lib/sections"
 
 type SectionName = keyof typeof sections
 

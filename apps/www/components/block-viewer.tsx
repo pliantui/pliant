@@ -8,7 +8,9 @@ import { getIconForLanguageExtension } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { UnfinishedDot } from "@/components/unfinished-dot"
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard"
+import { pliantItemName } from "@/lib/registry-name"
 
 interface ViewerFile {
   target: string
@@ -40,7 +42,7 @@ function InstallButton({
           <span className="sr-only">
             Copy the command that adds the components this block uses:{" "}
           </span>
-          npx shadcn add {components.join(" ")}
+          npx shadcn add {components.map(pliantItemName).join(" ")}
         </span>
       </Button>
       <span role="status" className="sr-only">
@@ -91,17 +93,17 @@ export function BlockViewer({
             className="mx-2 hidden h-4! sm:block"
           />
           <h2 id={titleId} className="text-sm font-medium">
-            <a href={`#${name}`} className="underline-offset-2 hover:underline">
+            <a
+              href={`#${name}`}
+              className="inline-flex items-center gap-1.5 underline-offset-2 hover:underline"
+            >
               {description}
+              <UnfinishedDot />
             </a>
           </h2>
           <div className="flex w-full items-center gap-2 lg:ml-auto lg:w-auto">
             <span className="font-mono text-xs text-muted-foreground">
               {name}
-            </span>
-            <Separator orientation="vertical" className="mx-1 h-4!" />
-            <span className="text-xs text-muted-foreground">
-              Block not published yet
             </span>
             {command && (
               <>

@@ -50,16 +50,22 @@ test("lists every block in the nav and shows each one", async ({
 
 test("offers to add the published components a block uses", async ({
   page,
+  context,
 }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"])
   await load(page)
   const orders = block(page, /^A list of recent orders/)
 
-  await expect(orders.getByText("Block not published yet")).toBeVisible()
   await expect(
-    orders.getByRole("button", {
-      name: "Copy the command that adds the components this block uses: npx shadcn add pliant-data-table",
-    })
+    orders.getByRole("heading", { name: /, Not fully implemented yet$/ })
   ).toBeVisible()
+  const copy = orders.getByRole("button", {
+    name: "Copy the command that adds the components this block uses: npx shadcn add @pliant/pliant-data-table",
+  })
+  await copy.click()
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toBe("npx shadcn@latest add @pliant/pliant-data-table")
 })
 
 test("shows a block's files in the Code view and keeps its preview's changes", async ({

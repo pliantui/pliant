@@ -81,7 +81,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(
         page.getByRole("heading", {
           level: 1,
-          name: /^Build pliant interfaces/,
+          name: /^Your app, shaped by/,
         })
       ).toBeVisible()
       expect(await violations(page, colorScheme)).toEqual([])

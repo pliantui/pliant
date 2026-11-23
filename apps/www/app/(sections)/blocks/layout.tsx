@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import Link from "next/link"
 
 import { AnchorNav } from "@/components/anchor-nav"
-import { NotImplementedBanner } from "@/components/not-implemented-banner"
 import {
   PageActions,
   PageHeader,
@@ -37,14 +36,13 @@ export default function BlocksLayout({ children }: LayoutProps<"/blocks">) {
             <Link href="/docs/components">View components</Link>
           </Button>
         </PageActions>
-        <NotImplementedBanner className="mt-4 max-w-2xl text-left">
-          The blocks aren&apos;t in the registry yet, so copy their files from
-          the Code view. Parts of some blocks preview components that
-          aren&apos;t in Pliant yet; each block says which.
-        </NotImplementedBanner>
       </PageHeader>
       <PageNav id="blocks">
-        <AnchorNav label="Blocks" items={blocks} />
+        <AnchorNav
+          label="Blocks"
+          // No block is in the registry yet.
+          items={blocks.map((block) => ({ ...block, unfinished: true }))}
+        />
       </PageNav>
       <div className="container-wrapper flex-1 section-soft md:py-12">
         <div className="container">{children}</div>
