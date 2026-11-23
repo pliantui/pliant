@@ -1,12 +1,7 @@
-// The shape of the demo data that every example, block, chart and docs
-// preview shares. This file is safe to import from client components; the
-// generated rows live in `data.ts`.
-
-export const company = {
-  name: "Saffron Supply Co.",
-  description:
-    "A wholesale supplier of packaging, stationery and pantry goods to businesses across India.",
-} as const
+// The shape of the data of Saffron Supply Co., a wholesale supplier of
+// packaging, stationery and pantry goods across India, which every example,
+// block, chart and docs preview shares. This file is safe to import from
+// client components; the generated rows live in `data.ts`.
 
 export const orderStatuses = ["paid", "pending", "overdue", "refunded"] as const
 

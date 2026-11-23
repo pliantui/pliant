@@ -24,6 +24,7 @@ export function AskChips({
   prompts,
   lockInAtOnce = false,
   onLockIn,
+  onDiscard,
 }: {
   // The node the asks change.
   target: string
@@ -35,6 +36,8 @@ export function AskChips({
   lockInAtOnce?: boolean
   // Runs with the personal version an answer became, once it's locked in.
   onLockIn?: ((overlay: Overlay) => void) | undefined
+  // Runs when the user discards a previewed answer.
+  onDiscard?: (() => void) | undefined
 }) {
   const store = usePliantStore()
   const surface = usePliantSurface()
@@ -89,7 +92,7 @@ export function AskChips({
               type="button"
               variant="outline"
               size="sm"
-              className="h-7 rounded-full px-2.5 text-xs font-normal"
+              className="h-auto min-h-7 max-w-full rounded-full px-2.5 py-1 text-left text-xs font-normal whitespace-normal"
               onClick={() => {
                 const answer = replayAnswer(
                   { surface, target, prompt },
@@ -152,6 +155,7 @@ export function AskChips({
             className="h-7"
             onClick={() => {
               store.discard()
+              onDiscard?.()
               settle(null)
             }}
           >

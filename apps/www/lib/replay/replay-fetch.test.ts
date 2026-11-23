@@ -4,7 +4,7 @@ import { opSchema, overlaySchema } from "@pliantui/contract"
 
 import { recordedAnswers } from "./recorded-answers.generated"
 import { isScriptedAsk, replayAnswer, replayFetch } from "./replay-fetch"
-import { scriptedAnswers } from "./scripted-answers"
+import { scriptedAnswers, scriptedDeclines } from "./scripted-answers"
 
 async function ask(body: unknown) {
   const response = await replayFetch("/replay", {
@@ -124,6 +124,19 @@ describe("scripted answers", () => {
         expect(opSchema.safeParse(op).success).toBe(true)
         expect(op.target.startsWith(target)).toBe(true)
       }
+    }
+  })
+
+  it("decline an ask the data can't answer, changing nothing", () => {
+    for (const { target, prompt, reason } of scriptedDeclines) {
+      expect(isScriptedAsk(target, prompt)).toBe(true)
+      expect(
+        replayAnswer({ surface: "/", target, prompt }, { scripted: true })
+      ).toEqual({ status: "unavailable", reason })
+      expect(replayAnswer({ surface: "/", target, prompt })).toMatchObject({
+        status: "unavailable",
+        reason: expect.stringContaining("suggestions") as unknown,
+      })
     }
   })
 

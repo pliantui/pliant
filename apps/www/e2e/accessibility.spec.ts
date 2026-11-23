@@ -87,6 +87,32 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
+    test("the home page's Data and Changes tabs have no accessibility violations", async ({
+      page,
+    }) => {
+      await page.goto("/")
+      const preview = page.getByRole("tabpanel", { name: "Preview" })
+      await expect(
+        preview.locator('[data-pliant-id="acme-sections"]')
+      ).not.toHaveAttribute("data-pliant-pending")
+      await preview
+        .getByRole("group", { name: "Ask about the sections table" })
+        .getByRole("button", { name: /^only show Eddie Lake/ })
+        .click()
+      await expect(
+        preview.getByRole("button", { name: "Lock in" })
+      ).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+
+      await page.getByRole("tab", { name: "Data" }).click()
+      await expect(page.getByText("Server mode: one new request")).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+
+      await page.getByRole("tab", { name: "Changes" }).click()
+      await expect(page.getByLabel("Overlay")).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
+
     for (const [slug, name] of [
       ["", "Components"],
       ["/pliant-root", "PliantRoot"],
