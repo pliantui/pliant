@@ -11,6 +11,8 @@ const pages = [
   ["data-table", "Data Table"],
   ["form", "Form"],
   ["nav", "Nav"],
+  ["customize-menu", "Customize Menu"],
+  ["customize-icon", "Customize Icon"],
   ["ask-panel", "Ask Panel"],
   ["point-mode", "Point Mode"],
 ] as const
@@ -60,6 +62,7 @@ test("lists every component by group and links to its page", async ({
     "Navigation",
     "Actions",
     "Overlays",
+    "Customize",
     "AI",
     "Status and history",
     "Preferences",

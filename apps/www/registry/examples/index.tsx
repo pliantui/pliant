@@ -119,6 +119,14 @@ export const examples = {
     file: "snippets/components/ask-panel.tsx",
     render: () => <KeyMetricsDemo surface="/docs/components/ask-panel" ask />,
   },
+  "customize-menu-demo": {
+    file: "snippets/components/ask-panel-trigger.tsx",
+    render: () => <KeyMetricsDemo surface="/docs/components/customize-menu" />,
+  },
+  "customize-icon-demo": {
+    file: "registry/pliant/customize-icon.tsx",
+    render: () => <KeyMetricsDemo surface="/docs/components/customize-icon" />,
+  },
   "point-mode-demo": {
     file: "snippets/ai/ask-toolbar.tsx",
     render: () => (
