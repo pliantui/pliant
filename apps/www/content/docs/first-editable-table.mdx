@@ -42,7 +42,7 @@ npm install @pliantui/react @tanstack/react-table zod
   only inside the Pliant repository.
 </Callout>
 
-Then add the data table components. The shadcn CLI copies them into `components/pliant`, with the shadcn components they use. If you haven't run `pliantui init`, first add `"@pliant": "https://pliantui.dev/r/{name}.json"` to the `registries` in `components.json`, so the CLI can find them:
+Then add the data table components. The shadcn CLI copies them into `components/pliant`, with the shadcn components they use. If you haven't run `pliantui init`, first [set up the `@pliant` registry](/docs/registry#set-up-pliant-without-init) so the CLI can find them:
 
 ```bash
 npx shadcn@latest add @pliant/pliant-data-table

@@ -60,7 +60,8 @@ describe("the skill check", () => {
         "",
         "See [the CLI](https://pliantui.dev/docs/cli) and",
         "[addresses](https://pliantui.dev/docs/concepts/surfaces#addresses), and add",
-        "`pliant-data-table` with `npx shadcn@latest add @pliant/pliant-data-table`.",
+        "`pliant-data-table` with `npx shadcn@latest add @pliant/pliant-data-table`,",
+        "after adding https://pliantui.dev/r/{name}.json to components.json.",
       ].join("\n")
     )
 

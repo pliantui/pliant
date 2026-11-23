@@ -17,7 +17,17 @@ The table works on client-side data: you pass all the rows and the table sorts, 
 
 ## 1. Install the components
 
-The components install through the `@pliant` registry. If `components.json` has no `@pliant` entry under `registries`, run `npx pliantui init --yes` first; it adds the entry.
+The components install through the `@pliant` registry. If `components.json` has no `@pliant` entry under `registries`, add it there yourself:
+
+```json
+{
+  "registries": {
+    "@pliant": "https://pliantui.dev/r/{name}.json"
+  }
+}
+```
+
+Keep the file's other fields and any other registries as they are.
 
 ```bash
 npx shadcn@latest add @pliant/pliant-data-table --yes

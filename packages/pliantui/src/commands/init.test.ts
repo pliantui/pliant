@@ -317,6 +317,25 @@ describe("pliantui init in a Next.js app with shadcn", () => {
     ])
   })
 
+  it("leaves components.json alone when --registry names the current entry", async () => {
+    await createProject({ registries: pliantRegistry })
+    const before = await componentsJson()
+
+    await run("--yes", "--registry", "https://pliantui.dev/r")
+
+    expect(await componentsJson()).toEqual(before)
+    expect(printed()).not.toContain("Add the @pliant registry")
+  })
+
+  it("stops when the registries in components.json are malformed", async () => {
+    await createProject({ registries: { "@pliant": 42 } })
+
+    expect(await run("--yes")).toBe(1)
+
+    expect(printed()).toContain("The registries field in components.json")
+    expect(commands()).toEqual([])
+  })
+
   it("replaces an @pliant registry when --registry names another", async () => {
     await createProject({
       registries: {

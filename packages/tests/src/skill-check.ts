@@ -177,7 +177,8 @@ function urlProblems(text: string, context: SkillContext) {
       }
     } else if (route.startsWith("/r/") && route.endsWith(".json")) {
       const item = route.slice("/r/".length, -".json".length)
-      if (!context.registryItems.has(item)) {
+      // The template for the @pliant entry in components.json, as URL encodes it.
+      if (item !== "%7Bname%7D" && !context.registryItems.has(item)) {
         problems.push(`${raw} is not a registry item.`)
       }
     } else {
