@@ -177,7 +177,8 @@ function urlProblems(text: string, context: SkillContext) {
       }
     } else if (route.startsWith("/r/") && route.endsWith(".json")) {
       const item = route.slice("/r/".length, -".json".length)
-      if (!context.registryItems.has(item)) {
+      // The template for the @pliant entry in components.json, as URL encodes it.
+      if (item !== "%7Bname%7D" && !context.registryItems.has(item)) {
         problems.push(`${raw} is not a registry item.`)
       }
     } else {
@@ -192,6 +193,15 @@ function registryNameProblems(inline: string[], context: SkillContext) {
     .filter((code) => /^pliant-[a-z-]+$/.test(code))
     .filter((code) => !context.registryItems.has(code))
     .map((code) => `${code} is not a registry item.`)
+}
+
+function namespacedItemProblems(body: string, context: SkillContext) {
+  const names = new Set(
+    [...body.matchAll(/@pliant\/([a-z0-9-]+)/g)].map((match) => match[1] ?? "")
+  )
+  return [...names]
+    .filter((name) => !context.registryItems.has(name))
+    .map((name) => `@pliant/${name} is not a registry item.`)
 }
 
 function linkProblems(prose: string, skillDirectory: string | undefined) {
@@ -223,6 +233,7 @@ export function checkSkill(
     ...importProblems(fences, context),
     ...identifierProblems(body, context),
     ...registryNameProblems(inline, context),
+    ...namespacedItemProblems(body, context),
     ...commandProblems(commandLines(fences, inline), context),
     ...urlProblems(text, context),
     ...linkProblems(prose, skillDirectory),

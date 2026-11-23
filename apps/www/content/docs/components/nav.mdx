@@ -16,7 +16,7 @@ description: Sidebar links your users can reorder, hide, fold into More and pick
 <TabsContent value="cli">
 
 ```bash
-npx shadcn@latest add https://pliantui.dev/r/pliant-nav.json
+npx shadcn@latest add @pliant/pliant-nav
 ```
 
 </TabsContent>
@@ -41,18 +41,26 @@ Render `PliantNav` in place of shadcn's `SidebarMenu`, with each link by its id.
 
 ## What users can ask
 
-These are the asks the preview plays:
+Users point at the sidebar and ask:
 
-| Ask                      | What changes                            |
-| ------------------------ | --------------------------------------- |
-| pin customers to the top | Customers moves to the top of the list. |
-| hide reports             | Reports is hidden from the sidebar.     |
+| Ask                            | What changes                            |
+| ------------------------------ | --------------------------------------- |
+| open on tickets when I sign in | Tickets becomes this user's start page. |
+| pin customers to the top       | Customers moves to the top of the list. |
 
-Each link's options menu lets users make it their start page.
+The preview above replays "pin customers to the top" and "hide reports". Each link's options menu also lets users make it their start page.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  [The ask panel](/docs/ai) can't set a start page yet.
+</Callout>
 
 ## Rules and guardrails
 
-- Users change order, visibility and their start page. They can't add links or change where a link goes.
+- Users change order and visibility, fold links under **More**, and pick their start page. They can't add links or change where a link goes.
 - A hidden link only leaves the sidebar. The page is still there, and your own permissions decide who can open it.
 
 ## Examples

@@ -16,7 +16,7 @@ description: A panel where users ask for a change in their own words, preview it
 <TabsContent value="cli">
 
 ```bash
-npx shadcn@latest add https://pliantui.dev/r/pliant-ask-panel.json
+npx shadcn@latest add @pliant/pliant-ask-panel
 ```
 
 </TabsContent>
@@ -43,15 +43,26 @@ Give the panel your ask route and the parts of the page users can ask about. Eac
 
 ## What users can ask
 
-Open the panel above and pick a suggestion, or type one of these. This page replays recorded answers; no AI model is called.
+Users ask for what they'd otherwise file a feature request for, about the part of the page they picked:
 
-| Ask                                 | What changes                         |
-| ----------------------------------- | ------------------------------------ |
-| put the overdue card first          | The Overdue card moves to the front. |
-| hide the average order value card   | That card is hidden.                 |
-| show the cards in a two-column grid | The cards lay out in two columns.    |
+| Ask                                                 | What changes                                                           |
+| --------------------------------------------------- | ---------------------------------------------------------------------- |
+| add a column with each order's share of total value | The orders table gets a **Share of value** column, shown as a percent. |
+| highlight overdue orders in red                     | Overdue rows in the table get the danger tone.                         |
+| group by region and total the value                 | The table groups rows by region, with a total for each.                |
+| add a bar chart of order value by region            | A new chart over the orders data appears on the page.                  |
+| put the overdue card first                          | The Overdue card moves to the front.                                   |
 
-On this page, an ask that isn't recorded gets a reply that lists the suggestions.
+Open the panel above and pick a suggestion, or type "put the overdue card first", "hide the average order value card" or "show the cards in a two-column grid". This page replays recorded answers; no AI model is called, and an ask that isn't recorded gets a reply that lists the suggestions.
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  The panel can't make the first four changes yet. [How asking works](/docs/ai)
+  lists what it can make today.
+</Callout>
 
 ## Rules and guardrails
 

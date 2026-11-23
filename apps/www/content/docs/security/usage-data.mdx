@@ -14,7 +14,7 @@ At runtime, Pliant's packages (`@pliantui/react` and `@pliantui/server`) make ne
 | An ask from the ask panel  | Your ask route, then your model provider | The ask and a description of the part pointed at. [Never rows](/docs/security/ai) |
 | Saving and loading changes | Your storage route, with `serverAdapter` | The user's overlays                                                               |
 
-In server mode, your own code fetches rows from your rows route, sending the table's sort, filters and page. The `pliantui` CLI is separate: `init` installs components from the registry at `pliantui.dev/r`, as the shadcn CLI does.
+In server mode, your own code fetches rows from your rows route, sending the table's sort, filters and page. The `pliantui` CLI is separate: `init` adds the `@pliant` registry on `pliantui.dev` to `components.json`, and the shadcn CLI downloads components from it, as it does from any registry.
 
 Your model provider handles asks under its own data policy, so check whether it retains prompts.
 

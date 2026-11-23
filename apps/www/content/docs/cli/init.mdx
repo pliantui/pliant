@@ -1,6 +1,6 @@
 ---
 title: init
-description: Installs the package and the region component, then shows how to wrap your first page.
+description: Installs the package, sets up the @pliant registry and adds the region component, then shows how to wrap your first page.
 ---
 
 Use the `init` command to add Pliant to a Next.js App Router project that already uses shadcn/ui.
@@ -37,10 +37,22 @@ npx pliantui init
 npm install @pliantui/react zod
 ```
 
+<Step>Add the Pliant registry</Step>
+
+Add `@pliant` to the `registries` in `components.json`, so the shadcn CLI can find Pliant's components by name:
+
+```json title="components.json"
+{
+  "registries": {
+    "@pliant": "https://pliantui.dev/r/{name}.json"
+  }
+}
+```
+
 <Step>Add the region component</Step>
 
 ```bash
-npx shadcn@latest add https://pliantui.dev/r/pliant-region.json
+npx shadcn@latest add @pliant/pliant-region
 ```
 
 </Steps>
@@ -48,9 +60,9 @@ npx shadcn@latest add https://pliantui.dev/r/pliant-region.json
   </TabsContent>
 </CodeTabs>
 
-The command installs the `@pliantui/react` package with your package manager, found from your lockfile or, without one, the `packageManager` field in `package.json` (pnpm, npm, yarn or bun), and adds the `pliant-region` component to your project with `shadcn add`. It asks before each step and shows the command it will run. If you answer no, it prints that command so you can run it yourself.
+The command installs the `@pliantui/react` package with your package manager, found from your lockfile or, without one, the `packageManager` field in `package.json` (pnpm, npm, yarn or bun), adds the `@pliant` registry to `components.json`, and adds the `pliant-region` component to your project with `shadcn add @pliant/pliant-region`. It asks before each step and shows what it will do. If you answer no, it prints the command or the `components.json` entry so you can add it yourself.
 
-When it's done, your project has the package in `package.json` and the component in your components folder:
+When it's done, your project has the package in `package.json`, the registry in `components.json` and the component in your components folder:
 
 <FileTree>
   <Folder name="components">
@@ -58,8 +70,11 @@ When it's done, your project has the package in `package.json` and the component
       <File name="pliant-region.tsx" />
     </Folder>
   </Folder>
+  <File name="components.json" />
   <File name="package.json" />
 </FileTree>
+
+From then on, add any other Pliant component by name, such as `npx shadcn@latest add @pliant/pliant-data-table`. The [registry page](/docs/registry) lists them all.
 
 ```txt
 Usage: pliantui init [options]
@@ -92,6 +107,6 @@ The `surface` is the page's route pattern, such as `/orders/[id]`. `PliantRoot` 
 
 `PliantPrePaint` keeps a customized page from flashing its original layout before Pliant applies the user's changes.
 
-Run `init` again at any time. It skips what is already installed, and says so when there's nothing left to do.
+Run `init` again at any time. It skips what is already installed, and says so when there's nothing left to do. If `components.json` already has an `@pliant` entry, `init` keeps it.
 
-Pass `--yes` to skip the questions, for example in a script. Pass `--registry` to install the components from your own registry; the component files are read from `<url>/pliant-region.json`. The URL must use `http` or `https` and can't contain a query string, a fragment or credentials.
+Pass `--yes` to skip the questions, for example in a script. Pass `--registry` to install the components from your own registry: `init` sets `@pliant` in `components.json` to `<url>/{name}.json`, replacing an entry that points elsewhere. The URL must use `http` or `https` and can't contain a query string, a fragment or credentials.

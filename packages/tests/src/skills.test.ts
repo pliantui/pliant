@@ -60,7 +60,8 @@ describe("the skill check", () => {
         "",
         "See [the CLI](https://pliantui.dev/docs/cli) and",
         "[addresses](https://pliantui.dev/docs/concepts/surfaces#addresses), and add",
-        "`pliant-data-table` with https://pliantui.dev/r/pliant-data-table.json.",
+        "`pliant-data-table` with `npx shadcn@latest add @pliant/pliant-data-table`,",
+        "after adding https://pliantui.dev/r/{name}.json to components.json.",
       ].join("\n")
     )
 
@@ -153,6 +154,16 @@ describe("the skill check", () => {
     expect(checkSkill(text, "sample", context)).toEqual([
       "pliant-bogus is not a registry item.",
       "https://pliantui.dev/r/pliant-bogus.json is not a registry item.",
+    ])
+  })
+
+  it("rejects an @pliant item that doesn't exist", () => {
+    const text = skill(
+      "```bash\nnpx shadcn@latest add @pliant/pliant-bogus --yes\n```"
+    )
+
+    expect(checkSkill(text, "sample", context)).toEqual([
+      "@pliant/pliant-bogus is not a registry item.",
     ])
   })
 

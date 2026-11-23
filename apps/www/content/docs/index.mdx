@@ -3,7 +3,7 @@ title: Introduction
 description: What Pliant is, what it adds to a shadcn app, and where to start reading.
 ---
 
-Pliant lets the people who use your shadcn app change how its pages are laid out for themselves. On an orders page, one person can put the overdue count first and hide the revenue card, while a colleague sorts the table by value and drops the notes column. Each person's version is saved for them, and your code doesn't change.
+Pliant lets the people who use your shadcn app reshape its pages for themselves. A user points at part of a page, such as the orders table, and asks for what they need, such as only the overdue orders, or the overdue card first. The page changes in place, and once they keep the change it's saved for them. Your code doesn't change, and a colleague on the same page still sees their own version.
 
 Here's a row of three metric cards whose arrangement Pliant saves for each user:
 
@@ -27,36 +27,39 @@ The page looks the same as it did before you added Pliant. The difference is tha
   [changelog](/docs/changelog) lists what changed.
 </Callout>
 
-## What it adds to your app
+## Asking for a change
 
-Most apps grow these features one at a time: a sort that's remembered per user, a column picker, a layout reset. With Pliant, each of them is a change saved for the user in the same way, so you don't build and store them separately.
+With the optional [ask panel](/docs/ai), users don't hunt for a setting. They turn on point mode, click the part of the page they mean, and type what they want. The change shows right there as a preview, and nothing is saved until they choose **Lock in**.
 
-- Tables remember each user's sort and visible columns. A **Reset** button in the toolbar brings back your defaults.
-- Groups of cards and sections can be reordered, hidden and laid out as a row or a grid.
-- Form fields can be reordered, optional ones hidden, and each user can keep their own defaults. Required fields always stay.
-- With the optional ask panel, a user can point at the table and type "only overdue orders". They see the result as a preview and choose whether to keep it.
+The asks worth having are the ones you'd never build a control for, because each user wants something different. One person adds a column with each order's share of total value. Another turns overdue orders red, groups the table by region with a total for each, or adds a chart of value by region under the metric cards. A support agent makes the ticket form start at their usual priority. [What users can do](/docs/what-users-can-do) lists every change.
 
 <Callout
   variant="warning"
   title="Not fully implemented yet"
   data-unfinished="not-implemented"
 >
-  Changing cards and form fields from the page isn't in Pliant yet. Today, cards
-  change through the ask panel, and forms apply changes from team or
-  organization defaults.
+  [The ask panel](/docs/ai) can't make these changes yet, and charts aren't in
+  Pliant yet. Calculated columns, highlights, grouping and form defaults work
+  from controls you add or from team defaults.
 </Callout>
 
-[What users can do](/docs/what-users-can-do) lists every change.
+## Built on your shadcn components
+
+Pliant's components, such as `pliant-region` and `pliant-data-table`, are copied into your project with the shadcn CLI, so their source is yours to read and edit like any shadcn component. They render your own `components/ui` button, table and menu, which means a reshaped page still looks like the rest of your app.
+
+Per-user preferences usually arrive one feature at a time, each with its own storage, starting with a remembered sort. With Pliant, every one of them is a change saved for the user in the same way.
+
+## How changes stay safe
+
+The AI never writes code and never sees your rows. When a user asks, the model gets a description of the part they pointed at, such as its columns, their labels and what may change. It answers with a list of [operations](/docs/concepts/operations) from a fixed catalog, such as "filter to overdue" or "move this card first". Pliant checks every operation against the catalog and the component's rules on your server, and again in the browser, before anything shows. Changes users make by hand use the same catalog, and the browser checks each operation before it applies. [What the AI sees and never sees](/docs/ai/what-the-ai-sees) has the details.
+
+AI is optional, and Pliant sends no analytics of its own.
 
 ## What Pliant doesn't do
 
-Pliant doesn't replace your components. You keep your `components/ui`, and Pliant's own components, which you copy in with the shadcn CLI, render your button, table and menu.
+Users can't change your data or what a page does. Every change is to how they see what you built: its order, layout, columns, highlights and views of data the page already shows.
 
-Users can't add content of their own or change what a page does. They can rearrange, hide, sort and filter what you built, and nothing else.
-
-Hiding a column doesn't protect it. The data still reaches the browser, so access control stays on your server, where it is today.
-
-AI is optional. When you use it, the AI can only propose operations from the same fixed list that users' own changes use, and every change is checked before it applies. It never writes code and never sees your rows. Pliant sends no analytics of its own.
+Required form fields always stay. Hiding a column doesn't protect it, because the data still reaches the browser, so access control stays on your server, where it is today.
 
 ## Where to go next
 

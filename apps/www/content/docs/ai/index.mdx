@@ -12,6 +12,9 @@ With the ask panel, a user points at part of the page and types what they want, 
 >
   Regions, forms and sidebar links don't have controls of their own yet, so
   today they change only through the ask panel. Tables can be changed by hand.
+  The panel offers the model only sorting, filtering, hiding, showing, moving,
+  pinning, column widths and layouts, so it can't yet add calculated columns,
+  highlights, groupings, charts or defaults.
 </Callout>
 
 <Steps>
@@ -50,7 +53,7 @@ Each **target** is a part of the page users can ask about: its id, a label, what
 <Step>Add the panel and point mode</Step>
 
 ```bash
-npx shadcn@latest add https://pliantui.dev/r/pliant-ask-panel.json https://pliantui.dev/r/pliant-point-mode.json
+npx shadcn@latest add @pliant/pliant-ask-panel @pliant/pliant-point-mode
 ```
 
 Render them inside `PliantRoot`, such as in the page header:

@@ -16,7 +16,7 @@ description: The fields of a form, which your users can reorder, hide and fold i
 <TabsContent value="cli">
 
 ```bash
-npx shadcn@latest add https://pliantui.dev/r/pliant-form.json
+npx shadcn@latest add @pliant/pliant-form
 ```
 
 </TabsContent>
@@ -43,12 +43,24 @@ See [forms](/docs/forms) for React Hook Form and TanStack Form.
 
 ## What users can ask
 
-These are the asks the preview plays:
+Users point at the form and ask for the way they fill it in:
 
-| Ask                | What changes                             |
-| ------------------ | ---------------------------------------- |
-| put priority first | The Priority field moves to the top.     |
-| hide the CC field  | The CC field is hidden. Its value stays. |
+| Ask                                | What changes                                                         |
+| ---------------------------------- | -------------------------------------------------------------------- |
+| always set priority to high for me | Priority starts at High on every new ticket this user opens.         |
+| CC sam@example.com by default      | The CC field starts filled in. The address must pass its validation. |
+| put priority first                 | The Priority field moves to the top.                                 |
+
+The preview above replays "put priority first" and "hide the CC field".
+
+<Callout
+  variant="warning"
+  title="Not fully implemented yet"
+  data-unfinished="not-implemented"
+>
+  [The ask panel](/docs/ai) can't set users' own defaults yet. Forms apply
+  defaults that come from team or organization defaults.
+</Callout>
 
 ## Rules and guardrails
 
