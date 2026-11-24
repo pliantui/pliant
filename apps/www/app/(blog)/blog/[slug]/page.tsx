@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeftIcon } from "lucide-react"
 
 import { ComingSoon } from "@/components/coming-soon"
+import { LaunchHeaderArt } from "@/components/launch-header-art"
 import { UnfinishedStrip } from "@/components/unfinished-strip"
 import { formatPostDate, getPost, posts } from "@/lib/blog"
 
@@ -33,6 +34,7 @@ export default async function BlogPostPage(props: PageProps<"/blog/[slug]">) {
   return (
     <div className="container-wrapper flex-1">
       {post.unfinished && <UnfinishedStrip />}
+      {post.launchArt && <LaunchHeaderArt />}
       <article className="container flex max-w-2xl flex-col gap-4 py-12 md:py-16">
         <Link
           href="/blog"

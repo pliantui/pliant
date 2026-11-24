@@ -231,6 +231,16 @@ for (const colorScheme of ["light", "dark"] as const) {
       expect(await violations(page, colorScheme)).toEqual([])
     })
 
+    test("the launch post has no accessibility violations", async ({
+      page,
+    }) => {
+      await page.goto("/blog/introducing-pliant")
+      await expect(
+        page.getByRole("img", { name: /^The Pliant tangram/ })
+      ).toBeVisible()
+      expect(await violations(page, colorScheme)).toEqual([])
+    })
+
     test("the 404 page has no accessibility violations", async ({ page }) => {
       await page.goto("/no-such-page")
       await expect(
