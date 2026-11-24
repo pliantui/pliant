@@ -128,14 +128,16 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     const box = await art(page).boundingBox()
     if (!box) throw new Error("The art has no layout box")
 
-    // The art's corner and the page just outside it look the same.
+    // The artwork's empty margin, black in the source image, and the page
+    // just outside the art look the same.
     const size = { width: 4, height: 4 }
-    const corner = await page.screenshot({
-      clip: { x: box.x + 2, y: box.y + 2, ...size },
+    const y = box.y + box.height * 0.05
+    const margin = await page.screenshot({
+      clip: { x: box.x + box.width * 0.05, y, ...size },
     })
     const outside = await page.screenshot({
-      clip: { x: box.x - 20, y: box.y + 2, ...size },
+      clip: { x: box.x - 20, y, ...size },
     })
-    expect(corner.equals(outside)).toBe(true)
+    expect(margin.equals(outside)).toBe(true)
   })
 }
