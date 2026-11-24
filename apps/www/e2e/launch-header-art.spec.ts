@@ -10,6 +10,7 @@ declare global {
   interface Window {
     webglDraws?: number
     webglRequested?: boolean
+    slowWebglRefused?: boolean
   }
 }
 
@@ -39,6 +40,31 @@ function disableWebgl() {
       }
       return typeof getContext === "function"
         ? (Reflect.apply(getContext, this, [type, ...args]) as unknown)
+        : null
+    },
+  })
+}
+
+// Gives only slow, software-rendered WebGL, as on a device without a usable
+// GPU: a context that must not run slowly is refused.
+function slowWebgl() {
+  const prototype = HTMLCanvasElement.prototype
+  const getContext: unknown = Reflect.get(prototype, "getContext")
+  Object.defineProperty(prototype, "getContext", {
+    value(
+      this: HTMLCanvasElement,
+      type: string,
+      attributes?: WebGLContextAttributes
+    ): unknown {
+      if (
+        type.startsWith("webgl") &&
+        attributes?.failIfMajorPerformanceCaveat
+      ) {
+        window.slowWebglRefused = true
+        return null
+      }
+      return typeof getContext === "function"
+        ? (Reflect.apply(getContext, this, [type, attributes]) as unknown)
         : null
     },
   })
@@ -89,6 +115,22 @@ test("shows the still image without WebGL", async ({ page, errors }) => {
 
   await expect
     .poll(() => page.evaluate(() => window.webglRequested ?? false))
+    .toBe(true)
+  await expect(art(page)).toHaveCount(1)
+  await expect(art(page)).toBeVisible()
+  expect(await art(page).evaluate((element) => element.tagName)).toBe("IMG")
+  expect(errors).toEqual([])
+})
+
+test("shows the still image when WebGL would be slow", async ({
+  page,
+  errors,
+}) => {
+  await page.addInitScript(slowWebgl)
+  await page.goto(post)
+
+  await expect
+    .poll(() => page.evaluate(() => window.slowWebglRefused ?? false))
     .toBe(true)
   await expect(art(page)).toHaveCount(1)
   await expect(art(page)).toBeVisible()

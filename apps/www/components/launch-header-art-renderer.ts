@@ -326,9 +326,12 @@ export function startLaunchHeaderArt({
   onFirstFrame,
   onFailure,
 }: LaunchHeaderArtOptions): (() => void) | null {
+  // Refuses software-rendered WebGL, which is too slow for the animation; the
+  // still image stays instead.
   const gl = canvas.getContext("webgl", {
     premultipliedAlpha: true,
     antialias: true,
+    failIfMajorPerformanceCaveat: true,
   })
   if (!gl) return null
 
