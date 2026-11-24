@@ -51,10 +51,13 @@ export function LaunchHeaderArt() {
   const stillRef = React.useRef<HTMLImageElement>(null)
   // The animation uses the image the browser already chose for the still,
   // so the post downloads only one.
-  const getImageSrc = React.useCallback(
-    () => stillRef.current?.currentSrc ?? "/pliant-hero-1254.webp",
-    []
-  )
+  const getImageSrc = React.useCallback(() => {
+    // currentSrc stays empty until the browser has picked a source.
+    const picked = stillRef.current?.currentSrc
+    return picked === undefined || picked === ""
+      ? "/pliant-hero-1254.webp"
+      : picked
+  }, [])
   const onReady = React.useCallback(() => {
     setState("ready")
   }, [])
