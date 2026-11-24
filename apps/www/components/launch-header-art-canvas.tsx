@@ -6,10 +6,12 @@ import { startLaunchHeaderArt } from "@/components/launch-header-art-renderer"
 
 export function LaunchHeaderArtCanvas({
   label,
+  getImageSrc,
   onReady,
   onFailure,
 }: {
   label: string
+  getImageSrc: () => string
   onReady: () => void
   onFailure: () => void
 }) {
@@ -20,15 +22,10 @@ export function LaunchHeaderArtCanvas({
     const canvas = canvasRef.current
     const container = canvas?.parentElement
     if (!canvas || !container) return
-    // A fine texture only where the screen can show it.
-    const imageSrc =
-      window.devicePixelRatio > 1.5
-        ? "/pliant-hero-2508.webp"
-        : "/pliant-hero-1254.webp"
     const stop = startLaunchHeaderArt({
       canvas,
       container,
-      imageSrc,
+      imageSrc: getImageSrc(),
       onFirstFrame: () => {
         setReady(true)
         onReady()
@@ -40,7 +37,7 @@ export function LaunchHeaderArtCanvas({
       return
     }
     return stop
-  }, [onReady, onFailure])
+  }, [getImageSrc, onReady, onFailure])
 
   return (
     <canvas

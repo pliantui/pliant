@@ -455,7 +455,8 @@ export function startLaunchHeaderArt({
 
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame)
-    const dt = Math.min((now - last) / 1000, 0.05)
+    // A frame's timestamp can precede the moment the loop resumed.
+    const dt = Math.max(0, Math.min((now - last) / 1000, 0.05))
     last = now
     time += dt * SETTINGS.speed
     smooth[0] += (pointer[0] - smooth[0]) * 0.05

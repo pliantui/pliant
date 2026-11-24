@@ -41,6 +41,23 @@ export function LaunchHeaderArt() {
   const [state, setState] = React.useState<"loading" | "ready" | "failed">(
     "loading"
   )
+  // When motion is allowed again, the still image stays until the new
+  // animation has drawn its first frame.
+  const [motionWas, setMotionWas] = React.useState(motionAllowed)
+  if (motionWas !== motionAllowed) {
+    setMotionWas(motionAllowed)
+    setState("loading")
+  }
+  const stillRef = React.useRef<HTMLImageElement>(null)
+  // The animation uses the image the browser already chose for the still,
+  // so the post downloads only one.
+  const getImageSrc = React.useCallback(() => {
+    // currentSrc stays empty until the browser has picked a source.
+    const picked = stillRef.current?.currentSrc
+    return picked === undefined || picked === ""
+      ? "/pliant-hero-1254.webp"
+      : picked
+  }, [])
   const onReady = React.useCallback(() => {
     setState("ready")
   }, [])
@@ -56,6 +73,7 @@ export function LaunchHeaderArt() {
           <source media={reducedMotion} srcSet="/pliant-hero-1254.webp" />
           {/* Sized like the animation, which draws the art at 98% of the square. */}
           <img
+            ref={stillRef}
             src="/pliant-hero-1254.webp"
             srcSet="/pliant-hero-1254.webp 1x, /pliant-hero-2508.webp 2x"
             alt={label}
@@ -69,6 +87,7 @@ export function LaunchHeaderArt() {
       {animated && (
         <LaunchHeaderArtCanvas
           label={label}
+          getImageSrc={getImageSrc}
           onReady={onReady}
           onFailure={onFailure}
         />
