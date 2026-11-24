@@ -54,9 +54,11 @@ test("animates the art once its first frame is drawn", async ({
   await page.goto(post)
 
   await expect.poll(() => draws(page)).toBeGreaterThan(0)
+  await expect
+    .poll(() => art(page).evaluate((element) => element.tagName))
+    .toBe("CANVAS")
   await expect(art(page)).toHaveCount(1)
   await expect(art(page)).toBeVisible()
-  expect(await art(page).evaluate((element) => element.tagName)).toBe("CANVAS")
 
   const before = await art(page).screenshot()
   await page.waitForTimeout(500)
