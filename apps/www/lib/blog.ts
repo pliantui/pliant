@@ -6,6 +6,8 @@ export interface BlogPost {
   summary: string
   // A post whose full text isn't published yet.
   unfinished?: boolean
+  // Shows the animated tangram above the post.
+  launchArt?: boolean
 }
 
 export const posts: readonly BlogPost[] = [
@@ -16,6 +18,7 @@ export const posts: readonly BlogPost[] = [
     summary:
       "Pliant lets the people who use your shadcn app point at any part of it and ask for a change, within the rules you set.",
     unfinished: true,
+    launchArt: true,
   },
 ]
 
