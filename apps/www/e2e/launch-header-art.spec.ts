@@ -11,6 +11,7 @@ declare global {
     webglDraws?: number
     webglRequested?: boolean
     slowWebglRefused?: boolean
+    framesWithoutArt?: number
   }
 }
 
@@ -183,3 +184,52 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     expect(margin.equals(outside)).toBe(true)
   })
 }
+
+test.describe("on a 1.5× screen", () => {
+  test.use({ deviceScaleFactor: 1.5 })
+
+  test("downloads the artwork once", async ({ page }) => {
+    const images: string[] = []
+    page.on("request", (request) => {
+      const { pathname } = new URL(request.url())
+      if (pathname.startsWith("/pliant-hero-")) images.push(pathname)
+    })
+    await page.goto(post)
+    await expect
+      .poll(() => art(page).evaluate((element) => element.tagName))
+      .toBe("CANVAS")
+    await page.waitForLoadState("networkidle")
+
+    expect(new Set(images).size).toBe(1)
+  })
+})
+
+test("keeps the still image until the animation resumes", async ({ page }) => {
+  await page.goto(post)
+  await expect
+    .poll(() => art(page).evaluate((element) => element.tagName))
+    .toBe("CANVAS")
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  await expect
+    .poll(() => art(page).evaluate((element) => element.tagName))
+    .toBe("IMG")
+
+  // Records every frame in which no artwork is shown.
+  await page.evaluate(() => {
+    window.framesWithoutArt = 0
+    const check = () => {
+      const shown = document.querySelector(
+        'img[alt^="The Pliant tangram"], canvas[aria-label^="The Pliant tangram"]:not([aria-hidden="true"])'
+      )
+      if (!shown) window.framesWithoutArt = (window.framesWithoutArt ?? 0) + 1
+      requestAnimationFrame(check)
+    }
+    requestAnimationFrame(check)
+  })
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  await expect
+    .poll(() => art(page).evaluate((element) => element.tagName))
+    .toBe("CANVAS")
+
+  expect(await page.evaluate(() => window.framesWithoutArt)).toBe(0)
+})
