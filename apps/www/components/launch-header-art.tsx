@@ -50,31 +50,29 @@ export function LaunchHeaderArt() {
   const animated = motionAllowed && state !== "failed"
 
   return (
-    <div className="bg-black">
-      <div className="relative mx-auto aspect-square w-full max-w-md">
-        {!(animated && state === "ready") && (
-          <picture>
-            <source media={reducedMotion} srcSet="/pliant-hero-1254.webp" />
-            {/* Sized like the animation, which draws the art at 98% of the square. */}
-            <img
-              src="/pliant-hero-1254.webp"
-              srcSet="/pliant-hero-1254.webp 1x, /pliant-hero-2508.webp 2x"
-              alt={label}
-              width={1254}
-              height={1254}
-              fetchPriority="high"
-              className="absolute top-[1%] left-[1%] block size-[98%]"
-            />
-          </picture>
-        )}
-        {animated && (
-          <LaunchHeaderArtCanvas
-            label={label}
-            onReady={onReady}
-            onFailure={onFailure}
+    <div className="relative mx-auto aspect-square w-full max-w-md">
+      {!(animated && state === "ready") && (
+        <picture>
+          <source media={reducedMotion} srcSet="/pliant-hero-1254.webp" />
+          {/* Sized like the animation, which draws the art at 98% of the square. */}
+          <img
+            src="/pliant-hero-1254.webp"
+            srcSet="/pliant-hero-1254.webp 1x, /pliant-hero-2508.webp 2x"
+            alt={label}
+            width={1254}
+            height={1254}
+            fetchPriority="high"
+            className="absolute top-[1%] left-[1%] block size-[98%]"
           />
-        )}
-      </div>
+        </picture>
+      )}
+      {animated && (
+        <LaunchHeaderArtCanvas
+          label={label}
+          onReady={onReady}
+          onFailure={onFailure}
+        />
+      )}
     </div>
   )
 }

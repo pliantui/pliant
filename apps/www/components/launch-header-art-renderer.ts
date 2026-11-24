@@ -90,7 +90,8 @@ vec3 fromOklab(vec3 l){
   lms = lms * lms * lms;
   return mat3(4.0767416621, -1.2684380046, -0.0041960863, -3.3077115913, 2.6097574011, -0.7034186147, 0.2309699292, -0.3413193965, 1.7076147010) * lms;
 }
-vec3 shade(vec2 uv){
+// Returns the straight (not premultiplied) colour and its alpha.
+vec4 shade(vec2 uv){
   // each piece is its own layer: it breathes on its own rhythm and drifts slightly outward as it breathes,
   // so the gaps between pieces gently open and close. Find which piece (if any) is drawn at this pixel.
   float k = 0.0; float breath = 0.0; vec2 uvs = uv;
@@ -106,7 +107,9 @@ vec3 shade(vec2 uv){
   float piece = step(0.5, k);
   float ph = k * 2.39996;
   float sp = 0.8 + 0.35 * fract(k * 0.618);
-  vec3 src = piece > 0.5 ? texture2D(uImg, uvs).rgb : vec3(0.0);
+  // the texture is premultiplied, so filtering doesn't darken soft edges; the effects work on the straight colour
+  vec4 texel = piece > 0.5 ? texture2D(uImg, uvs) : vec4(0.0);
+  vec3 src = texel.a > 0.0 ? texel.rgb / texel.a : vec3(0.0);
   vec3 lab = oklab(toLin(src));
   // lazy breathing: a slow rise and fall in brightness and colour depth, per piece
   lab.x *= 1.0 + 0.08 * uBreath * breath * piece;
@@ -121,12 +124,13 @@ vec3 shade(vec2 uv){
   float pos = mod(uTime * 0.09, 1.8) - 0.4 + uMouse.x * 0.12 + uMouse.y * 0.08;
   float band = exp(-pow((dot(uv, dir) - pos) / 0.06, 2.0));
   col = 1.0 - (1.0 - col) * (1.0 - vec3(0.42, 0.40, 0.44) * band * smoothstep(0.1, 0.8, lab.x) * uSweep * piece);
-  return toSrgb(col);
+  return vec4(toSrgb(col), texel.a);
 }
 void main(){
   vec2 uv = (vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) - uCorner) / uSide;
   if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) { gl_FragColor = vec4(0.0); return; }
-  vec3 outc = shade(uv);
+  vec4 base = shade(uv);
+  vec3 outc = base.rgb * base.a; float outa = base.a;
   // pixelation, per piece: fine pixels grow across a piece from its seed
   float pa = 0.0, ps = uPeak;
   vec2 px0 = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) - uCorner;
@@ -140,9 +144,12 @@ void main(){
     vec2 px = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) - uCorner;
     vec2 cellCentre = (floor(px / ps) + 0.5) * ps / uSide;
     float mixAmt = smoothstep(0.0, 1.0, pa);   // fixed fine pixels, faded in and out: no jumping grid
-    outc = mix(outc, shade(cellCentre), mixAmt);
+    vec4 cellShade = shade(cellCentre);
+    outc = mix(outc, cellShade.rgb * cellShade.a, mixAmt);
+    outa = mix(outa, cellShade.a, mixAmt);
   }
-  gl_FragColor = vec4(clamp(outc, 0.0, 1.0), 1.0);
+  vec3 straight = outa > 0.0 ? outc / outa : vec3(0.0);
+  gl_FragColor = vec4(clamp(straight, 0.0, 1.0) * outa, outa);
 }`
 
 const VERTEX_SHADER =
@@ -320,7 +327,7 @@ export function startLaunchHeaderArt({
   onFailure,
 }: LaunchHeaderArtOptions): (() => void) | null {
   const gl = canvas.getContext("webgl", {
-    premultipliedAlpha: false,
+    premultipliedAlpha: true,
     antialias: true,
   })
   if (!gl) return null
@@ -542,6 +549,7 @@ export function startLaunchHeaderArt({
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img)
     gl.uniform1i(U.uImg, 0)
     gl.uniform1i(U.uIds, 1)
